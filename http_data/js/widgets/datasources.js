@@ -402,8 +402,27 @@ export function openSources() {
                 updateSourceCard(card, card.rec, win);
             else if (card.rec)
                 updateInterfaceCard(card, card.rec);
+            fitChannels();
         },
     };
+
+    // Widen the window so the Wi-Fi channel plots of open cards fit without
+    // scrolling; each plot only once per opening, so a window made narrower by
+    // hand stays that way
+    const fitted = new WeakSet();
+    function fitChannels() {
+        requestAnimationFrame(() => {
+            if (closed)
+                return;
+            const shown = [...body.querySelectorAll('.wc-scroll')].filter((s) => s.clientWidth > 0 && !fitted.has(s));
+            if (!shown.length)
+                return;
+            shown.forEach((s) => fitted.add(s));
+            const over = Math.max(...shown.map((s) => s.scrollWidth - s.clientWidth));
+            if (over > 0)
+                d.widen(d.node.offsetWidth + over + 4);
+        });
+    }
 
     function place(list, cards, order) {
         let at = list.firstElementChild;
@@ -439,6 +458,7 @@ export function openSources() {
         const order = [...list].sort((a, b) => String(a[`${ds}.name`]).localeCompare(String(b[`${ds}.name`]), undefined, { numeric: true }))
             .map((s) => s[`${ds}.uuid`]);
         place(sourceList, sourceCards, order);
+        fitChannels();
         if (!list.length)
             sourceList.replaceChildren(el('p', { class: 'muted' }, 'Kismet has no data sources.  Enable one of the interfaces below, or add one by its definition.'));
         else

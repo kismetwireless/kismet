@@ -172,6 +172,17 @@ export function dialog({ title, body, modal = true, closable = true, className =
         body: content,
         close,
         setTitle: (t) => titleEl.replaceChildren(t),
+        // Widen a panel to `width` (no wider than the window), moving it left
+        // if its right edge would go off screen
+        widen(width) {
+            if (modal)
+                return;
+            const p = currentPosition();
+            const w = Math.min(width, window.innerWidth - 16);
+            if (w <= p.width)
+                return;
+            place({ ...p, width: w, left: Math.max(8, Math.min(p.left, window.innerWidth - 8 - w)) });
+        },
     };
 }
 
