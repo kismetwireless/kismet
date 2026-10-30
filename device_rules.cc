@@ -1130,7 +1130,8 @@ void device_rules::install_set(std::shared_ptr<active_set> as) {
 
         auto vi = views.find(rd.name);
         if (vi == views.end()) {
-            auto desc = rd.view_desc.empty() ? fmt::format("Devices matching rule {}", rd.name) : rd.view_desc;
+            auto desc = !rd.view_desc.empty() ? rd.view_desc :
+                !rd.description.empty() ? rd.description : fmt::format("Devices matching rule {}", rd.name);
             auto v = std::make_shared<device_tracker_view>(fmt::format("rule-{}", rd.name), desc,
                     nullptr, nullptr);
             devicetracker->add_view(v);
@@ -1497,6 +1498,8 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
                 tracker_element_factory<tracker_element_string>(), "rule name");
         auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.source",
                 tracker_element_factory<tracker_element_string>(), "rule text");
+        auto description = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.description",
+                tracker_element_factory<tracker_element_string>(), "what the rule finds");
         auto tags = entrytracker->register_and_get_field_as<tracker_element_vector_string>("kismet.devicerules.rule.tags",
                 tracker_element_factory<tracker_element_vector_string>(), "tags set by the rule");
         auto color = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.color",
@@ -1512,6 +1515,7 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
 
         name->set(rd.name);
         source->set(rd.source);
+        description->set(rd.description);
         for (const auto& t : rd.tags)
             tags->push_back(t);
         color->set(rd.color);
@@ -1524,6 +1528,7 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
 
         r->insert(name);
         r->insert(source);
+        r->insert(description);
         r->insert(tags);
         r->insert(color);
         r->insert(view);
