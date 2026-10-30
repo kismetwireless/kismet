@@ -3,8 +3,8 @@
 # These rules tag devices the web UI highlights by default, by phy, and collect them
 # in device views.  They're read before kismet_device_rules.txt, so a rule there with
 # the same name replaces one here; leave a rule out with device_rule_disable=<name> in
-# kismet_site.conf.  The row colors for the tags are set in the web UI, under
-# Settings > Rule tags.
+# kismet_site.conf.  A rule's color is its tag's default row color in the web UI,
+# which can be changed under Settings > Appearance > Device Highlights.
 #
 # The rules language is described in kismet_device_rules.txt.
 

@@ -64,13 +64,7 @@ export function register(kismet) {
         color: () => 'hsl(185 65% 50%)',
     });
 
-    ui.rowHighlights.add({
-        id: 'btle_all', name: 'BTLE device', priority: 102,
-        description: 'Every device seen by a BTLE radio',
-        defaultColor: '#99e9f2',
-        fields: [`${base}.phyname`],
-        match: isBtle,
-    });
+    ui.phyColors.add({ id: 'BTLE', title: 'BTLE', color: '#99e9f2' });
 
     ui.deviceDetails.add({
         id: 'btle', title: 'Bluetooth LE', priority: 5,

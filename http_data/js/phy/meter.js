@@ -25,13 +25,7 @@ export function register(kismet) {
         color: () => 'hsl(160 60% 42%)',
     });
 
-    ui.rowHighlights.add({
-        id: 'meter_all', name: 'RF meter device', priority: 100,
-        description: 'Power, water, and gas meters',
-        defaultColor: '#b3ffe6', defaultEnabled: true,
-        fields: [`${base}.phyname`],
-        match: isMeter,
-    });
+    ui.phyColors.add({ id: 'METER', title: 'RF meters', color: '#b3ffe6', enabled: true });
 
     const hex = (v) => `0x${v.toString(16)}`;
 

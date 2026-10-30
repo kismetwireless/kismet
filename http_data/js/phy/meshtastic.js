@@ -44,13 +44,7 @@ export function register(kismet) {
         color: () => 'var(--accent)',
     });
 
-    ui.rowHighlights.add({
-        id: 'meshtastic_all', name: 'Meshtastic node', priority: 100,
-        description: 'Meshtastic LoRa mesh nodes',
-        defaultColor: '#c8f7d2', defaultEnabled: true,
-        fields: [`${base}.phyname`],
-        match: isMeshtastic,
-    });
+    ui.phyColors.add({ id: 'Meshtastic', title: 'Meshtastic', color: '#c8f7d2', enabled: true });
 
     const percent = (v) => `${v.toFixed(1)}%`;
 

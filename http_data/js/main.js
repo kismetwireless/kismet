@@ -28,9 +28,10 @@ import * as baseOverview from './base/overview.js';
 import * as baseSources from './base/sources.js';
 import * as baseInsights from './base/insights.js';
 import * as baseRuleTags from './base/ruletags.js';
+import * as baseHighlights from './base/highlights.js';
 import * as baseCensor from './base/censor.js';
 
-const builtins = [baseColumns, baseRibbon, baseDetails, baseMenu, baseSettings, baseInstall, baseTables, baseMap, baseOverview, baseSources, baseInsights, baseRuleTags, baseCensor];
+const builtins = [baseColumns, baseRibbon, baseDetails, baseMenu, baseSettings, baseInstall, baseTables, baseMap, baseOverview, baseSources, baseInsights, baseRuleTags, baseHighlights, baseCensor];
 
 function showConnection(up) {
     const status = document.getElementById('connection');

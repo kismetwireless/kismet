@@ -89,7 +89,8 @@ export const dashboardCards = createRegistry('dashboardCards', {
 });
 
 // Sections of the settings dialog.
-//   id, title, priority, create(el) -> optional cleanup function
+//   id, title, priority, create(el) -> optional cleanup function,
+//   parent: optional id of the section this one is listed under
 // Settings take effect as they change; there is no save button.
 export const settingsPanes = createRegistry('settingsPanes', {
     required: ['title', 'create'],

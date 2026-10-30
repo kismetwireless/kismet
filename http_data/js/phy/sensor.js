@@ -112,13 +112,7 @@ export function register(kismet) {
         color: () => 'hsl(330 70% 60%)',
     });
 
-    ui.rowHighlights.add({
-        id: 'rfsensor_all', name: 'Sensor device', priority: 100,
-        description: 'RF sensors (weather, temperature, tire pressure, and more)',
-        defaultColor: '#ffb3cc', defaultEnabled: true,
-        fields: [`${base}.phyname`],
-        match: isSensor,
-    });
+    ui.phyColors.add({ id: 'RFSENSOR', title: 'RF sensors', color: '#ffb3cc', enabled: true });
 
     const c = `${s}/${s}.common`;
     const therm = `${s}/${s}.thermometer`;

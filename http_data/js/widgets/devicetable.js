@@ -10,6 +10,7 @@ import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields }
 import { deviceViews } from '../registry/devices.js';
 import { openDevice } from './detailpanel.js';
 import { createDataTable } from './datatable.js';
+import { openSettings } from './settingsdialog.js';
 
 export function createDeviceTable(container) {
     let view = settings.get('devicelist.view', 'all');
@@ -33,27 +34,28 @@ export function createDeviceTable(container) {
         }
 
         const groups = new Map();
-        const addOption = (group, id, title) => {
+        const addOption = (group, id, title, count) => {
             if (!groups.has(group))
                 groups.set(group, []);
-            groups.get(group).push({ id, title });
+            groups.get(group).push({ id, title, count });
         };
 
         for (const v of serverViews) {
             const id = v['kismet.devices.view.id'];
             if (v['kismet.devices.view.indexed'] === false)
                 continue;
+            const count = v['kismet.devices.view.size'];
             const custom = deviceViews.get(id);
             if (custom)
-                addOption(custom.group, id, custom.title);
+                addOption(custom.group, id, custom.title, count);
             else if (id === 'all')
-                addOption('', id, 'All devices');
+                addOption('', id, 'All devices', count);
             else if (id.startsWith('phy-'))
-                addOption('Phy types', id, v['kismet.devices.view.description'] || id.slice(4));
+                addOption('Phy types', id, v['kismet.devices.view.description'] || id.slice(4), count);
             else if (id.startsWith('seenby-'))
-                addOption('Data sources', id, v['kismet.devices.view.description'] || id);
+                addOption('Data sources', id, v['kismet.devices.view.description'] || id, count);
             else
-                addOption('Other', id, v['kismet.devices.view.description'] || id);
+                addOption('Other', id, v['kismet.devices.view.description'] || id, count);
         }
 
         if (!groups.size)
@@ -73,7 +75,8 @@ export function createDeviceTable(container) {
 
         const options = [];
         for (const [group, list] of ordered) {
-            const opts = list.map((o) => el('option', { value: o.id }, o.title));
+            const opts = list.map((o) => el('option', { value: o.id },
+                Number.isFinite(o.count) ? `${o.title} (${o.count.toLocaleString()})` : o.title));
             options.push(group ? el('optgroup', { label: group }, opts) : opts);
         }
         viewSelect.replaceChildren(...options.flat());
@@ -91,6 +94,7 @@ export function createDeviceTable(container) {
         columns: deviceColumns,
         icons: deviceIcons,
         highlights: rowHighlights,
+        editHighlights: () => openSettings('highlights'),
         searchFields,
         alwaysFields,
         rowKey: (row) => row['kismet.device.base.key'],
@@ -102,6 +106,13 @@ export function createDeviceTable(container) {
 
     loadViews();
     onLogin(loadViews);
+    // Keep the counts in the picker current
+    const viewTimer = setInterval(() => {
+        if (!container.isConnected)
+            clearInterval(viewTimer);
+        else if (document.visibilityState !== 'hidden')
+            loadViews();
+    }, 15000);
     // Another part of the UI can pick the view (the Overview's phy counts)
     settings.watch('devicelist.view', (v) => {
         if (!v || v === view)

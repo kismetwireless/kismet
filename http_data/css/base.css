@@ -738,6 +738,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .settings-nav { display: flex; flex-direction: column; gap: 0.15rem; min-width: 10rem; }
 .nav-item { background: none; border: none; text-align: left; padding: 0.4em 0.7em; }
 .nav-item.active { background: var(--accent-soft); color: var(--text); }
+.nav-item.nav-sub { padding-left: 1.7em; font-size: 0.95em; }
 .settings-content { flex: 1; min-width: 0; overflow-y: auto; }
 .settings-content h3 { margin: 0 0 0.6rem; }
 .settings-pane h4 { margin: 1rem 0 0.4rem; }
@@ -1760,6 +1761,8 @@ a.button {
     border-color: var(--tag);
     background: color-mix(in srgb, var(--tag) calc(var(--highlight-mix) + 15%), var(--surface));
 }
-.ruletag-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.6rem; }
-.ruletag-row { display: flex; align-items: center; gap: 0.4rem; }
-.ruletag-row .ruletag-name { flex: 1; min-width: 6em; }
+.dh-category + .dh-category { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.6rem; }
+.dh-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.dh-head h4 { margin: 0; }
+.dh-category > p { margin: 0.3rem 0 0.5rem; }
+.dh-category .highlight-list { max-height: none; overflow: visible; }

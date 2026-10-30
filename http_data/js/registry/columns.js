@@ -51,16 +51,26 @@ export const deviceIcons = createRegistry('deviceIcons', {
 // pick the colors in settings.
 //   id, name, description, priority, fields, match(row) -> bool,
 //   defaultColor (CSS color), defaultEnabled,
+//   category: 'tag', 'phy', or '' for the rest, to group them in settings,
 //   color(row) -> CSS color: optional, for highlights that color each row
 //     themselves (set elsewhere) instead of in one color the user picks
 export function createHighlightRegistry(name) {
     return createRegistry(name, {
         required: ['name', 'match'],
-        defaults: { fields: [], defaultColor: '#6aa36f', defaultEnabled: false, description: '' },
+        defaults: { fields: [], defaultColor: '#6aa36f', defaultEnabled: false, description: '', category: '' },
     });
 }
 
 export const rowHighlights = createHighlightRegistry('rowHighlights');
+
+// The default row color for every device of a phy, which the user can change
+// in Settings; each phy Kismet reports gets a highlight in that color.
+//   id: the phy name as the server reports it ('IEEE802.11'), title, color,
+//   enabled: whether the highlight is on by default
+export const phyColors = createRegistry('phyColors', {
+    required: ['color'],
+    defaults: { enabled: false },
+});
 
 // Fields always fetched for the device list, whatever columns are showing.
 // The server searches only the fields a request asks for, so phys add the

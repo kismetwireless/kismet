@@ -27,9 +27,15 @@ export function openSettings(startId = null) {
         settings.set('settings.lastPane', pane.id);
     }
 
+    // Sections with a parent are listed under it
     const list = settingsPanes.list();
-    for (const pane of list)
-        nav.append(el('button', { class: 'nav-item', dataset: { id: pane.id }, onclick: () => show(pane) }, pane.title));
+    const item = (pane, sub) => el('button', { class: ['nav-item', sub && 'nav-sub'], dataset: { id: pane.id },
+        onclick: () => show(pane) }, pane.title);
+    for (const pane of list.filter((p) => !p.parent || !settingsPanes.get(p.parent))) {
+        nav.append(item(pane, false));
+        for (const sub of list.filter((p) => p.parent === pane.id))
+            nav.append(item(sub, true));
+    }
 
     dialog({
         title: 'Settings',

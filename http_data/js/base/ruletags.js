@@ -1,50 +1,93 @@
-// Device rule tags: the server tags devices by its device rules, and the UI
-// picks the colors.  A device with several tags takes the color of the first
-// one in the user's list.
+// Device tags: the server tags devices by its device rules.  Each tag gets a
+// row highlight (Settings > Appearance > Device Highlights), in the color its
+// rule sets, or a color the user picks instead.
+
+import { onLogin } from '../core/auth.js';
+import { fallbackColor } from './highlights.js';
 
 const rules = 'kismet.device.base.rules';
-const tagsField = [`${rules}/kismet.device.rules.tags`, 'rule_tags'];
+const tagsPath = `${rules}/kismet.device.rules.tags`;
+const tagsField = [tagsPath, 'rule_tags'];
 
-const defaults = [
-    { tag: 'watchlist', color: '#ff6b6b' },
-    { tag: 'handshake', color: '#ff0000' },
-    { tag: 'pmkid', color: '#ff5555' },
-    { tag: 'ais emergency', color: '#ff6666' },
-    { tag: 'zigbee key', color: '#ff6666' },
-    { tag: 'government', color: '#ffb3b3' },
-    { tag: 'bodycam', color: '#0089ff' },
-    { tag: 'open', color: '#ffa94d' },
-    { tag: 'free wifi', color: '#ffd43b' },
-    { tag: 'close', color: '#69db7c' },
-    { tag: 'uav', color: '#f49e42' },
-    { tag: 'quiet', color: '#adb5bd' },
-    { tag: 'active', color: '#cee1ff' },
-];
+// Colors for tags whose rule doesn't set one
+const defaults = {
+    'watchlist': '#ff6b6b',
+    'handshake': '#ff0000',
+    'pmkid': '#ff5555',
+    'ais emergency': '#ff6666',
+    'zigbee key': '#ff6666',
+    'government': '#ffb3b3',
+    'bodycam': '#0089ff',
+    'open': '#ffa94d',
+    'free wifi': '#ffd43b',
+    'close': '#69db7c',
+    'uav': '#f49e42',
+    'quiet': '#adb5bd',
+    'active': '#cee1ff',
+};
 
 const colorRe = /^#[0-9a-fA-F]{6}$/;
+const highlightId = (tag) => `tag_${tag}`;
 
 export function register(kismet) {
-    const { ui, dom, settings } = kismet;
+    const { ui, dom, settings, api } = kismet;
     const { el } = dom;
 
-    function load() {
-        const stored = settings.get('ruletags.colors', null);
-        if (!Array.isArray(stored))
-            return defaults.slice();
-        return stored.filter((e) => typeof e?.tag === 'string' && e.tag !== '' &&
-            typeof e?.color === 'string' && colorRe.test(e.color));
+    let shown = new Set();
+
+    // The tags the server's rules set, in rule order, each with the color of
+    // the first rule that sets both
+    async function loadTags() {
+        let list;
+        try {
+            list = (await api.get('devices/rules/rules.json'))?.['kismet.devicerules.rules'] ?? [];
+        } catch (err) {
+            console.error('Could not load the device rules:', err);
+            return;
+        }
+        const tags = new Map();
+        for (const r of list) {
+            const color = r['kismet.devicerules.rule.color'];
+            for (const t of r['kismet.devicerules.rule.tags'] ?? []) {
+                if (typeof t !== 'string' || t === '')
+                    continue;
+                if (!tags.has(t) || (!tags.get(t) && colorRe.test(color ?? '')))
+                    tags.set(t, colorRe.test(color ?? '') ? color.toLowerCase() : null);
+            }
+        }
+
+        const now = new Set();
+        [...tags].forEach(([tag, color], i) => {
+            now.add(highlightId(tag));
+            ui.rowHighlights.add({
+                id: highlightId(tag), name: tag, category: 'tag', priority: -1 + i / 1000, defaultEnabled: true,
+                description: color ? 'Color set by its rule' : '',
+                defaultColor: color ?? defaults[tag] ?? fallbackColor(tag),
+                fields: [tagsField],
+                match: (row) => Array.isArray(row.rule_tags) && row.rule_tags.includes(tag),
+            });
+        });
+        for (const id of shown)
+            if (!now.has(id))
+                ui.rowHighlights.remove(id);
+        shown = now;
     }
 
-    let colors = load();
+    loadTags();
+    onLogin(loadTags);
+    // Rules can change over the API
+    setInterval(loadTags, 60000);
 
-    function colorFor(tags) {
-        if (!Array.isArray(tags))
+    // A tag's row color, as the user has it, for its badge
+    function colorOf(tag) {
+        const h = ui.rowHighlights.get(highlightId(tag));
+        if (!h)
             return null;
-        return colors.find((e) => tags.includes(e.tag))?.color ?? null;
+        return settings.get('devicelist.highlights', {})?.[h.id]?.color ?? h.defaultColor;
     }
 
     function badge(tag) {
-        const color = colors.find((e) => e.tag === tag)?.color;
+        const color = colorOf(tag);
         const b = el('span', { class: ['rule-tag', color && 'colored'] }, tag);
         if (color)
             b.style.setProperty('--tag', color);
@@ -54,22 +97,15 @@ export function register(kismet) {
     const badges = (tags) => (Array.isArray(tags) && tags.length ?
         el('span', { class: 'rule-tags' }, tags.map(badge)) : '');
 
-    const highlight = {
-        id: 'rule_tags', name: 'Rule tags', priority: 0, defaultEnabled: true,
-        description: 'Devices with a server device rule tag, in the color set for the tag in Settings > Rule tags',
-        fields: [tagsField],
-        match: (row) => colorFor(row.rule_tags) !== null,
-        color: (row) => colorFor(row.rule_tags),
-    };
-
-    ui.rowHighlights.add(highlight);
-
     ui.deviceColumns.add({
-        id: 'rule_tags', title: 'Rule tags', priority: 900, width: '12em', defaultVisible: true,
+        id: 'rule_tags', title: 'Tags', priority: 900, width: '12em', defaultVisible: true,
         description: 'Tags from the server device rules',
         fields: [tagsField],
+        sortField: tagsPath,
         render: (row) => badges(row.rule_tags),
     });
+
+    ui.searchFields.add({ id: 'rule_tags', description: 'Device rule tags', fields: [tagsField] });
 
     ui.deviceDetails.add({
         id: 'device_rules', title: 'Device rules', priority: 50,
@@ -78,63 +114,10 @@ export function register(kismet) {
             { title: 'Matched rules', field: `${rules}/kismet.device.rules.matched`,
                 help: 'Server device rules this device matches',
                 format: (v) => v.join(', ') },
-            { title: 'Tags', field: `${rules}/kismet.device.rules.tags`,
-                help: 'Tags from the matching rules; their colors are set in Settings > Rule tags',
+            { title: 'Tags', field: tagsPath,
+                help: 'Tags from the matching rules; their colors are set in Settings > Appearance > Device Highlights',
                 show: (v) => Array.isArray(v) && v.length > 0,
                 format: (v) => badges(v) },
         ],
-    });
-
-    function save(list) {
-        settings.set('ruletags.colors', list);
-        colors = load();
-        // Re-adding the highlight redraws the tables showing it
-        ui.rowHighlights.add(highlight);
-    }
-
-    ui.settingsPanes.add({
-        id: 'ruletags', title: 'Rule tags', priority: 40,
-        create(body) {
-            const list = el('div', { class: 'ruletag-list' });
-
-            function current() {
-                return [...list.querySelectorAll('.ruletag-row')]
-                    .map((r) => ({ tag: r.querySelector('.ruletag-name').value.trim(), color: r.querySelector('input[type=color]').value }))
-                    .filter((e) => e.tag !== '');
-            }
-
-            function row(e) {
-                const r = el('div', { class: 'ruletag-row' },
-                    el('input', { class: 'ruletag-name', value: e.tag, placeholder: 'tag', 'aria-label': 'Tag',
-                        onchange: () => save(current()) }),
-                    el('input', { type: 'color', value: e.color, title: 'Row color',
-                        oninput: () => save(current()) }),
-                    el('button', { type: 'button', title: 'Move up', onclick: () => {
-                        if (r.previousElementSibling) {
-                            list.insertBefore(r, r.previousElementSibling);
-                            save(current());
-                        }
-                    } }, '↑'),
-                    el('button', { type: 'button', onclick: () => { r.remove(); save(current()); } }, 'Remove'));
-                return r;
-            }
-
-            function fill() {
-                list.replaceChildren(...colors.map(row));
-            }
-
-            fill();
-            body.append(
-                el('p', { class: 'muted' }, 'Server device rules can tag devices.  Pick a row color for each tag; ' +
-                    'a device with several tags takes the color of the first one in this list.'),
-                list,
-                el('div', { class: 'form-buttons' },
-                    el('button', { type: 'button', onclick: () => {
-                        const r = row({ tag: '', color: '#74c0fc' });
-                        list.append(r);
-                        r.querySelector('.ruletag-name').focus();
-                    } }, 'Add tag'),
-                    el('button', { type: 'button', onclick: () => { save(defaults.slice()); fill(); } }, 'Defaults')));
-        },
     });
 }
