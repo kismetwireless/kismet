@@ -18,7 +18,7 @@ const pduTypes = {
 };
 
 export function register(kismet) {
-    const { ui, icons } = kismet;
+    const { ui, icons, format } = kismet;
     const isBtle = (row) => row[`${base}.phyname`] === 'BTLE';
     const supported = (v) => (v ? 'Supported' : 'Not supported');
 
@@ -100,6 +100,16 @@ export function register(kismet) {
             { title: 'Manufacturer ID', field: `${b}/${b}.manuf_company_id`, hideZero: true,
                 format: (v) => `0x${v.toString(16).padStart(4, '0')}`,
                 help: 'The Bluetooth SIG company ID in the device\'s manufacturer data.' },
+            { title: 'Bluetooth version', field: `${b}/${b}.lmp_version`,
+                help: 'The Bluetooth version the device\'s controller reported when a host connected to it.' },
+            { title: 'Chip maker', field: `${b}/${b}.chip_manufacturer`,
+                help: 'Maker of the device\'s controller chip, from its Bluetooth company ID.' },
+            { title: 'Chip firmware', field: `${b}/${b}.lmp_subversion`, hideZero: true,
+                help: 'The controller\'s firmware subversion, chosen by the chip maker.' },
+            { title: 'LE features', field: `${b}/${b}.le_features`,
+                help: 'LE feature mask read from the device by active probing.' },
+            { title: 'Last probed', field: `${b}/${b}.last_probed`, hideZero: true, format: format.time,
+                help: 'Last time a source\'s opt-in active probing connected to this device.' },
         ],
     });
 }

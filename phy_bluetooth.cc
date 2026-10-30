@@ -86,7 +86,9 @@ constexpr const char *lmp_version_name(uint8_t v) {
     return v < std::size(names) ? names[v] : nullptr;
 }
 
-static void apply_remote_version(bluetooth_tracked_device& btdev, kis_bt_manuf *btmanuf,
+// Classic and LE records both keep what a host read over a connection
+template<typename T>
+static void apply_remote_version(T& btdev, kis_bt_manuf *btmanuf,
         uint8_t version, uint16_t manuf, uint16_t subversion) {
     const auto vname = lmp_version_name(version);
     btdev.set_lmp_version(vname != nullptr ? vname : fmt::format("unknown ({})", version));
@@ -101,6 +103,10 @@ static void apply_remote_version(bluetooth_tracked_device& btdev, kis_bt_manuf *
         btdev.set_chip_manufacturer(fmt::format("{:04x}", manuf));
     btdev.set_lmp_subversion(subversion);
 }
+
+static void hci_json_le(kis_btle_phy *btle, kis_bt_manuf *btmanuf, device_tracker& devicetracker,
+        const std::shared_ptr<kis_packet>& in_pack, const nlohmann::json& json,
+        const mac_addr& addr, bool random);
 
 kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
     kis_phy_handler(in_phyid) {
@@ -230,6 +236,19 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         auto btaddr_mac = mac_addr(btaddr_j.get<std::string>());
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
+
+        // LE public and random addresses are the BTLE phy's, however they were heard
+        const auto addrtype_j = json["type"];
+        if (addrtype_j.is_number_unsigned() &&
+                (addrtype_j.get<unsigned int>() == 1 || addrtype_j.get<unsigned int>() == 2)) {
+            auto btle = btphy->fetch_btle_phy();
+            if (btle == nullptr)
+                return 0;
+
+            hci_json_le(btle, btphy->btmanuf.get(), *btphy->devicetracker, in_pack, json,
+                    btaddr_mac, addrtype_j.get<unsigned int>() == 2);
+            return 1;
+        }
 
         in_pack->common_info.common_info_ok = true;
         in_pack->common_info.phyid = btphy->fetch_phy_id();
@@ -808,6 +827,79 @@ constexpr uint16_t hci_le16(const uint8_t *p) {
     return (uint16_t) p[0] | ((uint16_t) p[1] << 8);
 }
 
+// One report's signal, per device in a multi-report event; 127 is "not available"
+bool hci_signal(const std::shared_ptr<kis_packet>& in_pack, int rssi) {
+    if (rssi >= 127) {
+        in_pack->signal_info.data_ok = false;
+        return false;
+    }
+
+    in_pack->signal_info.data_ok = true;
+    in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+    in_pack->signal_info.signal_dbm = rssi;
+    in_pack->signal_info.freq_khz = 2400000;
+    in_pack->signal_info.channel = "FHSS";
+    return true;
+}
+
+// An advertising data record, or nothing when the data can't fit one
+std::string ad_record(uint8_t type, const std::string& data) {
+    if (data.length() > 254)
+        return {};
+
+    std::string r;
+    r.reserve(2 + data.length());
+    r.push_back((char) (data.length() + 1));
+    r.push_back((char) type);
+    r.append(data);
+    return r;
+}
+
+// Any record too long for legacy advertising
+bool ad_extended(const std::string& ad) {
+    size_t pos = 0;
+    while (pos + 2 <= ad.length()) {
+        const uint8_t rlen = (uint8_t) ad[pos];
+        if (rlen == 0 || pos + 1 + rlen > ad.length())
+            break;
+        if (rlen > 31)
+            return true;
+        pos += 1 + rlen;
+    }
+    return false;
+}
+
+// The PDU an advertising report's event type describes; extended reports flag legacy
+// PDUs by their properties
+uint8_t hci_report_pdu(bool ext, uint16_t et, bool& extended) {
+    extended = false;
+
+    if (!ext) {
+        switch (et) {
+            case 0x00: return 0x0;  // ADV_IND
+            case 0x01: return 0x1;  // ADV_DIRECT_IND
+            case 0x02: return 0x6;  // ADV_SCAN_IND
+            case 0x03: return 0x2;  // ADV_NONCONN_IND
+            default: return 0x4;    // SCAN_RSP
+        }
+    }
+
+    if (!(et & 0x10)) {
+        extended = true;
+        return 0x7;
+    }
+
+    if (et & 0x08)
+        return 0x4;
+    if (et & 0x04)
+        return 0x1;
+    if (et & 0x01)
+        return 0x0;
+    if (et & 0x02)
+        return 0x6;
+    return 0x2;
+}
+
 std::string bytes_hex(const uint8_t *p, size_t len) {
     std::string r;
     r.reserve(len * 2);
@@ -816,6 +908,114 @@ std::string bytes_hex(const uint8_t *p, size_t len) {
     return r;
 }
 
+}
+
+// The Linux HCI source's report of an LE device: what it advertised, or what opt-in
+// probing read over a connection.  Sources before 2026-10-R1 send no raw advertising
+// data, so it's rebuilt from the fields they pulled out of it.
+static void hci_json_le(kis_btle_phy *btle, kis_bt_manuf *btmanuf, device_tracker& devicetracker,
+        const std::shared_ptr<kis_packet>& in_pack, const nlohmann::json& json,
+        const mac_addr& addr, bool random) {
+    kis_lock_guard<kis_mutex> lk(devicetracker.get_devicelist_mutex(), "hci_json_le");
+
+    if (json.contains("probed")) {
+        auto rec = btle->fetch_btle_device(addr);
+        if (rec == nullptr)
+            return;
+
+        const auto& lmpv_j = json.value("lmp_version", nlohmann::json());
+        const auto& lmpm_j = json.value("lmp_manufacturer", nlohmann::json());
+        const auto& lmps_j = json.value("lmp_subversion", nlohmann::json());
+        if (lmpv_j.is_number_unsigned() && lmpv_j.get<uint64_t>() <= 0xFF &&
+                lmpm_j.is_number_unsigned() && lmpm_j.get<uint64_t>() <= 0xFFFF &&
+                lmps_j.is_number_unsigned() && lmps_j.get<uint64_t>() <= 0xFFFF)
+            apply_remote_version(*rec, btmanuf, lmpv_j.get<uint8_t>(), lmpm_j.get<uint16_t>(),
+                    lmps_j.get<uint16_t>());
+
+        const auto& f_j = json.value("le_features", nlohmann::json());
+        if (f_j.is_string()) {
+            const auto& f = f_j.get_ref<const std::string&>();
+            if (f.length() == 16 && f.find_first_not_of("0123456789abcdef") == std::string::npos)
+                rec->set_le_features(f);
+        }
+
+        if (json.at("probed").is_number_unsigned())
+            rec->set_last_probed(in_pack->ts.tv_sec);
+
+        return;
+    }
+
+    std::string ad;
+
+    const auto& eir_j = json.value("eir", nlohmann::json());
+    if (eir_j.is_string() && eir_j.get_ref<const std::string&>().length() % 2 == 0 &&
+            eir_j.get_ref<const std::string&>().length() <= 4096) {
+        ad = hex_to_bytes(eir_j.get_ref<const std::string&>());
+    } else {
+        const auto& name_j = json.value("name", nlohmann::json());
+        if (name_j.is_string() && name_j.get_ref<const std::string&>().length() > 0)
+            ad += ad_record(0x09, name_j.get_ref<const std::string&>());
+
+        const auto& uuids_j = json.value("service_uuids", nlohmann::json());
+        if (uuids_j.is_array()) {
+            std::string u16;
+            for (const auto& u : uuids_j) {
+                if (!u.is_string() || u.get_ref<const std::string&>().length() != 4)
+                    continue;
+                auto ub = hex_to_bytes(u.get_ref<const std::string&>());
+                if (ub.length() != 2)
+                    continue;
+                u16.push_back(ub[1]);
+                u16.push_back(ub[0]);
+            }
+            if (u16.length())
+                ad += ad_record(0x03, u16);
+        }
+
+        const auto& cid_j = json.value("manuf_company_id", nlohmann::json());
+        const auto& md_j = json.value("manuf_data", nlohmann::json());
+        if (cid_j.is_string() && cid_j.get_ref<const std::string&>().length() == 4 &&
+                md_j.is_string() && md_j.get_ref<const std::string&>().length() % 2 == 0) {
+            auto cid = hex_to_bytes(cid_j.get_ref<const std::string&>());
+            if (cid.length() == 2) {
+                std::string md;
+                md.push_back(cid[1]);
+                md.push_back(cid[0]);
+                md.append(hex_to_bytes(md_j.get_ref<const std::string&>()));
+                ad += ad_record(0xFF, md);
+            }
+        }
+
+        const auto& sd_j = json.value("service_data", nlohmann::json());
+        if (sd_j.is_array()) {
+            for (const auto& sd : sd_j) {
+                if (sd.is_string() && sd.get_ref<const std::string&>().length() % 2 == 0)
+                    ad += ad_record(0x16, hex_to_bytes(sd.get_ref<const std::string&>()));
+            }
+        }
+
+        const auto& tx_j = json.value("txpower", nlohmann::json());
+        if (tx_j.is_number_integer() && tx_j.get<int64_t>() >= -127 && tx_j.get<int64_t>() <= 127)
+            ad += ad_record(0x0A, std::string(1, (char) (int8_t) tx_j.get<int64_t>()));
+
+        const auto& app_j = json.value("appearance", nlohmann::json());
+        if (app_j.is_number_unsigned() && app_j.get<uint64_t>() <= 0xFFFF) {
+            const auto a = app_j.get<uint16_t>();
+            ad += ad_record(0x19, std::string{(char) (a & 0xFF), (char) (a >> 8)});
+        }
+    }
+
+    // The kernel merges a scan response into the report, so only the connectable flag
+    // tells the PDUs apart
+    const auto& conn_j = json.value("connectable", nlohmann::json());
+    const bool connectable = !conn_j.is_number() || conn_j.get<double>() != 0;
+    const bool extended = ad_extended(ad);
+
+    btle->set_report_info(in_pack, addr);
+
+    bluetooth_btle decode;
+    decode.from_report(addr, random, extended ? 0x7 : connectable ? 0x0 : 0x2, extended, ad);
+    btle->update_adv_device(in_pack, decode, "BLE (HCI)");
 }
 
 // Applies an advertisement or extended inquiry response: the same records in both
@@ -987,9 +1187,35 @@ void kis_bluetooth_phy::apply_adv_decode(kis_tracked_device_base& basedev,
     apply_adv(*btdev.get_adv(), decode, btmanuf.get(), btoid.get(), now);
 }
 
-// Finds or makes the device a HCI event reports; the caller holds the device list lock
+kis_btle_phy *kis_bluetooth_phy::fetch_btle_phy() {
+    auto p = btle_phy.load(std::memory_order_acquire);
+
+    if (p == nullptr) {
+        p = dynamic_cast<kis_btle_phy *>(devicetracker->fetch_phy_handler_by_name("BTLE"));
+        btle_phy.store(p, std::memory_order_release);
+    }
+
+    return p;
+}
+
+void kis_bluetooth_phy::hci_le_report(const std::shared_ptr<kis_packet>& in_pack,
+        const mac_addr& addr, bool random, uint8_t pdu_type, bool extended, int rssi,
+        const std::string& advdata) {
+    auto btle = fetch_btle_phy();
+    if (btle == nullptr)
+        return;
+
+    hci_signal(in_pack, rssi);
+    btle->set_report_info(in_pack, addr);
+
+    bluetooth_btle decode;
+    decode.from_report(addr, random, pdu_type, extended, advdata);
+    btle->update_adv_device(in_pack, decode, "BLE (HCI)");
+}
+
+// Finds or makes the classic device a HCI event reports; the caller holds the device list lock
 std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::hci_device(
-        const std::shared_ptr<kis_packet>& in_pack, const mac_addr& addr, bool le,
+        const std::shared_ptr<kis_packet>& in_pack, const mac_addr& addr,
         int rssi, std::shared_ptr<kis_tracked_device_base>& basedev) {
 
     in_pack->common_info.common_info_ok = true;
@@ -1000,19 +1226,10 @@ std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::hci_device(
     in_pack->common_info.channel = "FHSS";
     in_pack->common_info.freq_khz = 2400000;
 
-    // 127 is "not available"
     unsigned int flags = UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
         UCD_UPDATE_SEENBY;
-    if (rssi < 127) {
-        in_pack->signal_info.data_ok = true;
-        in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
-        in_pack->signal_info.signal_dbm = rssi;
-        in_pack->signal_info.freq_khz = 2400000;
-        in_pack->signal_info.channel = "FHSS";
+    if (hci_signal(in_pack, rssi))
         flags |= UCD_UPDATE_SIGNAL;
-    } else {
-        in_pack->signal_info.data_ok = false;
-    }
 
     basedev = devicetracker->update_common_device(addr, this, in_pack, flags, "Bluetooth Device");
     if (basedev == nullptr)
@@ -1030,13 +1247,8 @@ std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::hci_device(
 
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-    if (le) {
-        basedev->set_tracker_type_string(btdev_btle);
-        btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
-    } else {
-        basedev->set_tracker_type_string(btdev_bredr);
-        btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
-    }
+    basedev->set_tracker_type_string(btdev_bredr);
+    btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
 
     return btdev;
 }
@@ -1053,24 +1265,24 @@ uint64_t kis_bluetooth_phy::hci_handle_key(const std::shared_ptr<kis_packet>& in
     return ((uint64_t) src << 16) | (handle & 0x0FFF);
 }
 
-void kis_bluetooth_phy::hci_handle_set(uint64_t key, const mac_addr& addr) {
+void kis_bluetooth_phy::hci_handle_set(uint64_t key, const mac_addr& addr, bool le) {
     kis_lock_guard<kis_mutex> lk(hci_handle_mutex, "hci_handle_set");
 
     // A capture missing the disconnects can't grow it forever
     if (hci_handles.size() >= 1024)
         hci_handles.clear();
 
-    hci_handles[key] = addr;
+    hci_handles[key] = hci_link{addr, le};
 }
 
-bool kis_bluetooth_phy::hci_handle_get(uint64_t key, mac_addr& addr) {
+bool kis_bluetooth_phy::hci_handle_get(uint64_t key, hci_link& link) {
     kis_lock_guard<kis_mutex> lk(hci_handle_mutex, "hci_handle_get");
 
     auto i = hci_handles.find(key);
     if (i == hci_handles.end())
         return false;
 
-    addr = i->second;
+    link = i->second;
     return true;
 }
 
@@ -1194,7 +1406,7 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
                 const uint8_t *r = p + 1 + i * rec;
                 const int rssi = rssi_at ? (int8_t) r[rssi_at] : 127;
 
-                auto btdev = mphy->hci_device(in_pack, hci_bdaddr(r), false, rssi, basedev);
+                auto btdev = mphy->hci_device(in_pack, hci_bdaddr(r), rssi, basedev);
                 if (btdev == nullptr)
                     continue;
 
@@ -1209,7 +1421,7 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
             if (plen < 15 || p[0] != 1)
                 return 0;
 
-            auto btdev = mphy->hci_device(in_pack, hci_bdaddr(p + 1), false, (int8_t) p[14],
+            auto btdev = mphy->hci_device(in_pack, hci_bdaddr(p + 1), (int8_t) p[14],
                     basedev);
             if (btdev == nullptr)
                 return 0;
@@ -1230,7 +1442,7 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
             if (nlen == 0)
                 return 0;
 
-            auto btdev = mphy->hci_device(in_pack, hci_bdaddr(p + 1), false, 127, basedev);
+            auto btdev = mphy->hci_device(in_pack, hci_bdaddr(p + 1), 127, basedev);
             if (btdev == nullptr)
                 return 0;
 
@@ -1242,7 +1454,7 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
             // Status, handle, address
             if (plen >= 9 && p[0] == 0)
                 mphy->hci_handle_set(mphy->hci_handle_key(in_pack, hci_le16(p + 1)),
-                        hci_bdaddr(p + 3));
+                        hci_bdaddr(p + 3), false);
             return 1;
 
         case hci_event::disconnection_complete:
@@ -1252,14 +1464,26 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
 
         case hci_event::remote_version_complete: {
             // Status, handle, LMP version, company, subversion
-            mac_addr addr;
+            hci_link link;
 
             if (plen < 8 || p[0] != 0 ||
-                    !mphy->hci_handle_get(mphy->hci_handle_key(in_pack, hci_le16(p + 1)), addr))
+                    !mphy->hci_handle_get(mphy->hci_handle_key(in_pack, hci_le16(p + 1)), link))
                 return 0;
 
+            // An LE device's goes on the record of it advertising
+            if (link.le) {
+                auto btle = mphy->fetch_btle_phy();
+                auto rec = btle == nullptr ? nullptr : btle->fetch_btle_device(link.addr);
+                if (rec == nullptr)
+                    return 0;
+
+                apply_remote_version(*rec, mphy->btmanuf.get(), p[3], hci_le16(p + 4),
+                        hci_le16(p + 6));
+                break;
+            }
+
             // Seen through the host, not the device's own signal
-            auto btdev = mphy->hci_device(in_pack, addr, false, 127, basedev);
+            auto btdev = mphy->hci_device(in_pack, link.addr, 127, basedev);
             if (btdev == nullptr)
                 return 0;
 
@@ -1279,7 +1503,7 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
                 // Subevent, status, handle, role, peer address type, peer address
                 if (plen >= 12 && p[1] == 0)
                     mphy->hci_handle_set(mphy->hci_handle_key(in_pack, hci_le16(p + 2)),
-                            hci_bdaddr(p + 6));
+                            hci_bdaddr(p + 6), true);
                 return 1;
             }
 
@@ -1319,19 +1543,13 @@ int kis_bluetooth_phy::packet_classifier_hci(CHAINCALL_PARMS) {
                     continue;
 
                 const auto addr = hci_bdaddr(ext ? r + 3 : r + 2);
-                auto btdev = mphy->hci_device(in_pack, addr, true, rssi, basedev);
-                if (btdev == nullptr)
-                    continue;
+
+                bool extended;
+                const auto pdu = hci_report_pdu(ext, ext ? hci_le16(r) : r[0], extended);
 
                 // Random, or a random static identity the controller resolved
-                if (addr_type == 0x01 || addr_type == 0x03) {
-                    const auto rtype = btle_random_address_type(addr[0]);
-                    if (!btdev->has_random_address_type() ||
-                            btdev->get_random_address_type() != rtype)
-                        btdev->set_random_address_type(rtype);
-                }
-
-                mphy->apply_hci_advdata(in_pack, *basedev, *btdev, advdata, dlen);
+                mphy->hci_le_report(in_pack, addr, addr_type == 0x01 || addr_type == 0x03, pdu,
+                        extended, rssi, std::string((const char *) advdata, dlen));
             }
             break;
         }

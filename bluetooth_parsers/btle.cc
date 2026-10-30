@@ -16,6 +16,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <algorithm>
 #include <stdexcept>
 
 #include "btle.h"
@@ -79,6 +80,31 @@ void bluetooth_btle::parse(std::shared_ptr<kaitai::kstream> p_io) {
             return;
     }
 
+    parse_advdata(payload, adv_off);
+}
+
+void bluetooth_btle::from_report(const mac_addr& address, bool random, uint8_t pdu_type,
+        bool extended, const std::string& advdata) {
+    m_advertised_data = std::make_shared<shared_advdata_vector>();
+    m_has_peer_address = false;
+    m_has_connect_params = false;
+    m_has_adv_sid = false;
+    m_has_aux_ptr = false;
+
+    m_access_address = 0x8E89BED6;
+    m_packet_header = (pdu_type & 0x0F) | (random ? 0x40 : 0);
+    m_length = (uint8_t) std::min<size_t>(6 + advdata.length(), 255);
+    m_extended = extended;
+
+    m_advertising_address.resize(6);
+    for (unsigned int i = 0; i < 6; i++)
+        m_advertising_address[i] = (char) address[i];
+    m_has_advertising_address = true;
+
+    parse_advdata(advdata, 0);
+}
+
+void bluetooth_btle::parse_advdata(const std::string& payload, size_t adv_off) {
     // Advertising data runs to the end of the payload; a zero length entry is padding
     while (adv_off + 2 <= payload.length()) {
         uint8_t ad_len = (uint8_t) payload[adv_off];

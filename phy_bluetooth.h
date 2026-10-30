@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <atomic>
 #include <list>
 #include <map>
 #include <vector>
@@ -373,8 +374,9 @@ protected:
 	int pack_comp_btdevice, pack_comp_meta, pack_comp_json,
         pack_comp_linkframe, pack_comp_remoteid, pack_comp_datasrc;
 
+    // A classic device a HCI event reports
     std::shared_ptr<bluetooth_tracked_device> hci_device(const std::shared_ptr<kis_packet>& in_pack,
-            const mac_addr& addr, bool le, int rssi,
+            const mac_addr& addr, int rssi,
             std::shared_ptr<kis_tracked_device_base>& basedev);
     void apply_hci_advdata(const std::shared_ptr<kis_packet>& in_pack,
             kis_tracked_device_base& basedev, bluetooth_tracked_device& btdev,
@@ -382,14 +384,27 @@ protected:
     void apply_adv_decode(kis_tracked_device_base& basedev, bluetooth_tracked_device& btdev,
             const bt_adv_decode& decode, time_t now);
 
+    // LE advertising goes to the BTLE phy, which registers after this one
+    kis_btle_phy *fetch_btle_phy();
+    std::atomic<kis_btle_phy *> btle_phy{nullptr};
+
+    // An LE advertisement a host reported; the caller holds the device list lock
+    void hci_le_report(const std::shared_ptr<kis_packet>& in_pack, const mac_addr& addr,
+            bool random, uint8_t pdu_type, bool extended, int rssi, const std::string& advdata);
+
     // Connection handle to address, to place what a host reads over a connection
+    struct hci_link {
+        mac_addr addr;
+        bool le;
+    };
+
     uint64_t hci_handle_key(const std::shared_ptr<kis_packet>& in_pack, uint16_t handle);
-    void hci_handle_set(uint64_t key, const mac_addr& addr);
-    bool hci_handle_get(uint64_t key, mac_addr& addr);
+    void hci_handle_set(uint64_t key, const mac_addr& addr, bool le);
+    bool hci_handle_get(uint64_t key, hci_link& link);
     void hci_handle_clear(uint64_t key);
 
     kis_mutex hci_handle_mutex;
-    std::unordered_map<uint64_t, mac_addr> hci_handles;
+    std::unordered_map<uint64_t, hci_link> hci_handles;
 
     std::shared_ptr<tracker_element_string> btdev_bredr;
     std::shared_ptr<tracker_element_string> btdev_btle;
