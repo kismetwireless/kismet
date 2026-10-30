@@ -14,11 +14,15 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'packets', title: 'Packets', priority: 0,
-        description: 'Packets per second, over the last minute',
+        description: 'Packets per second, over the last minute; click for the packet rates',
         create(body) {
             const spark = kismet.widgets.sparkline();
             const v = valueStat('packets');
             body.append(el('div', { class: 'stat-graph' }, spark.canvas), v.node);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            stat.title = 'Show the packet rates';
+            stat.addEventListener('click', () => kismet.widgets.packetgraphs.openPackets());
             let now = 0;
             const stopTime = eventbus.subscribe('TIMESTAMP', ['kismet.system.timestamp.sec'], (e) => {
                 now = e['kismet.system.timestamp.sec'];

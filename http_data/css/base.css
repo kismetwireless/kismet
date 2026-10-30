@@ -1224,6 +1224,16 @@ tr.highlighted .bar-graph { fill: currentColor; }
     .ov-talker-type { display: none; }
 }
 
+/* Packet rates window (js/widgets/packetgraphs.js) */
+.pk-window { display: flex; flex-direction: column; gap: 1rem; }
+.pk-window h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.pk-window section + section { border-top: 1px solid var(--border); padding-top: 0.8rem; }
+.pk-bar, .pk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; }
+.pk-bar .muted { font-size: 0.85rem; }
+.pk-head h3 { margin: 0; }
+.pk-head { margin-bottom: 0.4rem; }
+.pk-note { margin: 0.3rem 0 0; font-size: 0.85rem; }
+
 /* GPS window (js/widgets/gps.js) */
 .gps-window { display: flex; flex-direction: column; gap: 1.2rem; }
 .gps-section h3 { margin: 0 0 0.5rem; font-size: 1rem; }

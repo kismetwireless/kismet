@@ -19,6 +19,11 @@ export function register(kismet) {
         onClick: () => kismet.widgets.gps.openGps(),
     });
 
+    ui.menuItems.add({
+        id: 'packets', title: 'Packet rates', icon: 'packets',
+        onClick: () => kismet.widgets.packetgraphs.openPackets(),
+    });
+
     // Switching servers is for the installed app, or to get back from another server
     if (kismet.servers.installed() || kismet.servers.current() || kismet.servers.list().length)
         ui.menuItems.add({
