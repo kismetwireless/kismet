@@ -2794,7 +2794,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         }
 
         d11phy->ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), bssid_dev);
+                ssid_csum, ssid->get_crypt_set(), bssid_dev);
 
         bssid_dot11->set_last_adv_ssid(ssid);
 
@@ -3671,13 +3671,13 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
             resp_ssid_map->insert(dot11info->ssid_csum, ssid);
 
         ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
+                dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
     } else {
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
         adv_ssid_map->insert(dot11info->ssid_csum, ssid);
 
         ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
+                dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
     }
 
     if (new_adv_ssid) {
@@ -4683,13 +4683,13 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             resp_ssid_map->insert(dot11info->ssid_csum, ssid);
 
         ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
+                dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
     } else {
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
         adv_ssid_map->insert(dot11info->ssid_csum, ssid);
 
         ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
+                dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
     }
 
     if (new_adv_ssid) {
@@ -4883,7 +4883,7 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
 
             // Enter it in the ssid tracker
             ssidtracker->handle_probe_ssid(probessid->get_ssid(), probessid->get_ssid_len(),
-                    probessid->get_crypt_set(), basedev);
+                    dot11info->ssid_csum, probessid->get_crypt_set(), basedev);
 
             if (new_probessid) {
                 auto evt = eventbus->get_eventbus_event(dot11_new_probed_ssid);

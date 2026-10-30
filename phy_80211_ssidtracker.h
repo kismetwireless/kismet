@@ -84,7 +84,7 @@ public:
     }
 
     dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p, const std::string& in_ssid, unsigned int in_ssid_len,
-            unsigned int in_crypt_set);
+            size_t in_ssid_hash, unsigned int in_crypt_set);
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("dot11_tracked_ssid_group");
@@ -203,12 +203,15 @@ private:
 public:
     virtual ~phy_80211_ssid_tracker();
 
-    void handle_broadcast_ssid(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set, 
-            std::shared_ptr<kis_tracked_device_base> device);
-    void handle_response_ssid(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set, 
-            std::shared_ptr<kis_tracked_device_base> device);
-    void handle_probe_ssid(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set, 
-            std::shared_ptr<kis_tracked_device_base> device);
+    // ssid_hash is the hash of the raw SSID bytes the dissector put in ssid_csum, the same
+    // key the device's advertised, responded and probed SSID maps use; the printable ssid
+    // can differ from those bytes
+    void handle_broadcast_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
+            uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
+    void handle_response_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
+            uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
+    void handle_probe_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
+            uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
     kis_mutex mutex;
