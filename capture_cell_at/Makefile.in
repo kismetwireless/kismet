@@ -82,6 +82,10 @@ TEST_QENG_BIN = test_cellat_qeng
 # forms disagree on field order and the family disagrees on signal units, so
 # every fixture is a real string rather than a constructed one.
 TEST_CPSI_BIN = test_cellat_cpsi
+# Telit AT#RFSTS decode core. Includes cellat_rfsts.inc and cellat_qeng.inc.
+# Pins the field order (RSSI in the 4th column, the band in the LAST, ABND)
+# against a measured reply and the manual's worked example.
+TEST_RFSTS_BIN = test_cellat_rfsts
 # AT+QSCAN=3,1 full-band-scan decode core. Includes cellat_qscan.inc and
 # cellat_qeng.inc (parse_qscan reuses the qeng decode helpers), the same text
 # capture_cell_at.c compiles.
@@ -210,6 +214,7 @@ SELFTEST_BINS = $(TEST_SERIAL_BIN) \
 	$(TEST_PORTSCAN_BIN) \
 	$(TEST_QENG_BIN) \
 	$(TEST_CPSI_BIN) \
+	$(TEST_RFSTS_BIN) \
 	$(TEST_QSCAN_BIN) \
 	$(TEST_STD3GPP_BIN) \
 	$(TEST_SERIAL_PORT_BIN) \
@@ -260,6 +265,9 @@ $(TEST_QENG_BIN):	test_cellat_qeng.c cellat_qeng.inc
 
 $(TEST_CPSI_BIN):	test_cellat_cpsi.c cellat_cpsi.inc cellat_qeng.inc
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CPSI_BIN) test_cellat_cpsi.c
+
+$(TEST_RFSTS_BIN):	test_cellat_rfsts.c cellat_rfsts.inc cellat_qeng.inc
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_RFSTS_BIN) test_cellat_rfsts.c
 
 $(TEST_QSCAN_BIN):	test_cellat_qscan.c cellat_qscan.inc cellat_qeng.inc
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QSCAN_BIN) test_cellat_qscan.c
@@ -312,6 +320,7 @@ clean:
 	@-rm -f $(PROBE_BIN)
 	@-rm -f $(TEST_CLOCKANCHOR_BIN)
 	@-rm -f $(TEST_CPSI_BIN)
+	@-rm -f $(TEST_RFSTS_BIN)
 	@-rm -f $(TEST_SERIAL_PORT_BIN)
 	@-rm -f $(TEST_STD3GPP_BIN)
 	@-rm -f $(TEST_SERIAL_BIN)

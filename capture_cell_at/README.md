@@ -142,8 +142,10 @@ available but has been observed to hang the EG25-G, requiring a power cycle.
 
 **AT#RFSTS response format:**
 ```
-#RFSTS: "MCC MNC",EARFCN,RSRP,TXPWR,RSRQ,TAC(hex),BAND,,DRX,MIMO,SFN,CellID,"IMEI","Operator",MODE,DUPLEX
+#RFSTS: "MCC MNC",EARFCN,RSRP,RSSI,RSRQ,TAC(hex),RAC,TXPWR,DRX,MM,RRC,CellID(hex),"IMSI","Operator",SD,ABND
 ```
+(LTE form; LM940 AT Commands Reference Guide r1, section 5.6.1.24.) The band is the last
+field, ABND. TXPWR is filled in traffic only. Parsed by `cellat_rfsts.inc`.
 
 **AT#SERVINFO response format:**
 ```
@@ -152,7 +154,8 @@ available but has been observed to hang the EG25-G, requiring a power cycle.
 
 **Known quirks:**
 - `ATI` returns `332` (build number), not the model name. Use `AT+CGMM`.
-- Band field `255` in `AT#RFSTS` means "not available" — must be filtered.
+- The seventh `AT#RFSTS` field is the Routing Area Code, which an LTE cell reports
+  as `255`. It is not the band: the band is ABND, the last field.
 - `AT#CSURV` (cell survey) is broken on Generic and TMUS firmware profiles.
 
 ### Common 3GPP Commands (All Vendors)
