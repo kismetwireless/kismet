@@ -53,6 +53,12 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
+    // An advertisement a host controller reported instead of a radio frame: no length
+    // limit on the advertising data, which a host may merge from a scan response or
+    // reassemble from extended advertising
+    void from_report(const mac_addr& address, bool random, uint8_t pdu_type, bool extended,
+            const std::string& advdata);
+
     constexpr17 uint32_t access_address() const {
         return m_access_address;
     }
@@ -177,6 +183,8 @@ protected:
 
     // Returns the offset of the advertising data
     size_t parse_extended_header(const std::string& payload);
+
+    void parse_advdata(const std::string& payload, size_t adv_off);
 
     uint32_t m_access_address;
     uint8_t m_packet_header;

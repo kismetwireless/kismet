@@ -763,6 +763,30 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info->btle_decode == nullptr)
         return 0;
 
+    return mphy->update_adv_device(in_pack, *btle_info->btle_decode, nullptr) ? 1 : 0;
+}
+
+void kis_btle_phy::set_report_info(const std::shared_ptr<kis_packet>& in_pack, const mac_addr& addr) {
+    in_pack->common_info.common_info_ok = true;
+    in_pack->common_info.phyid = fetch_phy_id();
+    in_pack->common_info.basic_crypt_set = crypt_none;
+    in_pack->common_info.type = packet_basic_mgmt;
+    in_pack->common_info.source = addr;
+    in_pack->common_info.transmitter = addr;
+    in_pack->common_info.channel = "FHSS";
+    in_pack->common_info.freq_khz = 2400000;
+}
+
+std::shared_ptr<btle_tracked_device> kis_btle_phy::fetch_btle_device(const mac_addr& addr) {
+    auto dev = devicetracker->fetch_device(device_key(fetch_phyname_hash(), addr));
+    if (dev == nullptr)
+        return nullptr;
+    return fetch_btle_record(dev);
+}
+
+// The caller fills in_pack->common_info; the signal, location and source come from the packet
+bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
+        const bluetooth_btle& decode, const char *remoteid_transport) {
     // Remote ID and location trackers ride in 16-bit service data (Apple Find My in
     // manufacturer data); both normally use random addresses, so they're kept even when
     // other random devices are ignored
@@ -781,7 +805,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     bt_adv_decode adv_decode;
 
-    for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+    for (const auto& ad : *decode.advertised_data()) {
         adv_decode.ad(ad->type(), (const uint8_t *) ad->data().data(), ad->data().length());
 
         if (ad->type() == BTLE_ADVDATA_APPEARANCE && ad->data().length() == 2) {
@@ -842,13 +866,14 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
             btle_beacon::decode_service_data((const uint8_t *) sd.data(), sd.length(), beacon_info);
 
         if (remoteid == nullptr) {
-            auto rid = mphy->packetchain->new_packet_component<uav_remoteid_packinfo>();
+            auto rid = packetchain->new_packet_component<uav_remoteid_packinfo>();
 
             if (odid::decode_ble_service_data((const uint8_t *) sd.data(), sd.length(),
                         rid->counter, rid->messages)) {
-                rid->transport = btle_info->btle_decode->is_extended() ? "BLE extended" : "BLE legacy";
+                rid->transport = remoteid_transport != nullptr ? remoteid_transport :
+                    decode.is_extended() ? "BLE extended" : "BLE legacy";
                 rid->device_mac = in_pack->common_info.source;
-                in_pack->insert(mphy->pack_comp_remoteid, rid);
+                in_pack->insert(pack_comp_remoteid, rid);
                 remoteid = rid;
                 continue;
             }
@@ -860,9 +885,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     bool is_tracker = frames.any();
 
     // Drop randoms
-    if (btle_info->btle_decode->is_txaddr_random() && mphy->ignore_random &&
+    if (decode.is_txaddr_random() && ignore_random &&
             remoteid == nullptr && !is_tracker)
-        return 0;
+        return false;
 
 #if 0
     if (in_pack->duplicate) {
@@ -879,42 +904,45 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto device =
-        mphy->devicetracker->update_common_device(in_pack->common_info.source, mphy,
+        devicetracker->update_common_device(in_pack->common_info.source, this,
                 in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE");
 
-    kis_lock_guard<kis_mutex> lk(mphy->devicetracker->get_devicelist_mutex(), "btle_common_classifier");
+    if (device == nullptr)
+        return false;
+
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "btle_common_classifier");
 
     auto new_dev = false;
 
     auto btle_dev =
-        device->get_sub_as<btle_tracked_device>(mphy->btle_device_id);
+        device->get_sub_as<btle_tracked_device>(btle_device_id);
 
     if (btle_dev == nullptr) {
-        btle_dev = Globalreg::globalreg->entrytracker->get_shared_instance_as<btle_tracked_device>(mphy->btle_device_id);
+        btle_dev = Globalreg::globalreg->entrytracker->get_shared_instance_as<btle_tracked_device>(btle_device_id);
         device->insert(btle_dev);
 
         new_dev = true;
     }
 
     // Store the PDU type from the packet
-    btle_dev->set_pdu_type(btle_info->btle_decode->pdu_type());
+    btle_dev->set_pdu_type(decode.pdu_type());
 
-    if (btle_info->btle_decode->has_adv_sid())
-        btle_dev->set_adv_sid(btle_info->btle_decode->adv_sid());
+    if (decode.has_adv_sid())
+        btle_dev->set_adv_sid(decode.adv_sid());
 
-    mphy->link_peer(*device, *btle_info->btle_decode, in_pack->ts.tv_sec);
+    link_peer(*device, decode, in_pack->ts.tv_sec);
 
     // A company ID names the maker of a random address device, and of a public one with an
     // unlisted OUI; once known it's kept over the random placeholder
     std::shared_ptr<tracker_element_string> company_manuf;
-    if (adv_decode.company_id >= 0 && mphy->btmanuf != nullptr)
-        company_manuf = mphy->btmanuf->lookup_device_manuf(adv_decode.company_id);
+    if (adv_decode.company_id >= 0 && btmanuf != nullptr)
+        company_manuf = btmanuf->lookup_device_manuf(adv_decode.company_id);
 
-    if (btle_info->btle_decode->is_txaddr_random()) {
+    if (decode.is_txaddr_random()) {
         if (company_manuf != nullptr) {
             if (device->get_manuf() != company_manuf)
                 device->set_manuf(company_manuf);
@@ -927,23 +955,23 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     }
 
     if (adv_decode.any())
-        apply_adv(*btle_dev->get_adv(), adv_decode, mphy->btmanuf.get(), mphy->btoid.get(),
+        apply_adv(*btle_dev->get_adv(), adv_decode, btmanuf.get(), btoid.get(),
                 in_pack->ts.tv_sec);
 
-    if (btle_info->btle_decode->is_txaddr_random()) {
+    if (decode.is_txaddr_random()) {
         const auto rtype = btle_random_address_type(device->get_macaddr()[0]);
         if (!btle_dev->has_random_address_type() || btle_dev->get_random_address_type() != rtype)
             btle_dev->set_random_address_type(rtype);
     }
 
-    for (auto ad : *btle_info->btle_decode->advertised_data()) {
-        if (btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_ind() ||
-                btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_scan_ind()) {
+    for (auto ad : *decode.advertised_data()) {
+        if (decode.pdu_type() == decode.pdu_adv_ind() ||
+                decode.pdu_type() == decode.pdu_adv_scan_ind()) {
             if (ad->length() > 31) {
                 auto al = fmt::format("Saw a BTLE advertisement packet with an advertised content "
                         "over 31 bytes; this may indicate a BleedingTooth style attack on the "
                         "Linux BTLE drivers.");
-                mphy->alertracker->raise_alert(mphy->alert_bleedingtooth_ref, in_pack,
+                alertracker->raise_alert(alert_bleedingtooth_ref, in_pack,
                         mac_addr{}, device->get_macaddr(), mac_addr{}, mac_addr{},
                         "FHSS", al);
             }
@@ -1010,12 +1038,12 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         auto tracker = btle_dev->get_tracker();
 
         apply_tracker_frames(*tracker, frames, in_pack->ts.tv_sec);
-        device->set_tracker_type_string(mphy->devtype_tracker);
+        device->set_tracker_type_string(devtype_tracker);
 
         if (tracker_follow_check(*tracker, in_pack->gps_info, in_pack->ts.tv_sec) &&
-                mphy->alertracker->potential_alert(mphy->alert_trackerfollow_ref)) {
+                alertracker->potential_alert(alert_trackerfollow_ref)) {
             tracker->follow_alerted = true;
-            mphy->alertracker->raise_alert(mphy->alert_trackerfollow_ref, in_pack,
+            alertracker->raise_alert(alert_trackerfollow_ref, in_pack,
                     mac_addr{}, device->get_macaddr(), mac_addr{}, mac_addr{},
                     "FHSS", tracker_follow_text(*tracker));
         }
@@ -1034,18 +1062,18 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
 
     int rssi;
     if (ranging_info.src != btle_ranging::source::none && btle_packet_rssi(in_pack.get(), rssi))
-        apply_ranging(*btle_dev->get_ranging(), ranging_info, rssi, mphy->distance_exponent,
+        apply_ranging(*btle_dev->get_ranging(), ranging_info, rssi, distance_exponent,
                 in_pack->ts.tv_sec);
 
     // Address carryover (Becker et al., PoPETs 2019): a device's advertising payload
     // and its random address change at different times, so the first payload from a
     // new address matching the last one from an address which just went quiet links
     // them
-    if (mphy->alias_linker != nullptr && btle_info->btle_decode->is_txaddr_random()) {
+    if (alias_linker != nullptr && decode.is_txaddr_random()) {
         std::string fp_buf;
-        fp_buf.push_back(static_cast<char>(btle_info->btle_decode->pdu_type()));
+        fp_buf.push_back(static_cast<char>(decode.pdu_type()));
 
-        for (const auto& ad : *btle_info->btle_decode->advertised_data()) {
+        for (const auto& ad : *decode.advertised_data()) {
             // Flags and transmit power are the same on many devices
             if (ad->type() == BTLE_ADVDATA_FLAGS || ad->type() == BTLE_ADVDATA_TX_POWER_LEVEL)
                 continue;
@@ -1058,15 +1086,15 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         // Too little payload to be unique to one device
         if (fp_buf.length() >= 9) {
             std::vector<randomized_alias_linker::link> links;
-            mphy->alias_linker->observe(XXH64(fp_buf.data(), fp_buf.length(), 0), device->get_key(),
+            alias_linker->observe(XXH64(fp_buf.data(), fp_buf.length(), 0), device->get_key(),
                     in_pack->ts.tv_sec, -1, links);
 
             for (const auto& l : links) {
-                auto ldev = mphy->devicetracker->fetch_device(l.key);
+                auto ldev = devicetracker->fetch_device(l.key);
                 if (ldev == nullptr)
                     continue;
 
-                auto lbtle = mphy->fetch_btle_record(ldev);
+                auto lbtle = fetch_btle_record(ldev);
                 if (lbtle == nullptr)
                     continue;
 
@@ -1075,8 +1103,8 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                 if (l.method == nullptr)
                     continue;
 
-                auto pdev = mphy->devicetracker->fetch_device(l.pred);
-                auto pbtle = pdev == nullptr ? nullptr : mphy->fetch_btle_record(pdev);
+                auto pdev = devicetracker->fetch_device(l.pred);
+                auto pbtle = pdev == nullptr ? nullptr : fetch_btle_record(pdev);
                 if (pbtle == nullptr)
                     continue;
 
@@ -1107,14 +1135,14 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                     "matching a Flipper Zero device was seen; The Flipper device is "
                     "capable of generating BTLE packets which may cause a denial of "
                     "service or other problems with some BTLE devices.");
-            mphy->alertracker->raise_alert(mphy->alert_flipper_ref, in_pack,
+            alertracker->raise_alert(alert_flipper_ref, in_pack,
                     mac_addr{}, device->get_macaddr(), mac_addr{}, mac_addr{},
                     "FHSS", al);
         }
 
     }
 
-    return 1;
+    return true;
 }
 
 void kis_btle_phy::load_phy_storage(shared_tracker_element in_storage,

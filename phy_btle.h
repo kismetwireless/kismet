@@ -700,6 +700,15 @@ public:
    __ProxyDynamic(random_address_type, std::string, std::string, std::string, random_address_type,
            random_address_type_id);
 
+   // Only seen when a host reads them over a connection: a HCI capture, or the Linux HCI
+   // source's opt-in active probing
+   __ProxyDynamic(lmp_version, std::string, std::string, std::string, lmp_version, lmp_version_id);
+   __ProxyDynamic(chip_manufacturer, std::string, std::string, std::string, chip_manufacturer,
+           chip_manufacturer_id);
+   __ProxyDynamic(lmp_subversion, uint16_t, uint16_t, uint16_t, lmp_subversion, lmp_subversion_id);
+   __ProxyDynamic(le_features, std::string, std::string, std::string, le_features, le_features_id);
+   __ProxyDynamic(last_probed, uint64_t, time_t, time_t, last_probed, last_probed_id);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -755,6 +764,22 @@ protected:
             register_dynamic_field("btle.device.random_address_type",
                     "kind of random address (static, resolvable, non-resolvable, reserved)",
                     &random_address_type);
+
+        lmp_version_id =
+            register_dynamic_field("btle.device.lmp_version",
+                    "Bluetooth core version of the device's controller", &lmp_version);
+        chip_manufacturer_id =
+            register_dynamic_field("btle.device.chip_manufacturer",
+                    "maker of the controller and its company ID", &chip_manufacturer);
+        lmp_subversion_id =
+            register_dynamic_field("btle.device.lmp_subversion",
+                    "controller firmware subversion, specific to its maker", &lmp_subversion);
+        le_features_id =
+            register_dynamic_field("btle.device.le_features",
+                    "LE feature mask read from the device, hex", &le_features);
+        last_probed_id =
+            register_dynamic_field("btle.device.last_probed",
+                    "last time active probing connected to the device", &last_probed);
     }
 
     std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
@@ -790,6 +815,17 @@ protected:
     std::shared_ptr<tracker_element_string> random_address_type;
     uint16_t random_address_type_id;
 
+    std::shared_ptr<tracker_element_string> lmp_version;
+    uint16_t lmp_version_id;
+    std::shared_ptr<tracker_element_string> chip_manufacturer;
+    uint16_t chip_manufacturer_id;
+    std::shared_ptr<tracker_element_uint16> lmp_subversion;
+    uint16_t lmp_subversion_id;
+    std::shared_ptr<tracker_element_string> le_features;
+    uint16_t le_features_id;
+    std::shared_ptr<tracker_element_uint64> last_probed;
+    uint16_t last_probed_id;
+
     std::shared_ptr<tracker_element_string> alias_group;
     uint16_t alias_group_id;
     std::shared_ptr<tracker_element_string> alias_method;
@@ -818,6 +854,18 @@ public:
     static uint32_t ble_crc24(uint32_t crc_init, const char *data, size_t len);
 
     virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
+
+    // Updates the device an advertisement describes, from a radio frame or a host
+    // controller's report; the caller fills in_pack->common_info (set_report_info for a
+    // report).  remoteid_transport names how Remote ID arrived, when not over the air.
+    // False when the advertisement is dropped.
+    bool update_adv_device(const std::shared_ptr<kis_packet>& in_pack, const bluetooth_btle& decode,
+            const char *remoteid_transport);
+
+    void set_report_info(const std::shared_ptr<kis_packet>& in_pack, const mac_addr& addr);
+
+    // The LE device at an address, if it's been seen advertising
+    std::shared_ptr<btle_tracked_device> fetch_btle_device(const mac_addr& addr);
 
     // Relationships from scan requests, connections and directed advertisements
     void link_peer(kis_tracked_device_base& device, const bluetooth_btle& decode, time_t now);

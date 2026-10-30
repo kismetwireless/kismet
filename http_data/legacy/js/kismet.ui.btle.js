@@ -197,6 +197,39 @@ kismet_ui.AddDeviceDetail("btle", "BTLE", 0, {
                 help: "The kind of random address the device advertises with.  Private addresses change every few minutes, so the same device appears under several addresses.",
             },
             {
+                field: "btle.device/btle.device.lmp_version",
+                title: "Bluetooth Version",
+                filterOnEmpty: true,
+                help: "The Bluetooth version the device's controller reported when a host connected to it.",
+            },
+            {
+                field: "btle.device/btle.device.chip_manufacturer",
+                title: "Chip Maker",
+                filterOnEmpty: true,
+                help: "Maker of the device's controller chip, from its Bluetooth company ID.",
+            },
+            {
+                field: "btle.device/btle.device.lmp_subversion",
+                title: "Chip Firmware",
+                filterOnZero: true,
+                help: "The controller's firmware subversion, chosen by the chip maker.",
+            },
+            {
+                field: "btle.device/btle.device.le_features",
+                title: "LE Features",
+                filterOnEmpty: true,
+                help: "LE feature mask read from the device by active probing.",
+            },
+            {
+                field: "btle.device/btle.device.last_probed",
+                title: "Last Probed",
+                filterOnZero: true,
+                help: "Last time a source's opt-in active probing connected to this device.",
+                draw: function(opts) {
+                    return kismet_ui.RenderTrimmedTime(opts);
+                },
+            },
+            {
                 field: "btle.device/btle.device.tracker",
                 groupTitle: "Location Tracker",
                 filterOnEmpty: true,
