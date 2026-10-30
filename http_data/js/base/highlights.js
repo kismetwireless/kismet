@@ -5,13 +5,16 @@
 // differs from the defaults is saved, so a changed default still shows.
 
 import { onLogin } from '../core/auth.js';
+import { pickColor } from '../widgets/colorpicker.js';
 
 const base = 'kismet.device.base';
 const savedKey = 'devicelist.highlights';
 
 const categories = [
-    { id: 'tag', title: 'Tag', note: 'Devices tagged by the server\'s device rules.  A device with several tags ' +
-        'takes the color of the first one listed.' },
+    // order: the setting the tags' dragged order is saved in
+    { id: 'tag', title: 'Tag', order: 'ruletags.order', note: 'Devices tagged by the server\'s device rules.  ' +
+        'Drag the tags by their handles to set their priority: a device with several tags takes the color of ' +
+        'the highest one.' },
     { id: 'phy', title: 'Phy Type', note: 'Every device of a kind of radio.' },
     { id: '', title: 'Other', note: 'Devices the phys pick out themselves.' },
 ];
@@ -93,45 +96,112 @@ export function register(kismet) {
         create(body) {
             const holder = el('div', { class: 'dh-list' });
 
-            function item(h) {
+            // One highlight per row: on/off and name, what it matches, its color,
+            // and a button to put just that color back to its default.  Tags also
+            // get a handle to drag them into priority order, and their rules.
+            function item(h, sortable) {
                 const s = current(h);
+                let shownColor = s.color;
                 const sample = el('span', { class: 'highlight-sample' }, h.name);
-                sample.style.setProperty('--highlight', s.color);
-                const color = el('input', { type: 'color', value: s.color, title: 'Row color', hidden: !!h.color,
-                    oninput: () => sample.style.setProperty('--highlight', color.value),
-                    onchange: () => change(h, { color: color.value }) });
-                return el('div', { class: 'highlight-item', dataset: { id: h.id } },
-                    el('label', {},
+                const swatch = el('button', { type: 'button', class: 'dh-swatch', title: 'Pick the row color',
+                    'aria-label': `Row color for ${h.name}`, onclick: async () => {
+                        const c = await pickColor({ title: `Row color: ${h.name}`, value: shownColor, onPreview: paint });
+                        if (c) {
+                            shownColor = c;
+                            change(h, { color: c });
+                        }
+                        paint(shownColor);
+                    } });
+                const reset = el('button', { type: 'button', class: 'dh-default', title: 'Put the default color back',
+                    onclick: () => {
+                        change(h, { color: h.defaultColor });
+                        shownColor = h.defaultColor;
+                        paint(shownColor);
+                    } }, 'Default');
+                function paint(c) {
+                    sample.style.setProperty('--highlight', c);
+                    swatch.style.background = c;
+                    reset.disabled = shownColor === h.defaultColor;
+                }
+                paint(shownColor);
+                return el('li', { class: ['dh-item', sortable && 'sortable'], dataset: { id: h.id } },
+                    sortable ? el('button', { type: 'button', class: 'dh-grip', title: 'Drag to set priority',
+                        'aria-label': `Move ${h.name}; drag, or use the arrow keys` }, '⠿') : null,
+                    el('label', { class: 'dh-name' },
                         el('input', { type: 'checkbox', checked: s.enabled, onchange: (e) => change(h, { enabled: e.target.checked }) }),
                         sample),
-                    color,
-                    h.description ? el('div', { class: 'muted' }, h.description) : null);
+                    el('span', { class: 'dh-desc muted' }, h.description ?? '',
+                        h.showRule ? el('button', { type: 'button', class: 'link-button dh-rule', onclick: () => h.showRule() }, 'Show rule') : null),
+                    h.color ? el('span', { class: 'muted' }, 'Colored by its own rules') : swatch,
+                    h.color ? null : reset);
+            }
+
+            // Drag a tag row by its handle (mouse or touch), or move it with the
+            // arrow keys, then save the new order
+            function sortableList(ul, onOrder) {
+                const save = () => onOrder([...ul.children].map((li) => li.dataset.id));
+                ul.addEventListener('keydown', (e) => {
+                    const li = e.target.closest?.('.dh-grip') && e.target.closest('li');
+                    if (!li || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown'))
+                        return;
+                    e.preventDefault();
+                    if (e.key === 'ArrowUp' && li.previousElementSibling)
+                        ul.insertBefore(li, li.previousElementSibling);
+                    else if (e.key === 'ArrowDown' && li.nextElementSibling)
+                        ul.insertBefore(li.nextElementSibling, li);
+                    else
+                        return;
+                    li.querySelector('.dh-grip').focus();
+                    save();
+                });
+                ul.addEventListener('pointerdown', (e) => {
+                    const grip = e.target.closest('.dh-grip');
+                    if (!grip || e.button !== 0)
+                        return;
+                    e.preventDefault();
+                    // Moving the row in the page drops pointer capture, so follow the window
+                    const li = grip.closest('li');
+                    li.classList.add('dragging');
+                    const move = (ev) => {
+                        if (ev.pointerId !== e.pointerId)
+                            return;
+                        const over = [...ul.children].find((o) => {
+                            const r = o.getBoundingClientRect();
+                            return o !== li && ev.clientY >= r.top && ev.clientY <= r.bottom;
+                        });
+                        if (!over)
+                            return;
+                        const r = over.getBoundingClientRect();
+                        ul.insertBefore(li, ev.clientY < r.top + r.height / 2 ? over : over.nextElementSibling);
+                    };
+                    const up = (ev) => {
+                        if (ev.pointerId !== e.pointerId)
+                            return;
+                        window.removeEventListener('pointermove', move);
+                        window.removeEventListener('pointerup', up);
+                        window.removeEventListener('pointercancel', up);
+                        li.classList.remove('dragging');
+                        save();
+                    };
+                    window.addEventListener('pointermove', move);
+                    window.addEventListener('pointerup', up);
+                    window.addEventListener('pointercancel', up);
+                });
+                return ul;
             }
 
             function draw() {
                 const all = ui.rowHighlights.list();
                 holder.replaceChildren(...categories.map((cat) => {
                     const list = all.filter((h) => (categories.some((c) => c.id === h.category) ? h.category : '') === cat.id);
+                    const ul = el('ul', { class: 'dh-items' }, list.map((h) => item(h, !!cat.order)));
+                    if (cat.order)
+                        sortableList(ul, (ids) => settings.set(cat.order,
+                            ids.map((id) => ui.rowHighlights.get(id)?.tag).filter((t) => typeof t === 'string')));
                     return el('section', { class: 'dh-category', dataset: { category: cat.id || 'other' } },
-                        el('div', { class: 'dh-head' }, el('h4', {}, cat.title),
-                            el('button', { type: 'button', title: `Put the ${cat.title.toLowerCase()} colors back to their defaults`,
-                                disabled: !list.length, onclick: () => {
-                                    const out = { ...saved() };
-                                    for (const h of list) {
-                                        if (!out[h.id])
-                                            continue;
-                                        const { color: _drop, ...rest } = out[h.id];
-                                        if (Object.keys(rest).length)
-                                            out[h.id] = rest;
-                                        else
-                                            delete out[h.id];
-                                    }
-                                    settings.set(savedKey, out);
-                                    draw();
-                                } }, 'Default')),
+                        el('h4', {}, cat.title),
                         el('p', { class: 'muted' }, cat.note),
-                        list.length ? el('div', { class: 'highlight-list' }, list.map(item)) :
-                            el('p', { class: 'muted' }, 'None yet.'));
+                        list.length ? ul : el('p', { class: 'muted' }, 'None yet.'));
                 }));
             }
 
