@@ -4097,10 +4097,18 @@ function thermal_refresh() {
  * the colors.  The first tag in the list that a device has colors its row. */
 var rule_tag_defaults = [
     { tag: 'watchlist', color: '#ff9a9a' },
+    { tag: 'handshake', color: '#ff0000' },
+    { tag: 'pmkid', color: '#ff5555' },
+    { tag: 'ais emergency', color: '#ff6666' },
+    { tag: 'zigbee key', color: '#ff6666' },
+    { tag: 'government', color: '#ffb3b3' },
+    { tag: 'bodycam', color: '#0089ff' },
     { tag: 'open', color: '#ffd08a' },
     { tag: 'free wifi', color: '#fff59a' },
     { tag: 'close', color: '#b9f0b0' },
+    { tag: 'uav', color: '#f49e42' },
     { tag: 'quiet', color: '#d6d6d6' },
+    { tag: 'active', color: '#cee1ff' },
 ];
 
 var rule_tag_color_re = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,% ]+\))$/;

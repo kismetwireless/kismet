@@ -42,6 +42,7 @@ namespace {
 
 constexpr size_t max_rules_text = 256 * 1024;
 constexpr size_t max_views = 256;
+constexpr unsigned int max_nesting = 4;
 constexpr const char *api_origin = "api";
 
 using namespace devicerules;
@@ -218,6 +219,35 @@ private:
         }
     }
 
+    static bool is_container(tracker_element *c) {
+        switch (c->get_type()) {
+            case tracker_type::tracker_vector:
+            case tracker_type::tracker_int_map:
+            case tracker_type::tracker_hashkey_map:
+            case tracker_type::tracker_double_map:
+            case tracker_type::tracker_string_map:
+            case tracker_type::tracker_key_map:
+            case tracker_type::tracker_uuid_map:
+            case tracker_type::tracker_mac_map:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    // each(), looking through containers held in a container, as in a map of lists
+    template<typename F>
+    static bool each_record(tracker_element *c, F fn, unsigned int depth = 0) {
+        return each(c, [&](tracker_element *e) {
+                e = deref_alias(e);
+                if (e == nullptr)
+                    return false;
+                if (is_container(e))
+                    return depth < max_nesting && each_record(e, fn, depth + 1);
+                return fn(e);
+            });
+    }
+
     static int64_t container_size(tracker_element *c) {
         switch (c->get_type()) {
             case tracker_type::tracker_vector:
@@ -243,8 +273,8 @@ private:
                 return false;
 
             if (f.fanout[i]) {
-                return each(e, [&](tracker_element *c) {
-                        return c != nullptr && fan(deref_alias(c), f, i + 1, fn, arg, cnt);
+                return each_record(e, [&](tracker_element *c) {
+                        return fan(c, f, i + 1, fn, arg, cnt);
                     });
             }
 
@@ -301,8 +331,8 @@ private:
                 return false;
 
             if (f.fanout[i])
-                return each(e, [&](tracker_element *c) {
-                        return c != nullptr && found(deref_alias(c), f, i + 1);
+                return each_record(e, [&](tracker_element *c) {
+                        return found(c, f, i + 1);
                     });
 
             i++;
@@ -955,8 +985,10 @@ void device_rules::load_configured() {
 
     // Files in config order, then directories, then rules written on config lines
     auto files = conf->fetch_opt_vec_sourced("device_rules_file");
-    if (files.empty())
+    if (files.empty()) {
+        loader.load_file(conf->expand_log_path("%E/kismet_device_rules_highlights.txt"), false);
         loader.load_file(conf->expand_log_path("%E/kismet_device_rules.txt"), false);
+    }
     for (const auto& f : files)
         loader.load_file(conf->expand_log_path(f.value), true);
 
