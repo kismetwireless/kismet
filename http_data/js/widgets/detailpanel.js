@@ -12,6 +12,7 @@ const redrawSeconds = 1;
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
+import * as censor from '../core/censor.js';
 import * as settings from '../core/settings.js';
 import { deviceDetails, deviceDetailFields } from '../registry/devices.js';
 import { detailFields } from './detailfields.js';
@@ -166,7 +167,7 @@ export function openDevice(key) {
         });
         socket.addEventListener('message', (msg) => {
             try {
-                render(JSON.parse(msg.data));
+                render(censor.learn(JSON.parse(msg.data)));
             } catch (err) {
                 console.error('device update failed:', err);
             }
