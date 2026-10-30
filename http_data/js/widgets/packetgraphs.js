@@ -18,6 +18,7 @@ import { dialog } from './dialog.js';
 import { historyGraph } from './historygraph.js';
 import { series } from './charts.js';
 import { openSources } from './datasources.js';
+import { openCoverage } from './coverage.js';
 
 const pc = 'kismet.packetchain';
 const ds = 'kismet.datasource';
@@ -145,7 +146,9 @@ export function openPackets() {
                 span = s;
                 settings.set('packets.span', s);
                 read();
-            }), status),
+            }), status,
+            el('button', { type: 'button', class: 'link-button pk-channels', title: 'Activity on each channel over time',
+                onclick: () => openCoverage({ view: 'heat' }) }, 'Channel heat map')),
         el('section', {}, el('h3', {}, 'Packets per second'), rateGraph.node),
         el('section', {}, el('h3', {}, 'Queue and losses'), lossGraph.node),
         el('section', {},
