@@ -472,6 +472,18 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
 
 }
 
+void phy_80211_ssid_tracker::update_ssid_time(size_t ssid_hash, time_t in_time) {
+    if (!ssid_tracking_enabled)
+        return;
+
+    kis_lock_guard<kis_mutex> lk(mutex);
+
+    auto mapdev = ssid_map.find(ssid_hash);
+
+    if (mapdev != ssid_map.end())
+        static_cast<dot11_tracked_ssid_group *>(mapdev->second.get())->update_last_time(in_time);
+}
+
 void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned int ssid_len,
         size_t ssid_hash, uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
 

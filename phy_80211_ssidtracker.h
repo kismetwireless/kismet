@@ -135,6 +135,13 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
+    // Move last_time forward, for SSIDs seen again without a new device to add
+    void update_last_time(time_t in_time) {
+        kis_lock_guard<kis_mutex> lk(mutex);
+        if (in_time > get_last_time())
+            set_last_time(in_time);
+    }
+
     __Proxy(advertising_device_len, uint64_t, uint64_t, uint64_t, advertising_device_len);
     __Proxy(probing_device_len, uint64_t, uint64_t, uint64_t, probing_device_len);
     __Proxy(responding_device_len, uint64_t, uint64_t, uint64_t, responding_device_len);
@@ -212,6 +219,10 @@ public:
             uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
     void handle_probe_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
             uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
+
+    // A beacon or probe response for a known group whose IE tags haven't changed doesn't go
+    // through handle_broadcast_ssid/handle_response_ssid; this keeps the group's last_time
+    void update_ssid_time(size_t ssid_hash, time_t in_time);
 
 protected:
     kis_mutex mutex;

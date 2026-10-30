@@ -3214,6 +3214,8 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
             if (dot11info->subtype == packet_sub_s1g_beacon) {
                 ssid->inc_beacons_sec();
             }
+
+            ssidtracker->update_ssid_time(ssid->get_ssid_hash(), in_pack->ts.tv_sec);
         }
 
         return;
@@ -3932,6 +3934,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             if (dot11info->subtype == packet_sub_beacon) {
                 ssid->inc_beacons_sec();
             }
+
+            ssidtracker->update_ssid_time(ssid->get_ssid_hash(), in_pack->ts.tv_sec);
         }
 
         return;
