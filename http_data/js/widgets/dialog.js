@@ -7,8 +7,10 @@
 // panel the user can leave open while using the page (device details).
 // Every dialog can be moved by dragging its title bar.  Panels can also be
 // resized from their corner; position { left, top, width, height } places
-// one, and onMove(position) is told where the user put it.  Modal dialogs
-// keep the size their content gives them.
+// one, and onMove(position) is told where the user put it.  A panel that
+// would cover nearly the whole window (most panels on a phone) fills it
+// instead, below the menu and name.  Modal dialogs keep the size their
+// content gives them.
 
 import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -40,6 +42,9 @@ export function dialog({ title, body, modal = true, closable = true, className =
     const content = el('div', { class: 'dialog-body' }, body);
 
     const header = el('header', { class: 'dialog-header' }, titleEl, closeButton);
+    // The size a panel was given, and when fill() last changed it
+    let wanted = position;
+    let filled = 0;
     const node = el('dialog', { class: ['dialog', modal ? 'modal' : 'panel', className] }, header, content);
 
     if (!modal) {
@@ -63,8 +68,9 @@ export function dialog({ title, body, modal = true, closable = true, className =
         node.showModal();
     } else {
         node.show();
-        if (position)
-            place(position);
+        fill();
+        window.addEventListener('resize', fill);
+        node.addEventListener('close', () => window.removeEventListener('resize', fill));
     }
     makeMovable();
 
@@ -98,6 +104,24 @@ export function dialog({ title, body, modal = true, closable = true, className =
         node.classList.add('placed');
     }
 
+    // Fill the window when the panel, at the size it was given, would cover
+    // nearly all of it anyway; checked again (and a placed panel fitted back
+    // on screen) when the window changes size, not when the user resizes it
+    function fill() {
+        filled = Date.now();
+        node.classList.remove('full');
+        if (wanted)
+            place(wanted);
+        const r = node.getBoundingClientRect();
+        const below = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-bottom')) || 0;
+        if (r.width < window.innerWidth * 0.85 || r.height < (window.innerHeight - below) * 0.75)
+            return;
+        node.classList.remove('placed');
+        for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height'])
+            node.style.removeProperty(k);
+        node.classList.add('full');
+    }
+
     // A modal dialog only moves; its size follows its content (settings
     // sections differ), so only its height is held to what fits below its top
     function placeModal({ left, top }) {
@@ -116,7 +140,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
 
     function makeMovable() {
         header.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0 || e.target.closest('button'))
+            if (e.button !== 0 || e.target.closest('button') || node.classList.contains('full'))
                 return;
             e.preventDefault();
             header.setPointerCapture(e.pointerId);
@@ -131,6 +155,8 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 header.removeEventListener('pointerup', up);
                 header.removeEventListener('pointercancel', up);
                 node.classList.remove('moving');
+                if (!modal)
+                    wanted = currentPosition();
                 onMove?.(currentPosition());
             };
             header.addEventListener('pointermove', move);
@@ -161,8 +187,10 @@ export function dialog({ title, body, modal = true, closable = true, className =
             timer = setTimeout(() => {
                 // Only a size the user set (by dragging the corner), not the
                 // window changing size around a docked panel
-                if (node.isConnected && !node.classList.contains('moving') && node.style.height)
-                    onMove?.(currentPosition());
+                if (node.isConnected && !node.classList.contains('moving') && node.style.height && Date.now() - filled > 600) {
+                    wanted = currentPosition();
+                    onMove?.(wanted);
+                }
             }, 300);
         }).observe(node);
     }
@@ -179,9 +207,11 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 return;
             const p = currentPosition();
             const w = Math.min(width, window.innerWidth - 16);
-            if (w <= p.width)
+            if (w <= p.width || node.classList.contains('full'))
                 return;
-            place({ ...p, width: w, left: Math.max(8, Math.min(p.left, window.innerWidth - 8 - w)) });
+            wanted = { ...p, width: w, left: Math.max(8, Math.min(p.left, window.innerWidth - 8 - w)) };
+            place(wanted);
+            fill();
         },
     };
 }
