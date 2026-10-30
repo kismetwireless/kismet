@@ -1407,11 +1407,12 @@ static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_de
         return 1;
     }
 
-    port_name = strrchr(port_path, '/');
-    if (port_name)
-        port_name++;
-    else
-        port_name = port_path;
+    /* An operator's atport=/diagport= may be a /dev/serial/by-id link, whose
+     * basename is no /sys/class/tty entry: use the kernel's node name. */
+    char node_name[256];
+    if (diag_tty_node_name(port_path, node_name, sizeof(node_name)) < 0)
+        return 0;
+    port_name = node_name;
 
     snprintf(sysfs_path, sizeof(sysfs_path), "/sys/class/tty/%s/device", port_name);
     if (realpath(sysfs_path, resolved) == NULL)
@@ -1443,11 +1444,12 @@ static int get_usb_interface_num(const char *port_path) {
         return cell_usbport_parse(port_path, NULL, NULL, &ifnum) == 0 ? ifnum : -1;
     }
 
-    port_name = strrchr(port_path, '/');
-    if (port_name)
-        port_name++;
-    else
-        port_name = port_path;
+    /* An operator's atport=/diagport= may be a /dev/serial/by-id link, whose
+     * basename is no /sys/class/tty entry: use the kernel's node name. */
+    char node_name[256];
+    if (diag_tty_node_name(port_path, node_name, sizeof(node_name)) < 0)
+        return -1;
+    port_name = node_name;
 
     snprintf(sysfs_path, sizeof(sysfs_path), "/sys/class/tty/%s/device", port_name);
     if (realpath(sysfs_path, resolved) == NULL)
@@ -1485,11 +1487,12 @@ static int read_usb_iface_hex_attr(const char *port_path, const char *attr) {
     char buf[32];
     const char *port_name;
 
-    port_name = strrchr(port_path, '/');
-    if (port_name)
-        port_name++;
-    else
-        port_name = port_path;
+    /* An operator's atport=/diagport= may be a /dev/serial/by-id link, whose
+     * basename is no /sys/class/tty entry: use the kernel's node name. */
+    char node_name[256];
+    if (diag_tty_node_name(port_path, node_name, sizeof(node_name)) < 0)
+        return -1;
+    port_name = node_name;
 
     /* /sys/class/tty/ttyUSBn/device resolves to the port dir
      * (".../2-3.4.3:1.0/ttyUSB14"); the descriptor attributes live one level up,

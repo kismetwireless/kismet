@@ -400,6 +400,20 @@ int diag_portadmit_log_once(FILE *f, const char *who, const char *dev_path,
     return 1;
 }
 
+int diag_tty_node_name(const char *dev_path, char *out, size_t outsz) {
+    if (dev_path == NULL || *dev_path == '\0' || out == NULL || outsz == 0)
+        return -1;
+    char resolved[PATH_MAX];
+    int ok = realpath(dev_path, resolved) != NULL;
+    const char *from = ok ? resolved : dev_path;
+    const char *base = strrchr(from, '/');
+    base = base ? base + 1 : from;
+    if (*base == '\0' || strlen(base) >= outsz)
+        return -1;
+    memcpy(out, base, strlen(base) + 1);
+    return ok ? 1 : 0;
+}
+
 #if defined(CELL_SELFTEST) && defined(DIAG_PORTADMIT_SELFTEST)
 
 #include <errno.h>
@@ -897,6 +911,48 @@ static void test_note(void) {
           "note: an entry that does not fit is dropped whole");
 }
 
+/* An operator's by-id link resolves to the kernel's node name; a relative
+ * link too; a dangling link and a missing node fall back to the given name. */
+static void test_tty_node_name(void) {
+    char dev[PATH_MAX], node[PATH_MAX], link[PATH_MAX], name[64];
+    snprintf(dev, sizeof(dev), "%s/dev", g_root);
+    snprintf(node, sizeof(node), "%s/dev/ttyUSB2", g_root);
+    mkdir_p(dev);
+    write_file(node, "");
+    snprintf(link, sizeof(link), "%s/dev/usb-Quectel_EG25-G-if02-port0", g_root);
+    link_to(node, link);
+    check(diag_tty_node_name(link, name, sizeof(name)) == 1 &&
+          strcmp(name, "ttyUSB2") == 0,
+          "node name: an absolute by-id link resolves to ttyUSB2");
+
+    snprintf(link, sizeof(link), "%s/dev/usb-rel-if02-port0", g_root);
+    link_to("ttyUSB2", link);
+    check(diag_tty_node_name(link, name, sizeof(name)) == 1 &&
+          strcmp(name, "ttyUSB2") == 0,
+          "node name: a relative link resolves to ttyUSB2");
+
+    check(diag_tty_node_name(node, name, sizeof(name)) == 1 &&
+          strcmp(name, "ttyUSB2") == 0,
+          "node name: a node is its own name");
+
+    snprintf(link, sizeof(link), "%s/dev/usb-gone-if02-port0", g_root);
+    link_to("/nonexistent/ttyUSB9", link);
+    check(diag_tty_node_name(link, name, sizeof(name)) == 0 &&
+          strcmp(name, "usb-gone-if02-port0") == 0,
+          "node name: a dangling link keeps the name it was given");
+
+    check(diag_tty_node_name("/dev/ttyUSB-not-here", name, sizeof(name)) == 0 &&
+          strcmp(name, "ttyUSB-not-here") == 0,
+          "node name: a missing node keeps its basename");
+
+    char tiny[4];
+    check(diag_tty_node_name(node, tiny, sizeof(tiny)) == -1,
+          "node name: a name that does not fit is refused");
+    check(diag_tty_node_name(NULL, name, sizeof(name)) == -1 &&
+          diag_tty_node_name("", name, sizeof(name)) == -1,
+          "node name: NULL and empty are refused");
+}
+
 static void cleanup(void) {
     char cmd[PATH_MAX + 16];
     if (g_root[0] && strstr(g_root, "portadmit.") != NULL) {
@@ -916,6 +972,7 @@ int main(void) {
     test_known_nonat_refused();
     test_log_once();
     test_note();
+    test_tty_node_name();
     cleanup();
 
     printf("\n%s\n", failures == 0 ? "PASS" : "FAIL");
