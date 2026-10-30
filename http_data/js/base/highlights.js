@@ -103,12 +103,15 @@ export function register(kismet) {
                 const s = current(h);
                 let shownColor = s.color;
                 const sample = el('span', { class: 'highlight-sample' }, h.name);
+                const enabled = el('input', { type: 'checkbox', checked: s.enabled, onchange: () => change(h, { enabled: enabled.checked }) });
                 const swatch = el('button', { type: 'button', class: 'dh-swatch', title: 'Pick the row color',
                     'aria-label': `Row color for ${h.name}`, onclick: async () => {
                         const c = await pickColor({ title: `Row color: ${h.name}`, value: shownColor, onPreview: paint });
+                        // Picking a color turns the highlight on
                         if (c) {
                             shownColor = c;
-                            change(h, { color: c });
+                            enabled.checked = true;
+                            change(h, { color: c, enabled: true });
                         }
                         paint(shownColor);
                     } });
@@ -127,9 +130,7 @@ export function register(kismet) {
                 return el('li', { class: ['dh-item', sortable && 'sortable'], dataset: { id: h.id } },
                     sortable ? el('button', { type: 'button', class: 'dh-grip', title: 'Drag to set priority',
                         'aria-label': `Move ${h.name}; drag, or use the arrow keys` }, '⠿') : null,
-                    el('label', { class: 'dh-name' },
-                        el('input', { type: 'checkbox', checked: s.enabled, onchange: (e) => change(h, { enabled: e.target.checked }) }),
-                        sample),
+                    el('label', { class: 'dh-name' }, enabled, sample),
                     el('span', { class: 'dh-desc muted' }, h.description ?? '',
                         h.showRule ? el('button', { type: 'button', class: 'link-button dh-rule', onclick: () => h.showRule() }, 'Show rule') : null),
                     h.color ? el('span', { class: 'muted' }, 'Colored by its own rules') : swatch,
