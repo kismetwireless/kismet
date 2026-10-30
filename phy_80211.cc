@@ -46,6 +46,7 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "phy_80211.h"
+#include "packet_filter.h"
 
 #include "kis_httpd_registry.h"
 
@@ -648,6 +649,62 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         dissect_data = 1;
     }
 
+    content_filter =
+        std::make_shared<packet_filter_mac_addr>("dot11_content",
+                "IEEE802.11 data frame content filtering");
+
+    auto content_filter_dfl =
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("dot11_content_filter_default", "pass");
+
+    if (content_filter_dfl == "pass" || content_filter_dfl == "false") {
+        content_filter->set_filter_default(false);
+    } else if (content_filter_dfl == "block" || content_filter_dfl == "true") {
+        content_filter->set_filter_default(true);
+    } else {
+        _MSG_ERROR("Couldn't parse 'dot11_content_filter_default', expected 'pass' or 'block', filter "
+                "defaulting to 'pass'.");
+    }
+
+    for (const auto& cfi : Globalreg::globalreg->kismet_config->fetch_opt_vec("dot11_content_filter")) {
+        // block,mac,value
+        auto filter_toks = str_tokenize(cfi, ",");
+
+        if (filter_toks.size() != 3) {
+            _MSG_ERROR("Skipping invalid dot11_content_filter option '{}', expected "
+                    "filterblock,mac,filtertype.", cfi);
+            continue;
+        }
+
+        mac_addr m(filter_toks[1]);
+        if (m.state.error) {
+            _MSG_ERROR("Skipping invalid dot11_content_filter option '{}', expected "
+                    "filterblock,mac,filtertype but got error parsing '{}' as a MAC address.",
+                    cfi, filter_toks[1]);
+            continue;
+        }
+
+        bool filter_opt = false;
+        if (filter_toks[2] == "pass" || filter_toks[2] == "false") {
+            filter_opt = false;
+        } else if (filter_toks[2] == "block" || filter_toks[2] == "true") {
+            filter_opt = true;
+        } else {
+            _MSG_ERROR("Skipping invalid dot11_content_filter option '{}', expected "
+                    "filterblock,mac,filtertype but got an error parsing '{}' as a filter block "
+                    "or pass.", cfi, filter_toks[2]);
+            continue;
+        }
+
+        try {
+            content_filter->set_filter(m, "IEEE802.11", filter_toks[0], filter_opt);
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Skipping invalid dot11_content_filter option '{}': {}", cfi, e.what());
+        }
+    }
+
+    // Before the loggers and streams, which run at -100
+    packetchain->register_handler(&packet_dot11_content_filter, this, CHAINPOS_LOGGING, -1000);
+
 #if 0
     // There is no actual handling of phy packets and nothing uses this config option,
     // scheduled for removal unless something new is found that makes phy packets actually
@@ -1131,6 +1188,7 @@ kis_80211_phy::~kis_80211_phy() {
     packetchain->remove_handler(&phydot11_packethook_dot11, CHAINPOS_LLCDISSECT);
     packetchain->remove_handler(&phydot11_packethook_assign, CHAINPOS_POSTCAP);
     packetchain->remove_handler(&packet_dot11_common_classifier, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&packet_dot11_content_filter, CHAINPOS_LOGGING);
 
     timetracker->remove_timer(device_idle_timer);
 }
@@ -2426,6 +2484,32 @@ static uint64_t dot11_android_capability_crypt(std::string element) {
     }
 
     return ret;
+}
+
+int kis_80211_phy::packet_dot11_content_filter(CHAINCALL_PARMS) {
+    auto *d11phy = (kis_80211_phy *) auxdata;
+
+    // With hidedata= every data frame is already cut
+    if (!d11phy->dissect_data || in_pack->error)
+        return 0;
+
+    auto packinfo = in_pack->fetch<dot11_packinfo>(d11phy->pack_comp_80211);
+
+    if (packinfo == nullptr || packinfo->type != packet_data || packinfo->corrupt)
+        return 0;
+
+    if (!d11phy->content_filter->filter_packet(in_pack.get()))
+        return 0;
+
+    auto chunk = in_pack->fetch<kis_datachunk>(d11phy->pack_comp_decap);
+
+    if (chunk == nullptr)
+        chunk = in_pack->fetch<kis_datachunk>(d11phy->pack_comp_linkframe);
+
+    if (chunk != nullptr)
+        d11phy->hidedata_truncate(in_pack.get(), chunk, packinfo);
+
+    return 1;
 }
 
 int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {

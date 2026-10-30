@@ -445,6 +445,8 @@ class dot11_ssid_alert {
         std::map<mac_addr, int> allow_mac_map;
 };
 
+class packet_filter_mac_addr;
+
 class kis_80211_phy : public kis_phy_handler, public time_tracker_event {
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
@@ -536,6 +538,9 @@ public:
 
     // 802.11 virtual source scan classifier
     static int packet_dot11_scan_json_classifier(CHAINCALL_PARMS);
+
+    // Per-device content filter, run before the loggers and streams
+    static int packet_dot11_content_filter(CHAINCALL_PARMS);
 
     // Dot11 tracker for building phy-specific elements
     int tracker_dot11(const std::shared_ptr<kis_packet>& in_pack);
@@ -671,6 +676,11 @@ protected:
     // Do we do any data dissection or do we hide it all (legal safety
     // cutout)
     int dissect_data;
+
+    // Data frames this filter blocks (by source, destination, network or transmitter) are
+    // cut to their 802.11 headers before they are logged or streamed, like hidedata= does
+    // for every data frame
+    std::shared_ptr<packet_filter_mac_addr> content_filter;
 
     // Do we pull strings?
     int dissect_strings, dissect_all_strings;
