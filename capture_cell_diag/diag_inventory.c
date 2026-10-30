@@ -65,6 +65,7 @@ typedef struct {
     uint64_t emitted;
     uint64_t enrich_failed;
     uint64_t undecoded;      /* records no native leg read (native coverage) */
+    uint64_t gated;          /* decoded records set aside for a benign reason */
 } inv_entry_t;
 
 struct diag_inventory {
@@ -234,6 +235,18 @@ void diag_inventory_record_undecoded(diag_inventory_t *inv, uint16_t code,
     e->undecoded++;
 }
 
+void diag_inventory_record_gated(diag_inventory_t *inv, uint16_t code,
+                                 int version) {
+    if (inv == NULL)
+        return;
+    inv_entry_t *e = inv_admit(inv, code, inv_version(version));
+    if (e == NULL)
+        return;
+    e->count++;
+    e->decoded++;
+    e->gated++;
+}
+
 void diag_inventory_set_native_coverage(diag_inventory_t *inv, int on) {
     if (inv != NULL)
         inv->native_coverage = on ? 1 : 0;
@@ -389,7 +402,9 @@ static int is_unrec(const inv_entry_t *e) {
     return e->decoded == 0 && e->dropped > 0;
 }
 static int is_silent(const inv_entry_t *e) {
-    return diag_inventory_is_emit_contract(e->code) && e->decoded > 0 &&
+    /* Gated records decoded and were set aside on purpose (a fix-less GNSS
+     * record); only a decode beyond them that emitted nothing is a silence. */
+    return diag_inventory_is_emit_contract(e->code) && e->decoded > e->gated &&
            e->emitted == 0;
 }
 static int is_silent_actionable(const inv_entry_t *e) {
