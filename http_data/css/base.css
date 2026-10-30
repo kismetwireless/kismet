@@ -1265,6 +1265,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .pk-window section + section { border-top: 1px solid var(--border); padding-top: 0.8rem; }
 .pk-bar, .pk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; }
 .pk-bar .muted { font-size: 0.85rem; }
+.pk-channels { margin-left: auto; }
 .pk-head h3 { margin: 0; }
 .pk-head { margin-bottom: 0.4rem; }
 .pk-note { margin: 0.3rem 0 0; font-size: 0.85rem; }
