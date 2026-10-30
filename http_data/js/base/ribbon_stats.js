@@ -48,10 +48,14 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'sources', title: 'Sources', priority: 20,
-        description: 'Data sources running, and any with errors',
+        description: 'Data sources running, and any with errors; click for the data sources',
         create(body) {
             const v = valueStat('source');
             body.append(v.node);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            stat.title = 'Show the data sources';
+            stat.addEventListener('click', () => kismet.widgets.datasources.openSources());
             const fields = ['kismet.datasource.uuid', 'kismet.datasource.running', 'kismet.datasource.error'];
 
             async function update() {
