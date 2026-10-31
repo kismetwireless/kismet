@@ -63,14 +63,6 @@ export function register(kismet) {
         heading: (d) => (underway(d) || d.ais_class === 'SAR Aircraft' ? d.rep_heading || 0 : null),
     });
 
-    ui.rowHighlights.add({
-        id: 'ais_emergency', name: 'AIS emergency', priority: 10,
-        description: 'AIS SART, MOB, and EPIRB emergency beacons',
-        defaultColor: '#ff6666', defaultEnabled: true,
-        fields: [`${base}.phyname`, [`${ais}/${ais}.class`, 'ais_class']],
-        match: (row) => isAis(row) && emergency.includes(row.ais_class),
-    });
-
     ui.deviceDetails.add({
         id: 'ais', title: 'AIS (SDR)', priority: 5,
         match: (dev) => dev[`${base}.phyname`] === 'AIS',

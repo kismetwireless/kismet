@@ -10,13 +10,15 @@ import { pickColor } from '../widgets/colorpicker.js';
 const base = 'kismet.device.base';
 const savedKey = 'devicelist.highlights';
 
+const otherOrder = 'highlights.order';
+
 const categories = [
-    // order: the setting the tags' dragged order is saved in
-    { id: 'tag', title: 'Tag', order: 'ruletags.order', note: 'Devices tagged by the server\'s device rules.  ' +
+    // order: the setting the dragged order is saved in; key: what each row is saved as
+    { id: 'tag', title: 'Tag', order: 'ruletags.order', key: (h) => h.tag, note: 'Devices tagged by the server\'s device rules.  ' +
         'Drag the tags by their handles to set their priority: a device with several tags takes the color of ' +
         'the highest one.' },
     { id: 'phy', title: 'Phy Type', note: 'Every device of a kind of radio.' },
-    { id: '', title: 'Other', note: 'Devices the phys pick out themselves.' },
+    { id: '', title: 'Other', order: otherOrder, key: (h) => h.id, note: 'Other phy-specific colors' },
 ];
 
 // A steady color for a phy or tag without one of its own
@@ -67,6 +69,11 @@ export function register(kismet) {
     loadPhys();
     onLogin(loadPhys);
     ui.phyColors.watch(addPhyHighlights);
+
+    // The order the user dragged the other highlights into
+    const applyOrder = () => ui.rowHighlights.setOrder(settings.get(otherOrder, []));
+    applyOrder();
+    settings.watch(otherOrder, applyOrder);
 
     const saved = () => settings.get(savedKey, {}) ?? {};
 
@@ -198,7 +205,7 @@ export function register(kismet) {
                     const ul = el('ul', { class: 'dh-items' }, list.map((h) => item(h, !!cat.order)));
                     if (cat.order)
                         sortableList(ul, (ids) => settings.set(cat.order,
-                            ids.map((id) => ui.rowHighlights.get(id)?.tag).filter((t) => typeof t === 'string')));
+                            ids.map((id) => ui.rowHighlights.get(id)).filter(Boolean).map(cat.key).filter((k) => typeof k === 'string')));
                     return el('section', { class: 'dh-category', dataset: { category: cat.id || 'other' } },
                         el('h4', {}, cat.title),
                         el('p', { class: 'muted' }, cat.note),

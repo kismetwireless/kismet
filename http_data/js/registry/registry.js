@@ -9,6 +9,7 @@
 export function createRegistry(name, { required = [], defaults = {} } = {}) {
     const entries = new Map();
     const listeners = new Set();
+    let order = new Map();
     let notifyQueued = false;
 
     function notify() {
@@ -49,7 +50,24 @@ export function createRegistry(name, { required = [], defaults = {} } = {}) {
         },
 
         list() {
-            return [...entries.values()].sort((a, b) => a.priority - b.priority);
+            const all = [...entries.values()].sort((a, b) => a.priority - b.priority);
+            if (!order.size)
+                return all;
+            // the entries given an order trade places among themselves; the rest stay put
+            const slots = all.map((e, i) => (order.has(e.id) ? i : -1)).filter((i) => i >= 0);
+            const moved = slots.map((i) => all[i]).sort((a, b) => order.get(a.id) - order.get(b.id));
+            slots.forEach((i, n) => { all[i] = moved[n]; });
+            return all;
+        },
+
+        // Put the entries with these ids in this order among themselves, in the
+        // places their priorities give them; ids not here keep their places
+        setOrder(ids) {
+            const next = new Map((Array.isArray(ids) ? ids : []).map((id, i) => [id, i]));
+            if (next.size === order.size && [...next].every(([id, i]) => order.get(id) === i))
+                return;
+            order = next;
+            notify();
         },
 
         // Call fn() whenever entries are added or removed
