@@ -275,30 +275,8 @@ uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, uint32_t cs)
 uint32_t adler32_checksum(const void *in_buf, size_t in_len);
 uint32_t adler32_checksum(const std::string& in_buf);
 
-// 802.11 checksum functions, derived from the BBN USRP 802.11 code
+// 802.11 FCS polynomial
 #define IEEE_802_3_CRC32_POLY	0xEDB88320
-unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
-        int len, unsigned int poly);
-void crc32_init_table_80211(unsigned int *crc32_table);
-unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
-        int len);
-
-
-// Simple lexer for "advanced" filter stuff and other tools
-#define _kis_lex_none			0
-#define _kis_lex_string			1
-#define _kis_lex_quotestring	2
-#define _kis_lex_popen			3
-#define _kis_lex_pclose			4
-#define _kis_lex_negate			5
-#define _kis_lex_delim			6
-
-typedef struct {
-    int type;
-    std::string data;
-} _kis_lex_rec;
-
-std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr);
 
 #define LAT_CONVERSION_FACTOR 10000000
 #define LON_CONVERSION_FACTOR 10000000
@@ -493,114 +471,6 @@ struct constant_time_string_compare_ne {
         return r == false;
     }
 
-};
-
-struct future_stringbuf_timeout : public std::exception {
-    const char *what() const throw () {
-        return "timed out";
-    }
-};
-
-struct future_stringbuf : public std::stringbuf {
-public:
-    future_stringbuf(size_t chunk = 1024) :
-        std::stringbuf{},
-        chunk{chunk}, 
-        blocking{false},
-        done{true} { }
-
-    bool is_complete() const { return done; }
-    void complet() {
-        done = true;
-        sync();
-    }
-
-    void cancel() {
-        done = true;
-        sync();
-    }
-
-    size_t size() const { return str().size(); }
-
-    void wait() {
-        if (blocking)
-            throw std::runtime_error("future_stream already blocking");
-
-        if (done || str().size())
-            return;
-
-        blocking = true;
-
-        data_available_pm = std::promise<bool>();
-
-        auto ft = data_available_pm.get_future();
-
-        ft.wait();
-
-        blocking = false;
-    }
-
-    template<class Rep, class Period>
-    void wait_for(const std::chrono::duration<Rep, Period>& timeout) {
-        if (blocking)
-            throw std::runtime_error("future_stream already blocking");
-
-        if (done || str().size())
-            return;
-
-        blocking = true;
-
-        data_available_pm = std::promise<bool>();
-
-        auto ft = data_available_pm.get_future();
-
-        auto r = ft.wait_for(timeout);
-        if (r == std::future_status::timeout)
-            throw future_stringbuf_timeout();
-        else if (r == std::future_status::deferred)
-            throw std::runtime_error("future_stream blocked with no future");
-
-        blocking = false;
-    }
-
-    virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
-        auto r = std::stringbuf::xsputn(s, n);
-
-        if (str().length() >= chunk)
-            sync();
-
-        return r;
-    }
-
-    virtual int_type overflow(int_type ch) override {
-        auto r = std::stringbuf::overflow(ch);
-
-        if (str().length() >= chunk)
-            sync();
-
-        return r;
-    }
-
-    virtual int sync() override {
-        auto r = std::stringbuf::sync();
-
-        if (blocking) {
-            try {
-                data_available_pm.set_value(true);
-            } catch (const std::future_error& e) {
-                ;
-            }
-        }
-
-        return r;
-    }
-
-
-protected:
-    size_t chunk;
-    std::atomic<bool> blocking;
-    std::atomic<bool> done;
-    std::promise<bool> data_available_pm;
 };
 
 bool is_valid_utf8(const std::string& subject);

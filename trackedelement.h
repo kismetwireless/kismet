@@ -341,7 +341,6 @@ public:
     virtual void coercive_set(const shared_tracker_element& in_elem) = 0;
 
     static std::string type_to_string(tracker_type t);
-    static tracker_type typestring_to_type(const std::string& s);
     static std::string type_to_typestring(tracker_type t);
 
     tracker_type enforce_type(tracker_type t) {
@@ -2527,10 +2526,6 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element>,
         const std::vector<std::shared_ptr<tracker_element_summary>>&,
         std::shared_ptr<tracker_element_serializer::rename_map>);
-
-// Handle comparing fields
-bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
-        const std::shared_ptr<tracker_element> rhs);
 
 // Copy the value of a sortable scalar so it can be compared after the owning object is
 // unlocked; elements fast_sort_tracker_element_less doesn't compare are returned as-is

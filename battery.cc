@@ -40,23 +40,6 @@
 #include <machine/apmvar.h>
 #endif
 
-#if 0
-#ifdef SYS_DARWIN
-#include <CoreFoundation/CoreFoundation.h>
-#include <IOKit/ps/IOPowerSources.h>
-#include <IOKit/ps/IOPSKeys.h>
-
-#define LCDP_BATT_ABSENT 1
-#define LCDP_AC_ON 2
-#define LCDP_BATT_UNKNOWN 3
-#define LCDP_AC_OFF 4
-#define LCDP_BATT_CHARGING 5
-#define LCDP_BATT_HIGH 6
-#define LCDP_BATT_LOW 7
-#define LCDP_BATT_CRITICAL 8
-#endif
-#endif
-
 #ifdef SYS_NETBSD
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -326,105 +309,6 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
 }
 
 int Fetch_Battery_Darwin(kis_battery_info *out __attribute__((unused))) {
-    // This seems to no longer work?  Disabling for now, will revisit
-#if 0
-#ifdef SYS_DARWIN
-	// Battery handling code from Kevin Finisterre & Apple specs
-	CFTypeRef blob = IOPSCopyPowerSourcesInfo();
-	CFArrayRef sources = IOPSCopyPowerSourcesList(blob);
-
-	int i, bat_available = 0;
-	CFDictionaryRef pSource = NULL;
-	const void *psValue;
-
-	int acstat = 0, battflag = LCDP_BATT_ABSENT;
-
-	if (CFArrayGetCount(sources) != 0) {
-		for (i = 0; i < CFArrayGetCount(sources); i++) {
-			pSource = IOPSGetPowerSourceDescription(blob, 
-													CFArrayGetValueAtIndex(sources, i));
-			if (pSource == NULL)
-				break;
-
-			psValue = (CFStringRef) CFDictionaryGetValue(pSource, 
-														 CFSTR(kIOPSNameKey));
-
-			if (CFDictionaryGetValueIfPresent(pSource, CFSTR(kIOPSIsPresentKey),
-											  &psValue) && 
-				(CFBooleanGetValue((CFBooleanRef) psValue))) {
-				psValue = 
-					(CFStringRef) CFDictionaryGetValue(pSource, 
-													   CFSTR(kIOPSPowerSourceStateKey));
-
-				if (CFStringCompare((CFStringRef) psValue, 
-								CFSTR(kIOPSBatteryPowerValue), 0) == kCFCompareEqualTo) {
-					battflag = LCDP_BATT_UNKNOWN;
-					acstat = LCDP_AC_OFF;
-					out->charging = 0;
-				} else if (CFDictionaryGetValueIfPresent(pSource, 
-											 CFSTR(kIOPSIsChargingKey), &psValue)) {
-					if (CFBooleanGetValue((CFBooleanRef) psValue) > 0) {
-						battflag = LCDP_BATT_CHARGING;
-						out->charging = 1;
-					} else {
-						battflag = LCDP_BATT_UNKNOWN;
-					}
-				}
-
-				if (battflag != LCDP_BATT_ABSENT) {
-					int curCapacity = 0;
-					int maxCapacity = 0;
-					int remainingTime = 0;
-					int timeToCharge = 0;
-
-					bat_available = 1;
-
-					psValue = CFDictionaryGetValue(pSource, 
-												   CFSTR(kIOPSCurrentCapacityKey));
-					CFNumberGetValue((CFNumberRef) psValue, kCFNumberSInt32Type, 
-									 &curCapacity);
-
-					psValue = CFDictionaryGetValue(pSource, 
-												   CFSTR(kIOPSMaxCapacityKey));
-					CFNumberGetValue((CFNumberRef) psValue, kCFNumberSInt32Type, 
-									 &maxCapacity);
-
-					out->percentage = (maxCapacity / curCapacity) * 100;
-
-					// If this is 0 we are on AC, if it's a negative we are 
-					// "calculating",
-					psValue = CFDictionaryGetValue(pSource, 
-												   CFSTR(kIOPSTimeToEmptyKey));
-					CFNumberGetValue((CFNumberRef) psValue, 
-									 kCFNumberSInt32Type, &remainingTime);
-
-					if (remainingTime == 0)
-						out->ac = 1;
-					else
-						out->ac = 0;
-
-					psValue = CFDictionaryGetValue(pSource, 
-												   CFSTR(kIOPSTimeToFullChargeKey));
-					CFNumberGetValue((CFNumberRef) psValue, 
-									 kCFNumberSInt32Type, &timeToCharge);
-
-					if (out->charging && timeToCharge > 0) {
-						out->charging = 1;
-					} else if (remainingTime > 0) {
-						out->remaining_sec = remainingTime * 60;
-						out->charging = 0;
-						out->ac = 0;
-					}
-
-                    return 1;
-				}
-			}
-		}
-	}
-
-#endif
-#endif
-
     return 0;
 }
 
@@ -470,68 +354,6 @@ int Fetch_Battery_OpenBSD(kis_battery_info *out __attribute__((unused))) {
 
         return 1;
 	}
-
-#endif
-
-    return 0;
-}
-
-int Fetch_Battery_NetBSD(kis_battery_info *out __attribute__((unused))) {
-#ifdef SYS_NETBSD
-	static int fd = -1;
-	int i;
-	envsys_basic_info_t info;
-	envsys_tre_data_t data;
-	unsigned int charge = 0;
-	unsigned int maxcharge = 0;
-	unsigned int rate = 0;
-
-	if (fd < 0 && (fd = open(_PATH_SYSMON, O_RDONLY)) < 0) 
-		return 1;
-
-	for (i = 0; i >= 0; i++) {
-		memset(&info, 0, sizeof(info));
-		info.sensor = i;
-
-		if (ioctl(fd, ENVSYS_GTREINFO, &info) == -1) {
-			close(fd);
-			return 1;
-		}
-
-		if (!(info.validflags & ENVSYS_FVALID))
-			break;
-
-		memset(&data, 0, sizeof(data));
-		data.sensor = i;
-
-		if(ioctl(fd, ENVSYS_GTREDATA, &data) == -1) {
-			close(fd);
-			return 1;
-		}
-
-		if (!(data.validflags & ENVSYS_FVALID))
-			continue;
-
-		if (strcmp("acpiacad0 connected", info.desc) == 0) {
-			out->ac = data.cur.data_us;
-		} else if (strcmp("acpibat0 charge", info.desc) == 0) {
-			out->percentage = (unsigned int) ((data.cur.data_us * 100.0) / 
-											  data.max.data_us);
-			charge = data.cur.data_us;
-			maxcharge = data.max.data_us;
-		} else if (strcmp("acpibat0 charging", info.desc) == 0) {
-			out->charging = data.cur.data_us > 0 ? 1 : 0;
-		} else if (strcmp("acpibat0 discharge rate", info.desc) == 0) {
-			rate = data.cur.data_us;
-		}
-	}
-
-	if (out->charging != 0)
-		out->remaining_sec = rate ? (unsigned int) ((maxcharge - charge) * 3600.0 / 
-	else
-		out->remaining_sec = rate ? (unsigned int) ((charge * 3600.0) / rate) : 0;
-
-    return 1;
 
 #endif
 

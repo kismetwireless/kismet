@@ -168,9 +168,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     Globalreg::enable_pool_type<dot11_wfa_p2p_ie::shared_ie_tag_vector>([](auto *a) { a->clear(); });
     Globalreg::enable_pool_type<dot11_wfa_p2p_ie::dot11_wfa_p2p_ie_tag>([](auto *a) { a->reset(); });
 
-    // Initialize the crc tables
-    crc32_init_table_80211(Globalreg::globalreg->crc32_table);
-
     set_phy_name("IEEE802.11");
 
     dot11_device_entry_id =

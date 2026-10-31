@@ -220,8 +220,6 @@ public:
 	// Alert references
 	int alertref_map[ALERT_REF_MAX];
 
-	unsigned int crc32_table[256];
-
 	// Critical failure elements
     std::vector<critical_fail> critfail_vec;
 
