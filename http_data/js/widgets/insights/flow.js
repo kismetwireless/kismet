@@ -279,7 +279,6 @@ export function flow({ onPick = null, linkKinds }) {
         const fs = narrow ? { main: 10, sub: 8.5 } : { main: 12, sub: 10 };
         const rh = narrow ? 25 : rowH;
         const shrink = narrow ? 0.7 : 1;
-        const pad = 8;
         const family = getComputedStyle(node).fontFamily;
         const measure = (text, px) => {
             measureCtx ??= document.createElement('canvas').getContext('2d');

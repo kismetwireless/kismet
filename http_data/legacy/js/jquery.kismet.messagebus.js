@@ -24,7 +24,6 @@
         local_uri_prefix = KISMET_URI_PREFIX;
 
     // Message flags
-    var MSGFLAG_NONE = 0;
     var MSGFLAG_DEBUG = 1;
     var MSGFLAG_INFO = 2;
     var MSGFLAG_ERROR = 4;

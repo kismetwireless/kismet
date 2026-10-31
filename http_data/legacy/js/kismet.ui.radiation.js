@@ -534,50 +534,6 @@ function updateRadiationData() {
             rad_panel.rad_usv_chart_h.data.datasets = rad_usv_h_datasets;
             rad_panel.rad_usv_chart_h.update('none');
         }
-/*
-            if (rad_panel.rad_spectrum_chart == null) {
-                var canvas = $('#k-rad-spectrum-canvas');
-
-                // We need to fill the labels even though we don't use them
-                var labels = Array.apply(null, Array(500)).map(function (x, i) { return i; })
-
-                rad_panel.rad_spectrum_chart = new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: datasets,
-                    },
-                    options: {
-                        animation: false,
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                title: {
-                                    text: 'Count',
-                                    display: true,
-                                },
-                                ticks: {
-                                    display: false,   
-                                },
-                            },
-                            x: {
-                                title: {
-                                    text: 'Energy',
-                                    display: true,
-                                },
-                                ticks: {
-                                    display: false,   
-                                },
-                            }
-                        },
-                    },
-                });
-            } else {
-                rad_spectrum_chart.data.datasets[0].data = data[sk]['radiation.sensor.aggregate_spectrum'];
-                rad_spectrum_chart.update('none');
-            }
-            */
     })
     .always(() => {
         rad_update_tid = setTimeout(() => {
