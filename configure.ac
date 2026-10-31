@@ -62,14 +62,7 @@ CELL_USBSERIAL=0
 BUILD_CAPTURE_CELL_DIAG=0
 CELL_LOGTOOL_BINS=""
 
-# deprecated
-BUILD_CAPTURE_SDR_RTL433=0
-BUILD_CAPTURE_BT_GEIGER=0
-BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
-
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
-
-BUILD_PYTHON_MODULES=0
 
 # Liberated from ethereal's configure.in
 #
@@ -423,16 +416,6 @@ AS_IF([test "$want_protobuf"x = "yes"x -a "$caponly"x = "yes"x],
        want_protobuf=no
       ],
       []
-)
-
-want_python=no
-AC_ARG_ENABLE([python-tools],
-    AS_HELP_STRING([--enable-python-tools], [Enable building (legacy) Python modules and Python-only data sources]),
-       [case "${enableval}" in
-        yes) want_python=yes ;;
-          *) want_python=no ;;
-        esac],
-       [want_python=no]
 )
 
 PYTHON=python3
@@ -1339,23 +1322,6 @@ AC_SUBST(PROTOBUF_CPP_H_TARGET)
 AC_SUBST(PROTOLIBS)
 AC_SUBST(PROTOCFLAGS)
 AC_SUBST(PROTOCBIN)
-
-AC_ARG_ENABLE(btgeiger,
-    AS_HELP_STRING([--enable-btgeiger], [Enable custom BTLE connected geiger counter input]),
-    [case "${enableval}" in
-      yes) want_btgeiger=yes ;;
-        *) want_btgeiger=no ;;
-    esac],
-    [want_btgeiger=no]
-)
-
-AS_IF([test "x$want_btgeiger" = "xyes"], [
-       AS_IF([test "x$want_python" != "xyes"], [
-              AC_MSG_ERROR([Can not enable btgeiger without enabling python])
-              ])
-       BUILD_CAPTURE_BT_GEIGER=1
-       DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BT_GEIGER)"
-])
 
 
 # To use wiphy we need a very recent bladerf, and we need it even when only building for caponly
@@ -2281,8 +2247,6 @@ AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OPENBSD_WIFI)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
-AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
-AC_SUBST(BUILD_CAPTURE_BT_GEIGER)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSBV2)
 AC_SUBST(BUILD_CAPTURE_SDR_ZIGBEE900)
@@ -2533,9 +2497,6 @@ if test "$BUILD_CAPTURE_USB_RADIACODE" = 1; then
 else
         echo "no (libUSB not available)";
 fi
-
-printf "        Python Modules: "
-	echo "no (deprecated)";
 
 printf "    RTL-SDR RTL_433 V2: "
 if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then

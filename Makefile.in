@@ -125,12 +125,6 @@ BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 CAPTURE_OSX_COREWLAN = capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 
-# CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
-# BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
-
-# CAPTURE_BT_GEIGER = capture_bt_geiger/kismet_cap_bt_geiger
-# BUILD_CAPTURE_BT_GEIGER = @BUILD_CAPTURE_BT_GEIGER@
-#
 CAPTURE_SDR_RTL433V2 = capture_sdr_rtl433_v2/kismet_cap_sdr_rtl433
 BUILD_CAPTURE_SDR_RTL433V2 = @BUILD_CAPTURE_SDR_RTL433V2@
 
@@ -315,7 +309,7 @@ PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o b
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtladsb.cc.o datasource_rtlais.cc.o datasource_rtlaisadsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_nrf_52840.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
-	datasource_bt_geiger.cc.o datasource_mqtt.cc.o \
+	datasource_mqtt.cc.o \
 	datasource_catsniffer_zigbee.cc.o datasource_cell_at.cc.o datasource_cell_diag.cc.o \
 	datasource_sniffle_ble.cc.o \
 	datasource_lorapipe.cc.o \
@@ -466,12 +460,6 @@ $(CAPTURE_OPENBSD_WIFI):	$(DATASOURCE_COMMON_A) FORCE
 
 $(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_osx_corewlan_wifi && $(MAKE))
-
-# $(CAPTURE_SDR_RTL433): FORCE
-# 	(cd capture_sdr_rtl433 && $(MAKE))
-# 
-# $(CAPTURE_BT_GEIGER): FORCE
-# 	(cd capture_bt_geiger && $(MAKE))
 
 $(CAPTURE_SDR_RTL433V2): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtl433_v2 && $(MAKE))
@@ -1038,7 +1026,6 @@ clean: all-plugins-clean depclean
 	@(cd capture_freaklabs_zigbee_v2 &&  make clean)
 	@(cd capture_catsniffer_zigbee &&  make clean)
 	@(cd capture_sniffle_ble &&  make clean)
-	# @(cd capture_sdr_rtl433 && make clean)
 	@(cd capture_sdr_rtl433_v2 && make clean)
 	@(cd capture_sdr_rtladsb_v2 && make clean)
 	@(cd capture_sdr_zigbee900 && make clean)
