@@ -54,6 +54,7 @@ int uwifi_kis_list(struct uwifi_kis_iface **list, size_t *n);
 /* Opens an adapter by interface name and loads firmware; error describes a failure */
 struct uwifi_dev *uwifi_kis_open(const char *ifname, char *error, size_t error_len);
 void uwifi_kis_close(struct uwifi_dev *dev);
+void uwifi_kis_exit(void);
 
 bool uwifi_kis_alive(struct uwifi_dev *dev);
 const uint8_t *uwifi_kis_mac(struct uwifi_dev *dev);

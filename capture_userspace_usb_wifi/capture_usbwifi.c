@@ -538,6 +538,7 @@ int main(int argc, char *argv[]) {
 
     /* The driver is stopped, so nothing else touches the queue */
     usbwifi_queue_free(local.qhead);
+    uwifi_kis_exit();
 
     cf_handler_shutdown(caph);
     cf_handler_free(caph);
