@@ -2369,7 +2369,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         }
 
                         try {
-                            ssid = kismet.CensorString(data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid']);
+                            ssid = kismet.censorString(data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid']);
                         } catch (_error) {
                             // skip
                         }
