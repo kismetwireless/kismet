@@ -333,6 +333,16 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), Globalreg::globalreg->last_tv_sec);
     }
 
+    // ERT-SCM tamper bits; physical tamper is the radio module, encoder tamper the meter endpoint
+    auto phy_tamper_j = json["physical_tamper"];
+    auto encoder_tamper_j = json["encoder_tamper"];
+
+    if (phy_tamper_j.is_number_unsigned() && phy_tamper_j.get<uint64_t>() <= 0xFF)
+        meterdev->set_phy_tamper_flags(phy_tamper_j.get<uint8_t>());
+
+    if (encoder_tamper_j.is_number_unsigned() && encoder_tamper_j.get<uint64_t>() <= 0xFF)
+        meterdev->set_endpoint_tamper_flags(encoder_tamper_j.get<uint8_t>());
+
     return true;
 }
 
