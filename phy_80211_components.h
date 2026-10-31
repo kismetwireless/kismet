@@ -784,8 +784,8 @@ public:
 
     __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
 
-    // This is only used in s1g for matching short ssids, don't turn into a full
-    // field because we probably don't need it to be one
+    // Only set for S1G SSIDs, for matching short SSIDs (not implemented yet); don't turn
+    // into a full field because we probably don't need it to be one
     const uint32_t get_ssid_crc32_hash() const {
         return ssid_crc32_hash;
     }
@@ -942,7 +942,7 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
 
-    uint32_t ssid_crc32_hash;
+    uint32_t ssid_crc32_hash = 0;
 
     uint16_t owe_ssid_id;
     uint16_t owe_ssid_len_id;

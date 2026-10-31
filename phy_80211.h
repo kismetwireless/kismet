@@ -625,8 +625,7 @@ protected:
     int ssidcanary_map_element_id;
 
     // Dissector alert references
-    int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
-        alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
+    int alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
         alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
         alert_wmm_ref, alert_nonce_zero_ref, 
         alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref,
@@ -642,10 +641,10 @@ protected:
     unsigned char wep_identity[256];
 
     // Tracker alert references
-    int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
+    int alert_chan_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
         alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
         alert_ssidmatch_ref, alert_ssidcanary_ref, alert_dot11d_ref, alert_beaconrate_ref,
-        alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
+        alert_cryptchange_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
         alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref,
