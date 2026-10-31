@@ -61,6 +61,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                     spd = con->json().value("spd", (double) 0);
 
                     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
+                    new_location->gps_info_ok = true;
                     new_location->lat = lat;
                     new_location->lon = lon;
                     new_location->fix = 2;
@@ -73,6 +74,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
 
                     gettimeofday(&(new_location->tv), NULL);
                     new_location->gps_id = gps_id;
+                    kis_lock_guard<kis_mutex> lk(data_mutex, "gps_meta update");
 
                     if (time(0) - last_heading_time > 5 &&
                         gps_location != nullptr && gps_location->fix >= 2) {
@@ -121,6 +123,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
 
                                         auto new_location = 
                                             packetchain->new_packet_component<kis_gps_packinfo>();
+                                        new_location->gps_info_ok = true;
                                         new_location->lat = lat;
                                         new_location->lon = lon;
                                         new_location->fix = 2;
@@ -133,6 +136,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
 
                                         gettimeofday(&(new_location->tv), NULL);
                                         new_location->gps_id = gps_id;
+                                        kis_lock_guard<kis_mutex> lk(data_mutex, "gps_meta update");
 
                                         if (time(0) - last_heading_time > 5 &&
                                                 gps_location != nullptr && gps_location->fix >= 2) {
