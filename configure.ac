@@ -38,6 +38,7 @@ BUILD_CAPTURE_TI_CC_2531=1
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_SDR_RTL433V2=0
 BUILD_CAPTURE_SDR_RTLADSBV2=0
+BUILD_CAPTURE_SDR_ZIGBEE900=0
 BUILD_CAPTURE_SDR_RTLAIS=0
 BUILD_CAPTURE_SDR_RTLAISADSB=0
 BUILD_CATPURE_FREAKLABS_ZIGBEEV2=1
@@ -2034,6 +2035,12 @@ if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433V2)"
 fi
 
+BUILD_CAPTURE_SDR_ZIGBEE900=0
+if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
+    BUILD_CAPTURE_SDR_ZIGBEE900=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_ZIGBEE900)"
+fi
+
 BUILD_CAPTURE_SDR_RTLADSBV2=0
 if test "$have_usb" = "yes" -a "$have_rtlsdr" = "yes"; then
     BUILD_CAPTURE_SDR_RTLADSBV2=1
@@ -2278,6 +2285,7 @@ AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
 AC_SUBST(BUILD_CAPTURE_BT_GEIGER)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSBV2)
+AC_SUBST(BUILD_CAPTURE_SDR_ZIGBEE900)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLAIS)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLAISADSB)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEEV2)
@@ -2531,6 +2539,19 @@ printf "        Python Modules: "
 
 printf "    RTL-SDR RTL_433 V2: "
 if test "$BUILD_CAPTURE_SDR_RTL433V2" = 1; then
+	echo "yes";
+else
+    if test "$have_usb" != "yes"; then
+	    echo "no (libusb not available)";
+    elif test "$have_rtlsdr" != "yes"; then
+        echo "no (librtlsdr not available)";
+    else
+        echo "no (not available)";
+    fi
+fi
+
+printf "   RTL-SDR Zigbee 900M: "
+if test "$BUILD_CAPTURE_SDR_ZIGBEE900" = 1; then
 	echo "yes";
 else
     if test "$have_usb" != "yes"; then

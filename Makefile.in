@@ -137,6 +137,9 @@ BUILD_CAPTURE_SDR_RTL433V2 = @BUILD_CAPTURE_SDR_RTL433V2@
 CAPTURE_SDR_RTLADSBV2 = capture_sdr_rtladsb_v2/kismet_cap_sdr_rtladsb
 BUILD_CAPTURE_SDR_RTLADSBV2 = @BUILD_CAPTURE_SDR_RTLADSBV2@
 
+CAPTURE_SDR_ZIGBEE900 = capture_sdr_zigbee900/kismet_cap_sdr_zigbee900
+BUILD_CAPTURE_SDR_ZIGBEE900 = @BUILD_CAPTURE_SDR_ZIGBEE900@
+
 CAPTURE_SDR_RTLAIS = capture_sdr_rtlais/kismet_cap_sdr_rtlais
 BUILD_CAPTURE_SDR_RTLAIS = @BUILD_CAPTURE_SDR_RTLAIS@
 
@@ -476,6 +479,9 @@ $(CAPTURE_SDR_RTL433V2): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_SDR_RTLADSBV2): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtladsb_v2 && $(MAKE))
 
+$(CAPTURE_SDR_ZIGBEE900): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_sdr_zigbee900 && $(MAKE))
+
 $(CAPTURE_SDR_RTLAIS): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtlais && $(MAKE))
 
@@ -648,6 +654,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTLADSBV2) $(BIN)/`basename $(CAPTURE_SDR_RTLADSBV2)` ; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_SDR_ZIGBEE900)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_ZIGBEE900) $(BIN)/`basename $(CAPTURE_SDR_ZIGBEE900)` ; \
+	fi;
+
 	@if test "$(BUILD_CAPTURE_SDR_RTLAIS)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTLAIS) $(BIN)/`basename $(CAPTURE_SDR_RTLAIS)` ; \
 	fi;
@@ -812,6 +822,12 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_SDR_RTLADSBV2)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTLADSBV2) $(BIN)/`basename $(CAPTURE_SDR_RTLADSBV2)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SDR_ZIGBEE900)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_ZIGBEE900) $(BIN)/`basename $(CAPTURE_SDR_ZIGBEE900)`; \
+		mkdir -p $(SHARE)/zigbee900; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 capture_sdr_zigbee900/zigbee900_live_rx.py $(SHARE)/zigbee900/zigbee900_live_rx.py; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTLAIS)"x = "1"x; then \
@@ -1019,10 +1035,13 @@ clean: all-plugins-clean depclean
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_openbsd_wifi && make clean)
-	@(cd capture_freaklabs_zigbee &&  make clean)
+	@(cd capture_freaklabs_zigbee_v2 &&  make clean)
 	@(cd capture_catsniffer_zigbee &&  make clean)
 	@(cd capture_sniffle_ble &&  make clean)
 	# @(cd capture_sdr_rtl433 && make clean)
+	@(cd capture_sdr_rtl433_v2 && make clean)
+	@(cd capture_sdr_rtladsb_v2 && make clean)
+	@(cd capture_sdr_zigbee900 && make clean)
 	@(cd capture_sdr_rtlais && make clean)
 	@(cd capture_sdr_rtlaisadsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
@@ -1041,6 +1060,10 @@ clean: all-plugins-clean depclean
 	@(cd capture_radiacode && make clean)
 	@(cd capture_antsdr_droneid && make clean)
 	@(cd capture_wch_ble_analyzer_pro && make clean)
+	@(cd capture_bladerf_wiphy && make clean)
+	@(cd capture_cell_at && make clean)
+	@(cd capture_cell_diag && make clean)
+	@(cd capture_lorapipe && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*
