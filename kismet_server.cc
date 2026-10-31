@@ -445,6 +445,7 @@ void signal_thread_handler() {
 int main(int argc, char *argv[], char *envp[]) {
     exec_name = argv[0];
     std::string configfilename;
+    bool confdir_set = false;
     config_file *conf;
     int option_idx = 0;
     global_registry *globalreg;
@@ -614,6 +615,7 @@ int main(int argc, char *argv[], char *envp[]) {
             globalregistry->homepath = std::string(optarg);
         } else if (r == cdwc) {
             globalregistry->etc_dir = std::string(optarg);
+            confdir_set = true;
         } else if (r == ddwc) {
             globalregistry->data_dir = std::string(optarg);
         } else if (r == ovwc) {
@@ -724,11 +726,13 @@ int main(int argc, char *argv[], char *envp[]) {
                 });
 
     // Open, initial parse, and assign the config file
-    if (configfilename == "") {
-        configfilename = fmt::format("{}/{}",
-                getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC,
-                config_base);
-    }
+    // --confdir, then $KISMET_CONF, picks the directory for kismet.conf and the
+    // files it includes, unless -f names a config file
+    if (!confdir_set && getenv("KISMET_CONF") != NULL)
+        globalregistry->etc_dir = std::string(getenv("KISMET_CONF"));
+
+    if (configfilename == "")
+        configfilename = fmt::format("{}/{}", globalregistry->etc_dir, config_base);
 
     conf = new config_file;
 
