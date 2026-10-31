@@ -16,6 +16,32 @@ const svgNs = 'http://www.w3.org/2000/svg';
 const rowH = 34;
 const bothMin = 1150;
 
+// What each view shows, for the collapsible note at the foot of the tab
+const aboutGraph = [
+    'The flow graph shows how the devices seen are related, primarily for Wi-Fi.  Devices are ' +
+        'arranged in columns: devices probing for networks, the networks (SSIDs) being advertised or ' +
+        'probed for, the access points, and the devices connected to those access points.',
+    'The graph combines the addresses of a single access point (such as multiple radios, or multiple ' +
+        'networks served by the same device) into one entry.',
+    'Each line represents all of the links between two entries; the more links, the thicker the line.  ' +
+        'The color and style of a line show the type of link, as listed in the legend.  Clicking an access ' +
+        'point or a group of devices lists the devices in it.  A yellow ring marks an entry which has a ' +
+        'finding in the Unusual tab.',
+];
+const aboutTable = 'Each row of the flow table is an access point address, grouped by access point, and each column ' +
+    'is a network or a connected device.  A colored cell indicates a link, in the color of the link type ' +
+    'listed in the legend; hovering over a cell shows the link type.  Clicking an address or a device opens ' +
+    'the device details.';
+const aboutRemember = () => el('p', {}, el('em', {}, 'Remember'), ': Kismet can only show the relationships it ' +
+    'has seen in the selected time window.  A device which has been quiet in that window may still be connected ' +
+    'to an access point.');
+const about = {
+    lines: [...aboutGraph, aboutRemember],
+    table: [`The flow table shows how the devices seen are related, one address ` +
+        `at a time.  ${aboutTable}`, aboutRemember],
+    both: [...aboutGraph, `The flow table shows the same links one address at a time.  ${aboutTable}`, aboutRemember],
+};
+
 function svgEl(tag, attrs = {}, text = null) {
     const n = document.createElementNS(svgNs, tag);
     for (const [k, v] of Object.entries(attrs))
@@ -55,15 +81,29 @@ export function flow({ onPick = null, linkKinds }) {
     const quiet = el('p', { class: 'muted fl-quiet' });
     const pop = el('div', { class: 'fl-pop', hidden: true });
     const modeButtons = {};
+    // when the foot of the tab is off the screen, the note opens from a button by the modes instead
+    const helpBtn = el('button', { type: 'button', class: 'fl-help', hidden: true, title: 'About this view',
+        'aria-label': 'About this view', 'aria-expanded': 'false', onclick: (e) => {
+            e.stopPropagation();
+            showHelp(helpPop.hidden);
+        } }, '?');
+    const helpPop = el('div', { class: 'fl-help-pop', hidden: true, onclick: (e) => e.stopPropagation() });
     const modes = el('div', { class: 'graph-tabs fl-modes' }, ...['lines', 'table'].map((m) => {
         modeButtons[m] = el('button', { type: 'button', onclick: () => setMode(m) }, m === 'lines' ? 'Lines' : 'Table');
         return modeButtons[m];
-    }));
+    }), helpBtn);
     const legend = el('div', { class: 'cg-legend fl-legend' });
+    const aboutBody = el('div', { class: 'fl-about-body' });
+    // at the foot of the tab, opening upward over the graph
+    const aboutBox = el('details', { class: 'fl-about', open: settings.get('insights.flowAbout', false) },
+        el('summary', {}, 'About this view'), aboutBody);
+    aboutBox.addEventListener('toggle', () => settings.set('insights.flowAbout', aboutBox.open));
     const divider = el('div', { class: 'fl-divider', role: 'separator', 'aria-orientation': 'vertical', tabindex: '0',
         title: 'Drag to share the room between the lines and the table; double-click to reset' });
     const views = el('div', { class: 'fl-views' }, svgBox, divider, tableBox);
-    const node = el('div', { class: 'fl' }, el('div', { class: 'fl-bar' }, modes, legend), views, quiet, pop);
+    const bar = el('div', { class: 'fl-bar' }, modes, legend);
+    const node = el('div', { class: 'fl' }, bar, views, quiet, pop, helpPop);
+    const wrap = el('div', { class: 'fl-wrap' }, node, aboutBox);
     let mode = 'lines';
     let both = false;
     let last = null;
@@ -135,6 +175,58 @@ export function flow({ onPick = null, linkKinds }) {
         divider.hidden = !both;
         svgBox.hidden = !both && mode !== 'lines';
         tableBox.hidden = !both && mode !== 'table';
+        const shown = both ? 'both' : mode;
+        if (aboutBody.dataset.shown !== shown) {
+            aboutBody.dataset.shown = shown;
+            aboutBody.replaceChildren(...about[shown].map((t) => (typeof t === 'function' ? t() : el('p', {}, t))));
+        }
+        fitAbout();
+    }
+
+    // Whether the foot of the tab can't be seen without scrolling, in the page
+    // or in any box it sits in
+    function footHidden() {
+        const r = wrap.getBoundingClientRect();
+        if (!r.height)
+            return false;
+        if (r.bottom + window.scrollY > window.innerHeight + 1)
+            return true;
+        for (let p = wrap.parentElement; p && p !== document.body; p = p.parentElement) {
+            if (getComputedStyle(p).overflowY === 'visible')
+                continue;
+            if (r.bottom - p.getBoundingClientRect().top + p.scrollTop > p.clientHeight + 1)
+                return true;
+        }
+        return false;
+    }
+
+    function fitAbout() {
+        const compact = footHidden();
+        if (compact === wrap.classList.contains('compact'))
+            return;
+        wrap.classList.toggle('compact', compact);
+        aboutBox.hidden = compact;
+        helpBtn.hidden = !compact;
+        (compact ? helpPop : aboutBox).append(aboutBody);
+        if (!compact)
+            showHelp(false);
+    }
+
+    function showHelp(on) {
+        helpPop.hidden = !on;
+        helpBtn.classList.toggle('active', on);
+        helpBtn.setAttribute('aria-expanded', String(on));
+        if (on) {
+            const top = bar.offsetTop + bar.offsetHeight + 4;
+            helpPop.style.top = `${top}px`;
+            // fit what can be seen of the tab, so the note scrolls inside itself
+            const r = node.getBoundingClientRect();
+            let bottom = Math.min(r.top + node.clientTop + node.clientHeight, window.visualViewport?.height ?? window.innerHeight);
+            for (let p = node.parentElement; p && p !== document.body; p = p.parentElement)
+                if (getComputedStyle(p).overflowY !== 'visible')
+                    bottom = Math.min(bottom, p.getBoundingClientRect().bottom);
+            helpPop.style.maxHeight = `${Math.max(80, bottom - (r.top + node.clientTop + top - node.scrollTop) - 8)}px`;
+        }
     }
 
     function setMode(m) {
@@ -157,12 +249,12 @@ export function flow({ onPick = null, linkKinds }) {
         if (!devs.length)
             return;
         const r = node.getBoundingClientRect();
-        pop.replaceChildren(el('div', { class: 'fl-pop-title' }, item.title ?? item.label),
+        pop.replaceChildren(...[el('div', { class: 'fl-pop-title' }, item.title ?? item.label),
             ...devs.slice(0, 60).map((d) => el('button', { type: 'button', class: 'link-button', onclick: () => {
                 pop.hidden = true;
                 onPick?.(d.key);
             } }, d.label === d.mac ? d.mac : `${d.label} (${d.mac})`)),
-            devs.length > 60 ? el('div', { class: 'muted' }, `and ${devs.length - 60} more`) : null);
+            devs.length > 60 ? el('div', { class: 'muted' }, `and ${devs.length - 60} more`) : null].filter(Boolean));
         pop.style.left = `${Math.max(4, Math.min(evt.clientX - r.left, r.width - 260))}px`;
         pop.style.top = `${evt.clientY - r.top + node.scrollTop + 8}px`;
         pop.hidden = false;
@@ -170,6 +262,7 @@ export function flow({ onPick = null, linkKinds }) {
     }
     node.addEventListener('click', () => {
         pop.hidden = true;
+        showHelp(false);
     });
 
     function groupLabel(g) {
@@ -380,7 +473,7 @@ export function flow({ onPick = null, linkKinds }) {
             nodesG.append(g);
         }
         // column headings
-        const heads = { seek: narrow ? '' : 'Looking', name: 'Networks', hub: narrow ? 'APs' : 'Access points', att: 'On them' };
+        const heads = { seek: narrow ? '' : 'Looking', name: 'Networks', hub: narrow ? 'APs' : 'Access points', att: 'Connected' };
         const headH = narrow ? 16 : 20;
         const top = svgEl('svg', { viewBox: `0 0 ${drawnW} ${headH}`, width: drawnW, height: headH, class: `fl-heads${narrow ? ' narrow' : ''}` });
         for (const c of cols)
@@ -418,7 +511,7 @@ export function flow({ onPick = null, linkKinds }) {
             return;
         const r = last;
         if (!r.hubs.length && !r.names.length) {
-            svgBox.replaceChildren(el('p', { class: 'muted fl-empty' }, 'No relations among the devices heard in this window yet.'));
+            svgBox.replaceChildren(el('p', { class: 'muted fl-empty' }, 'No relations among the devices heard in this time window yet.'));
             tableBox.replaceChildren();
         } else {
             if (!svgBox.hidden)
@@ -427,7 +520,7 @@ export function flow({ onPick = null, linkKinds }) {
                 drawTable(r);
         }
         quiet.textContent = r.quietHubs.length ?
-            `${plural(r.quietHubs.length, 'more access point', 'more access points')} with nothing else related in this window.` : '';
+            `${plural(r.quietHubs.length, 'more access point', 'more access points')} with nothing else related in this time window.` : '';
         const kinds = [...new Set(r.edges.map((e) => e.kind))];
         legend.replaceChildren(...kinds.map((id) => {
             const k = kindOf(id);
@@ -442,10 +535,11 @@ export function flow({ onPick = null, linkKinds }) {
             draw();
     });
     resize.observe(node);
+    window.addEventListener('resize', fitAbout);
     setMode('lines');
 
     return {
-        node,
+        node: wrap,
         update(graph, findings) {
             linkKind = new Map(graph.links.flatMap((l) => [[`${l.a.id}|${l.b.id}`, l.kind], [`${l.b.id}|${l.a.id}`, l.kind]]));
             last = gather(graph, findings);
@@ -453,6 +547,7 @@ export function flow({ onPick = null, linkKinds }) {
         },
         destroy() {
             resize.disconnect();
+            window.removeEventListener('resize', fitAbout);
         },
     };
 }

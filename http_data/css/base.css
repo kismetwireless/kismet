@@ -1643,6 +1643,20 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
 .fl-hub:hover text, .fl-group:hover text { fill: var(--accent); }
 .fl-flag { fill: none; stroke: var(--warn); stroke-width: 2; }
 .fl-quiet { font-size: 0.88em; margin: 0.5rem 0 0; }
+.fl-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.fl-about { flex: none; position: relative; z-index: 4; font-size: 0.85em; color: var(--muted); border-top: 1px solid var(--border);
+    background: var(--surface); padding: 0.3rem 0.75rem; }
+.fl-about summary { cursor: pointer; width: max-content; list-style: none; }
+.fl-about summary::-webkit-details-marker { display: none; }
+.fl-about summary::before { content: '\25B8'; display: inline-block; margin-right: 0.4em; transition: transform 0.15s; }
+.fl-about[open] summary::before { transform: rotate(-90deg); }
+.fl-about > .fl-about-body { position: absolute; left: 0; right: 0; bottom: 100%; max-height: 50vh; overflow: auto; padding: 0.2rem 0.75rem 0.6rem;
+    background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 16px rgb(0 0 0 / 0.25); }
+.fl-about p, .fl-help-pop p { margin: 0.4rem 0 0; line-height: 1.45; max-width: 60rem; }
+.fl-help { margin-left: auto; min-width: 2.2em; font-weight: 600; }
+.fl-wrap.compact .fl-modes { flex: 1 1 auto; }
+.fl-help-pop { position: absolute; left: 0.5rem; right: 0.5rem; z-index: 5; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+    padding: 0.2rem 0.75rem 0.6rem; font-size: 0.85em; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
 .fl-empty { padding: 1rem 0; }
 .fl-pop { position: absolute; z-index: 5; width: 16rem; max-height: 18rem; overflow: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem;
     padding: 0.5rem 0.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); font-size: 0.9em; }
@@ -1656,6 +1670,8 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
 .fl.both .fl-lines { align-self: start; }
 .fl.both .fl-table { align-self: start; }
 .fl.both .fl-modes { display: none; }
+.fl-wrap.compact .fl.both .fl-modes { display: flex; }
+.fl-wrap.compact .fl.both .fl-modes > button:not(.fl-help) { display: none; }
 .fl.both .fl-table { max-height: 75vh; }
 .fl-mx { border-collapse: separate; border-spacing: 0; font-size: 0.8em; }
 .fl-mx th { position: sticky; background: var(--surface); font-weight: 500; color: var(--muted); z-index: 1; }
