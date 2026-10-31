@@ -73,7 +73,7 @@
 
 /* Overridable via a "script=" source option; this default assumes the
  * script has been installed alongside the capture helper. */
-#define DEFAULT_SCRIPT_PATH "/usr/share/kismet/zigbee900/zigbee900_live_rx.py"
+#define DEFAULT_SCRIPT_PATH DATA_LOC "/kismet/zigbee900/zigbee900_live_rx.py"
 
 #define MAX_PSDU_BYTES 127
 #define MAX_LINE_LEN (16 + MAX_PSDU_BYTES * 2 + 8)   /* "PSDU NN -NNN <hex>\n" plus slack */
