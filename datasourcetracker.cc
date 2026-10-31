@@ -548,8 +548,10 @@ void datasource_tracker::trigger_deferred_startup() {
     database_log_enabled = false;
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_datasources", true)) {
+        // kis_log_datasource_rate is the old name of the option
         unsigned int lograte =
-            Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasource_rate", 30);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasources_rate",
+                    Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasource_rate", 30));
 
         _MSG_INFO("Saving datasources to the Kismet database log every {} seconds", lograte);
 
@@ -564,7 +566,7 @@ void datasource_tracker::trigger_deferred_startup() {
                             _MSG("Attempting to log datasources, but datasources are still "
                                     "being saved from the last logging attempt.  It's possible "
                                     "your system is extremely over capacity; try increasing the "
-                                    "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
+                                    "delay in 'kis_log_datasources_rate' in kismet_logging.conf",
                                     MSGFLAG_ERROR);
                             return 1;
                         }

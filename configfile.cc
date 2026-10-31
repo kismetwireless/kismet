@@ -636,7 +636,7 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
                 continue;
 
             auto lfbz = logfile + ".bz2";
-            if (stat(lfgz.c_str(), &filstat) == 0)
+            if (stat(lfbz.c_str(), &filstat) == 0)
                 continue;
 
             return logfile;
@@ -660,7 +660,7 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
         return "";
 
     auto lfbz = logfile + ".bz2";
-    if (stat(lfgz.c_str(), &filstat) == 0)
+    if (stat(lfbz.c_str(), &filstat) == 0)
         return "";
 
     return logfile;

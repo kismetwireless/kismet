@@ -174,8 +174,6 @@ alert_tracker::alert_tracker() : lifetime_global() {
         Globalreg::globalreg->fatal_condition = 1;
         return;
     }
-
-    log_alerts = Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_alerts", true);
 }
 
 alert_tracker::~alert_tracker() {
