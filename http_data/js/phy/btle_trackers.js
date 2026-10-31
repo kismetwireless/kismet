@@ -85,7 +85,7 @@ export function registerTrackers(kismet) {
     ui.rowHighlights.add({
         id: 'tracker_all', name: 'Location tracker', priority: 91,
         description: 'Every location tracker (AirTag, SmartTag, Find Hub, Tile...)',
-        defaultColor: '#ffd8a8',
+        defaultColor: '#ffd8a8', defaultEnabled: true,
         fields: listFields,
         match: (row) => trackerOf(row, 'trk') !== null,
     });
