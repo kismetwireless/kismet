@@ -263,9 +263,6 @@ uint16_t single_manchester(kis_capture_handler_t *caph, uint16_t a,
     return BADSAMPLE;
 }
 
-inline uint16_t min16(uint16_t a, uint16_t b) { return a < b ? a : b; }
-inline uint16_t max16(uint16_t a, uint16_t b) { return a > b ? a : b; }
-
 uint32_t modes_checksum(const uint8_t *buf, size_t len) {
     uint32_t crc = 0;
     size_t offset = 0;

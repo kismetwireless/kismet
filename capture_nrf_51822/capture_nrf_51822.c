@@ -16,17 +16,9 @@
 
 #define BUFFER_SIZE 256
 
-#if defined(SYS_OPENBSD)
-#define MODEMDEVICE "/dev/cuaU0"
-#else
-#define MODEMDEVICE "/dev/ttyUSB0"
-#endif
-
 #ifndef CRTSCTS
 #define CRTSCTS 020000000000 /*should be defined but isn't with the C99*/
 #endif
-
-#define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
 
 /* Unique instance data passed around by capframework */
 typedef struct {

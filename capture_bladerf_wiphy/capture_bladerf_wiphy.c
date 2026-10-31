@@ -71,10 +71,7 @@
 
 #include <libbladeRF.h>
 
-#define MAX_PACKET_LEN  8192
-
 #define DLT_IEEE802_11	        105	/* IEEE 802.11 wireless */
-#define DLT_IEEE802_11_RADIO	127	/* 802.11 plus radiotap radio header */
 
 struct bladeRF_wiphy_header_tx {
    uint16_t rsvd;

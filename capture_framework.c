@@ -1497,17 +1497,6 @@ void *cf_int_signal_thread(void *arg) {
 
     int sig_caught, r;
 
-#if 0
-    /* Set a timer to wake up from sigwait and make sure we have nothing we need to deal with */
-    struct itimerval itval;
-
-    itval.it_value.tv_sec = 0;
-    itval.it_value.tv_usec = 100000;
-    itval.it_interval = itval.it_value;
-
-    setitimer(ITIMER_REAL, &itval, NULL);
-#endif
-
     /* Unblock signals, we handle them here; the core set stays blocked so
      * sigwait gets them instead of the default handlers */
     sigset_t unblock_mask;

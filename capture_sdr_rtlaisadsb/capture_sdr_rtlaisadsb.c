@@ -68,7 +68,6 @@
 
 #define ASYNC_BUF_NUMBER        8
 #define AUTO_GAIN               -100
-#define GAIN_UNSET              -200
 
 /* Samples to drop after retuning while the tuner settles */
 #define SETTLE_SECONDS          0.005

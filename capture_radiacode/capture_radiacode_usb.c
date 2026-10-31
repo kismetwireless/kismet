@@ -44,8 +44,6 @@
 
 #include <libusb-1.0/libusb.h>
 
-#define BUFFER_SIZE 2048
-
 typedef struct {
     libusb_context *usb_ctx;
     libusb_device_handle *usb_handle;
@@ -208,29 +206,6 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 	*ret_len = resp_len;
 	return rdata;
 
-#if 0
-        self._device.write(0x1, request)
-
-        trials = 0
-        max_trials = 3
-        while trials < max_trials:  # repeat until non-zero length data received
-            data = self._device.read(0x81, 256, timeout=self._timeout_ms).tobytes()
-            if len(data) != 0:
-                break
-            else:
-                trials += 1
-        if trials >= max_trials:
-            raise MultipleUSBReadFailure(str(trials) + ' USB Read Failures in sequence')
-
-        response_length = struct.unpack_from('<I', data)[0]
-        data = data[4:]
-
-        while len(data) < response_length:
-            r = self._device.read(0x81, response_length - len(data)).tobytes()
-            data += r
-
-        return BytesBuffer(data)
-#endif
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,

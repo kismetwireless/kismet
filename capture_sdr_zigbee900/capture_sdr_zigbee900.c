@@ -66,7 +66,6 @@
 #include "../config.h"
 
 #define LINKTYPE_IEEE802_15_4_NOFCS     230
-#define LINKTYPE_IEEE802_15_4           195
 
 #define ZIGBEE900_MIN_CHANNEL 1
 #define ZIGBEE900_MAX_CHANNEL 10
@@ -76,7 +75,6 @@
 #define DEFAULT_SCRIPT_PATH DATA_LOC "/kismet/zigbee900/zigbee900_live_rx.py"
 
 #define MAX_PSDU_BYTES 127
-#define MAX_LINE_LEN (16 + MAX_PSDU_BYTES * 2 + 8)   /* "PSDU NN -NNN <hex>\n" plus slack */
 
 typedef struct {
     char *name;

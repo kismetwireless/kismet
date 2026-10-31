@@ -5127,11 +5127,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
-/* A cached DIAG GNSS fix older than this (seconds) is not attached to a
- * cell_observation -- better an ungeotagged cell than one pinned to a stale
- * position after the vehicle has moved. */
-#define DIAG_GPS_MAX_AGE_S 30
-
 /* Extract an unquoted JSON number for `key` from a flat one-line object into
  * *out. Returns 1 on success, 0 if the key is absent or unparseable. Minimal
  * (no nested-object descent): the census line's top-level `*_total` keys are

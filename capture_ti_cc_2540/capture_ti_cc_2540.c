@@ -60,7 +60,6 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-#define TICC_USB_ERROR          -1
 #define TICC_USB_UNRESPONSIVE   -5
 
 int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {

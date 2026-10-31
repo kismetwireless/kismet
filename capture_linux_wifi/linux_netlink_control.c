@@ -433,34 +433,6 @@ nla_put_failure:
 #endif
 }
 
-int mac80211_set_channel(const char *interface, int channel, unsigned int chmode, char *errstr) {
-#ifndef HAVE_LINUX_NETLINK
-    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-            "support, check the output of ./configure for why");
-    return -1;
-#else
-    void *nl_sock;
-    int nl80211_id;
-    int ifidx;
-
-    if (mac80211_connect(&nl_sock, &nl80211_id, errstr) < 0)
-        return -1;
-
-    if ((ifidx = if_nametoindex(interface)) < 0) {
-        snprintf(errstr, STATUS_MAX,
-                "cannot connect to netlink:  Could not find interface '%s'", interface);
-        return -1;
-    }
-
-    int ret = 
-        mac80211_set_channel_cache(ifidx, nl_sock, nl80211_id, channel, chmode, errstr);
-
-    mac80211_disconnect(nl_sock);
-
-    return ret;
-#endif
-}
-
 int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id, 
         unsigned int control_freq, unsigned int chan_width, 
         unsigned int center_freq1, unsigned int center_freq2,
@@ -542,39 +514,6 @@ nla_put_failure:
             ret);
 	nlmsg_free(msg);
 	return ret;
-#endif
-}
-
-int mac80211_set_frequency(const char *interface, 
-        unsigned int control_freq, unsigned int chan_width,
-        unsigned int center_freq1, unsigned int center_freq2,
-        char *errstr) {
-#ifndef HAVE_LINUX_NETLINK
-    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
-            "support, check the output of ./configure for why");
-    return -1;
-#else
-    void *nl_sock;
-    int ifidx;
-    int nl80211_id;
-
-    if (mac80211_connect(&nl_sock, &nl80211_id, errstr) < 0) {
-        return -1;
-    }
-
-    if ((ifidx = if_nametoindex(interface)) < 0) {
-        snprintf(errstr, STATUS_MAX,
-                "cannot connect to netlink:  Could not find interface '%s'", interface);
-        return -1;
-    }
-
-    int ret = 
-        mac80211_set_frequency_cache(ifidx, nl_sock, nl80211_id, 
-                control_freq, chan_width, center_freq1, center_freq2, errstr);
-
-    mac80211_disconnect(nl_sock);
-
-    return ret;
 #endif
 }
 

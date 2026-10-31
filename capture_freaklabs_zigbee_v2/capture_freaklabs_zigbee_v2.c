@@ -16,24 +16,14 @@
 
 #define BUFFER_SIZE 256
 
-#if defined(SYS_OPENBSD)
-#define MODEMDEVICE "/dev/cuaU0"
-#else
-#define MODEMDEVICE "/dev/ttyUSB0"
-#endif
-
 #ifndef CRTSCTS
 #define CRTSCTS 020000000000 /*should be defined but isn't with the C99*/
 #endif
-
-#define LINKTYPE_IEEE802_15_4_NOFCS     230
-#define LINKTYPE_IEEE802_15_4           195
 
 #define FZ_CMD_FRAME        0x00
 #define FZ_CMD_CHANNEL      0x01
 #define FZ_CMD_GET_CHANNEL  0x81
 #define FZ_CMD_SET_CHANNEL  0x82
-#define FZ_PROTO_VERSION    1
 
 const uint8_t magic_legacy[] = {0x53, 0x6E, 0x69, 0x66};
 const uint8_t magic[] = {0xC1, 0x1F, 0xFE, 0x72};

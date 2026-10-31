@@ -1122,8 +1122,6 @@ int cf_wait_announcement(kis_capture_handler_t *caph);
 
 /* websockets interface */
 #ifdef HAVE_LIBWEBSOCKETS
-static void ws_connect_client(kis_capture_handler_t *caph);
-
 static int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
         void *user, void *in, size_t len);
 

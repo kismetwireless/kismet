@@ -44,7 +44,6 @@
 #define BADSAMPLE       255
 
 /* Manchester checking strictness and tolerated errors, as capture_sdr_rtladsb_v2 */
-#define ADSB_QUALITY        10
 #define ADSB_ALLOWED_ERRORS 5
 
 /* Bits averaged for the signal level; every frame has at least this many */

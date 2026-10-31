@@ -21,8 +21,6 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#define __GNU_SOURCE
-
 #include <libusb-1.0/libusb.h>
 
 #include <stdio.h>
@@ -82,19 +80,6 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
     return r;
 }
 
-int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    int r;
-
-    pthread_mutex_lock(&(localnrf->usb_mutex));
-
-    r = nrf_send_command_nb(caph, request, data, len);
-
-    pthread_mutex_unlock(&(localnrf->usb_mutex));
-
-    return r;
-}
-
 int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uint8_t *data,
         size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
@@ -141,22 +126,6 @@ int nrf_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t *prefix, size_t 
     r = nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_PROMISCUOUS_MODE, prefix_buf, prefix_len + 1);
 
     free(prefix_buf);
-
-    return r;
-}
-
-int nrf_enter_sniffer_mode(kis_capture_handler_t *caph, uint8_t *address, size_t addr_len) {
-    unsigned char *addr_buf = (unsigned char *) malloc(addr_len + 1);
-    int r;
-
-    addr_buf[0] = (uint8_t) addr_len;
-
-    if (addr_len > 0)
-        memcpy(addr_buf + 1, address, addr_len);
-
-    r = nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_SNIFFER_MODE, addr_buf, addr_len + 1);
-
-    free(addr_buf);
 
     return r;
 }
@@ -532,16 +501,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 libusb_strerror((enum libusb_error) r));
         return -1;
     }
-
-#if 0
-    /* Try to reset it */
-    r = libusb_reset_device(localnrf->nrf_handle);
-
-    if (r < 0) {
-        printf("reset failed\n");
-        snprintf(errstr, STATUS_MAX, "Resetting USB device failed, continuing anyhow...");
-    }
-#endif
 
     /* Try to claim it */
     r = libusb_claim_interface(localnrf->nrf_handle, 0);

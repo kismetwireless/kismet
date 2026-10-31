@@ -74,20 +74,6 @@ static int bulk_read(wch_device_t *dev, uint8_t *buf, int len,
                                 buf, len, got, timeout_ms);
 }
 
-/* ── wch_init ────────────────────────────────────────────────────────────── */
-
-int wch_init(libusb_context **ctx_out)
-{
-    return libusb_init(ctx_out);
-}
-
-/* ── wch_exit ────────────────────────────────────────────────────────────── */
-
-void wch_exit(libusb_context *ctx)
-{
-    libusb_exit(ctx);
-}
-
 /* ── wch_find_devices ────────────────────────────────────────────────────── */
 
 int wch_find_devices(libusb_context *ctx, wch_device_t devs[MAX_MCU_DEVICES])
@@ -242,12 +228,6 @@ int wch_start_capture(wch_device_t *dev, const wch_capture_config_t *cfg)
     frame[3] = 0x00;
     frame[4] = 0xFF;
     frame[5] = 0x01;
-#if 0
-    frame[4] = 0x01;            /* BLE monitor mode flag */
-    if (cfg->ble_channel)
-        frame[4] |= 0x02;       /* channel-nonzero flag (RE: bit set when ch != 0) */
-    frame[5] = cfg->phy ? cfg->phy : 1;   /* PHY: 1=1M 2=2M 3/4=Coded */
-#endif
     frame[6] = cfg->ble_channel;  /* BLE adv channel: 37/38/39 (0 = all) */
 
     /* frame[7..14] = 0x00; */
@@ -294,19 +274,6 @@ int wch_start_capture(wch_device_t *dev, const wch_capture_config_t *cfg)
     */
 
     return 0;
-}
-
-/* ── wch_stop_capture ────────────────────────────────────────────────────── */
-
-int wch_stop_capture(wch_device_t *dev)
-{
-    /*
-     * No confirmed stop command yet.  Closing the USB interface effectively
-     * stops the stream.  Sending an empty AA A1 again seems harmless.
-     */
-    uint8_t frame[4] = { WCH_MAGIC, CMD_SCAN_START, 0x00, 0x00 };
-    int r = bulk_write(dev, frame, sizeof(frame));
-    return (r == LIBUSB_ERROR_TIMEOUT) ? 0 : r;
 }
 
 /* ── wch_read_packets ────────────────────────────────────────────────────── */
@@ -491,34 +458,4 @@ void wch_mac_to_str(const uint8_t mac[6], char out[18])
 {
     snprintf(out, 18, "%02X:%02X:%02X:%02X:%02X:%02X",
              mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
-}
-
-void wch_print_packet(const wch_pkt_hdr_t *hdr,
-                      const uint8_t       *pdu,
-                      int                  pdu_len)
-{
-    char src[18], dst[18];
-    wch_mac_to_str(hdr->src_addr, src);
-    wch_mac_to_str(hdr->dst_addr, dst);
-
-    printf("[%12llu us] ch%02u  %-22s  rssi %4d dBm  AA %08X  %s",
-           (unsigned long long)hdr->timestamp_us,
-           hdr->channel_index,
-           wch_pkt_type_name(hdr->pkt_type),
-           (int)hdr->rssi,
-           hdr->access_addr,
-           src);
-
-    if (hdr->pkt_type == PKT_SCAN_REQ || hdr->pkt_type == PKT_CONNECT_REQ)
-        printf("→%s", dst);
-
-    if (pdu && pdu_len > 0) {
-        int show = (pdu_len < 24) ? pdu_len : 24;
-        printf("  PDU[%d]:", pdu_len);
-        for (int i = 0; i < show; i++)
-            printf(" %02x", pdu[i]);
-        if (pdu_len > show)
-            printf(" ...");
-    }
-    putchar('\n');
 }
