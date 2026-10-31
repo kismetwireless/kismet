@@ -535,10 +535,6 @@ protected:
             const std::shared_ptr<kis_packet>& packet,
             std::shared_ptr<kis_tracked_device_base> base,
             std::shared_ptr<tracked_meshtastic_node> node);
-    void handle_nodeinfo_pb(const std::string_view& pbuf,
-            const std::shared_ptr<kis_packet>& packet,
-            std::shared_ptr<kis_tracked_device_base> base,
-            std::shared_ptr<tracked_meshtastic_node> node);
 
     // tracked channels
     using channels_map_t = std::unordered_map<std::string, meshtastic_channel>;

@@ -20,8 +20,10 @@
 #define __PROTOBUF_DECODER_H__
 
 #include <stdint.h>
+#include <string.h>
 
 #include <list>
+#include <stdexcept>
 #include <string_view>
 
 // manually process protobuf streams & extract message content without
@@ -72,7 +74,6 @@ public:
     }
 
     void ignore_field() {
-        uint64_t len;
         std::list<uint32_t> stack;
 
         switch (type_) {
@@ -80,16 +81,13 @@ public:
                 read_varint();
                 break;
             case tagtype::FIXED32:
-                pos_ += 4;
+                skip(4);
                 break;
             case tagtype::FIXED64:
-                pos_ += 8;
+                skip(8);
                 break;
             case tagtype::LEN:
-                len = read_varint();
-                if (len > INT32_MAX)
-                    throw std::runtime_error("protobuf byte array too long for int32");
-                pos_ += len;
+                skip(read_varint());
                 break;
             case tagtype::STARTGROUP:
                 while (!stack.empty()) {
@@ -120,12 +118,12 @@ public:
             throw std::runtime_error("protobuf field type mismatch, not len buffer");
 
         auto len = read_varint();
-        if (len > INT32_MAX)
-            throw std::runtime_error("protobuf byte array too long for in32");
+        if (len > buf_.length() - pos_)
+            throw std::runtime_error("protobuf byte array longer than the buffer");
 
         auto oldpos = pos_;
 
-        pos_ += int32_t(len);
+        pos_ += len;
 
         return buf_.substr(oldpos, len);
     }
@@ -157,10 +155,9 @@ public:
 
 
 protected:
-    void advance_buf(size_t n) {
-        if (pos_ + n >= buf_.size()) {
-            throw std::runtime_error("protobuf too short for requested advance");
-        }
+    void skip(uint64_t n) {
+        if (n > buf_.length() - pos_)
+            throw std::runtime_error("protobuf field longer than the buffer");
 
         pos_ += n;
     }
@@ -169,31 +166,25 @@ protected:
     t read_fixed_le() {
         static_assert(sizeof(t) == 4 || sizeof(t) == 8, "can only extract 4 or 8 byte values");
 
-        t ret = 0;
-        const size_t sz = sizeof(t);
-#ifdef WORDS_BIGENDIAN
-        if (sz == 4) {
-            ret =
-                (t) (buf_.data() + pos_ + 3) << 24 |
-                (t) (buf_.data() + pos_ + 2) << 16 |
-                (t) (buf_.data() + pos_ + 1) << 8 |
-                (t) (but_.data());
-        } else if (sz == 8) {
-            ret =
-                (t) (buf_.data() + pos_ + 7) << 56 |
-                (t) (buf_.data() + pos_ + 6) << 48 |
-                (t) (buf_.data() + pos_ + 5) << 40 |
-                (t) (buf_.data() + pos_ + 4) << 32 |
-                (t) (buf_.data() + pos_ + 3) << 24 |
-                (t) (buf_.data() + pos_ + 2) << 16 |
-                (t) (buf_.data() + pos_ + 1) << 8 |
-                (t) (but_.data());
-        }
-#else
-        memcpy(&ret, buf_.data() + pos_, sz);
-#endif
+        constexpr size_t sz = sizeof(t);
+
+        if (buf_.length() < pos_ || buf_.length() - pos_ < sz)
+            throw std::runtime_error("protobuf stream eof reading fixed field");
+
+        // assemble the little endian value, then reinterpret it as t (int or float)
+        uint64_t v = 0;
+        for (size_t i = 0; i < sz; i++)
+            v |= uint64_t(uint8_t(buf_[pos_ + i])) << (8 * i);
 
         pos_ += sz;
+
+        t ret;
+        if constexpr (sz == 4) {
+            const auto v32 = uint32_t(v);
+            memcpy(&ret, &v32, sz);
+        } else {
+            memcpy(&ret, &v, sz);
+        }
 
         return ret;
     }

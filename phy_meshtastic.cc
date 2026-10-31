@@ -422,7 +422,22 @@ void kis_meshtastic_phy::handle_telemetry_pb(const std::string_view& pbuf,
         const std::shared_ptr<kis_packet>& packet,
         std::shared_ptr<kis_tracked_device_base> base,
         std::shared_ptr<tracked_meshtastic_node> node) {
+    protobuf_decoder::decoder dec(pbuf);
 
+    int64_t fn;
+    while ((fn = dec.next_field()) >= 0) {
+        switch (static_cast<meshtastic_telemetry_pb>(fn)) {
+            case meshtastic_telemetry_pb::fn_time:
+                node->set_telem_ts(dec.get_int());
+                break;
+            case meshtastic_telemetry_pb::fn_device_metrics:
+                handle_devicemetrics_pb(dec.get_bytearray(), packet, base, node);
+                break;
+            default:
+                dec.ignore_field();
+                break;
+        }
+    }
 }
 
 void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string_view& pbuf,
@@ -441,7 +456,8 @@ void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string_view& pbuf,
 
         switch (static_cast<meshtastic_devicemetrics_pb>(fn)) {
             case meshtastic_devicemetrics_pb::fn_battery_level:
-                node->set_telem_battery_perc(dec.get_int());
+                // 101 means external power
+                node->set_telem_battery_perc(std::min<uint64_t>(dec.get_int(), 255));
                 break;
             case meshtastic_devicemetrics_pb::fn_voltage:
                 node->set_telem_battery_voltage(dec.get_float<float>());
@@ -459,7 +475,6 @@ void kis_meshtastic_phy::handle_devicemetrics_pb(const std::string_view& pbuf,
                 dec.ignore_field();
         }
     }
-
 }
 
 void kis_meshtastic_phy::handle_user_pb(const std::string_view& pbuf,
@@ -483,12 +498,7 @@ void kis_meshtastic_phy::handle_user_pb(const std::string_view& pbuf,
 
         switch (static_cast<meshtastic_user_pb>(fn)) {
             case meshtastic_user_pb::fn_id:
-                dec.next_field();
-                /* do nodes send out details for OTHER nodes?  if so we have to
-                 * convert & look up the proper device
-                data = dec.get_bytearray();
-                printf("  id: %s\n", std::string(data.data(), data.length()).c_str());
-                */
+                dec.ignore_field();
                 break;
             case meshtastic_user_pb::fn_long_name:
                 data = dec.get_bytearray();
@@ -564,50 +574,6 @@ void kis_meshtastic_phy::handle_position_pb(const std::string_view& pbuf,
         packet->reported_gps.set_reported(lat, lon, alt, speed * 3.6, 0, 0, packet->ts);
         devicetracker->update_common_device(base->get_macaddr(), this, packet,
                 UCD_UPDATE_REPORTED_LOCATION, "Meshtastic");
-    }
-}
-
-void kis_meshtastic_phy::handle_nodeinfo_pb(const std::string_view& pbuf,
-        const std::shared_ptr<kis_packet>& packet,
-        std::shared_ptr<kis_tracked_device_base> base,
-        std::shared_ptr<tracked_meshtastic_node> node) {
-    protobuf_decoder:: decoder dec(pbuf);
-
-    int64_t fn;
-    while (1) {
-        fn = dec.next_field();
-
-        if (fn < 0) {
-            break;
-        }
-
-        switch (static_cast<meshtastic_nodeinfo_pb>(fn)) {
-            case meshtastic_nodeinfo_pb::fn_num:
-                dec.ignore_field();
-                break;
-            case meshtastic_nodeinfo_pb::fn_user:
-                dec.ignore_field();
-                break;
-            case meshtastic_nodeinfo_pb::fn_position:
-                dec.ignore_field();
-                break;
-            case meshtastic_nodeinfo_pb::fn_snr:
-                break;
-            case meshtastic_nodeinfo_pb::fn_last_heard:
-                break;
-            case meshtastic_nodeinfo_pb::fn_device_metrics:
-                dec.ignore_field();
-                break;
-            case meshtastic_nodeinfo_pb::fn_channels:
-                break;
-            case meshtastic_nodeinfo_pb::fn_via_mqtt:
-                break;
-            case meshtastic_nodeinfo_pb::fn_via_hops_away:
-                break;
-            default:
-                dec.ignore_field();
-                break;
-        }
     }
 }
 
