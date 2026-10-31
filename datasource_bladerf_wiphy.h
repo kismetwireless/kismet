@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_BLADERF_WIPHY_DATASOURCE
-
 #include "kis_datasource.h"
 
 class kis_datasource_bladerf_wiphy;

@@ -324,10 +324,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "WMM fields may indicate an attempt to exploit bugs in Broadcom chipsets "
                 "using the Broadpwn attack",
                 phyid);
-#if 0
-    alert_dhcpclient_ref =
-        alertracker->activate_configured_alert("DHCPCLIENTID", phyid);
-#endif
     alert_chan_ref =
         alertracker->activate_configured_alert("CHANCHANGE",
                 "SPOOF", kis_alert_severity::low,
@@ -702,27 +698,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     // Before the loggers and streams, which run at -100
     packetchain->register_handler(&packet_dot11_content_filter, this, CHAINPOS_LOGGING, -1000);
 
-#if 0
-    // There is no actual handling of phy packets and nothing uses this config option,
-    // scheduled for removal unless something new is found that makes phy packets actually
-    // useful
-
-    // Do we process phy and control frames?  They seem to be the glitchiest
-    // on many cards including the ath9k which is otherwise excellent
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_process_phy", 0)) {
-        _MSG("PHY802.11 will process Wi-Fi 'phy' and 'control' type frames, which "
-                "gives the most complete view of device traffic but may result in "
-                "false devices due to driver and firmware quirks.", MSGFLAG_INFO);
-        process_ctl_phy = true;
-    } else {
-        _MSG("PHY802.11 will not process Wi-Fi 'phy' and 'control' frames; these "
-                "typically are the most susceptible to corruption resulting in "
-                "false devices.  This can be re-enabled with dot11_process_phy=true",
-                MSGFLAG_INFO);
-        process_ctl_phy = false;
-    }
-#endif
-
     associate_by_bssts = Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_link_bssts", false);
     if (associate_by_bssts) {
         _MSG_INFO("PHY80211 will try to associate hardware via BSS timestamp.  This can have SIGNIFICANT performance implications in some environments!");
@@ -737,21 +712,10 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         _MSG_INFO("PHY80211 will only process AP signal levels from beacons");
     }
 
-    dissect_strings = 0;
-    dissect_all_strings = 0;
-
     // Load the wep keys from the config file
     if (load_wepkeys() < 0) {
         Globalreg::globalreg->fatal_condition = 1;
         return;
-    }
-
-    // TODO turn into REST endpoint
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("allowkeytransmit", 0)) {
-        _MSG("Allowing Kismet clients to view WEP keys", MSGFLAG_INFO);
-        client_wepkey_allowed = 1;
-    } else {
-        client_wepkey_allowed = 0;
     }
 
     // Build the wep identity
@@ -1261,7 +1225,6 @@ int kis_80211_phy::load_wepkeys() {
 
         dot11_wep_key *keyinfo = new dot11_wep_key;
         keyinfo->bssid = bssid_mac;
-        keyinfo->fragile = 0;
         keyinfo->decrypted = 0;
         keyinfo->failed = 0;
         keyinfo->len = len;
@@ -1357,18 +1320,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     if (in_pack->crc_ok && !in_pack->checksum_valid) {
         return 0;
     }
-
-#if 0
-    // Packets with invalid checksums aren't meaningfully useful; FCS errors
-    // happen constantly under normal circumstances, and a corrupt packet can't
-    // be usefully mapped to any device.
-    //
-    // Throw them out - they're not errors, they're just meaningless noise
-    auto fcs = in_pack->fetch<kis_packet_checksum>(d11phy->pack_comp_checksum);
-    if (fcs != nullptr && fcs->checksum_valid == 0) {
-        return 0;
-    }
-#endif
 
     auto pack_datainfo = in_pack->fetch<kis_data_packinfo>(d11phy->pack_comp_basicdata);
 
@@ -2864,43 +2815,6 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     }
 
     return 1;
-}
-
-void kis_80211_phy::set_string_extract(int in_extr) {
-    if (in_extr == 0 && dissect_strings == 2) {
-        _MSG("set_string_extract(): String dissection cannot be disabled because "
-                "it is required by another active component.", MSGFLAG_ERROR);
-        return;
-    }
-
-    // If we're setting the extract here, we have to turn it on for all BSSIDs
-    dissect_strings = in_extr;
-    dissect_all_strings = in_extr;
-}
-
-void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
-        int temp) {
-    if (len > WEPKEY_MAX)
-        return;
-
-    dot11_wep_key *winfo = new dot11_wep_key;
-
-    winfo->decrypted = 0;
-    winfo->failed = 0;
-    winfo->bssid = bssid;
-    winfo->fragile = temp;
-    winfo->len = len;
-
-    memcpy(winfo->key, key, len);
-
-    // Replace exiting ones
-    if (wepkeys.find(winfo->bssid) != wepkeys.end()) {
-        delete wepkeys[winfo->bssid];
-        wepkeys[winfo->bssid] = winfo;
-        return;
-    }
-
-    wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
 // Bands for channel switch checks

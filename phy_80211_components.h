@@ -1346,7 +1346,6 @@ public:
             __ImportField(client_disconnects, p);
             __ImportField(client_disconnects_last, p);
 
-            // __ImportField(last_sequence, p);
             __ImportField(bss_timestamp, p);
 
             __ImportField(num_fragments, p);
@@ -1460,7 +1459,6 @@ public:
 
     __Proxy(client_disconnects_last, uint64_t, uint64_t, uint64_t, client_disconnects_last);
 
-    // __Proxy(last_sequence, uint64_t, uint64_t, uint64_t, last_sequence);
     __Proxy(bss_timestamp, uint64_t, uint64_t, uint64_t, bss_timestamp);
     time_t last_bss_invalid;
     unsigned int bss_invalid_count;
@@ -1661,7 +1659,6 @@ protected:
                 "client disconnects last message",
                 &client_disconnects_last);
 
-        // register_field("dot11.device.last_sequence", "last sequence number", &last_sequence);
         register_field("dot11.device.bss_timestamp", "last BSS timestamp", &bss_timestamp);
 
         register_field("dot11.device.num_fragments", "number of fragmented packets", &num_fragments);
@@ -1854,7 +1851,6 @@ protected:
     dot11_beacon_ref beacon_ref_;
     std::unique_ptr<dot11_csa_state> csa_state_;
 
-    // std::shared_ptr<tracker_element_uint64> last_sequence;
     std::shared_ptr<tracker_element_uint64> bss_timestamp;
 
     std::shared_ptr<tracker_element_uint64> num_fragments;

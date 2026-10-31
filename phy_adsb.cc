@@ -1394,11 +1394,6 @@ uint32_t kis_adsb_phy::adsb_msg_get_icao(const std::string& u8_buf) const {
     return icao;
 }
 
-uint8_t kis_adsb_phy::adsb_msg_get_fs(const std::string& u8_buf) const {
-    auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
-    return buf[0] & 7;
-}
-
 uint8_t kis_adsb_phy::adsb_msg_get_me_type(const std::string& u8_buf) const {
     auto buf = reinterpret_cast<const uint8_t *>(u8_buf.data());
     return buf[4] >> 3;

@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_LINUX_WIFI_DATASOURCE
-
 #include "kis_datasource.h"
 
 class kis_datasource_linux_wifi;

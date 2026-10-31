@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_WCH_BLE_ANALYZER_PRO_DATASOURCE
-
 #include "kis_datasource.h"
 #include "dlttracker.h"
 

@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_HAK5_WIFI_COCONUT_DATASOURCE
-
 #include "kis_datasource.h"
 
 class kis_datasource_hak5_wifi_coconut;

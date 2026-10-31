@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_NXP_KW41Z_DATASOURCE
-
 #include "kis_datasource.h"
 #include "dlttracker.h"
 #include "tap_802_15_4.h"

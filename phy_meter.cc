@@ -73,14 +73,11 @@ mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
 	// use the decoded ID only
 
     uint8_t bytes[6];
-    // uint16_t *model = (uint16_t *) bytes;
     uint32_t *deviceid = (uint32_t *) (bytes + 2);
 
     memset(bytes, 0, 6);
 
     try {
-        // *model = (uint16_t) id;
-        // *deviceid = adler32_checksum(model_s);
 		*deviceid = (uint32_t) id;
     } catch (const std::exception& e) {
         mac_addr m;
@@ -93,23 +90,6 @@ mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
 
     return mac_addr(bytes, 6);
 }
-
-/*
-
-DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "IDM", "PacketTypeID": "0x1C", "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "ConsumptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "AsynchronousCounters": 0, "PowerOutageFlags": "0x000000000000", "LastConsumptionCount": 6823922, "DifferentialConsumptionIntervals": [11, 9, 8, 7, 40, 30, 4, 7, 7, 8, 8, 8, 7, 6, 5, 5, 5, 5, 5, 6, 5, 6, 6, 8, 7, 8, 6, 7, 7, 6, 5, 5, 6, 6, 5, 6, 7, 8, 8, 8, 6, 6, 8, 6, 9, 7, 6], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21.437, "noise": -21.891}
-debug - error processing rtl json [json.exception.type_error.302] type must be number, but is nul
-l
-DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "NETIDM", "PacketTypeID": "0x1C"
-, "PacketLength": 92, "ApplicationVersion": 4, "ERTType": 23, "ERTSerialNumber": 22156790, "Consu
-mptionIntervalCount": 98, "ModuleProgrammingState": 188, "TamperCounters": "0x020200340A00", "Unk
-nown_field_1": "0x00000000000000", "LastGenerationCount": 104, "Unknown_field_2": "0x1FF205", "LastConsumptionCount": -2109669263, "DifferentialConsumptionIntervals": [4126, 128, 7182, 513, 32, 897, 8232, 1282, 8272, 2566, 160, 6156, 512, 14368, 769, 12344, 1538, 8272, 3078, 160, 6158, 513, 32, 769, 8256, 1540, 8304], "TransmitTimeOffset": 1695, "MeterIdCRC": 20090, "PacketCRC": 14134, "MeterType": "Electric", "mic": "CRC", "mod": "ASK", "freq": 915.365, "rssi": -0.454, "snr": 21. 437, "noise": -21.891}
-debug - error processing rtl json [json.exception.type_error.302] type must be number, but is nul
-l
-DEBUG: JSON data RTL433 {"time": "2023-03-22 20:26:49", "model": "ERT-SCM", "id": 22156790, "physical_tamper": 2, "ert_type": 7, "encoder_tamper": 2, "consumption_data": 6823922, "mic": "CRC", "mod": "ASK", "freq": 915.358, "rssi": -0.571, "snr": 19.871, "noise": -20.442}
-debug - error processing rtl json [json.exception.type_error.302] type must be string, but is nul
-l
-
-*/
 
 bool kis_meter_phy::is_meter(const nlohmann::json &json) {
     // This list will need to be updated as rtl_433 adds more meter types
