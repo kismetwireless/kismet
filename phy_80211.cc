@@ -243,27 +243,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "Canary SSID");
 
     // Register the dissector alerts
-    alert_netstumbler_ref =
-        alertracker->activate_configured_alert("NETSTUMBLER",
-                "PROBE", kis_alert_severity::low,
-                "(Deprecated) Netstumbler (and similar older Windows tools) may generate unique "
-                "beacons which can be used to identify these tools in use.  These "
-                "tools and the cards which generate these frames are uncommon.",
-                phyid);
-    alert_nullproberesp_ref =
-        alertracker->activate_configured_alert("NULLPROBERESP",
-                "DENIAL", kis_alert_severity::medium,
-                "A probe response with a SSID length of 0 can be used to crash the "
-                "firmware in specific older Orinoco cards.  These cards are "
-                "unlikely to be in use in modern systems.",
-                phyid);
-    alert_lucenttest_ref =
-        alertracker->activate_configured_alert("LUCENTTEST",
-                "PROBE", kis_alert_severity::low,
-                "(Deprecated) Specific Lucent Orinoco test tools generate identifiable frames, "
-                "which can indicate these tools are in use.  These tools and the "
-                "cards which generate these frames are uncommon.",
-                phyid);
     alert_msfbcomssid_ref =
         alertracker->activate_configured_alert("MSFBCOMSSID",
                 "EXPLOIT", kis_alert_severity::medium,
@@ -331,13 +310,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "enterprise equipment or on personal equipment with automatic "
                 "channel selection, but may also indicate a spoofed or "
                 "'evil twin' network.",
-                phyid);
-    alert_dhcpcon_ref =
-        alertracker->activate_configured_alert("DHCPCONFLICT",
-                "SPOOF", kis_alert_severity::low,
-                "A DHCP exchange was observed and a client was given an IP via "
-                "DHCP, but is not using the assigned IP.  This may be a "
-                "mis-configured client device, or may indicate client spoofing.",
                 phyid);
     alert_bcastdcon_ref =
         alertracker->activate_configured_alert("BCASTDISCON",
@@ -428,14 +400,6 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "A SSID has changed the advertised supported encryption standards.  "
                 "This may be a normal change when reconfiguring an access point, "
                 "but can also indicate a spoofed or 'evil twin' attack.",
-                phyid);
-    alert_malformmgmt_ref =
-        alertracker->activate_configured_alert("MALFORMMGMT",
-                "EXPLOIT", kis_alert_severity::medium,
-                "Malformed management frames may indicate errors in the capture "
-                "source driver (such as not discarding corrupted packets), but can "
-                "also be indicative of an attempted attack against drivers which may "
-                "not properly handle malformed frames.",
                 phyid);
     alert_wpsbrute_ref =
         alertracker->activate_configured_alert("WPSBRUTE",
@@ -3250,6 +3214,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
         ssid->set_ssid_len(dot11info->ssid_len);
 
+        // TODO: complete S1G short SSID matching against this hash
         ssid->set_ssid_crc32_hash(crc32_fast(dot11info->ssid.data(), dot11info->ssid.length()));
 
         auto meshid = dot11info->ie_tags.tags_map().find(114);
