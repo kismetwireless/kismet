@@ -182,6 +182,10 @@ export function flow({ onPick = null, linkKinds }) {
     function drawLines(r) {
         width = svgBox.clientWidth || node.clientWidth || 360;
         const narrow = width < 600;
+        // a phone gets smaller text, shapes and lines, and tighter rows
+        const fs = narrow ? { main: 10, sub: 8.5 } : { main: 12, sub: 10 };
+        const rh = narrow ? 25 : rowH;
+        const shrink = narrow ? 0.7 : 1;
         const pad = 8;
         const family = getComputedStyle(node).fontFamily;
         const measure = (text, px) => {
@@ -203,8 +207,8 @@ export function flow({ onPick = null, linkKinds }) {
         const seek = r.seekers;
 
         // what each item says
-        const hubRad = (h) => Math.min(5 + h.members.length, 12);
-        const grpRad = (g) => Math.min(4 + Math.sqrt(g.members.length) * 1.6, 11);
+        const hubRad = (h) => Math.min(5 + h.members.length, 12) * shrink;
+        const grpRad = (g) => Math.min(4 + Math.sqrt(g.members.length) * 1.6, 11) * shrink;
         const hubText = (h) => (narrow ?
             [h.parts.short, [h.channels.length ? `ch ${h.channels.join(',')}` : '', h.parts.named ? '' : h.parts.maker].filter(Boolean).join(' · ')] :
             [h.label, `${plural(h.members.length, 'address', 'addresses')}${h.channels.length ? ` · ch ${h.channels.join(', ')}` : ''}`]);
@@ -213,21 +217,23 @@ export function flow({ onPick = null, linkKinds }) {
                 return narrow ? [] : [groupLabel(g)];
             return narrow && g.members.length > 1 ? [format.count(g.members.length), kindOf(g.kind).groupTitle ?? 'devices'] : [groupLabel(g)];
         };
-        const textW = (t) => Math.max(measure(t[0] ?? '', 12), measure(t[1] ?? '', 10));
+        const textW = (t) => Math.max(measure(t[0] ?? '', fs.main), measure(t[1] ?? '', fs.sub));
 
         // columns are as wide as their labels; the space between them holds the lines
         const cap = narrow ? width * 0.3 : 230;
+        // where labels start, after a column's shapes
+        const textX = narrow ? { name: 7, hub: 23, att: 22 } : { name: 10, hub: 30, att: 28 };
         const colW = {
-            seek: narrow ? 26 : 34 + Math.max(0, ...seek.map((g) => textW(grpText(g)))),
-            name: Math.max(48, ...names.map((n) => measure(n.label, 12) + 22)),
-            hub: 36 + Math.max(0, ...hubs.map((h) => textW(hubText(h)))),
-            att: 34 + Math.max(0, ...att.map((g) => textW(grpText(g)))),
+            seek: narrow ? 20 : 34 + Math.max(0, ...seek.map((g) => textW(grpText(g)))),
+            name: Math.max(40, ...names.map((n) => measure(n.label, fs.main) + textX.name * 2 + 2)),
+            hub: textX.hub + 6 + Math.max(0, ...hubs.map((h) => textW(hubText(h)))),
+            att: textX.att + 6 + Math.max(0, ...att.map((g) => textW(grpText(g)))),
         };
         for (const c of cols)
-            colW[c] = Math.min(colW[c], c === 'seek' && narrow ? 26 : cap);
+            colW[c] = Math.min(colW[c], c === 'seek' && narrow ? 20 : cap);
         const gaps = cols.length - 1;
         let fixed = cols.reduce((t, c) => t + colW[c], 0);
-        const gap = Math.max(narrow ? 14 : 40, Math.min(narrow ? 90 : 240, (width - fixed) / gaps));
+        const gap = Math.max(narrow ? 12 : 40, Math.min(narrow ? 90 : 240, (width - fixed) / gaps));
         if (fixed + gap * gaps > width) {
             const scale = (width - gap * gaps) / fixed;
             for (const c of cols)
@@ -245,7 +251,7 @@ export function flow({ onPick = null, linkKinds }) {
 
         // names and access points spread evenly; groups sit level with what they relate to
         const rows = Math.max(names.length, hubs.length, att.length, seek.length, 3);
-        const H = rows * rowH + 16;
+        const H = rows * rh + 16;
         const at = new Map();
         const spread = (list, c) => {
             const step = (H - 16) / Math.max(list.length, 1);
@@ -267,31 +273,31 @@ export function flow({ onPick = null, linkKinds }) {
                 return [it, n ? sum / n : H / 2];
             }));
             const sorted = [...list].sort((a, b) => want.get(a) - want.get(b));
-            const lo = 8 + rowH / 2, hi = H - 8 - rowH / 2;
+            const lo = 8 + rh / 2, hi = H - 8 - rh / 2;
             const ys = sorted.map((it) => want.get(it));
             for (let i = 0; i < ys.length; i++)
-                ys[i] = Math.max(ys[i], i ? ys[i - 1] + rowH : lo);
+                ys[i] = Math.max(ys[i], i ? ys[i - 1] + rh : lo);
             for (let i = ys.length - 1; i >= 0; i--)
-                ys[i] = Math.min(ys[i], i < ys.length - 1 ? ys[i + 1] - rowH : hi);
+                ys[i] = Math.min(ys[i], i < ys.length - 1 ? ys[i + 1] - rh : hi);
             sorted.forEach((it, i) => at.set(it.id, { y: ys[i], col: c }));
         };
         settle(att, 'att', 'right');
         settle(seek, 'seek', 'left');
 
-        const svg = svgEl('svg', { viewBox: `0 0 ${drawnW} ${H}`, width: drawnW, height: H, class: 'fl-svg' });
+        const svg = svgEl('svg', { viewBox: `0 0 ${drawnW} ${H}`, width: drawnW, height: H, class: `fl-svg${narrow ? ' narrow' : ''}` });
         const linesG = svgEl('g');
         const nodesG = svgEl('g');
         svg.append(linesG, nodesG);
 
         // shapes in a column share a center line; lines leave after a column's labels
-        const shapeX = { seek: 12, name: 0, hub: 12, att: 11 };
+        const shapeX = narrow ? { seek: 9, name: 0, hub: 9, att: 8 } : { seek: 12, name: 0, hub: 12, att: 11 };
         const radOf = (it) => {
             const p = at.get(it.id);
             return p.col === 'hub' ? hubRad(it) : p.col === 'name' ? 0 : grpRad(it);
         };
         const out = (it) => {
             const c = at.get(it.id).col;
-            return c === 'seek' && narrow ? colX.seek + shapeX.seek + radOf(it) : colX[c] + colW[c] + (c === 'name' ? 0 : 8);
+            return c === 'seek' && narrow ? colX.seek + shapeX.seek + radOf(it) : colX[c] + colW[c] + (c === 'name' ? 0 : narrow ? 4 : 8);
         };
         const inn = (it) => {
             const c = at.get(it.id).col;
@@ -306,7 +312,8 @@ export function flow({ onPick = null, linkKinds }) {
             const x1 = out(e.from), x2 = inn(e.to);
             const mid = (x1 + x2) / 2;
             // dots get lost in a thick line
-            const w = Math.min(k.style === 'dotted' ? 3.5 : 9, 1.2 + 8 * Math.sqrt(e.count / maxCount));
+            const w = narrow ? Math.min(k.style === 'dotted' ? 2.2 : 4, 0.8 + 3.5 * Math.sqrt(e.count / maxCount)) :
+                Math.min(k.style === 'dotted' ? 3.5 : 9, 1.2 + 8 * Math.sqrt(e.count / maxCount));
             const path = svgEl('path', {
                 d: `M${x1.toFixed(1)},${a.y.toFixed(1)} C${mid.toFixed(1)},${a.y.toFixed(1)} ${mid.toFixed(1)},${b.y.toFixed(1)} ${x2.toFixed(1)},${b.y.toFixed(1)}`,
                 class: 'fl-line', stroke: `var(${k.color})`, 'stroke-width': w.toFixed(1), 'stroke-dasharray': dash[k.style]?.(w) ?? null,
@@ -316,19 +323,20 @@ export function flow({ onPick = null, linkKinds }) {
         }
 
         const label = (x, y, text, cls = null, max = 100) => {
-            const px = cls === 'fl-sub' ? 10 : 12;
+            const px = cls === 'fl-sub' ? fs.sub : fs.main;
             let t = text;
             while (t.length > 2 && measure(t, px) > max)
                 t = `${t.slice(0, -2)}…`;
             return svgEl('text', { x, y, class: cls }, t);
         };
-        const flagRing = (g, x, y, rad) => g.append(svgEl('circle', { cx: x, cy: y, r: rad + 4, class: 'fl-flag' }));
+        const flagRing = (g, x, y, rad) => g.append(svgEl('circle', { cx: x, cy: y, r: rad + (narrow ? 3 : 4), class: 'fl-flag' }));
 
         for (const n of names) {
             const p = at.get(n.id);
             const g = svgEl('g', { class: ['fl-node', 'fl-name', n.sought && 'sought'].filter(Boolean).join(' ') });
-            g.append(svgEl('rect', { x: colX.name, y: p.y - 11, width: colW.name, height: 22, rx: 11 }),
-                label(colX.name + 10, p.y + 4, n.label, null, colW.name - 18),
+            const rr = narrow ? 8.5 : 11;
+            g.append(svgEl('rect', { x: colX.name, y: p.y - rr, width: colW.name, height: rr * 2, rx: rr }),
+                label(colX.name + textX.name, p.y + fs.main / 3, n.label, null, colW.name - textX.name * 2 + 2),
                 svgEl('title', {}, n.sought ? `${n.label}: looked for, not advertised here` : n.label));
             nodesG.append(g);
         }
@@ -336,14 +344,14 @@ export function flow({ onPick = null, linkKinds }) {
             const p = at.get(h.id);
             const rad = hubRad(h);
             const cx = colX.hub + shapeX.hub;
-            const room = colW.hub - 34;
+            const room = colW.hub - textX.hub - 4;
             const [t1, t2] = hubText(h);
             const g = svgEl('g', { class: 'fl-node fl-hub' });
             if (h.flags.length)
                 flagRing(g, cx, p.y, rad);
             g.append(svgEl('circle', { cx, cy: p.y, r: rad }),
-                label(colX.hub + 30, p.y, t1, null, room),
-                label(colX.hub + 30, p.y + 12, t2, 'fl-sub', room),
+                label(colX.hub + textX.hub, p.y, t1, null, room),
+                label(colX.hub + textX.hub, p.y + fs.main, t2, 'fl-sub', room),
                 svgEl('title', {}, `${h.label}\n${h.members.map((m) => m.mac).join('\n')}`));
             g.addEventListener('click', (e) => pick({ ...h, title: h.label }, e));
             nodesG.append(g);
@@ -354,7 +362,7 @@ export function flow({ onPick = null, linkKinds }) {
             const isSeek = it.id.startsWith('seek:');
             const rad = grpRad(it);
             const cx = colX[p.col] + shapeX[p.col];
-            const room = colW[p.col] - 32;
+            const room = colW[p.col] - textX.att - 4;
             const t = grpText(it);
             const g = svgEl('g', { class: ['fl-node', 'fl-group', isSeek && 'seek', it.shared && 'shared'].filter(Boolean).join(' ') });
             if (it.flags.length)
@@ -362,20 +370,21 @@ export function flow({ onPick = null, linkKinds }) {
             g.append(it.shared ? svgEl('rect', { x: cx - rad, y: p.y - rad, width: rad * 2, height: rad * 2, rx: 3, fill: `var(${k.color})` }) :
                 svgEl('circle', { cx, cy: p.y, r: rad, fill: isSeek ? 'none' : `var(${k.color})`, stroke: `var(${k.color})` }));
             if (isSeek && narrow)
-                g.append(svgEl('text', { x: cx, y: p.y + rad + 14, 'text-anchor': 'middle' }, format.count(it.members.length)));
+                g.append(svgEl('text', { x: cx, y: p.y + rad + fs.main + 2, 'text-anchor': 'middle' }, format.count(it.members.length)));
             else if (t.length === 2)
-                g.append(label(colX[p.col] + 28, p.y, t[0], null, room), label(colX[p.col] + 28, p.y + 12, t[1], 'fl-sub', room));
+                g.append(label(colX[p.col] + textX.att, p.y, t[0], null, room), label(colX[p.col] + textX.att, p.y + fs.main, t[1], 'fl-sub', room));
             else
-                g.append(label(colX[p.col] + 28, p.y + 4, t[0], null, room));
+                g.append(label(colX[p.col] + textX.att, p.y + fs.main / 3, t[0], null, room));
             g.append(svgEl('title', {}, `${k.title}: ${groupLabel(it)}${it.flags.length ? `\n${[...new Set(it.flags.map((f) => f.title))].join('\n')}` : ''}`));
             g.addEventListener('click', (e) => pick({ ...it, title: `${k.title}: ${groupLabel(it)}` }, e));
             nodesG.append(g);
         }
         // column headings
         const heads = { seek: narrow ? '' : 'Looking', name: 'Networks', hub: narrow ? 'APs' : 'Access points', att: 'On them' };
-        const top = svgEl('svg', { viewBox: `0 0 ${drawnW} 20`, width: drawnW, height: 20, class: 'fl-heads' });
+        const headH = narrow ? 16 : 20;
+        const top = svgEl('svg', { viewBox: `0 0 ${drawnW} ${headH}`, width: drawnW, height: headH, class: `fl-heads${narrow ? ' narrow' : ''}` });
         for (const c of cols)
-            top.append(svgEl('text', { x: colX[c], y: 14 }, heads[c]));
+            top.append(svgEl('text', { x: colX[c], y: headH - 6 }, heads[c]));
         svgBox.replaceChildren(top, svg);
     }
 
