@@ -38,8 +38,6 @@
 #include "../config.h"
 #include "../kis_endian.h"
 
-#define BUFFER_SIZE 2048
-
 typedef struct {
     char *name;
 

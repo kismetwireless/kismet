@@ -141,18 +141,6 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 	*ret_len = retlen;
 	return rdata;
 
-#if 0
-        r = self.execute(b'\x26\x08', struct.pack('<I', int(command_id)))
-        retcode, flen = r.unpack('<II')
-        assert retcode == 1, f'{command_id}: got retcode {retcode}'
-        # HACK: workaround for new firmware bug(?)
-        if r.size() == flen + 1 and r._data[-1] == 0x00:
-            r._data = r._data[:-1]
-        # END OF HACK
-        assert r.size() == flen, f'{command_id}: got size {r.size()}, expect {flen}'
-        return r
-#endif
-
 }
 
 int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver) {
@@ -214,16 +202,6 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 
 	return 1;
 
-#if 0
-    def fw_version(self) -> tuple[tuple[int, int, str], tuple[int, int, str]]:
-        r = self.execute(b'\x0a\x00')
-        boot_minor, boot_major = r.unpack('<HH')
-        boot_date = r.unpack_string()
-        target_minor, target_major = r.unpack('<HH')
-        target_date = r.unpack_string()
-        assert r.size() == 0
-        return ((boot_major, boot_minor, boot_date), (target_major, target_minor, target_date.strip('\x00')))
-#endif
 }
 
 int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data) {

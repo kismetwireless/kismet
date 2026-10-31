@@ -2218,15 +2218,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "this will ONLY work with the nexmon patches",
                 local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
-#if 0
-    } else if (strcmp(driver, "iwlwifi") == 0) {
-        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks like an Intel iwlwifi device; under "
-                "some driver and firmware versions these have shown significant problems tuning to "
-                "HT and VHT channels, with firmware and driver crashes.  Newer kernels seem to solve "
-                "this problem; if you're on an older version, set htchannels=false,vhtchannels=false "
-                "in your source definition.", local_wifi->name, local_wifi->interface);
-        cf_send_warning(caph, errstr);
-#endif
     }
 
     /* Try to connect to mac80211 and get the mode */

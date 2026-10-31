@@ -63,8 +63,6 @@
 
 #include "ubertooth_bredr.h"
 
-#define MAX_PACKET_LEN  8192
-
 #ifndef HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT
 unsigned ubertooth_count(void) {
     struct libusb_device **usb_list = NULL;
@@ -150,28 +148,6 @@ unsigned int u1_chan_to_freq(unsigned int in_chan) {
 
     if (in_chan <= 36)
         return 2428 + ((in_chan - 11) * 2);
-
-    return 0;
-}
-
-unsigned int u1_freq_to_chan(unsigned int in_freq) {
-    if (in_freq % 2)
-        return 0;
-
-    if (in_freq == 2402)
-        return 37;
-
-    if (in_freq == 2426)
-        return 38;
-
-    if (in_freq == 2480)
-        return 39;
-
-    if (in_freq >= 2404 && in_freq < 2426) 
-        return (in_freq - 2404) / 2;
-
-    if (in_freq >= 2428 && in_freq < 2480)
-        return ((in_freq - 2428) / 2) + 11;
 
     return 0;
 }
@@ -325,17 +301,6 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     *chanlist = (char **) malloc(sizeof(char *) * 1);
     (*chanlist)[0] = strdup("37");
     *chanlist_sz = 1;
-
-#if 0
-    /* For now we allow 37, 38, and 39 */
-    *chanlist = (char **) malloc(sizeof(char *) * 3);
-
-    (*chanlist)[0] = strdup("37");
-    (*chanlist)[1] = strdup("38");
-    (*chanlist)[2] = strdup("39");
-
-    *chanlist_sz = 3;
-#endif
 
     return 1;
 }

@@ -894,17 +894,6 @@ static void lock_serial_cmd(local_lorapipe_t *local) {
     atomic_fetch_sub(&local->cmd_waiting, 1);
 }
 
-bool send_command(kis_capture_handler_t *caph, const char *command, size_t len, char *msg) {
-    local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;
-    bool ret;
-
-    lock_serial_cmd(local);
-    ret = send_command_locked(local, command, len, msg) > 0;
-    pthread_mutex_unlock(&local->serial_mutex);
-
-    return ret;
-}
-
 /* returns 1 on success, 0 if the radio rejected the channel, and -1 on failure */
 int set_channel(kis_capture_handler_t *caph, const char *channel, char *msg) {
     local_lorapipe_t *local = (local_lorapipe_t *) caph->userdata;

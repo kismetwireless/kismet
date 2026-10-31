@@ -210,12 +210,6 @@ typedef void (*wch_packet_cb_t)(const wch_pkt_hdr_t *hdr,
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
 /**
- * Initialise libusb context.  Must be called once before any other function.
- * Returns 0 on success, negative libusb error code on failure.
- */
-int  wch_init(libusb_context **ctx_out);
-
-/**
  * Scan the bus for connected WCH BLE Analyzer MCUs.
  * Fills @devs[0..MAX_MCU_DEVICES-1] and returns the number found (0–3).
  */
@@ -233,12 +227,6 @@ int  wch_open_device(wch_device_t *dev);
  * Returns 0 on success, negative libusb error on failure.
  */
 int  wch_start_capture(wch_device_t *dev, const wch_capture_config_t *cfg);
-
-/**
- * Send the capture stop command to one MCU.
- * Returns 0 on success.
- */
-int  wch_stop_capture(wch_device_t *dev);
 
 /**
  * Read and decode one bulk-IN transfer from EP 0x82.
@@ -265,16 +253,8 @@ int  wch_read_packets(wch_device_t    *dev,
  */
 void wch_close_device(wch_device_t *dev);
 
-/**
- * Tear down libusb context.
- */
-void wch_exit(libusb_context *ctx);
-
 /* ── Utility ──────────────────────────────────────────────────────────────── */
 const char *wch_pkt_type_name(uint8_t pkt_type);
-void        wch_print_packet(const wch_pkt_hdr_t *hdr,
-                              const uint8_t       *pdu,
-                              int                  pdu_len);
 void        wch_mac_to_str(const uint8_t mac[6], char out[18]);
 
 #endif /* WCH_BLE_ANALYZER_H */

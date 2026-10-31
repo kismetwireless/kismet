@@ -62,7 +62,6 @@ typedef struct {
     kis_capture_handler_t *caph;
 } local_ticc2531_t;
 
-#define TICC_USB_ERROR          -1
 #define TICC_USB_UNRESPONSIVE   -5
 
 /* Most basic of channel definitions */

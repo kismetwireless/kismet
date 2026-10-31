@@ -38,28 +38,15 @@
 
 #define BUFFER_SIZE 256
 
-#if defined(SYS_OPENBSD)
-#define MODEMDEVICE "/dev/cuaU0"
-#else
-#define MODEMDEVICE "/dev/ttyACM0"
-#endif
-
 #ifndef CRTSCTS
 #define CRTSCTS 020000000000
 #endif
-
-#define LINKTYPE_IEEE802_15_4_NOFCS     230
-#define LINKTYPE_IEEE802_15_4           195
 
 #ifndef KDLT_IEEE802_15_4_TAP
 #define KDLT_IEEE802_15_4_TAP             283
 #endif
 
-#define FZ_CMD_FRAME        0x00
-#define FZ_CMD_CHANNEL      0x01
 #define FZ_CMD_GET_CHANNEL  0x81
-#define FZ_CMD_SET_CHANNEL  0x45
-#define FZ_PROTO_VERSION    1
 
 #define CHANNEL_COUNT 16
 #define START_CHANNEL 11

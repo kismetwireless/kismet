@@ -296,19 +296,6 @@ void capture_thread(kis_capture_handler_t *caph) {
     cf_handler_spindown(caph);
 }
 
-void coconut_handle_error(const struct userspace_wifi_context *context,
-        struct userspace_wifi_dev *dev,
-        const char *errstr, int errnum) {
-    local_wifi_t *local_wifi = (local_wifi_t *) context->local_data;
-    char msg[STATUS_MAX];
-
-    snprintf(msg, STATUS_MAX, "%s encountered an error: %s", local_wifi->name, errstr);
-
-    cf_send_error(local_wifi->caph, 0, msg);
-
-    local_wifi->error = true;
-}
-
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid,

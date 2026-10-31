@@ -44,8 +44,6 @@
 
 #include <libusb-1.0/libusb.h>
 
-#define BUFFER_SIZE 2048
-
 /* arbitrary max number of wch devices we support on a single system; whenever
  * someone manages to break this limit we'll just increase it */
 #define MAX_AGGREGATE_DEVICES       10

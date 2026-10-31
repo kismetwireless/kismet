@@ -72,45 +72,9 @@ int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr);
 /* Disconnect from nl80211; frees resources used */
 void mac80211_disconnect(void *nl_sock);
 
-/* Set a channel on an interface via mac80211, initiating a new connection
- * to the interface.
- *
- * Generally, it's better to use mac80211_set_channel_cache which re-uses the
- * connected state instead of opening a new mac80211 socket every channel config.
- *
- * Channel must be base frequency or channel number.  Mode must be one of 
- * nl80211_channel_type from nl80211.h.  For setting 80, 160, or 80+80 channels, use
- * mac80211_set_freq
- *
- * errstr must be allocated by the caller and be able to hold STATUS_MAX
- * characters.
- *
- * Returns:
- * -1   Error
- *  0   Success
- */
-int mac80211_set_channel(const char *interface, int channel, unsigned int chmode, char *errstr);
 int mac80211_set_channel_cache(int ifindex, void *nl_sock, int nl80211_id,
         int channel, unsigned int chmode, char *errstr);
 
-/* Set a device frequency by frequency, width, and center frequency, required for
- * advanced 11AC controls.  This MAY also be used for 11n 40mhz channels.
- *
- * Generally, it's best to use mac80211_set_frequency_cache(...) which re-uses the
- * connected state from mac80211_open.
- *
- * chan_width must be one of nl80211_chan_width from nl80211.h
- *
- * errstr must be allocated by the caller and be able to hold STATUS_MAX characters.
- *
- * Returns:
- * -1   Error  
- *  0   Success
- *
- */
-int mac80211_set_frequency(const char *interface, unsigned int control_freq,
-        unsigned int chan_width, unsigned int center_freq1, unsigned int center_freq2,
-        char *errstr);
 int mac80211_set_frequency_cache(int ifidx, void *nl_sock, int nl80211_id, 
         unsigned int control_freq, unsigned int chan_width, unsigned int center_freq1, 
         unsigned int center_freq2, char *errstr);
