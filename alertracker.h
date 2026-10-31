@@ -572,9 +572,6 @@ protected:
     bool prelude_alerts;
 #endif
 
-    // Do we log alerts to the kismet database?
-    bool log_alerts;
-
     void define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 

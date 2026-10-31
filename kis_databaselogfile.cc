@@ -425,18 +425,20 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
                     });
     }
 
-    alert_evt_id =
-        eventbus->register_listener(alert_tracker::alert_event(),
-                [this](std::shared_ptr<eventbus_event> evt) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_alerts", true)) {
+        alert_evt_id =
+            eventbus->register_listener(alert_tracker::alert_event(),
+                    [this](std::shared_ptr<eventbus_event> evt) {
 
-                auto msg_k = evt->get_event_content()->find(alert_tracker::alert_event());
-                if (msg_k == evt->get_event_content()->end())
-                    return;
+                    auto msg_k = evt->get_event_content()->find(alert_tracker::alert_event());
+                    if (msg_k == evt->get_event_content()->end())
+                        return;
 
-                auto al = std::static_pointer_cast<tracked_alert>(msg_k->second);
+                    auto al = std::static_pointer_cast<tracked_alert>(msg_k->second);
 
-                handle_alert(al);
-                });
+                    handle_alert(al);
+                    });
+    }
 
     // Post that we've got the logfile ready
     auto evt = eventbus->get_eventbus_event(event_log_open());
