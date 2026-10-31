@@ -49,7 +49,6 @@
 #include "kis_datasource.h"
 #include "packinfo_signal.h"
 #include "devicetracker_component.h"
-#include "trackercomponent_legacy.h"
 #include "timetracker.h"
 #include "kis_net_beast_httpd.h"
 #include "devicetracker_view.h"
@@ -58,6 +57,7 @@
 #include "eventbus.h"
 #include "unordered_dense.h"
 #include "streamtracker.h"
+#include "phyhandler.h"
 
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2

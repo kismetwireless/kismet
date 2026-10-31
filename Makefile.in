@@ -114,11 +114,6 @@ BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 CAPTURE_OPENBSD_WIFI	= capture_openbsd_wifi/kismet_cap_openbsd_wifi
 BUILD_CAPTURE_OPENBSD_WIFI = @BUILD_CAPTURE_OPENBSD_WIFI@
 
-CAPTURE_HACKRF_SWEEP_O = \
-	capture_hackrf_sweep.c.o
-CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
-BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
-
 CAPTURE_LINUX_BLUETOOTH = capture_linux_bluetooth/kismet_cap_linux_bluetooth
 BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 
@@ -476,9 +471,6 @@ $(CAPTURE_SDR_RTLAIS): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_SDR_RTLAISADSB): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_sdr_rtlaisadsb && $(MAKE))
 
-$(CAPTURE_HACKRF_SWEEP):	$(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
-	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
-
 $(CAPTURE_NRF_MOUSEJACK): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_mousejack && $(MAKE))
 
@@ -731,10 +723,6 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) $(CAPTURE_OSX_COREWLAN) $(BIN)/`basename $(CAPTURE_OSX_COREWLAN)`; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HACKRF_SWEEP) $(BIN)/$(CAPTURE_HACKRF_SWEEP); \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_NRF_MOUSEJACK)"x = "1"x; then \
@@ -1017,7 +1005,6 @@ clean: all-plugins-clean depclean
 	@-rm -f $(CAPTURE_LINUX_BLUETOOTH)
 	@-rm -f $(CAPTURE_OPENBSD_WIFI)
 	@-rm -f $(CAPTURE_OSX_COREWLAN)
-	@-rm -f $(CAPTURE_HACKRF_SWEEP)
 	@-rm -f $(LOGTOOL_BINS)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
@@ -1132,9 +1119,6 @@ ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 endif
 ifneq ($(BUILD_CAPTURE_KISMETDB)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_KISMETDB_O)))
-endif
-ifneq ($(BUILD_CAPTURE_HACKRF_SWEEP)x, "x")
-	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_HACKRF_SWEEP_O)))
 endif
 
 
