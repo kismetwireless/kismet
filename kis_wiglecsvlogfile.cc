@@ -321,16 +321,18 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
         // [BSSID],[SSID],[Capabilities],[First timestamp seen],[Channel],[Frequency],[RSSI],
         //    [Latitude],[Longitude],[Altitude],[Accuracy],[RCOIs],[MfgrId],[Type]
-        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{}\n",
+        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
                 dev->get_macaddr(),
                 name,
                 crypt,
                 ts.str(),
                 (int) channel,
-                dev->get_frequency(),
+                dev->get_frequency() / 1000,
                 signal,
                 in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
                 0, // TODO - derive a gps accuracy
+                "", // rcoi blank
+                "", // no mfgr id for wifi
                 "WIFI");
 
     } else if (wigle->bt_phy->device_is_a(dev)) {
