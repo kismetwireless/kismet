@@ -65,6 +65,10 @@ int uwifi_init(const char *const *fw_paths, size_t n_paths, int log_level) {
     return kc_usb_init();
 }
 
+void uwifi_exit(void) {
+    kc_usb_exit();
+}
+
 static const char *uwifi_speed_name(int speed) {
     switch (speed) {
         case USB_SPEED_LOW:
@@ -433,7 +437,7 @@ void uwifi_print_caps(struct uwifi_dev *dev, FILE *out) {
 }
 
 /* Channel specs */
-static const struct ieee80211_channel *uwifi_find_chan(struct uwifi_dev *dev, enum nl80211_band band,
+const struct ieee80211_channel *uwifi_find_chan(struct uwifi_dev *dev, enum nl80211_band band,
         int channel) {
     const struct ieee80211_supported_band *sband;
 

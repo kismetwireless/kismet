@@ -103,6 +103,10 @@ void uwifi_kis_close(struct uwifi_dev *dev) {
     uwifi_close(dev);
 }
 
+void uwifi_kis_exit(void) {
+    uwifi_exit();
+}
+
 bool uwifi_kis_alive(struct uwifi_dev *dev) {
     return uwifi_alive(dev);
 }
@@ -121,24 +125,11 @@ struct uwifi_kis_chan {
     struct uwifi_chan chan;
 };
 
-static const struct ieee80211_channel *kis_find_chan(struct uwifi_dev *dev, enum nl80211_band band, int ch) {
-    const struct ieee80211_supported_band *sband;
-
-    if (band >= NUM_NL80211_BANDS || (sband = uwifi_hw(dev)->wiphy->bands[band]) == NULL)
-        return NULL;
-
-    for (int c = 0; c < sband->n_channels; c++)
-        if (sband->channels[c].hw_value == ch && !(sband->channels[c].flags & IEEE80211_CHAN_DISABLED))
-            return &sband->channels[c];
-
-    return NULL;
-}
-
 /* Every 20MHz channel in a block centred on center_mhz must be usable */
 static bool kis_block_ok(struct uwifi_dev *dev, enum nl80211_band band, u32 center_mhz, int width_mhz) {
     for (u32 f = center_mhz - width_mhz / 2 + 10; f < center_mhz + width_mhz / 2; f += 20) {
         int ch = ieee80211_frequency_to_channel(f);
-        if (ch <= 0 || kis_find_chan(dev, band, ch) == NULL)
+        if (ch <= 0 || uwifi_find_chan(dev, band, ch) == NULL)
             return false;
     }
     return true;
@@ -146,7 +137,7 @@ static bool kis_block_ok(struct uwifi_dev *dev, enum nl80211_band band, u32 cent
 
 static bool kis_make(struct uwifi_dev *dev, enum nl80211_band band, int ch, enum nl80211_chan_width width,
         u32 center, struct uwifi_chan *out) {
-    if (kis_find_chan(dev, band, ch) == NULL || !uwifi_band_width_ok(dev, band, width))
+    if (uwifi_find_chan(dev, band, ch) == NULL || !uwifi_band_width_ok(dev, band, width))
         return false;
 
     if (width != NL80211_CHAN_WIDTH_20) {

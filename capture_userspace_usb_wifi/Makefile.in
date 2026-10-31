@@ -9,7 +9,8 @@ FIRMWAREDIR = @datadir@/kismet/firmware
 
 # Kernel headers resolve to kcompat first, then the unmodified upstream wireless headers
 KC_INCLUDES = -Ikcompat/include -Ikcompat/upstream -Ikcompat/upstream/uapi
-KC_CFLAGS = -std=gnu11 -pthread -MMD -MP $(KC_INCLUDES) $(LIBUSBCFLAGS) -O2 -g -fPIE
+KC_CFLAGS = -std=gnu11 -pthread -MMD -MP $(KC_INCLUDES) $(LIBUSBCFLAGS) -O2 -g -fPIE \
+	-ffunction-sections -fdata-sections
 
 # Our kernel-side code
 OWN_CFLAGS = $(KC_CFLAGS) -Wall -Wextra @USBWIFI_WNOCFLAGS@ \
@@ -146,9 +147,9 @@ ALL_OBJS = $(KCOMPAT_OBJS) $(MAC80211_OBJS) $(MT76_OBJS) $(RTW88_OBJS) $(GLUE_OB
 
 # Drivers register from constructors, so the whole archive is linked
 ifeq ($(shell uname -s),Darwin)
-WHOLE_ARCHIVE = -Wl,-force_load,$(LIB)
+WHOLE_ARCHIVE = -Wl,-force_load,$(LIB) -Wl,-dead_strip
 else
-WHOLE_ARCHIVE = -Wl,--whole-archive $(LIB) -Wl,--no-whole-archive
+WHOLE_ARCHIVE = -Wl,--whole-archive $(LIB) -Wl,--no-whole-archive -Wl,--gc-sections
 endif
 
 all: $(MONITOR_BIN) $(TOOL)
