@@ -232,22 +232,42 @@ export function register(kismet) {
                 rh.update(model.rhythm(records, now, { listen }));
             }
 
+            // The element the findings scroll in: the tab itself, or the page around it on a phone
+            function scroller() {
+                for (let e = unusual; e; e = e.parentElement)
+                    if (e.scrollHeight > e.clientHeight && /auto|scroll/.test(getComputedStyle(e).overflowY))
+                        return e;
+                return document.scrollingElement;
+            }
+
+            // Redraw only when the findings change, keeping the reader's place
+            let unusualShown = null;
             function renderUnusual() {
                 const sev = { high: 'High', medium: 'Worth a look', info: 'Good to know' };
                 const rank = { high: 0, medium: 1, info: 2 };
+                const label = (k) => graph?.nodes.get(k)?.label ?? k;
+                const rows = [...found].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3) ||
+                    (b.devices?.length ?? 0) - (a.devices?.length ?? 0) || String(a.id).localeCompare(String(b.id)));
+                const signature = JSON.stringify(rows.map((f) => [f.id, f.severity, f.title, f.text,
+                    (f.devices ?? []).slice(0, 8).map((k) => [k, label(k)]), f.devices?.length ?? 0]));
+                if (signature === unusualShown)
+                    return;
+                unusualShown = signature;
+                // the first finding in view, and where it sits, to put back after the redraw
+                const box = scroller();
+                const boxTop = () => (box === document.scrollingElement ? 0 : box.getBoundingClientRect().top);
+                const first = [...unusual.querySelectorAll('tr[data-id]')].find((tr) => tr.getBoundingClientRect().bottom > boxTop());
+                const anchor = first ? { id: first.dataset.id, at: first.getBoundingClientRect().top - boxTop() } : null;
                 if (!found.length) {
                     unusual.replaceChildren(el('p', { class: 'muted' }, 'Nothing unusual among the devices heard in this window.'));
                     return;
                 }
-                const label = (k) => graph?.nodes.get(k)?.label ?? k;
-                const rows = [...found].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3) ||
-                    (b.devices?.length ?? 0) - (a.devices?.length ?? 0));
                 unusual.replaceChildren(el('table', { class: 'in-utable' },
                     el('thead', {}, el('tr', {}, el('th', {}, 'Severity'), el('th', {}, 'Finding'), el('th', { class: 'in-u-text' }, 'Details'),
                         el('th', {}, 'Devices'))),
                     el('tbody', {}, ...rows.map((f) => {
                         const devs = f.devices ?? [];
-                        return el('tr', { class: `sev-${f.severity}` },
+                        return el('tr', { class: `sev-${f.severity}`, dataset: { id: String(f.id) } },
                             el('td', { class: 'in-u-sev' }, sev[f.severity] ?? f.severity),
                             el('td', { class: 'in-u-title' }, f.title, el('span', { class: 'in-u-inline muted' }, f.text)),
                             el('td', { class: 'in-u-text' }, f.text),
@@ -261,6 +281,9 @@ export function register(kismet) {
                                 }),
                                 devs.length > 8 ? el('span', { class: 'muted' }, `and ${format.count(devs.length - 8)} more`) : null));
                     }))));
+                const again = anchor && [...unusual.querySelectorAll('tr[data-id]')].find((tr) => tr.dataset.id === anchor.id);
+                if (again && box)
+                    box.scrollTop += again.getBoundingClientRect().top - boxTop() - anchor.at;
             }
 
             async function read() {
