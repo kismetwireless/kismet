@@ -190,22 +190,6 @@ function GenerateAlertTabulatorColumn(c) {
             }
         },
         'headerSort': c['sortable'],
-        /* Don't allow hiding alert columns
-        'headerContextMenu':  [ {
-            'label': "Hide Column",
-            'action': function(e, column) {
-                alerttable_prefs['columns'] = alerttable_prefs['columns'].filter(c => {
-                    return c !== column.getField();
-                });
-                SaveAlertTablePrefs();
-
-                alertTabulator.deleteColumn(column.getField())
-                .then(col => {
-                    ScheduleAlertSummary();
-                });
-            }
-        }, ],
-        */
     };
 
     var colsettings = {};
@@ -262,12 +246,6 @@ var alertTableTotalPages = 0;
 var alertTableRefreshBlock = false;
 var alerttable_prefs = {};
 var alertTableRefreshing = false;
-
-var CreateAlertTable = function(element) {
-    element.ready(function() { 
-        InitializeAlertTable(element);
-    });
-}
 
 function ScheduleAlertSummary() {
     if (alertTid != -1)
@@ -480,10 +458,6 @@ function ScheduleAlertSummary() {
     }
     
     return;
-}
-
-function CancelAlertSummary() {
-    clearTimeout(alertTid);
 }
 
 function LoadAlertTablePrefs() {

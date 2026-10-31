@@ -43,18 +43,6 @@ exports.ConfigureAjax = function() {
             xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
         },
 
-        /*
-        dataFilter: function(data, type) {
-            try {
-                var json = JSON.parse(data);
-                var sjson = kismet.sanitizeObject(json);
-                console.log(JSON.stringify(sjson));
-                return JSON.stringify(sjson);
-            } catch {
-                return data;
-            }
-        },
-        */
     });
 }
 
@@ -656,56 +644,6 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                             exports.DeviceSignalDetails(opts['data']['kismet.device.base.key']);
                         });
                     },
-
-                    /* RRD - come back to this later
-                    render: function(opts) {
-                        return '<div class="rrd" id="' + opts['key'] + '" />';
-                    },
-                    draw: function(opts) {
-                        var rrdiv = $('div', opts['container']);
-
-                        var rrdata = kismet.RecalcRrdData(opts['data']['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'], last_devicelist_time, kismet.RRD_MINUTE, opts['data']['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.minute_vec'], {});
-
-                        // We assume the 'best' a signal can usefully be is -20dbm,
-                        // that means we're right on top of it.
-                        // We can assume that -100dbm is a sane floor value for
-                        // the weakest signal.
-                        // If a signal is 0 it means we haven't seen it at all so
-                        // just ignore that data point
-                        // We turn signals into a 'useful' graph by clamping to
-                        // -100 and -20 and then scaling it as a positive number.
-                        var moddata = new Array();
-
-                        for (var x = 0; x < rrdata.length; x++) {
-                            var d = rrdata[x];
-
-                            if (d == 0)
-                                moddata.push(0);
-
-                            if (d < -100)
-                                d = -100;
-
-                            if (d > -20)
-                                d = -20;
-
-                            // Normalize to 0-80
-                            d = (d * -1) - 20;
-
-                            // Reverse (weaker is worse), get as percentage
-                            var rs = (80 - d) / 80;
-
-                            moddata.push(100*rs);
-                        }
-
-                        rrdiv.sparkline(moddata, { type: "bar",
-                            height: 12,
-                            barColor: kismet_theme.sparkline_main,
-                            nullColor: kismet_theme.sparkline_main,
-                            zeroColor: kismet_theme.sparkline_main,
-                        });
-
-                    }
-                    */
 
                 },
                 {
@@ -3242,47 +3180,6 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
         }
 
 
-        /*
-        var rrdata = kismet.RecalcRrdData(
-            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'],
-            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.last_time'],
-            kismet.RRD_SECOND,
-            data['kismet.device.base.signal']['kismet.common.signal.signal_rrd']['kismet.common.rrd.minute_vec'], {});
-
-        // We assume the 'best' a signal can usefully be is -20dbm,
-        // that means we're right on top of it.
-        // We can assume that -100dbm is a sane floor value for
-        // the weakest signal.
-        // If a signal is 0 it means we haven't seen it at all so
-        // just ignore that data point
-        // We turn signals into a 'useful' graph by clamping to
-        // -100 and -20 and then scaling it as a positive number.
-        var moddata = new Array();
-
-        for (var x = 0; x < rrdata.length; x++) {
-            var d = rrdata[x];
-
-            if (d == 0) {
-                moddata.push(0);
-                continue;
-            }
-
-            if (d < -100)
-                d = -100;
-
-            if (d > -20)
-                d = -20;
-
-            // Normalize to 0-80
-            d = (d * -1) - 20;
-
-            // Reverse (weaker is worse), get as percentage
-            var rs = (80 - d) / 80;
-
-            moddata.push(100*rs);
-        }
-        */
-
         var msignal = signal;
 
         if (msignal == 0) {
@@ -3349,9 +3246,6 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
         }, 1000);
     });
 };
-
-exports.login_error = false;
-exports.login_pending = false;
 
 exports.ProvisionedPasswordCheck = function(cb) {
     $.ajax({

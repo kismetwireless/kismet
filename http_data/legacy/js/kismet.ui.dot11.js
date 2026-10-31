@@ -2970,22 +2970,6 @@ function GenerateSsidTabulatorColumn(c) {
             }
         },
         'headerSort': c['sortable'],
-        /* Don't allow hiding alert columns
-        'headerContextMenu':  [ {
-            'label': "Hide Column",
-            'action': function(e, column) {
-                alerttable_prefs['columns'] = alerttable_prefs['columns'].filter(c => {
-                    return c !== column.getField();
-                });
-                SaveAlertTablePrefs();
-
-                alertTabulator.deleteColumn(column.getField())
-                .then(col => {
-                    ScheduleAlertSummary();
-                });
-            }
-        }, ],
-        */
     };
 
     var colsettings = {};
@@ -3042,12 +3026,6 @@ var ssidTableTotalPages = 0;
 var ssidTableRefreshBlock = false;
 var ssidtable_prefs = {};
 var ssidTableRefreshing = false;
-
-var CreateSsidTable = function(element) {
-    element.ready(function() { 
-        InitializeSsidTable(element);
-    });
-}
 
 function ScheduleSsidSummary() {
     if (ssidTid != -1)
@@ -3262,10 +3240,6 @@ function ScheduleSsidSummary() {
     return;
 }
 
-function CancelSsidSummary() {
-    clearTimeout(ssidTid);
-}
-
 function LoadSsidTablePrefs() {
     ssidtable_prefs = kismet.getStorage('kismet.ui.ssidtable.prefs', {
         "columns": [],
@@ -3362,23 +3336,6 @@ var InitializeSsidTable = function(element) {
 
             return `Showing rows ${frow} - ${lrow} of ${ssidTableTotal}`;
         },
-
-        /*
-        rowFormatter: function(row) {
-            for (const ri of DeviceRowHighlights) {
-                if (!ri['enable'])
-                    continue;
-
-                try {
-                    if (ri['selector'](row.getData()['original_data'])) {
-                        row.getElement().style.backgroundColor = ri['color'];
-                    }
-                } catch (e) {
-                    ;
-                }
-            }
-        },
-        */
 
         initialSort: [{
             "column": ssidtable_prefs["sort"]["column"],

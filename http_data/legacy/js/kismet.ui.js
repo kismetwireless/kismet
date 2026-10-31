@@ -35,8 +35,6 @@ exports.last_timestamp = 0;
 // Set panels to close on escape system-wide
 jsPanel.closeOnEscape = true;
 
-var device_dt = null;
-
 var DeviceViews = [
     {
         name: "All devices",
@@ -249,8 +247,6 @@ function ScheduleDeviceViewListUpdate() {
 ScheduleDeviceViewListUpdate();
 
 // List of datatable columns we have available
-var DeviceColumns = new Array();
-
 // Device row highlights, consisting of fields, function, name, and color
 var DeviceRowHighlights = new Array();
 
@@ -451,7 +447,6 @@ exports.AddDetail = function(container, id, title, pos, options) {
 exports.DetailWindow = function(key, title, options, window_cb, close_cb) {
     // Generate a unique ID for this dialog
     var dialogid = "detaildialog" + key;
-    var dialogmatch = '#' + dialogid;
 
     if (jsPanel.activePanels.list.indexOf(dialogid) != -1) {
         jsPanel.activePanels.getPanel(dialogid).front();
@@ -1222,13 +1217,6 @@ exports.PrepDeviceTable = function(element) {
     devicetableHolder2 = element;
 }
 
-/* Create the device table */
-exports.CreateDeviceTable = function(element) {
-    element.ready(function() {
-        exports.InitializeDeviceTable(element);
-    });
-}
-
 var deviceTid2 = -1;
 
 var devicetableHolder2 = null;
@@ -1511,10 +1499,6 @@ function ScheduleDeviceSummary() {
     }
 
     return;
-}
-
-function CancelDeviceSummary() {
-    clearTimeout(deviceTid2);
 }
 
 var devicetable_prefs = {};

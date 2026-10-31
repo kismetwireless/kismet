@@ -264,23 +264,6 @@ kismet_ui_tabpane.AddTab({
         div.ready(() => {
             BuildContentElement(div);
 
-            /*
-
-            var url = new URL(parent.document.URL);
-            url.searchParams.append('parent_url', url.origin)
-            url.searchParams.append('local_uri_prefix', local_uri_prefix);
-            url.searchParams.append('KISMET_PROXY_PREFIX', KISMET_PROXY_PREFIX);
-            url.pathname = `${local_uri_prefix}${KISMET_PROXY_PREFIX}adsb_map_panel.html`;
-
-            div.append(
-                $('<iframe>', {
-                    width: '100%',
-                    height: '100%',
-                    src: url.href,
-                })
-            );
-
-            */
         });
     },
     activateCallback: function() {
@@ -475,9 +458,6 @@ function get_alt_color(alt, v_perc=50) {
     }
 }
 
-var moused_icao = null;
-var moused_id = null;
-
 function map_cb(d) {
     var data = kismet.sanitizeObject(d);
 
@@ -589,31 +569,6 @@ function map_cb(d) {
                 // Recolor the marker
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(altitude));
 
-                /*
-                        if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
-                            markers[key]['pathlist'].push([lat, lon]);
-
-                            markers[key]['last_lat'] = lat;
-                            markers[key]['last_lon'] = lon;
-                            markers[key]['heading'] = heading;
-
-                            if (markers[key]['path'] != null) {
-                                markers[key]['path'].addLatLng([lat, lon]);
-                            } else {
-                                markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
-                                    color: 'red',
-                                    weight: 2,
-                                    dashArray: '3',
-                                    opacity: 0.85,
-                                    smoothFactor: 1,
-                                }).addTo(map);
-
-                                markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
-                                markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
-                            }
-                        }
-                        */
-
             } else {
                 /* Make a new marker */
                 var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(map);
@@ -719,12 +674,6 @@ function map_cb(d) {
             } catch (error) {
                 // console.log(error);
             }
-
-            /*
-                                    if (moused_icao != null) {
-                                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', 'red');
-                                    }
-                                    */
 
         } catch (error) {
             console.log("device processing", error);
