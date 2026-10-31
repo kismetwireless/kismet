@@ -56,6 +56,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder, uint64_t in_id) :
 
                     gettimeofday(&(new_location->tv), NULL);
                     new_location->gps_id = gps_id;
+                    kis_lock_guard<kis_mutex> lk(data_mutex, "gps_web update");
 
                     if (time(0) - last_heading_time > 5 &&
                         gps_location != nullptr && gps_location->fix >= 2) {
@@ -119,6 +120,7 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder, uint64_t in_id) :
 
                                         gettimeofday(&(new_location->tv), NULL);
                                         new_location->gps_id = gps_id;
+                                        kis_lock_guard<kis_mutex> lk(data_mutex, "gps_web update");
 
                                         if (time(0) - last_heading_time > 5 &&
                                                 gps_location != nullptr && gps_location->fix >= 2) {
