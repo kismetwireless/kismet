@@ -30,8 +30,6 @@
 
 #include "config.h"
 
-#define HAVE_SNIFFLE_BLE_DATASOURCE
-
 #include "kis_datasource.h"
 #include "dlttracker.h"
 

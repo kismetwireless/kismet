@@ -818,16 +818,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
     const auto fc = reinterpret_cast<const frame_control *>(chunk->data());
 
-#if 0
-    // Privacy no longer means wep; figure out new way to denote classic wep.
-    // Likely preserve privacy flag in packinfo and compare if no rsn or wpa ie
-    // tags?
-    if (fc->wep) {
-        packinfo->cryptset |= dot11_crypt_general_wep;
-        common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-    }
-#endif
-
     uint16_t duration = 0;
 
     // 18 bytes of normal address ranges
@@ -1187,14 +1177,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
-
-#if 0
-                // Again, privacy in fc no longer means wep per se
-                if (fixparm->wep) {
-                    packinfo->cryptset |= dot11_crypt_general_wep;
-                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-                }
-#endif
 
                 // Look for MSF opcode beacons before tag decode
                 if (packinfo->source_mac == msfopcode_mac) {
@@ -1798,18 +1780,6 @@ eap_end:
                 break;
         }
 
-#if 0
-        _MSG_DEBUG("s1g type {} sub {} header len {} {:x} {:x}", s1g.fc_type(), s1g.fc_subtype(), s1g.header_len(), chunk->data()[packinfo->header_offset], chunk->data()[packinfo->header_offset + 1]);
-
-        membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]),
-                (char *) &(chunk->data()[chunk->length()]));
-        std::istream istream_ietags(&tags_membuf);
-
-        auto stream_ietags = kaitai::kstream(&istream_ietags);
-        packinfo->ie_tags.parse(stream_ietags);
-
-        _MSG_DEBUG("  {} tags", packinfo->ie_tags.size());
-#endif
     }
 
     // Populate the common addressing
@@ -2694,13 +2664,6 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                                             continue;
                                         }
 
-#if 0
-                                        auto euuid = wpselem->sub_element_uuid_e();
-                                        if (euuid != nullptr) {
-                                            packinfo->wps_uuid_e = munge_to_printable(euuid->str());
-                                            continue;
-                                        }
-#endif
                                     }
 
                                 }
@@ -3539,194 +3502,4 @@ kis_80211_phy::packet_dot11_eapol_handshake(kis_packet* in_pack, dot11_tracked_d
     return NULL;
 }
 
-
-#if 0
-void KisBuiltinDissector::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
-                                    int temp) {
-    if (len > WEPKEY_MAX)
-        return;
-
-    wep_key_info *winfo = new wep_key_info;
-
-    winfo->decrypted = 0;
-    winfo->failed = 0;
-    winfo->bssid = bssid;
-    winfo->fragile = temp;
-    winfo->len = len;
-
-    memcpy(winfo->key, key, len);
-
-    // Replace exiting ones
-    if (wepkeys.find(winfo->bssid) != wepkeys.end()) {
-        delete wepkeys[winfo->bssid];
-        wepkeys[winfo->bssid] = winfo;
-        return;
-    }
-
-    wepkeys.insert(winfo->bssid, winfo);
-}
-
-int KisBuiltinDissector::cmd_listwepkeys(CLIENT_PARMS) {
-    if (client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to fetch keys");
-        return -1;
-    }
-
-    if (wepkeys.size() == 0) {
-        snprintf(errstr, 1024, "Server has no WEP keys");
-        return -1;
-    }
-
-    if (_NPM(PROTO_REF_WEPKEY) < 0) {
-        snprintf(errstr, 1024, "Unable to find WEPKEY protocol");
-        return -1;
-    }
-
-    for (macmap<wep_key_info *>::iterator wkitr = wepkeys.begin();
-         wkitr != wepkeys.end(); wkitr++) {
-        globalreg->kisnetserver->SendToClient(in_clid, _NPM(PROTO_REF_WEPKEY),
-                                              (void *) wkitr->second, NULL);
-    }
-
-    return 1;
-}
-
-int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal addwepkey request");
-        return -1;
-    }
-
-    vector<string> keyvec = str_tokenize((*parsedcmdline)[1].word, ",");
-    if (keyvec.size() != 2) {
-        snprintf(errstr, 1024, "Illegal addwepkey request");
-        return -1;
-    }
-
-    mac_addr bssid = keyvec[0].c_str();
-    if (bssid.state.error) {
-        snprintf(errstr, 1024, "Illegal BSSID for addwepkey");
-        return -1;
-    }
-
-    unsigned char key[WEPKEY_MAX];
-    int len = hex_to_uchar((unsigned char *) keyvec[1].c_str(), key);
-
-    add_wep_key(bssid, key, len, 1);
-
-    snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
-             (*parsedcmdline)[0].word.c_str(), len,
-             bssid.mac_to_string().c_str());
-
-    _MSG(errstr, MSGFLAG_INFO);
-
-    return 1;
-}
-
-int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
-    if (client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to modify keys");
-        return -1;
-    }
-
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal delwepkey command");
-        return -1;
-    }
-
-    mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
-
-    if (bssid_mac.state.error) {
-        snprintf(errstr, 1024, "Illegal delwepkey bssid");
-        return -1;
-    }
-
-    if (wepkeys.find(bssid_mac) == wepkeys.end()) {
-        snprintf(errstr, 1024, "Unknown delwepkey bssid");
-        return -1;
-    }
-
-    delete wepkeys[bssid_mac];
-    wepkeys.erase(bssid_mac);
-
-    snprintf(errstr, 1024, "Deleted key for BSSID %s",
-             bssid_mac.mac_to_string().c_str());
-    _MSG(errstr, MSGFLAG_INFO);
-
-    return 1;
-}
-
-int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
-    // FIXME: write this
-    if (parsedcmdline->size() < 1) {
-        snprintf(errstr, 1024, "Illegal string request");
-        _MSG(errstr, MSGFLAG_ERROR);
-        return -1;
-    }
-
-    int req;
-    if (sscanf(((*parsedcmdline)[0]).word.c_str(), "%d", &req) != 1) {
-        snprintf(errstr, 1024, "Illegal string request");
-        _MSG(errstr, MSGFLAG_ERROR);
-        return -1;
-    }
-
-    if (dissect_strings == 2) {
-        if (req == 0)
-            _MSG("String dissection cannot be disabled because it is required "
-                 "by another component", MSGFLAG_INFO);
-        return 1;
-    }
-
-    if (parsedcmdline->size() > 1) {
-        mac_addr ma = mac_addr((*parsedcmdline)[0].word.c_str());
-
-        if (ma.state.error) {
-            snprintf(errstr, 1024, "String dissection, got invalid MAC address");
-            _MSG(errstr, MSGFLAG_ERROR);
-            return -1;
-        }
-
-        if (req) {
-            string_nets.insert(ma, 1);
-            _MSG("String dissection turned on for " + ma.mac_to_string(), MSGFLAG_INFO);
-        } else {
-            string_nets.erase(ma);
-            _MSG("String dissection turned off for " + ma.mac_to_string(), MSGFLAG_INFO);
-        }
-
-    } else {
-        if (req) {
-            _MSG("String dissection from data frames enabled", MSGFLAG_INFO);
-            dissect_all_strings = 1;
-        } else {
-            _MSG("String dissection from data frames disabled", MSGFLAG_INFO);
-            dissect_all_strings = 0;
-        }
-    }
-
-    dissect_strings = req;
-
-    return 1;
-}
-
-int KisBuiltinDissector::cmd_stringsfilter(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal addstringsfilter request");
-        _MSG(errstr, MSGFLAG_ERROR);
-        return -1;
-    }
-
-    if (string_filter->AddFilterLine((*parsedcmdline)[0].word) < 0) {
-        snprintf(errstr, 1024, "Failed to insert strings filter");
-        _MSG(errstr, MSGFLAG_ERROR);
-        return -1;
-    }
-
-    _MSG("Added string filter '" + (*parsedcmdline)[0].word + "'",
-         MSGFLAG_INFO);
-
-    return 1;
-}
-#endif
 

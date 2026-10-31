@@ -88,11 +88,9 @@
 
 // Wep keys
 #define DOT11_WEPKEY_MAX		32
-#define DOT11_WEPKEY_STRMAX		((DOT11_WEPKEY_MAX * 2) + DOT11_WEPKEY_MAX)
 
 class dot11_wep_key {
     public:
-        int fragile;
         mac_addr bssid;
         unsigned char key[DOT11_WEPKEY_MAX];
         unsigned int len;
@@ -115,13 +113,6 @@ class dot11_packinfo_dot11d_entry {
 #define DOT11_WPS_CONFIGURED        1
 #define DOT11_WPS_NOT_CONFIGURED    (1 << 1)
 #define DOT11_WPS_LOCKED            (1 << 2)
-
-// SSID type bitfield
-#define DOT11_SSID_NONE             0
-#define DOT11_SSID_BEACON           1
-#define DOT11_SSID_PROBERESP        (1 << 1)
-#define DOT11_SSID_PROBEREQ         (1 << 2)
-#define DOT11_SSID_FILE             (1 << 3)
 
 // A channel switch announcement carried by a frame: a CSA or ECSA element in a beacon or
 // probe response, or a spectrum management / public action frame
@@ -403,48 +394,6 @@ class dot11_packinfo : public packet_component {
         std::shared_ptr<dot11_tracked_device> transmit_dot11;
 };
 
-class dot11_ssid_alert {
-    public:
-        dot11_ssid_alert() {
-#if defined(HAVE_LIBPCRE1)
-            ssid_re = NULL;
-            ssid_study = NULL;
-#elif defined(HAVE_LIBPCRE2)
-            ssid_re = NULL;
-            ssid_match_data = NULL;
-#endif
-        }
-
-        ~dot11_ssid_alert() {
-#if defined(HAVE_LIBPCRE1)
-            if (ssid_re != NULL)
-                pcre_free(ssid_re);
-            if (ssid_study != NULL)
-                pcre_free(study);
-#elif defined(HAVE_LIBPCRE2)
-            if (ssid_match_data != NULL)
-                pcre2_match_data_free(ssid_match_data);
-            if (ssid_re != NULL)
-                pcre2_code_free(ssid_re);
-#endif
-        }
-
-        std::string name;
-
-#if defined(HAVE_LIBPCRE1)
-        pcre *ssid_re;
-        pcre_extra *ssid_study;
-        std::string filter;
-#elif defined(HAVE_LIBPCRE2)
-        pcre2_code *ssid_re;
-        pcre2_match_data *ssid_match_data;
-        std::string filter;
-#endif
-        std::string ssid;
-
-        std::map<mac_addr, int> allow_mac_map;
-};
-
 class packet_filter_mac_addr;
 
 class kis_80211_phy : public kis_phy_handler, public time_tracker_event {
@@ -541,17 +490,6 @@ public:
 
     // Per-device content filter, run before the loggers and streams
     static int packet_dot11_content_filter(CHAINCALL_PARMS);
-
-    // Dot11 tracker for building phy-specific elements
-    int tracker_dot11(const std::shared_ptr<kis_packet>& in_pack);
-
-    int add_filter(std::string in_filter);
-    int add_netcli_filter(std::string in_filter);
-
-    void set_string_extract(int in_extr);
-
-    // Only safe before packet processing starts; packet threads read wepkeys unlocked
-    void add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
     static std::string crypt_to_string(uint64_t cryptset);
     static std::string crypt_to_simple_string(uint64_t cryptset);
@@ -661,15 +599,9 @@ protected:
 
     int load_wepkeys();
 
-    std::string ssid_cache_path, ip_cache_path;
-    int ssid_cache_track, ip_cache_track;
-
-    // Device components
-    int dev_comp_dot11, dev_comp_common;
-
     // Packet components
     int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
-        pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
+        pack_comp_checksum, pack_comp_linkframe,
         pack_comp_decap, pack_comp_datapayload, pack_comp_json,
         pack_comp_remoteid;
 
@@ -681,9 +613,6 @@ protected:
     // cut to their 802.11 headers before they are logged or streamed, like hidedata= does
     // for every data frame
     std::shared_ptr<packet_filter_mac_addr> content_filter;
-
-    // Do we pull strings?
-    int dissect_strings, dissect_all_strings;
 
     // SSID regex filter; like the canary map and IE fingerprint lists, filled at startup
     // and read without locking by packet threads
@@ -699,14 +628,12 @@ protected:
     int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
         alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
         alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
-        alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
+        alert_wmm_ref, alert_nonce_zero_ref, 
         alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref,
         alert_rtlwifi_p2p_ref, alert_deauthflood_ref, alert_noclientmfp_ref,
         alert_rtl8195_vdoo_ref, alert_vdoo_2020_27301_ref, alert_vdoo_2020_27302_ref,
         alert_dot11_csa_ch14_ref;
 
-    // Are we allowed to send wepkeys to the client (server config)
-    int client_wepkey_allowed;
     // Map of wepkeys to BSSID (or bssid masks); filled at startup and read without locking
     // by packet threads, so it must not change once packets are being processed
     std::map<mac_addr, dot11_wep_key *> wepkeys;
@@ -743,18 +670,10 @@ protected:
 
     int signal_too_loud_threshold;
 
-    // Command refs
-    int addfiltercmd_ref, addnetclifiltercmd_ref;
-
-    int proto_ref_ssid, proto_ref_device, proto_ref_client;
-
     // Do we time out components of devices?
     int device_idle_expiration;
     int device_idle_timer;
     unsigned int device_idle_min_packets;
-
-    // Do we process control and phy frames?
-    bool process_ctl_phy;
 
     // Do we track non-AP devices?
     bool filter_survey_only;

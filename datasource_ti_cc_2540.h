@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_TI_CC2540_DATASOURCE
-
 #include "kis_datasource.h"
 #include "dlttracker.h"
 

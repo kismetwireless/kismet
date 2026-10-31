@@ -192,7 +192,6 @@ protected:
 
     uint8_t adsb_msg_get_type(const std::string& u8_buf) const;
     uint32_t adsb_msg_get_icao(const std::string& u8_buf) const;
-    uint8_t adsb_msg_get_fs(const std::string& u8_buf) const;
     uint8_t adsb_msg_get_me_type(const std::string& u8_buf) const;
     uint8_t adsb_msg_get_me_subtype(const std::string& u8_buf) const;
 

@@ -139,11 +139,6 @@ public:
         src_alias->set(src);
     }
 
-    template<typename T>
-    std::shared_ptr<T> get_src_alias() {
-        return static_cast<T>(src_alias->get());
-    }
-
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();

@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_NRF_51822_DATASOURCE
-
 #include "kis_datasource.h"
 #include "dlttracker.h"
 

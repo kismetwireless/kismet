@@ -50,50 +50,6 @@
 
 class bluetooth_btle;
 
-class btle_tracked_advertised_service : public tracker_component {
-public:
-    btle_tracked_advertised_service() :
-        tracker_component() {
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    btle_tracked_advertised_service(int in_id) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    btle_tracked_advertised_service(int in_id,
-            std::shared_ptr<tracker_element_map> e) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(e);
-    }
-
-    virtual uint32_t get_signature() const override {
-        return adler32_checksum("btle_tracked_advertised_service");
-    }
-
-    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
-        using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>();
-        r->set_id(this->get_id());
-        return r;
-    }
-
-protected:
-    virtual void register_fields() override {
-        // Manufacturer is added in dynamically
-        tracker_component::register_fields();
-        register_field("btle.short_service.uuid", "16bit service UUID", &short_uuid);
-        register_field("btle.short_service.data", "Service data", &advertised_data);
-    }
-
-    std::shared_ptr<tracker_element_uint16> short_uuid;
-    std::shared_ptr<tracker_element_byte_array> advertised_data;
-};
-
 // Location tracker (item finder) state decoded from the advertisements; only present
 // on devices which advertised as a known tracker.  Vendor specific values are dynamic
 // so a tracker type only carries the fields it advertises.

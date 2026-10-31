@@ -178,10 +178,6 @@ protected:
     // if we can't do anything with it
     bool rtl433_json_to_phy(nlohmann::json in_json, std::shared_ptr<kis_packet> packet);
 
-    bool is_amr_meter(nlohmann::json json);
-
-    void add_amr_meter(nlohmann::json json, std::shared_ptr<kis_tracked_device_base> phyholder);
-
 protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;

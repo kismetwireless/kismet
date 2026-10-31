@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#define HAVE_OSX_COREWLAN_WIFI_DATASOURCE
-
 #include "kis_datasource.h"
 
 class kis_datasource_osx_corewlan_wifi;
