@@ -2360,6 +2360,29 @@ function alpha_insert(container, clss, index, data) {
 	$(container).append(data);
 }
 
+/* Send a lock, hop, or rate command to a source, and redraw the source from
+ * the reply */
+function send_channel_cmd(uuid, jscmd) {
+    $.ajax({
+        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
+        method: 'POST',
+        data: "json=" + encodeURIComponent(JSON.stringify(jscmd)),
+        dataType: 'json',
+        success: function(data) {
+            data = kismet.sanitizeObject(data);
+            for (var u in ds_state['datasources']) {
+                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                    ds_state['datasources'][u] = data;
+                    ds_state['remove_pending'].push(uuid);
+                    update_datasource2(null);
+                    break;
+                }
+            }
+        },
+        timeout: 30000,
+    });
+}
+
 function update_datasource2(data) {
     if (!"ds_content" in ds_state)
         return;
@@ -2755,11 +2778,9 @@ function update_datasource2(data) {
                 source['kismet.datasource.packets_rrd'] != 0) {
 
             var simple_rrd =
-                kismet.RecalcRrdData(
+                kismet.RecalcRrdData2(
                     source['kismet.datasource.packets_rrd'],
-                    source['kismet.datasource.packets_rrd']['kismet.common.rrd.last_time'],
-                    kismet.RRD_SECOND,
-                    source['kismet.datasource.packets_rrd']['kismet.common.rrd.minute_vec'], {
+                    kismet.RRD_SECOND, {
                         transform: function(data, opt) {
                         var slices = 3;
                         var peak = 0;
@@ -2889,27 +2910,8 @@ function update_datasource2(data) {
                             $('.k-ds-modal-message', sdiv).html("Setting channel...");
                             $('.k-ds-modal', sdiv).show();
 
-                            var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-
                             try {
-                                $.ajax({
-                                    url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
-                                    method: 'POST',
-                                    data: postdata,
-                                    dataType: 'json',
-                                    success: function(data) {
-                                        data = kismet.sanitizeObject(data);
-                                        for (var u in ds_state['datasources']) {
-                                            if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                                ds_state['datasources'][u] = data;
-                                                ds_state['remove_pending'].push(uuid);
-                                                update_datasource2(null);
-                                                break;
-                                            }
-                                        }
-                                    },
-                                    timeout: 30000,
-                                });
+                                send_channel_cmd(uuid, jscmd);
                             } finally {
                                 ds_state['remove_pending'].push(uuid);
                                 ds_state['defer_command_progress'] = false;
@@ -2961,26 +2963,8 @@ function update_datasource2(data) {
                                     "channels": chans
                                 };
 
-                                var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
                                 try {
-                                    $.ajax({
-                                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
-                                        method: 'POST',
-                                        data: postdata,
-                                        dataType: 'json',
-                                        success: function(data) {
-                                            data = kismet.sanitizeObject(data);
-                                            for (var u in ds_state['datasources']) {
-                                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                                    ds_state['datasources'][u] = data;
-                                                    ds_state['remove_pending'].push(uuid);
-                                                    update_datasource2(null);
-                                                    break;
-                                                }
-                                            }
-                                        },
-                                        timeout: 30000,
-                                    });
+                                    send_channel_cmd(uuid, jscmd);
                                 } finally {
                                     ds_state['remove_pending'].push(uuid);
                                     ds_state['defer_command_progress'] = false;
@@ -3171,27 +3155,8 @@ function update_datasource2(data) {
                   "channel": chan,
                   "uuid": uuid
               };
-              var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-
                 try {
-                    $.ajax({
-                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
-                        method: 'POST',
-                        data: postdata,
-                        dataType: 'json',
-                        success: function(data) {
-                            data = kismet.sanitizeObject(data);
-                            for (var u in ds_state['datasources']) {
-                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                    ds_state['datasources'][u] = data;
-                                    ds_state['remove_pending'].push(uuid);
-                                    update_datasource2(null);
-                                    break;
-                                }
-                            }
-                        },
-                        timeout: 30000,
-                    });
+                    send_channel_cmd(uuid, jscmd);
                 } finally {
                     ds_state['remove_pending'].push(uuid);
                 }
@@ -3239,27 +3204,8 @@ function update_datasource2(data) {
                   "uuid": uuid
               };
 
-              var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-
                 try {
-                    $.ajax({
-                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
-                        method: 'POST',
-                        data: postdata,
-                        dataType: 'json',
-                        success: function(data) {
-                            data = kismet.sanitizeObject(data);
-                            for (var u in ds_state['datasources']) {
-                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                    ds_state['datasources'][u] = data;
-                                    ds_state['remove_pending'].push(uuid);
-                                    update_datasource2(null);
-                                    break;
-                                }
-                            }
-                        },
-                        timeout: 30000,
-                    });
+                    send_channel_cmd(uuid, jscmd);
                 } finally {
                     ds_state['remove_pending'].push(uuid);
                 }
@@ -3363,27 +3309,8 @@ function update_datasource2(data) {
                     "uuid": uuid
                 };
 
-                var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-
                 try {
-                    $.ajax({
-                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
-                        method: 'POST',
-                        data: postdata,
-                        dataType: 'json',
-                        success: function(data) {
-                            data = kismet.sanitizeObject(data);
-                            for (var u in ds_state['datasources']) {
-                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                    ds_state['datasources'][u] = data;
-                                    ds_state['remove_pending'].push(uuid);
-                                    update_datasource2(null);
-                                    break;
-                                }
-                            }
-                        },
-                        timeout: 30000,
-                    });
+                    send_channel_cmd(uuid, jscmd);
                 } finally {
                     ds_state['remove_pending'].push(uuid);
                 }
