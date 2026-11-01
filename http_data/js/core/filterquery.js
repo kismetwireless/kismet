@@ -21,7 +21,12 @@
 // filterKind ('text', 'number', 'time', 'mac', 'duration') and their wider set
 // with filterWide (paths).  A duration field takes 30s, 5m, 2h, 1d and turns
 // them into its own units with filterConvert(seconds), such as durationIn.us;
-// a plain number is used as it is.
+// a plain number is used as it is.  filterEmpty is the value (or list of
+// values) a field holds when it has no data, such as 0 for an uptime nobody
+// reported, and filterPresent a field that is 0 or missing when it has none;
+// a comparison on the field never matches those devices.  filterNames are
+// more names for a column or search field.  A name given by several of them
+// matches any of their fields; the server's short names stay as they are.
 //
 // compileQuery(text, fieldContext(columns, searchFields)) returns
 // { search } or { filter, sort }, and throws a QueryError with the position.
@@ -75,30 +80,55 @@ const aliasKind = (path) => aliases[aliasByPath.get(path)]?.[1] ?? null;
 // Names the box knows, from the columns and search fields (registry lists).
 // Each name has its paths and the kind of each; a search field's filterKind
 // may be one kind or { path: kind }, and is text when not given.  Its
-// filterConvert may likewise be one function or { path: function }.
+// filterConvert, filterEmpty and filterPresent may likewise be one for all or
+// { path: ... }.
 export function fieldContext(columns = [], searchFields = []) {
     const names = new Map();
     const macFields = [];
     const addMac = (p) => macFields.includes(p) || macFields.push(p);
 
     for (const [n, [path, kind]] of Object.entries(aliases)) {
-        names.set(n, { paths: [path], kinds: [kind], convs: [null] });
+        names.set(n, { paths: [path], kinds: [kind], convs: [null], guards: [null] });
         if (kind === 'mac')
             addMac(path);
     }
 
+    const fixed = new Set(names.keys());
+
+    // A name several columns or search fields give gets all of their fields
     const add = (name, entry) => {
         const n = String(name ?? '').trim().toLowerCase().replace(/\s+/g, '_');
-        if (n && /^[a-z0-9_]+$/.test(n) && !names.has(n))
-            names.set(n, entry);
+        if (!n || !/^[a-z0-9_]+$/.test(n) || fixed.has(n))
+            return;
+        const e = names.get(n);
+        if (!e) {
+            names.set(n, { paths: [...entry.paths], kinds: [...entry.kinds], convs: [...entry.convs],
+                guards: [...entry.guards], wide: entry.wide?.length ? [...entry.wide] : undefined });
+            return;
+        }
+        entry.paths.forEach((p, i) => {
+            if (e.paths.includes(p))
+                return;
+            e.paths.push(p);
+            e.kinds.push(entry.kinds[i]);
+            e.convs.push(entry.convs[i]);
+            e.guards.push(entry.guards[i]);
+        });
+        for (const p of entry.wide ?? [])
+            if (!(e.wide ??= []).includes(p))
+                e.wide.push(p);
     };
+
+    const guard = (empty, present) =>
+        (empty ?? null) === null && !present ? null : { empty: empty ?? null, present: present ?? null };
 
     for (const c of columns) {
         const path = c.sortField ?? (c.fields?.length === 1 ? pathOf(c.fields[0]) : null);
         if (!path || path.startsWith('#'))
             continue;
         const kind = c.filterKind ?? aliasKind(path) ?? (/_time$/.test(path) ? 'time' : null);
-        const entry = { paths: [path], kinds: [kind], convs: [c.filterConvert ?? null], wide: c.filterWide };
+        const entry = { paths: [path], kinds: [kind], convs: [c.filterConvert ?? null],
+            guards: [guard(c.filterEmpty, c.filterPresent)], wide: c.filterWide };
         if (kind === 'mac')
             addMac(path);
         // wifi_ssid in the Wi-Fi group is ssid
@@ -107,6 +137,8 @@ export function fieldContext(columns = [], searchFields = []) {
             add(c.id.slice(prefix.length + 1), entry);
         add(c.id, entry);
         add(c.title, entry);
+        for (const n of c.filterNames ?? [])
+            add(n, entry);
     }
 
     for (const s of searchFields) {
@@ -115,8 +147,14 @@ export function fieldContext(columns = [], searchFields = []) {
         const kinds = paths.map((p) => (typeof fk === 'string' ? fk : fk?.[p]) ?? aliasKind(p) ?? 'text');
         const fc = s.filterConvert;
         const convs = paths.map((p) => (typeof fc === 'function' ? fc : fc?.[p]) ?? null);
+        const fe = s.filterEmpty;
+        const fp = s.filterPresent;
+        const empty = (p) => (fe !== null && typeof fe === 'object' && !Array.isArray(fe) ? fe[p] : fe);
+        const present = (p) => (fp !== null && typeof fp === 'object' ? fp[p] : fp);
+        const guards = paths.map((p) => guard(empty(p), present(p)));
         if (paths.length)
-            add(s.id, { paths, kinds, convs });
+            for (const n of [s.id, ...(s.filterNames ?? [])])
+                add(n, { paths, kinds, convs, guards });
     }
 
     return { names, macFields };
@@ -335,7 +373,7 @@ function resolve(ctx, tok) {
     const name = tok.v;
     if (name.includes('.') || name.includes('/')) {
         const path = name.replace(/\*$/, '');
-        return { name, paths: [path], kinds: [aliasKind(path)], convs: [null] };
+        return { name, paths: [path], kinds: [aliasKind(path)], convs: [null], guards: [null] };
     }
 
     const low = name.toLowerCase();
@@ -343,15 +381,17 @@ function resolve(ctx, tok) {
     const base = wide ? low.slice(0, -1) : low;
 
     if (wide && base === 'mac')
-        return { name, paths: ctx.macFields, kinds: ctx.macFields.map(() => 'mac'), convs: ctx.macFields.map(() => null) };
+        return { name, paths: ctx.macFields, kinds: ctx.macFields.map(() => 'mac'),
+            convs: ctx.macFields.map(() => null), guards: ctx.macFields.map(() => null) };
 
     const e = ctx.names.get(base);
     if (!e)
         throw new QueryError(`unknown field '${name.replace(/\*$/, '')}'`, tok.pos);
 
     if (wide && e.wide?.length)
-        return { name: `${base}*`, paths: e.wide, kinds: e.wide.map(() => e.kinds[0]), convs: e.wide.map(() => e.convs[0]) };
-    return { name: base, paths: e.paths, kinds: e.kinds, convs: e.convs };
+        return { name: `${base}*`, paths: e.wide, kinds: e.wide.map(() => e.kinds[0]),
+            convs: e.wide.map(() => e.convs[0]), guards: e.wide.map(() => e.guards[0]) };
+    return { name: base, paths: e.paths, kinds: e.kinds, convs: e.convs, guards: e.guards };
 }
 
 function macParts(text) {
@@ -434,8 +474,30 @@ function literal(name, k, op, v, conv) {
 
 const serverOp = { '~': 'icontains', '=~': 'matches' };
 
+// The test that a field has data, or null when nothing says what no data is
+function hasData(p, k, g) {
+    if (!g)
+        return null;
+    const tests = [];
+    if (g.present)
+        tests.push(`${out(g.present)} != 0`);
+    if (g.empty !== null) {
+        const lits = (Array.isArray(g.empty) ? g.empty : [g.empty])
+            .map((e) => (k === 'mac' || typeof e === 'number' ? String(e) : quote(e)));
+        tests.push(lits.length === 1 ? `${out(p)} != ${lits[0]}` : `${out(p)} not in [${lits.join(', ')}]`);
+    }
+    return tests.join(' and ');
+}
+
+// A comparison that only matches when the field has data; parenthesized so it
+// composes under or and not
+function guarded(p, k, g, expr) {
+    const h = hasData(p, k, g);
+    return h ? `(${h} and ${expr})` : expr;
+}
+
 // One comparison on one path of kind k
-function term(name, p, k, conv, op, v, pos) {
+function term(name, p, k, conv, g, op, v, pos) {
     if (['<', '<=', '>', '>='].includes(op) && (k === 'text' || k === 'mac'))
         throw new QueryError(`${name} is ${k === 'mac' ? 'a MAC address' : 'text'}; use ~ or ==`, pos);
     if ((op === '~' || op === '=~') && (k === 'number' || k === 'time' || k === 'duration'))
@@ -447,12 +509,12 @@ function term(name, p, k, conv, op, v, pos) {
     if (op === '~' && k === 'mac') {
         if (v.t !== 'mac')
             throw new QueryError(`${name} is a MAC address`, v.pos);
-        return `${out(p)} in [${macEntries(v.v).join(', ')}]`;
+        return guarded(p, k, g, `${out(p)} in [${macEntries(v.v).join(', ')}]`);
     }
 
     const lit = literal(name, k, op, v, conv);
     const age = k === 'time' && v.t === 'duration';
-    return `${age ? `age(${out(p)})` : out(p)} ${serverOp[op] ?? op} ${lit}`;
+    return guarded(p, k, g, `${age ? `age(${out(p)})` : out(p)} ${serverOp[op] ?? op} ${lit}`);
 }
 
 // The terms for each path that can take the comparison; a name with several
@@ -462,7 +524,7 @@ function terms(f, fn) {
     let err = null;
     f.paths.forEach((p, i) => {
         try {
-            list.push(fn(p, f.kinds[i], f.convs?.[i]));
+            list.push(fn(p, f.kinds[i], f.convs?.[i], f.guards?.[i]));
         } catch (e) {
             if (!(e instanceof QueryError))
                 throw e;
@@ -478,10 +540,14 @@ function cmp(ctx, n) {
     const f = resolve(ctx, n.field);
     const { op, value: v, pos } = n;
 
-    // Not equal to any of them
-    if (op === '!=' && f.paths.length > 1)
-        return `not ${any(terms(f, (p, k, conv) => term(f.name, p, k, conv, '==', v, pos)))}`;
-    return any(terms(f, (p, k, conv) => term(f.name, p, k, conv, op, v, pos)));
+    // Not equal to any of them, and, when every field says what no data is, one
+    // of them has data
+    if (op === '!=' && f.paths.length > 1) {
+        const none = `not ${any(terms(f, (p, k, conv) => term(f.name, p, k, conv, null, '==', v, pos)))}`;
+        const has = f.paths.map((p, i) => hasData(p, f.kinds[i], f.guards?.[i]));
+        return has.every(Boolean) ? `(${any(has.map((h) => (h.includes(' and ') ? `(${h})` : h)))} and ${none})` : none;
+    }
+    return any(terms(f, (p, k, conv, g) => term(f.name, p, k, conv, g, op, v, pos)));
 }
 
 const any = (terms) => (terms.length === 1 ? terms[0] : `(${terms.join(' or ')})`);
@@ -539,7 +605,7 @@ function orTerms(ctx, list) {
         const { f, nodes } = groups.get(key);
         if (nodes.length === 1)
             return gen(ctx, nodes[0]);
-        return any(terms(f, (p, k, conv) => {
+        return any(terms(f, (p, k, conv, g) => {
             const vals = [];
             let err = null;
             for (const c of nodes) {
@@ -553,7 +619,7 @@ function orTerms(ctx, list) {
             }
             if (!vals.length)
                 throw err;
-            return `${out(p)} in [${[...new Set(vals)].join(', ')}]`;
+            return guarded(p, k, g, `${out(p)} in [${[...new Set(vals)].join(', ')}]`);
         }));
     });
 }

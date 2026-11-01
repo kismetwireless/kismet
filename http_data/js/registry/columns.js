@@ -36,6 +36,12 @@ import { createRegistry } from './registry.js';
 //   filterConvert for a duration, seconds to the field's units, such as
 //                 ui.durationIn.us (optional; seconds when not given)
 //   filterWide    field paths the search box uses for name* (optional)
+//   filterEmpty   the value, or list of values, sortField holds when it has no
+//                 data; filters on the column skip those devices (optional)
+//   filterPresent a field that is 0 or missing when sortField has no data
+//                 (optional)
+//   filterNames   more names for the column in the search box; a name several
+//                 columns or search fields give matches any of their fields
 export function createColumnRegistry(name) {
     return createRegistry(name, {
         required: ['title', 'render'],
@@ -85,6 +91,8 @@ export const phyColors = createRegistry('phyColors', {
 //   id, description, fields,
 //   filterKind: the kind of the fields that aren't text, as { path: kind }
 //   filterConvert: for duration fields, as { path: function } (see columns)
+//   filterEmpty, filterPresent: as for columns, one for all or { path: ... }
+//   filterNames: more names for these fields in the search box
 export const searchFields = createRegistry('searchFields', {
     required: ['fields'],
     defaults: { description: '' },
