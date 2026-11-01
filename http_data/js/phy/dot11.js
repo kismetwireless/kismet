@@ -172,6 +172,8 @@ export function register(kismet) {
         // uptime > 1d; the beacon timestamp counts microseconds
         filterKind: 'duration',
         filterConvert: ui.durationIn.us,
+        // Clients and APs that never sent a timestamp have 0
+        filterEmpty: 0,
         render: (row) => (row['dot11.device.bss_timestamp'] ? format.duration(row['dot11.device.bss_timestamp'] / 1e6) : ''),
     });
 
@@ -182,6 +184,9 @@ export function register(kismet) {
         fields: [[`${beacon}/dot11.advertisedssid.dot11e_qbss`, 'qbss'],
             [`${beacon}/dot11.advertisedssid.dot11e_channel_utilization_perc`, 'qbss_usage']],
         sortField: `${beacon}/dot11.advertisedssid.dot11e_channel_utilization_perc`,
+        filterKind: 'number',
+        filterNames: ['qbss', 'utilization', 'usage'],
+        filterPresent: `${beacon}/dot11.advertisedssid.dot11e_qbss`,
         render: (row) => (row.qbss ? kismet.widgets.cellgraphs.fillBar(row.qbss_usage) : ''),
     });
 
@@ -191,6 +196,9 @@ export function register(kismet) {
         fields: [[`${beacon}/dot11.advertisedssid.dot11e_qbss`, 'qbss'],
             [`${beacon}/dot11.advertisedssid.dot11e_qbss_stations`, 'qbss_stations']],
         sortField: `${beacon}/dot11.advertisedssid.dot11e_qbss_stations`,
+        filterKind: 'number',
+        filterNames: ['stations'],
+        filterPresent: `${beacon}/dot11.advertisedssid.dot11e_qbss`,
         render: (row) => (row.qbss ? row.qbss_stations : ''),
     });
 
