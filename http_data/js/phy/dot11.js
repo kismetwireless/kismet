@@ -1,6 +1,6 @@
 // Wi-Fi (IEEE 802.11) support: icons, highlights, columns, views, details.
 
-import { registerChannelPicker } from './dot11_channels.js';
+import { registerChannelPicker, wifiChannel, wifiSpan } from './dot11_channels.js';
 import { registerInsights } from './dot11_insights.js';
 import { registerAirspace } from './dot11_airspace.js';
 
@@ -41,56 +41,15 @@ export function channelName(khz) {
 // '5W6e' (6 GHz), or a frequency in MHz like '2412'.  Wider channels count at
 // their control channel.
 export function channelFrequency(channel) {
-    const m = /^(\d+)(-?W6e)?/.exec(String(channel));
-    if (!m)
-        return null;
-    const n = Number(m[1]);
-    let mhz;
-    if (m[2])
-        mhz = n === 2 ? 5935 : 5950 + n * 5;
-    else if (n > 196)
-        mhz = n;
-    else if (n === 14)
-        mhz = 2484;
-    else if (n < 14)
-        mhz = 2407 + n * 5;
-    else if (n >= 182)
-        mhz = 4000 + n * 5;
-    else
-        mhz = 5000 + n * 5;
-    return n > 0 ? mhz * 1000 : null;
+    const w = wifiChannel(channel);
+    return w ? w.mhz * 1000 : null;
 }
 
 // The frequencies (kHz) a wide Wi-Fi channel takes in: '36HT40+', '100VHT80',
 // '36VHT160'; null for a 20 MHz one
-const vht80 = [42, 58, 106, 122, 138, 155, 171];
-const vht160 = [50, 114, 163];
 export function channelSpan(channel) {
-    const m = /^(\d+)(HT40[+-]|VHT80|VHT160)$/.exec(String(channel));
-    if (!m)
-        return null;
-    const n = Number(m[1]);
-    const mhz = channelFrequency(m[1]) / 1000;
-    if (!mhz)
-        return null;
-    let lo;
-    let hi;
-    if (m[2] === 'HT40+') {
-        lo = mhz - 10;
-        hi = mhz + 30;
-    } else if (m[2] === 'HT40-') {
-        lo = mhz - 30;
-        hi = mhz + 10;
-    } else {
-        const wide = m[2] === 'VHT80';
-        const c = (wide ? vht80 : vht160).find((cc) => Math.abs(n - cc) <= (wide ? 6 : 14));
-        if (c === undefined)
-            return null;
-        const half = wide ? 40 : 80;
-        lo = 5000 + c * 5 - half;
-        hi = 5000 + c * 5 + half;
-    }
-    return { low: lo * 1000, high: hi * 1000 };
+    const sp = wifiSpan(wifiChannel(channel));
+    return sp ? { low: sp.lo * 1000, high: sp.hi * 1000 } : null;
 }
 
 // A complete WPA handshake: EAPOL messages 1+2 or 2+3 from any client

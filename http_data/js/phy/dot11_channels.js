@@ -11,7 +11,78 @@
 // as plain buttons.
 
 // MHz centre of a primary channel number in a band
-export const center = (band, n) => (band === '2.4' ? (n === 14 ? 2484 : 2407 + 5 * n) : band === '6' ? 5950 + 5 * n : 5000 + 5 * n);
+export const center = (band, n) => (band === '2.4' ? (n === 14 ? 2484 : 2407 + 5 * n) : band === '4.9' ? 4000 + 5 * n :
+    band === '6' ? (n === 2 ? 5935 : 5950 + 5 * n) : 5000 + 5 * n);
+
+// The band and channel number at a Wi-Fi frequency in MHz, or null
+function channelAt(mhz) {
+    const on = (band, n, lo, hi) => (Number.isInteger(n) && n >= lo && n <= hi ? { band, n } : null);
+    if (mhz === 2484)
+        return { band: '2.4', n: 14 };
+    if (mhz < 2500)
+        return on('2.4', (mhz - 2407) / 5, 1, 13);
+    if (mhz >= 4910 && mhz <= 4980)
+        return on('4.9', (mhz - 4000) / 5, 182, 196);
+    if (mhz === 5935)
+        return { band: '6', n: 2 };
+    if (mhz < 5950)
+        return on('5', (mhz - 5000) / 5, 32, 177);
+    return on('6', (mhz - 5950) / 5, 1, 233);
+}
+
+// A Wi-Fi channel string, as the Wi-Fi drivers write them: a channel number or
+// a frequency in MHz, plain or with HT20, HT40+, HT40-, VHT80, VHT160 (either
+// with an optional -MHz centre), W5 or W10; or a 6 GHz channel number with
+// W6e.  -> { band, n, mhz, kind, center1, byMhz } (band and n null off the
+// channel grid), or null for anything else: other radios' channels, like
+// HaLow's '37ah', aren't Wi-Fi.
+export function wifiChannel(s) {
+    const m = /^(\d+)(?:(-?W6e)|(HT20|HT40[+-]|W5|W10)|(VHT80|VHT160)(?:-(\d+))?)?$/i.exec(String(s ?? '').trim());
+    if (!m)
+        return null;
+    const v = +m[1];
+    const kind = (m[3] ?? m[4] ?? '').toUpperCase();
+    const center1 = m[5] ? +m[5] : null;
+    if (m[2])
+        return v >= 1 && v <= 233 ? { band: '6', n: v, mhz: center('6', v), kind: '', center1: null, byMhz: false } : null;
+    if (v === 0)
+        return null;
+    if (v > 196) {
+        const at = channelAt(v);
+        return { band: at?.band ?? null, n: at?.n ?? null, mhz: v, kind, center1, byMhz: true };
+    }
+    const band = v <= 14 ? '2.4' : v >= 182 ? '4.9' : v >= 32 && v <= 177 ? '5' : null;
+    return { band, n: band ? v : null, mhz: center(band ?? '5', v), kind, center1, byMhz: false };
+}
+
+// 5 GHz primaries sit every 20 MHz
+const isPrimary5 = (n) => (n <= 144 ? n % 4 === 0 : n % 4 === 1);
+
+// 80 and 160 MHz blocks in 5 GHz, by their first 20 MHz channel
+const blocks80 = [36, 52, 100, 116, 132, 149, 165];
+const blocks160 = [36, 100, 149];
+
+// The MHz range a wide channel takes in, or null for one 20 MHz or narrower
+export function wifiSpan(w) {
+    if (!w)
+        return null;
+    if (w.kind === 'HT40+')
+        return { lo: w.mhz - 10, hi: w.mhz + 30 };
+    if (w.kind === 'HT40-')
+        return { lo: w.mhz - 30, hi: w.mhz + 10 };
+    if (w.kind !== 'VHT80' && w.kind !== 'VHT160')
+        return null;
+    const span = w.kind === 'VHT80' ? 80 : 160;
+    if (w.center1)
+        return { lo: w.center1 - span / 2, hi: w.center1 + span / 2 };
+    if (w.band !== '5' || !isPrimary5(w.n))
+        return null;
+    const start = (span === 80 ? blocks80 : blocks160).find((g) => w.n >= g && w.n < g + span / 5);
+    if (start === undefined)
+        return null;
+    const lo = center('5', start) - 10;
+    return { lo, hi: lo + span };
+}
 
 // Each band's drawn spans; 5 GHz has no channels between 64 and 100, so that
 // stretch is drawn as a narrow break
@@ -55,55 +126,30 @@ export const isDfs = (mhz) => (mhz > 5250 && mhz < 5330) || (mhz > 5490 && mhz <
 // 6 GHz preferred scanning channels: 5, 21, 37, ... 229
 export const isPsc = (n) => n >= 5 && (n - 5) % 16 === 0;
 
-// 80 and 160 MHz blocks in 5 GHz, by their first 20 MHz channel
-const blocks80 = [36, 52, 100, 116, 132, 149, 165];
-const blocks160 = [36, 100, 149];
-
-// The band of a channel string, including channels off the band's usual grid
+// The picker's band of a channel string, including channels off the band's usual grid
 function bandOf(s) {
-    const m = /^(\d+)(W6e)?/i.exec(String(s).trim());
-    if (!m)
-        return null;
-    const n = +m[1];
-    return m[2] ? '6' : n >= 1 && n <= 14 ? '2.4' : n >= 32 && n <= 177 ? '5' : null;
+    const w = wifiChannel(s);
+    return w && !w.byMhz && w.band !== '4.9' ? w.band : null;
 }
 
-// A channel string -> { band, n, width, lo, hi, primary } or null
+// A channel string the picker can place -> { band, n, width, lo, hi, primary } or null
 export function parseChannel(s) {
-    const str = String(s).trim();
-    let m = /^(\d+)-?W6e$/i.exec(str);
-    if (m) {
-        const n = +m[1];
-        const c = center('6', n);
-        return n >= 1 && n <= 233 && (n % 4 === 1 || n === 2) ? { band: '6', n, width: 20, lo: c - 10, hi: c + 10, primary: n } : null;
-    }
-    m = /^(\d+)(HT20|HT40\+|HT40-|VHT80|VHT160)?$/i.exec(str);
-    if (!m)
+    const w = wifiChannel(s);
+    if (!w || w.byMhz || w.center1 || !['2.4', '5', '6'].includes(w.band) || w.kind === 'W5' || w.kind === 'W10')
         return null;
-    const n = +m[1];
-    const kind = (m[2] ?? '').toUpperCase();
-    const band = n >= 1 && n <= 14 ? '2.4' : n >= 32 && n <= 177 ? '5' : null;
-    if (!band)
+    const { band, n } = w;
+    if (band === '6' && !(n % 4 === 1 || n === 2))
         return null;
-    // 5 GHz primaries sit every 20 MHz; anything between is drawn as an "other" channel
-    if (band === '5' && !(n <= 144 ? n % 4 === 0 : n % 4 === 1))
+    // anything between 5 GHz primaries is drawn as an "other" channel
+    if (band === '5' && !isPrimary5(n))
         return null;
-    const c = center(band, n);
-    if (kind === '' || kind === 'HT20')
-        return { band, n, width: 20, lo: c - 10, hi: c + 10, primary: n };
-    if (kind === 'HT40+')
-        return { band, n, width: 40, lo: c - 10, hi: c + 30, primary: n, side: '+' };
-    if (kind === 'HT40-')
-        return { band, n, width: 40, lo: c - 30, hi: c + 10, primary: n, side: '-' };
-    if (band !== '5')
+    if (w.kind === '' || w.kind === 'HT20')
+        return { band, n, width: 20, lo: w.mhz - 10, hi: w.mhz + 10, primary: n };
+    const sp = wifiSpan(w);
+    if (!sp)
         return null;
-    const groups = kind === 'VHT80' ? blocks80 : blocks160;
-    const span = kind === 'VHT80' ? 80 : 160;
-    const start = groups.find((g) => n >= g && n < g + span / 5);
-    if (start === undefined)
-        return null;
-    const lo = center('5', start) - 10;
-    return { band, n, width: span, lo, hi: lo + span, primary: n };
+    const side = w.kind === 'HT40+' ? '+' : w.kind === 'HT40-' ? '-' : undefined;
+    return { band, n, width: sp.hi - sp.lo, lo: sp.lo, hi: sp.hi, primary: n, ...(side && { side }) };
 }
 
 export function registerChannelPicker(kismet, isWifiSource) {

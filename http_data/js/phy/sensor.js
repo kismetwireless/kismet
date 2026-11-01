@@ -4,27 +4,7 @@
 const base = 'kismet.device.base';
 const s = 'sensor.device';
 
-const spans = { minute: ['kismet.common.rrd.minute_vec', 1], hour: ['kismet.common.rrd.hour_vec', 60], day: ['kismet.common.rrd.day_vec', 3600] };
-
-// A reading's history, oldest first, with null where nothing was recorded
-function series(rrd, now, span) {
-    const [name, bin] = spans[span];
-    const data = rrd?.[name];
-    if (!Array.isArray(data) || data.length === 0)
-        return [];
-    const lastTime = rrd['kismet.common.rrd.last_time'] ?? 0;
-    const blank = rrd['kismet.common.rrd.blank_val'];
-    const last = Math.floor(lastTime / bin);
-    const end = Math.floor((now ?? lastTime) / bin);
-    const len = data.length;
-    const out = new Array(len);
-    for (let i = 0; i < len; i++) {
-        const t = end - (len - 1 - i);
-        const v = data[((t % len) + len) % len];
-        out[i] = (t > last || t <= last - len || v === blank) ? null : v;
-    }
-    return out;
-}
+const spans = ['minute', 'hour', 'day'];
 
 // Gaps carry the last known value forward (or the next one back, at the start)
 function fillGaps(values) {
@@ -56,7 +36,7 @@ export function readingWithHistory(kismet, { rrdField, show = (v) => String(v), 
         if (!state.value) {
             state.value = el('div', { class: 'reading-value' });
             state.graphs = {};
-            const rows = Object.keys(spans).map((span) => {
+            const rows = spans.map((span) => {
                 state.graphs[span] = el('span', { class: 'reading-graph', style: { display: 'inline-block', width: '10em' } });
                 return el('div', { class: 'reading-history' },
                     el('span', { class: 'muted', style: { display: 'inline-block', width: '1.5em' } }, span[0].toUpperCase()),
@@ -69,8 +49,9 @@ export function readingWithHistory(kismet, { rrdField, show = (v) => String(v), 
 
         const rrd = kismet.api.field(rec, rrdField);
         const now = kismet.clock.isKnown() ? kismet.clock.now() : undefined;
-        for (const span of Object.keys(spans)) {
-            const raw = series(rrd, now, span);
+        for (const span of spans) {
+            // null where nothing was recorded
+            const raw = kismet.rrd.history(rrd, now, span, { blank: null });
             let values = counter ? deltas(raw) : fillGaps(raw);
             // Bars grow up from the lowest value, so readings below zero still draw
             const low = Math.min(0, ...values);
