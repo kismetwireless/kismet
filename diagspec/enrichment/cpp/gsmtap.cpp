@@ -2,24 +2,28 @@
 // Implementation of the diagspec C++ GSMTAP sink. See gsmtap.h.
 #include "gsmtap.h"
 
+#include <algorithm>
+
 namespace diagspec {
 namespace gsmtap {
 
 namespace {
 
-// Append a big-endian (network-order) u16 / u32. Kept local so the byte order
-// lives in exactly one place.
-void put_be16(std::vector<uint8_t>& out, uint16_t v) {
-  out.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
-  out.push_back(static_cast<uint8_t>(v & 0xFF));
+// Write a big-endian (network-order) u16 / u32 at p. Kept local so the byte
+// order lives in exactly one place.
+void put_be16(uint8_t* p, uint16_t v) {
+  p[0] = static_cast<uint8_t>((v >> 8) & 0xFF);
+  p[1] = static_cast<uint8_t>(v & 0xFF);
 }
 
-void put_be32(std::vector<uint8_t>& out, uint32_t v) {
-  out.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
-  out.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
-  out.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
-  out.push_back(static_cast<uint8_t>(v & 0xFF));
+void put_be32(uint8_t* p, uint32_t v) {
+  p[0] = static_cast<uint8_t>((v >> 24) & 0xFF);
+  p[1] = static_cast<uint8_t>((v >> 16) & 0xFF);
+  p[2] = static_cast<uint8_t>((v >> 8) & 0xFF);
+  p[3] = static_cast<uint8_t>(v & 0xFF);
 }
+
+constexpr size_t kHdrLen = kHdrLenWords * 4;
 
 // The 0xB0C0 encoder keys on the canonical channel NAME. Table order and
 // membership match the reference encoder's channel → sub-type table exactly.
@@ -43,23 +47,23 @@ bool nas_sec_hdr_protected(int sec_hdr_type) {
 
 }  // namespace
 
+// Sized once and written in place; appending byte by byte trips a gcc 14
+// -Wfree-nonheap-object false positive in the inlined vector growth path.
 std::vector<uint8_t> GsmtapFrame::serialize() const {
-  std::vector<uint8_t> out;
-  out.reserve(16 + payload.size());
-  out.push_back(kVersion);
-  out.push_back(kHdrLenWords);
-  out.push_back(type);
-  out.push_back(timeslot);
-  put_be16(out, arfcn);
+  std::vector<uint8_t> out(kHdrLen + payload.size());
+  uint8_t* p = out.data();
+  p[0] = kVersion;
+  p[1] = kHdrLenWords;
+  p[2] = type;
+  p[3] = timeslot;
+  put_be16(p + 4, arfcn);
   // Signed int8 → its two's-complement byte, matching struct.pack("b", v).
-  out.push_back(static_cast<uint8_t>(signal_dbm));
-  out.push_back(static_cast<uint8_t>(snr_db));
-  put_be32(out, frame_number);
-  out.push_back(sub_type);
-  out.push_back(0);  // antenna_nr
-  out.push_back(0);  // sub_slot
-  out.push_back(0);  // res
-  out.insert(out.end(), payload.begin(), payload.end());
+  p[6] = static_cast<uint8_t>(signal_dbm);
+  p[7] = static_cast<uint8_t>(snr_db);
+  put_be32(p + 8, frame_number);
+  p[12] = sub_type;
+  // antenna_nr, sub_slot and res stay 0
+  std::copy(payload.begin(), payload.end(), out.begin() + kHdrLen);
   return out;
 }
 
