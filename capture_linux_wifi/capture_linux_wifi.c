@@ -456,6 +456,39 @@ typedef struct {
     enum wifi_chan_band chan_band;
 } local_channel_t;
 
+#ifdef HAVE_LIBNM
+/* nm_device_set_managed is deprecated since libnm 1.22; set the device's Managed
+ * property over D-Bus instead, synchronously like the old call */
+int nm_set_managed(NMClient *client, NMDevice *device, gboolean managed, GError **error) {
+#if NM_CHECK_VERSION(1, 22, 0)
+    GDBusConnection *conn = nm_client_get_dbus_connection(client);
+    GVariant *ret;
+
+    if (conn == NULL) {
+        g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_NOT_CONNECTED,
+                "no D-Bus connection to NetworkManager");
+        return -1;
+    }
+
+    ret = g_dbus_connection_call_sync(conn, NM_DBUS_SERVICE,
+            nm_object_get_path(NM_OBJECT(device)),
+            "org.freedesktop.DBus.Properties", "Set",
+            g_variant_new("(ssv)", NM_DBUS_INTERFACE_DEVICE, "Managed",
+                g_variant_new_boolean(managed)),
+            G_VARIANT_TYPE("()"), G_DBUS_CALL_FLAGS_NONE, -1, NULL, error);
+
+    if (ret == NULL)
+        return -1;
+
+    g_variant_unref(ret);
+    return 0;
+#else
+    nm_device_set_managed(device, managed);
+    return 0;
+#endif
+}
+#endif
+
 int acquire_interface_lock(local_wifi_t *local_wifi) {
     local_wifi->lock_fd = open("/tmp/.kismet_cap_linux_wifi_interface_lock", O_CREAT | O_NOFOLLOW | O_WRONLY, S_IWUSR | S_IWGRP);
 
@@ -2303,6 +2336,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         cf_send_message(caph, errstr, MSGFLAG_INFO);
+        g_clear_error(&nmerror);
     } else if (nm_client_get_nm_running(nmclient)) {
         nmdevices = nm_client_get_devices(nmclient);
 
@@ -2328,7 +2362,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     "later or tell NetworkManager to control it again via 'nmcli'",
                     local_wifi->name, local_wifi->interface);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
-            nm_device_set_managed(nmdevice, 0);
+
+            if (nm_set_managed(nmclient, nmdevice, FALSE, &nmerror) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s could not tell NetworkManager not to "
+                        "control interface '%s': %s", local_wifi->name,
+                        local_wifi->interface, nmerror != NULL ? nmerror->message : "unknown error");
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+                g_clear_error(&nmerror);
+                local_wifi->reset_nm_management = 0;
+            }
         }
     }
 
@@ -2861,9 +2903,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
 #ifdef HAVE_LIBNM
     /* Now, if we have a reference to networkmanager, try to tell it to ignore
-     * the monitor mode interface, too, in case it gets any ideas */
+     * the monitor mode interface, too, in case it gets any ideas.  Only the
+     * original interface is given back to it when we close. */
+    nmdevice = NULL;
 
-    if (nmclient != NULL && nm_client_get_nm_running(nmclient)) {
+    if (nmclient != NULL && nm_client_get_nm_running(nmclient) &&
+            strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
         nmdevices = nm_client_get_devices(nmclient);
 
         if (nmdevices != NULL) {
@@ -2879,16 +2924,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    if (nmdevice != NULL) {
-        local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
+    if (nmdevice != NULL && nm_device_get_managed(nmdevice)) {
+        snprintf(errstr, STATUS_MAX, "%s telling NetworkManager not to control "
+                "interface '%s'", local_wifi->name, local_wifi->cap_interface);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
 
-        if (local_wifi->reset_nm_management) {
-            snprintf(errstr, STATUS_MAX, "%s telling NetworkManager not to control "
-                    "interface '%s': you may need to re-initialize this interface "
-                    "later or tell NetworkManager to control it again via 'nmcli'",
-                    local_wifi->name, local_wifi->interface);
+        if (nm_set_managed(nmclient, nmdevice, FALSE, &nmerror) < 0) {
+            snprintf(errstr, STATUS_MAX, "%s could not tell NetworkManager not to "
+                    "control interface '%s': %s", local_wifi->name,
+                    local_wifi->cap_interface, nmerror != NULL ? nmerror->message : "unknown error");
             cf_send_message(caph, errstr, MSGFLAG_INFO);
-            nm_device_set_managed(nmdevice, 0);
+            g_clear_error(&nmerror);
         }
     }
 
@@ -3453,7 +3499,12 @@ int main(int argc, char *argv[]) {
 
                         if (strcmp(nm_device_get_iface((NMDevice *) d),
                                     local_wifi.interface) == 0) {
-                            nm_device_set_managed((NMDevice *) d, 1);
+                            if (nm_set_managed(nmclient, (NMDevice *) d, TRUE, &nmerror) < 0) {
+                                fprintf(stderr, "%s could not give interface '%s' back to "
+                                        "NetworkManager: %s\n", local_wifi.name, local_wifi.interface,
+                                        nmerror != NULL ? nmerror->message : "unknown error");
+                                g_clear_error(&nmerror);
+                            }
                             break;
                         }
                     }
