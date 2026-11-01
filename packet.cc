@@ -47,6 +47,7 @@ kis_packet::kis_packet() {
 	filtered = 0;
     duplicate = 0;
     dedupe_exempt = false;
+    dedupe_source = nullptr;
     hash = 0;
     hash_frame = std::string_view();
 
@@ -86,6 +87,7 @@ void kis_packet::reset() {
 
     original.reset();
     dedupe_sources.clear();
+    dedupe_source = nullptr;
 
     suppress_gps = false;
     gps_info.reset();
