@@ -5298,8 +5298,9 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
      *
      */
 
-    /* Can't drop caps unless running as root so don't try */
-    if (getuid() != 0)
+    /* Can't drop caps unless running as root so don't try; check the effective uid so
+     * a setuid-root helper, run by an ordinary user, drops them too */
+    if (geteuid() != 0)
         return 0;
 
 #ifdef HAVE_CAPABILITY
@@ -5583,24 +5584,79 @@ int cf_wait_announcement(kis_capture_handler_t *caph) {
 
 }
 
-int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program) {
-    char *PATH = strdup(getenv("PATH"));
-    char *orig = PATH;
-    char *token;
-    char binpath[512];
+/* access() checks the real uid, which is who cf_ipc_exec runs the tool as */
+static int cf_ipc_is_exec(const char *path) {
     struct stat sb;
 
-    while ((token = strsep(&PATH, ":")) != NULL) {
-        snprintf(binpath, 512, "%s/%s", token, program);
-        stat(binpath, &sb);
+    if (stat(path, &sb) != 0 || !S_ISREG(sb.st_mode))
+        return 0;
 
-        if (sb.st_mode & S_IXUSR) {
-            return 1;
+    return access(path, X_OK) == 0;
+}
+
+int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program) {
+    const char *envpath = getenv("PATH");
+    char *path, *orig, *token;
+    char binpath[512];
+    int found = 0;
+
+    if (strchr(program, '/') != NULL)
+        return cf_ipc_is_exec(program);
+
+    if (envpath == NULL)
+        return 0;
+
+    if ((path = strdup(envpath)) == NULL)
+        return 0;
+
+    orig = path;
+
+    while ((token = strsep(&path, ":")) != NULL) {
+        if (snprintf(binpath, sizeof(binpath), "%s/%s",
+                    strlen(token) ? token : ".", program) >= (int) sizeof(binpath))
+            continue;
+
+        if (cf_ipc_is_exec(binpath)) {
+            found = 1;
             break;
         }
     }
 
     free(orig);
+
+    return found;
+}
+
+#ifdef SYS_LINUX
+/* Hidden by the include order ahead of _GNU_SOURCE */
+extern int setresuid(uid_t ruid, uid_t euid, uid_t suid);
+extern int setresgid(gid_t rgid, gid_t egid, gid_t sgid);
+#endif
+
+/* Drops a setuid/setgid helper back to the user who ran it, for a forked child, before it
+ * runs a tool found in that user's PATH.  The saved ids are reset too, so the tool can't
+ * regain root; this needs no capabilities, since each id is set to one it already holds. */
+static int cf_ipc_drop_to_real_ids(void) {
+    uid_t uid = getuid();
+    gid_t gid = getgid();
+
+    if (uid == geteuid() && gid == getegid())
+        return 0;
+
+#if defined(SYS_LINUX) || defined(SYS_FREEBSD) || defined(SYS_OPENBSD)
+    if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
+        return -1;
+#else
+    if (setgid(gid) < 0 || setuid(uid) < 0)
+        return -1;
+#endif
+
+    if (geteuid() != uid || getegid() != gid)
+        return -1;
+
+    /* Must not be able to get back */
+    if (uid != 0 && setuid(0) == 0)
+        return -1;
 
     return 0;
 }
@@ -5687,6 +5743,9 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0 || getppid() != parent_pid)
             _exit(255);
 #endif
+
+        if (cf_ipc_drop_to_real_ids() < 0)
+            _exit(255);
 
         execvp(argv[0], argv);
 
