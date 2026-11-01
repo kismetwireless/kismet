@@ -23,6 +23,7 @@
 
 #include <atomic>
 #include <deque>
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -140,6 +141,12 @@ public:
     bool sort_devices(const std::string& sort, std::shared_ptr<tracker_element_vector>& devices,
             std::string& err);
 
+    // Keep the devices matching a device list filter, and order them by sort keys
+    // written as in a sort's 'by'; either may be empty.  text() in the filter searches
+    // text_fields.  Throws parse_error for a bad filter or sort.
+    void filter_devices(const std::string& filter, const std::string& sort,
+            const std::vector<std::string>& text_fields, std::shared_ptr<tracker_element_vector>& devices);
+
     // A compiled rule set and what goes with it; replaced whole, never changed
     struct active_set {
         std::unique_ptr<devicerules::ruleset> rs;
@@ -236,6 +243,12 @@ protected:
     }
 
     std::shared_ptr<active_set> compile_set(const std::string& text);
+
+    // Compiled device list filters and sorts, most recently used first
+    kis_mutex query_mutex;
+    std::list<std::pair<std::string, std::shared_ptr<devicerules::ruleset>>> query_cache;
+    std::shared_ptr<devicerules::ruleset> compile_query(const std::string& filter, const std::string& sort,
+            const std::vector<std::string>& text_fields);
     std::shared_ptr<active_set> finish_set(std::unique_ptr<devicerules::ruleset> rs, const std::string& text);
     void install_set(std::shared_ptr<active_set> as);
 

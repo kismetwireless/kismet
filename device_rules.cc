@@ -45,6 +45,11 @@ constexpr size_t max_views = 256;
 constexpr unsigned int max_nesting = 4;
 constexpr const char *api_origin = "api";
 
+// Device list filters and sorts
+constexpr size_t max_query_text = 16 * 1024;
+constexpr size_t max_text_fields = 64;
+constexpr size_t max_query_cache = 16;
+
 using namespace devicerules;
 
 tracker_element *deref_alias(tracker_element *e) {
@@ -381,6 +386,8 @@ public:
                 t = ftype::mac;
                 break;
             case tracker_type::tracker_map:
+            // Aliases point at records and are followed as the path is walked
+            case tracker_type::tracker_alias:
                 t = ftype::map;
                 break;
             case tracker_type::tracker_vector:
@@ -746,6 +753,7 @@ device_rules::device_rules() :
     alert_mutex.set_name("device_rules_alerts");
     view_apply_mutex.set_name("device_rules_view_apply");
     set_mutex.set_name("device_rules_set");
+    query_mutex.set_name("device_rules_query");
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
@@ -973,6 +981,144 @@ bool device_rules::sort_devices(const std::string& sort, std::shared_ptr<tracker
     devices = sorted;
 
     return true;
+}
+
+std::shared_ptr<devicerules::ruleset> device_rules::compile_query(const std::string& filter,
+        const std::string& sort, const std::vector<std::string>& text_fields) {
+    if (filter.size() > max_query_text || sort.size() > max_query_text) {
+        devicerules::parse_error pe("longer than " + std::to_string(max_query_text) + " bytes", 0, 0);
+        pe.origin = filter.size() > max_query_text ? "filter" : "sort";
+        throw pe;
+    }
+
+    size_t ntext = std::min(text_fields.size(), max_text_fields);
+
+    std::string key = filter;
+    key += '\0';
+    key += sort;
+    if (!filter.empty()) {
+        for (size_t i = 0; i < ntext; i++) {
+            key += '\0';
+            key += text_fields[i];
+        }
+    }
+
+    {
+        kis_lock_guard<kis_mutex> lk(query_mutex, "device_rules compile_query");
+        for (auto i = query_cache.begin(); i != query_cache.end(); ++i) {
+            if (i->first == key) {
+                query_cache.splice(query_cache.begin(), query_cache, i);
+                return query_cache.front().second;
+            }
+        }
+    }
+
+    auto rs = std::make_shared<devicerules::ruleset>();
+
+    for (size_t i = 0; i < ntext; i++)
+        if (!text_fields[i].empty() && text_fields[i].size() <= 1024)
+            rs->text_fields.push_back(text_fields[i]);
+
+    // Errors say which text they're in, "filter" or "sort", as their origin
+    std::string in = "filter";
+
+    try {
+        devicerules::parse_source src;
+        src.origin = "filter";
+
+        if (!filter.empty()) {
+            src.only = devicerules::parse_source::block::filter;
+            rs->parse(filter, src);
+        }
+
+        if (!sort.empty()) {
+            in = "sort";
+            src.only = devicerules::parse_source::block::sort_keys;
+            rs->parse(sort, src);
+        }
+
+        kismet_resolver r(entrytracker);
+        rs->compile(r);
+    } catch (const devicerules::parse_error& e) {
+        // The compiler names the rule or sort it was in; drop that
+        std::string msg = e.what();
+        for (const std::string p : { "rule 'filter': ", "sort 'filter': " }) {
+            if (msg.compare(0, p.size(), p) == 0) {
+                in = p[0] == 'r' ? "filter" : "sort";
+                msg = msg.substr(p.size());
+            }
+        }
+        devicerules::parse_error pe(msg, e.line, e.col);
+        pe.origin = in;
+        throw pe;
+    }
+
+    if (use_jit) {
+        std::string err;
+        rs->jit(err);
+    }
+
+    kis_lock_guard<kis_mutex> lk(query_mutex, "device_rules compile_query");
+    query_cache.emplace_front(std::move(key), rs);
+    if (query_cache.size() > max_query_cache)
+        query_cache.pop_back();
+
+    return rs;
+}
+
+void device_rules::filter_devices(const std::string& filter, const std::string& sort,
+        const std::vector<std::string>& text_fields, std::shared_ptr<tracker_element_vector>& devices) {
+    if (filter.empty() && sort.empty())
+        return;
+
+    auto rs = compile_query(filter, sort, text_fields);
+    bool has_filter = rs->size() > 0;
+
+    kismet_env env;
+    devicerules::eval_ctx ctx;
+    ctx.bind(rs.get(), &env);
+
+    std::unique_ptr<devicerules::sort_table> table;
+    if (rs->sort_count() > 0) {
+        table = std::make_unique<devicerules::sort_table>(*rs, 0);
+        table->reserve(devices->size());
+    }
+
+    auto kept = std::make_shared<tracker_element_vector>();
+    kept->reserve(devices->size());
+
+    int64_t now = Globalreg::globalreg->last_tv_sec;
+    uint8_t hit = 1;
+
+    for (const auto& d : *devices) {
+        auto dev = std::static_pointer_cast<kis_tracked_device_base>(d);
+        kis_device_lock dlk(dev, true);
+        env.root = dev.get();
+        ctx.next_device(now);
+
+        if (has_filter)
+            rs->eval_all(ctx, nullptr, &hit);
+
+        if (hit) {
+            kept->push_back(d);
+            if (table != nullptr)
+                table->add(ctx);
+        }
+
+        env.reset();
+        env.root = nullptr;
+    }
+
+    if (table != nullptr) {
+        auto order = table->order();
+        auto sorted = std::make_shared<tracker_element_vector>();
+        sorted->reserve(order.size());
+        for (auto r : order)
+            sorted->push_back((*kept)[r]);
+        kept = sorted;
+    }
+
+    devices = kept;
 }
 
 void device_rules::load_configured() {

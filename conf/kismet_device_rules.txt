@@ -55,6 +55,10 @@
 #   after the rest, in either direction.  Ask a view for a sort with rule_sort, as in
 #   /devices/views/all/devices.json?rule_sort=<name>.
 #
+# Device views also take a condition and sort keys directly, as filter=<condition>
+# and filter_sort=<value> [asc|desc], ...  In a filter, text("<s>") matches devices
+# where any text field the request asks for contains s, in any case.
+#
 # Examples:
 #
 # rule close-apple {
