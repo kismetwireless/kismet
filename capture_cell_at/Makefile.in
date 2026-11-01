@@ -150,56 +150,56 @@ TEST_SERIAL_PORT_BIN = test_at_serial_portability
 # only sources in THIS directory, so without these the link fails on a missing
 # prerequisite it does not know how to build.
 diag_wwanport.c.o:	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_wwanport.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_wwanport.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 diag_wwanport.c.d:	../capture_cell_diag/diag_wwanport.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_wwanport.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 diag_modemident.c.o:	../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_modemident.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_modemident.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 diag_modemident.c.d:	../capture_cell_diag/diag_modemident.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_modemident.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_identvouch.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_identvouch.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 cell_log.c.o:	../capture_cell_diag/cell_log.c ../capture_cell_diag/cell_log.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_log.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_log.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 cell_log.c.d:	../capture_cell_diag/cell_log.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_log.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_portadmit.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_portadmit.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 diag_portadmit.c.d:	../capture_cell_diag/diag_portadmit.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_portadmit.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_probeclose.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_probeclose.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 diag_probeclose.c.d:	../capture_cell_diag/diag_probeclose.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_probeclose.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 cell_usbport.c.o:	../capture_cell_diag/cell_usbport.c ../capture_cell_diag/cell_usbport.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_usbport.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_usbport.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 cell_usbport.c.d:	../capture_cell_diag/cell_usbport.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_usbport.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
 usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 usbserial.c.d:	../usbserial/usbserial.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../usbserial/usbserial.c | \
@@ -344,7 +344,7 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 %.c.d:	%.c
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
