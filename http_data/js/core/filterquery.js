@@ -28,8 +28,11 @@
 // filterNames are
 // more names for a column or search field.  A name given by several of them
 // matches any of their fields; the server's short names stay as they are.
+// Filter hints (registry/columns.js) name fields that are neither, for
+// filters only, and are left out when the server hasn't got their phy.
+// Numbers may be written in hex, as 0x1a2b.
 //
-// compileQuery(text, fieldContext(columns, searchFields)) returns
+// compileQuery(text, fieldContext(columns, searchFields, hints, phys)) returns
 // { search } or { filter, sort }, and throws a QueryError with the position.
 
 export class QueryError extends Error {
@@ -78,12 +81,13 @@ const out = (path) => aliasByPath.get(path) ?? path;
 
 const aliasKind = (path) => aliases[aliasByPath.get(path)]?.[1] ?? null;
 
-// Names the box knows, from the columns and search fields (registry lists).
+// Names the box knows, from the columns, search fields and filter hints
+// (registry lists), and the set of phy names the server has, if known.
 // Each name has its paths and the kind of each; a search field's filterKind
 // may be one kind or { path: kind }, and is text when not given.  Its
 // filterConvert, filterEmpty and filterPresent may likewise be one for all or
 // { path: ... }.
-export function fieldContext(columns = [], searchFields = []) {
+export function fieldContext(columns = [], searchFields = [], hints = [], phys = null) {
     const names = new Map();
     const macFields = [];
     const addMac = (p) => macFields.includes(p) || macFields.push(p);
@@ -142,7 +146,7 @@ export function fieldContext(columns = [], searchFields = []) {
             add(n, entry);
     }
 
-    for (const s of searchFields) {
+    const fieldSet = (s, names) => {
         const paths = (s.fields ?? []).map(pathOf).filter((p) => !p.startsWith('#'));
         const fk = s.filterKind;
         const kinds = paths.map((p) => (typeof fk === 'string' ? fk : fk?.[p]) ?? aliasKind(p) ?? 'text');
@@ -154,9 +158,16 @@ export function fieldContext(columns = [], searchFields = []) {
         const present = (p) => (fp !== null && typeof fp === 'object' ? fp[p] : fp);
         const guards = paths.map((p) => guard(empty(p), present(p)));
         if (paths.length)
-            for (const n of [s.id, ...(s.filterNames ?? [])])
+            for (const n of names)
                 add(n, { paths, kinds, convs, guards });
-    }
+    };
+
+    for (const s of searchFields)
+        fieldSet(s, [s.id, ...(s.filterNames ?? [])]);
+
+    for (const h of hints)
+        if (!h.phy || !phys || phys.has(h.phy))
+            fieldSet(h, h.names ?? [h.id]);
 
     return { names, macFields };
 }
@@ -235,6 +246,8 @@ function lex(text) {
             const low = w.toLowerCase();
             if (low === 'and' || low === 'or' || low === 'not')
                 toks.push({ t: low === 'and' ? '&&' : low === 'or' ? '||' : '!', pos, word: w });
+            else if (/^0x[0-9a-f]+$/i.test(w))
+                toks.push({ t: 'number', v: BigInt(w).toString(), pos });
             else if (macRe.test(w))
                 toks.push({ t: 'mac', v: w, pos });
             else if (numRe.test(w))

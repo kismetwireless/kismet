@@ -7,6 +7,11 @@ export function register(kismet) {
     const { barGraph, peaks } = kismet.widgets.cellgraphs;
 
     // Always fetched, so searches match them even when their columns are hidden
+    // The reported location; meters, and km/h
+    const loc = `${base}.reported_location/kismet.common.location.last/kismet.common.location`;
+    ui.filterHints.add({ id: 'altitude', names: ['altitude', 'alt'], fields: [`${loc}.alt`], filterKind: 'number' });
+    ui.filterHints.add({ id: 'speed', names: ['speed'], fields: [`${loc}.speed`], filterKind: 'number' });
+
     ui.searchFields.add({
         id: 'base', description: 'Phy and MAC address',
         fields: [`${base}.phyname`, `${base}.macaddr`],
@@ -127,6 +132,7 @@ export function register(kismet) {
         fields: [[`${base}.packets.rrd/kismet.common.rrd.minute_vec`, 'packets_minute'],
             [`${base}.packets.rrd/kismet.common.rrd.last_time`, 'packets_last']],
         sortField: `${base}.packets.rrd/kismet.common.rrd.last_value`,
+        filterKind: 'number',
         render: (row) => {
             const history = rrd.history({
                 'kismet.common.rrd.minute_vec': row.packets_minute,

@@ -40,6 +40,18 @@ function locationText(v) {
 
 export function register(kismet) {
     const { ui, icons, api, format } = kismet;
+    // Search box names for the drone details
+    const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'UAV', names, fields, ...more });
+    filterHint('uav_serial', ['serial'], [`${uav}/uav.serialnumber`, `${rid}.serial_number`], { filterEmpty: '' });
+    filterHint('uav_manufacturer', ['drone_manufacturer'], [`${uav}/uav.manufacturer`], { filterEmpty: '' });
+    filterHint('uav_model', ['model'], [`${uav}/uav.model`], { filterEmpty: '' });
+    filterHint('uav_registration', ['registration', 'reg'], [`${rid}.registration_id`], { filterEmpty: '' });
+    filterHint('uav_operator', ['operator', 'operator_id'], [`${rid}.operator_id`], { filterEmpty: '' });
+    // Meters
+    filterHint('uav_altitude', ['altitude', 'alt'], [`${uav}/uav.last_telemetry/uav.telemetry.location/kismet.common.location.alt`,
+        `${rid}.altitude_geo`], { filterKind: 'number' });
+    filterHint('uav_height', ['height'], [`${uav}/uav.last_telemetry/uav.telemetry.height`, `${rid}.height`], { filterKind: 'number' });
+
     const height = (v) => format.height(v, 1);
     const distance = (v) => format.distance(v, 1);
 

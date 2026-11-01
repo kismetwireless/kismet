@@ -21,7 +21,7 @@ import * as datasources from './core/sources.js';
 import * as censor from './core/censor.js';
 import { durationIn } from './core/filterquery.js';
 import { createRegistry } from './registry/registry.js';
-import { deviceColumns, deviceIcons, rowHighlights, phyColors, searchFields, alwaysFields, fieldName } from './registry/columns.js';
+import { deviceColumns, deviceIcons, rowHighlights, phyColors, searchFields, filterHints, alwaysFields, fieldName } from './registry/columns.js';
 import { menuItems, ribbonStats, panes, settingsPanes, colorSchemes, mapSources, dashboardCards } from './registry/ui.js';
 import { deviceViews, deviceDetails, deviceDetailFields, channelNames, sourceChannels } from './registry/devices.js';
 import { insightRelations, linkKinds, insightFindings, insightViews } from './registry/insights.js';
@@ -99,6 +99,7 @@ export const kismet = {
         rowHighlights,
         phyColors,
         searchFields,
+        filterHints,
         deviceViews,
         deviceDetails,
         deviceDetailFields,

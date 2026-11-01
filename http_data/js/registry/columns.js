@@ -98,6 +98,20 @@ export const searchFields = createRegistry('searchFields', {
     defaults: { description: '' },
 });
 
+// Names the search box's filters know for fields that aren't columns or
+// search fields, such as the details a phy shows.  Hints are for filters only;
+// their fields are never fetched for the list.
+//   id, names: what the search box calls them (default [id]), fields,
+//   phy: the phy (as the server names it) whose fields these are, so a server
+//     without it doesn't get filters on fields it doesn't know,
+//   filterKind, filterConvert, filterEmpty, filterPresent: as for search fields
+// A name several hints, columns or search fields give matches any of their
+// fields, so phys can share names like callsign and battery.
+export const filterHints = createRegistry('filterHints', {
+    required: ['fields'],
+    defaults: {},
+});
+
 // Fields every row gets: the key, to open the device
 export const alwaysFields = ['kismet.device.base.key'];
 

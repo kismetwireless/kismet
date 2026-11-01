@@ -19,6 +19,13 @@ const pduTypes = {
 
 export function register(kismet) {
     const { ui, icons, format } = kismet;
+    // Search box names for the BTLE details
+    const filterHint = (id, names, path) =>
+        ui.filterHints.add({ id, phy: 'BTLE', names, fields: [`${b}/${b}.${path}`], filterEmpty: '' });
+    filterHint('btle_company_id', ['company_id'], 'manuf_company_id');
+    filterHint('btle_version', ['bt_version'], 'lmp_version');
+    filterHint('btle_chip', ['chip', 'chip_maker'], 'chip_manufacturer');
+
     const isBtle = (row) => row[`${base}.phyname`] === 'BTLE';
     const supported = (v) => (v ? 'Supported' : 'Not supported');
 

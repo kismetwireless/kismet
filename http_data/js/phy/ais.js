@@ -6,6 +6,19 @@ const emergency = ['AIS-SART', 'AIS-MOB', 'AIS-EPIRB'];
 
 export function register(kismet) {
     const { ui, icons, dom, api, format } = kismet;
+    // Search box names for the vessel details
+    const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'AIS', names, fields, ...more });
+    filterHint('ais_mmsi', ['mmsi'], [`${ais}/${ais}.mmsi`], { filterKind: 'number', filterEmpty: 0 });
+    filterHint('ais_imo', ['imo'], [`${ais}/${ais}.imo`], { filterKind: 'number', filterEmpty: 0 });
+    filterHint('ais_ship_name', ['ship_name', 'vessel'], [`${ais}/${ais}.name`], { filterEmpty: '' });
+    filterHint('ais_callsign', ['callsign'], [`${ais}/${ais}.callsign`], { filterEmpty: '' });
+    filterHint('ais_ship_type', ['ship_type'], [`${ais}/${ais}.ship_type_str`], { filterEmpty: '' });
+    filterHint('ais_destination', ['destination'], [`${ais}/${ais}.destination`], { filterEmpty: '' });
+    filterHint('ais_flag', ['flag', 'country'], [`${ais}/${ais}.country`], { filterEmpty: '' });
+    filterHint('ais_nav_status', ['nav_status'], [`${ais}/${ais}.nav_status_str`], { filterEmpty: '' });
+    // Speed over ground, in knots
+    filterHint('ais_sog', ['sog', 'knots'], [`${ais}/${ais}.sog`], { filterKind: 'number' });
+
     const { el } = dom;
     const isAis = (row) => row[`${base}.phyname`] === 'AIS';
 

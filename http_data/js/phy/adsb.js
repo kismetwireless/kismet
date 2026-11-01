@@ -32,6 +32,15 @@ function isGovernment(owner, icao) {
 
 export function register(kismet) {
     const { ui, icons, dom, api, format } = kismet;
+    // Search box names for the aircraft details
+    const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'ADSB', names, fields, ...more });
+    filterHint('adsb_icao', ['icao'], [`${adsb}/${adsb}.icao`], { filterEmpty: '' });
+    filterHint('adsb_callsign', ['callsign'], [`${adsb}/${adsb}.callsign`], { filterEmpty: '' });
+    filterHint('adsb_registration', ['registration', 'reg'], [`${icao}/adsb.icao.regid`], { filterEmpty: '' });
+    filterHint('adsb_model', ['model'], [`${icao}/adsb.icao.model`], { filterEmpty: '' });
+    filterHint('adsb_operator', ['operator'], [`${icao}/adsb.icao.owner`], { filterEmpty: '' });
+    filterHint('adsb_aircraft_type', ['aircraft_type'], [`${icao}/adsb.icao.atype`], { filterEmpty: '' });
+
     const { el } = dom;
     const isAdsb = (row) => row[`${base}.phyname`] === 'ADSB';
 

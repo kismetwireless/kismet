@@ -67,6 +67,18 @@ function hasHandshake(list) {
 
 export function register(kismet) {
     const { ui, icons, format, dom, api } = kismet;
+    // Search box names for fields in the Wi-Fi details
+    const probed = 'dot11.device/dot11.device.probed_ssid_map/dot11.probedssid';
+    const filterHint = (id, names, fields) =>
+        ui.filterHints.add({ id, phy, names, fields, filterEmpty: '' });
+    const wps = (f) => [`${beacon}/dot11.advertisedssid.${f}`, `${probed}.${f}`];
+    filterHint('wifi_wps_manuf', ['wps_manuf'], wps('wps_manuf'));
+    filterHint('wifi_wps_model', ['wps_model'], wps('wps_model_name'));
+    filterHint('wifi_wps_device', ['wps_device'], wps('wps_device_name'));
+    filterHint('wifi_wps_serial', ['serial', 'wps_serial'], wps('wps_serial_number'));
+    filterHint('wifi_country', ['country'], [`${beacon}/dot11.advertisedssid.dot11d_country`]);
+    filterHint('wifi_mesh_id', ['mesh_id'], [`${beacon}/dot11.advertisedssid.dot11s.meshid`]);
+
     const { el } = dom;
     const isWifi = (row) => row[`${base}.phyname`] === phy;
 
@@ -207,6 +219,7 @@ export function register(kismet) {
         description: 'Extra name or hardware id some vendors put in beacons',
         fields: [[`${beacon}/dot11.advertisedssid.beacon_info`, 'beacon_info']],
         sortField: `${beacon}/dot11.advertisedssid.beacon_info`,
+        filterKind: 'text',
         render: (row) => (typeof row.beacon_info === 'string' ? row.beacon_info : ''),
     });
 
