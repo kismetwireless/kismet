@@ -927,6 +927,41 @@ tr.highlighted .bar-graph { fill: currentColor; }
     border-top: 1px solid var(--border);
 }
 .coverage-sources-canvas { display: block; }
+.coverage-time { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding-right: 0.25rem; }
+.coverage-time[hidden] { display: none; }
+.coverage-time h4 { margin: 1rem 0 0.4rem; font-size: 0.9rem; font-weight: 600; }
+.coverage-time-note { font-size: 0.85em; margin: 0.2rem 0 0.6rem; }
+.coverage-time-stats { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; }
+.coverage-time-stats .big-stat { flex: 0 1 auto; min-width: 0; }
+.coverage-time-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.5rem; font-size: 0.82em; margin-bottom: 0.3rem; }
+.coverage-time-legend > span { display: inline-flex; align-items: center; gap: 0.4em; margin-right: 0.8rem; }
+.coverage-time-legend .swatch { display: inline-block; width: 0.75em; height: 0.75em; border-radius: 2px; background: var(--accent); }
+.coverage-time-legend .swatch.warn { background: var(--warn); }
+.coverage-time-canvas { display: block; width: 100%; cursor: crosshair; }
+.coverage-time-source {
+    display: grid; grid-template-columns: minmax(6rem, 10rem) minmax(8rem, 1fr); gap: 0.15rem 0.75rem;
+    align-items: center; padding: 0.25rem 0; font-size: 0.88em;
+}
+.coverage-time-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coverage-time-split { display: flex; gap: 2px; min-width: 0; }
+.coverage-time-split .seg {
+    min-width: 0; padding: 0.1rem 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    border-radius: 4px; background: color-mix(in srgb, var(--accent) 35%, transparent); font-size: 0.85em;
+}
+.coverage-time-split .seg.alt { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.coverage-time-how { font-size: 0.9em; }
+.coverage-time-split + .coverage-time-how { grid-column: 2; }
+.coverage-time-table { overflow-x: auto; margin-bottom: 0.5rem; }
+.coverage-time-table .data-table { table-layout: auto; font-size: 0.88em; }
+.coverage-time-table th { position: static; }
+.coverage-time-table td:nth-child(4) { max-width: 22rem; }
+.coverage-time-rare td:first-child { box-shadow: inset 3px 0 var(--warn); }
+.coverage-time-meter { display: inline-block; width: 3.5rem; height: 0.5rem; border-radius: 3px; background: var(--surface-2); overflow: hidden; vertical-align: middle; }
+.coverage-time-meter > span { display: block; height: 100%; background: var(--accent); }
+@media (max-width: 640px) {
+    .coverage-time-source { grid-template-columns: 1fr; }
+    .coverage-time-split + .coverage-time-how { grid-column: 1; }
+}
 
 /* Tabs that hold a table fill their area */
 .main-area .tab-body, .bottom .tab-body { display: flex; flex-direction: column; }
