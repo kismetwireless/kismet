@@ -55,6 +55,7 @@
 #include <linux/sched.h>
 #include <sched.h>
 #include <sys/mount.h>
+#include <sys/statvfs.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #endif
@@ -5349,50 +5350,243 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 #endif
 }
 
-int cf_jail_filesystem(kis_capture_handler_t *caph) {
-    /* for now don't jail fs because we need it for flock'ing, revisit this */
-    return 0;
+#ifdef SYS_LINUX
+/* Hidden by the include order ahead of _GNU_SOURCE */
+extern int unshare(int flags);
 
+/* Kernel filesystems, device nodes, and the shared scratch and lock directories stay
+ * writable; /tmp and /run stay shared with the host, so lock files still work between
+ * processes.  Everything else, /etc, /usr, /var, /home and so on, is read-only. */
+static const char *cf_jail_writable[] = {
+    "/dev", "/proc", "/sys", "/run", "/tmp", "/var/tmp", "/var/lock", "/var/run", NULL
+};
+
+static int cf_jail_path_under(const char *path, const char *prefix) {
+    size_t l = strlen(prefix);
+
+    if (l == 1 && prefix[0] == '/')
+        return 1;
+
+    return strncmp(path, prefix, l) == 0 && (path[l] == '\0' || path[l] == '/');
+}
+
+static int cf_jail_keep(const char *path, char **kept, size_t nkept) {
+    size_t i;
+
+    for (i = 0; i < nkept; i++) {
+        if (cf_jail_path_under(path, kept[i]))
+            return 1;
+    }
+
+    return 0;
+}
+
+/* Mountinfo escapes space, tab, newline, and backslash as octal */
+static void cf_jail_unescape(char *s) {
+    char *r = s, *w = s;
+
+    while (*r != '\0') {
+        if (r[0] == '\\' && r[1] >= '0' && r[1] <= '3' && r[2] >= '0' && r[2] <= '7' &&
+                r[3] >= '0' && r[3] <= '7') {
+            *w++ = (char) (((r[1] - '0') << 6) | ((r[2] - '0') << 3) | (r[3] - '0'));
+            r += 4;
+        } else {
+            *w++ = *r++;
+        }
+    }
+
+    *w = '\0';
+}
+
+/* A bind remount replaces every per-mount flag, so carry over the ones already set */
+static unsigned long cf_jail_mount_flags(const char *opts, int *readonly) {
+    unsigned long flags = 0;
+    char *dup, *tok, *save = NULL;
+
+    *readonly = 0;
+
+    if ((dup = strdup(opts)) == NULL)
+        return 0;
+
+    for (tok = strtok_r(dup, ",", &save); tok != NULL; tok = strtok_r(NULL, ",", &save)) {
+        if (strcmp(tok, "ro") == 0)
+            *readonly = 1;
+        else if (strcmp(tok, "nosuid") == 0)
+            flags |= MS_NOSUID;
+        else if (strcmp(tok, "nodev") == 0)
+            flags |= MS_NODEV;
+        else if (strcmp(tok, "noexec") == 0)
+            flags |= MS_NOEXEC;
+        else if (strcmp(tok, "noatime") == 0)
+            flags |= MS_NOATIME;
+        else if (strcmp(tok, "nodiratime") == 0)
+            flags |= MS_NODIRATIME;
+        else if (strcmp(tok, "relatime") == 0)
+            flags |= MS_RELATIME;
+    }
+
+    free(dup);
+    return flags;
+}
+#endif
+
+int cf_jail_filesystem(kis_capture_handler_t *caph) {
+    return cf_jail_filesystem_keep(caph, NULL);
+}
+
+int cf_jail_filesystem_keep(kis_capture_handler_t *caph, const char **writable) {
 #ifdef SYS_LINUX
     char errstr[STATUS_MAX];
+    char *kept[32];
+    size_t nkept = 0, nmounts = 0, mounts_sz = 0, i, j;
+    const char **lists[2] = { cf_jail_writable, writable };
+    struct cf_jail_mount { char *path; unsigned long flags; int readonly; } *mounts = NULL;
+    FILE *mf;
+    char *line = NULL;
+    size_t linesz = 0;
+    unsigned int failed = 0;
+    int ret = 1;
+    struct statvfs vfs;
 
-    /* Can't jail filesystem if not running as root */
-    if (getuid() != 0)
+    /* Needs CAP_SYS_ADMIN, so only root or a setuid-root helper can jail itself;
+     * call before cf_drop_most_caps */
+    if (geteuid() != 0)
         return 0;
 
-    /* Eject ourselves from the namespace into a new temporary one */
     if (unshare(CLONE_NEWNS) < 0) {
-        /* Only send warning if we're running as root */
-        if (getuid() == 0) {
-            snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
-                    strerror(errno));
-            cf_send_warning(caph, errstr);
-            return -1;
-        }
-
-        return 0;
+        snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr);
+        return -1;
     }
 
-    /* Remount / as a read-only bind-mount of itself over our rootfs */
-    if (mount("/", "/", "bind", MS_BIND | MS_REMOUNT | MS_PRIVATE |
-                MS_REC | MS_RDONLY, NULL) < 0) {
-        /* Only send warning if we're running as root */
-        if (getuid() == 0) {
-            snprintf(errstr, STATUS_MAX, "datasource failed to remount root in jail as RO: %s",
-                    strerror(errno));
-            cf_send_warning(caph, errstr);
-            return -1;
-        }
-
-        return 0;
+    /* Nothing done in here may reach the host's mounts */
+    if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to make its mount namespace "
+                "private: %s", strerror(errno));
+        cf_send_warning(caph, errstr);
+        return -1;
     }
 
-    return 1;
+    if ((mf = fopen("/proc/self/mountinfo", "r")) == NULL) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to read its mounts to jail them: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr);
+        return -1;
+    }
+
+    while (getline(&line, &linesz, mf) > 0) {
+        char *f[6];
+        char *save = NULL, *tok;
+        int n = 0;
+
+        /* id parent major:minor root mountpoint options ... */
+        for (tok = strtok_r(line, " ", &save); tok != NULL && n < 6;
+                tok = strtok_r(NULL, " ", &save))
+            f[n++] = tok;
+
+        if (n < 6)
+            continue;
+
+        if (nmounts == mounts_sz) {
+            size_t nsz = mounts_sz == 0 ? 64 : mounts_sz * 2;
+            struct cf_jail_mount *nm = realloc(mounts, nsz * sizeof(*mounts));
+
+            if (nm == NULL) {
+                ret = -1;
+                break;
+            }
+
+            mounts = nm;
+            mounts_sz = nsz;
+        }
+
+        cf_jail_unescape(f[4]);
+
+        if ((mounts[nmounts].path = strdup(f[4])) == NULL) {
+            ret = -1;
+            break;
+        }
+
+        mounts[nmounts].flags = cf_jail_mount_flags(f[5], &mounts[nmounts].readonly);
+        nmounts++;
+    }
+
+    free(line);
+    fclose(mf);
+
+    if (ret < 0) {
+        snprintf(errstr, STATUS_MAX, "datasource ran out of memory jailing its mounts");
+        cf_send_warning(caph, errstr);
+        goto out;
+    }
+
+    /* A writable directory which isn't a mount already is bound onto itself, so the
+     * read-only remount of its parent leaves it alone */
+    for (i = 0; i < 2; i++) {
+        const char **l;
+
+        for (l = lists[i]; l != NULL && *l != NULL; l++) {
+            char *real;
+            struct stat sb;
+            int is_mount = 0;
+
+            if ((real = realpath(*l, NULL)) == NULL)
+                continue;
+
+            if (stat(real, &sb) < 0 || !S_ISDIR(sb.st_mode) || cf_jail_keep(real, kept, nkept) ||
+                    nkept >= sizeof(kept) / sizeof(char *)) {
+                free(real);
+                continue;
+            }
+
+            for (j = 0; j < nmounts && !is_mount; j++)
+                is_mount = strcmp(mounts[j].path, real) == 0;
+
+            if (!is_mount && mount(real, real, NULL, MS_BIND | MS_REC, NULL) < 0) {
+                snprintf(errstr, STATUS_MAX, "datasource failed to keep %s writable in "
+                        "its jail: %s", real, strerror(errno));
+                cf_send_warning(caph, errstr);
+                free(real);
+                continue;
+            }
+
+            kept[nkept++] = real;
+        }
+    }
+
+    for (i = 0; i < nmounts; i++) {
+        if (mounts[i].readonly || cf_jail_keep(mounts[i].path, kept, nkept))
+            continue;
+
+        if (mount(NULL, mounts[i].path, NULL,
+                    MS_BIND | MS_REMOUNT | MS_RDONLY | mounts[i].flags, NULL) < 0)
+            failed++;
+    }
+
+    if (failed > 0) {
+        snprintf(errstr, STATUS_MAX, "datasource could not make %u mount%s read-only in "
+                "its jail", failed, failed == 1 ? "" : "s");
+        cf_send_warning(caph, errstr);
+    }
+
+    if (statvfs("/", &vfs) < 0 || !(vfs.f_flag & ST_RDONLY)) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to remount root in jail as RO");
+        cf_send_warning(caph, errstr);
+        ret = -1;
+    }
+
+out:
+    for (i = 0; i < nkept; i++)
+        free(kept[i]);
+
+    for (i = 0; i < nmounts; i++)
+        free(mounts[i].path);
+
+    free(mounts);
+
+    return ret;
 #else
-    /*
-    snprintf(errstr, STATUS_MAX, "datasource framework can only jail namespaces on Linux");
-    cf_send_warning(caph, errstr);
-    */
     return 0;
 #endif
 }
