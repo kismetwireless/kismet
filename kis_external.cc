@@ -16,8 +16,17 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <algorithm>
+#include <climits>
 #include <memory>
+#include <string>
+#include <vector>
 #include <sys/stat.h>
+#include <unistd.h>
+
+#ifdef SYS_LINUX
+#include <sys/syscall.h>
+#endif
 
 #include <array>
 
@@ -541,6 +550,34 @@ bool kis_external_interface::check_ipc(const std::string& in_binary) {
 
 // std::atomic<int> ipc_strand_g(0);
 
+// Closes [first, last] in a forked child, so only async-signal-safe calls
+static void close_fd_range(int first, int last) {
+    if (first > last)
+        return;
+
+#if defined(SYS_LINUX) && defined(SYS_close_range)
+    if (syscall(SYS_close_range, static_cast<unsigned int>(first), static_cast<unsigned int>(last), 0) == 0)
+        return;
+#endif
+
+    long maxfd = sysconf(_SC_OPEN_MAX);
+    if (maxfd < 0 || maxfd > INT_MAX)
+        maxfd = 65536;
+
+    for (int fd = first; fd <= last && fd < maxfd; fd++)
+        ::close(fd);
+}
+
+// Closes everything past stdio except the two descriptors handed to the child
+static void close_inherited_fds(int keep_a, int keep_b) {
+    const int lo = std::min(keep_a, keep_b);
+    const int hi = std::max(keep_a, keep_b);
+
+    close_fd_range(STDERR_FILENO + 1, lo - 1);
+    close_fd_range(lo + 1, hi - 1);
+    close_fd_range(hi + 1, INT_MAX);
+}
+
 bool kis_external_interface::run_ipc() {
     // Close using the strand & wait for it to complete, then fork and launch.
 
@@ -647,7 +684,20 @@ bool kis_external_interface::run_ipc() {
 
     // We don't need to do signal masking because we run a dedicated signal handling thread
 
-    char **cmdarg;
+    // argv[0], "--in-fd" "--out-fd" ... NULL; built before the fork, since the child of a
+    // threaded process can only make async-signal-safe calls
+    std::vector<std::string> args;
+    args.reserve(external_binary_args.size() + 3);
+    args.push_back(helper_path);
+    args.push_back(fmt::format("--in-fd={}", inpipepair[0]));
+    args.push_back(fmt::format("--out-fd={}", outpipepair[1]));
+    args.insert(args.end(), external_binary_args.begin(), external_binary_args.end());
+
+    std::vector<char *> cmdarg;
+    cmdarg.reserve(args.size() + 1);
+    for (auto& a : args)
+        cmdarg.push_back(&a[0]);
+    cmdarg.push_back(nullptr);
 
     if ((child_pid = fork()) < 0) {
         _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
@@ -665,32 +715,14 @@ bool kis_external_interface::run_ipc() {
         sigfillset(&unblock_mask);
         pthread_sigmask(SIG_UNBLOCK, &unblock_mask, nullptr);
 
-        // argv[0], "--in-fd" "--out-fd" ... NULL
-        cmdarg = new char*[external_binary_args.size() + 4];
-        cmdarg[0] = strdup(helper_path.c_str());
+        // The helper gets only its stdio and its own pipe ends; anything else inherited, like
+        // the listen sockets or the pipes of other helpers, would outlive the server in it and
+        // in anything it runs
+        close_inherited_fds(inpipepair[0], outpipepair[1]);
 
-        // Child reads from inpair
-        std::string argstr;
+        execvp(cmdarg[0], cmdarg.data());
 
-        argstr = fmt::format("--in-fd={}", inpipepair[0]);
-        cmdarg[1] = strdup(argstr.c_str());
-
-        // Child writes to writepair
-        argstr = fmt::format("--out-fd={}", outpipepair[1]);
-        cmdarg[2] = strdup(argstr.c_str());
-
-        for (unsigned int x = 0; x < external_binary_args.size(); x++)
-            cmdarg[x+3] = strdup(external_binary_args[x].c_str());
-
-        cmdarg[external_binary_args.size() + 3] = NULL;
-
-        // close the unused half of the pairs on the child
-        ::close(inpipepair[1]);
-        ::close(outpipepair[0]);
-
-        execvp(cmdarg[0], cmdarg);
-
-        exit(255);
+        _exit(255);
     }
 
     // Parent process

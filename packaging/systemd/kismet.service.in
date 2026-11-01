@@ -8,7 +8,7 @@ User=root
 Group=root
 Type=simple
 ExecStart=@prefix@/bin/kismet --no-ncurses-wrapper
-KillMode=process
+KillMode=mixed
 TimeoutSec=0
 Restart=always
 
