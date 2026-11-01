@@ -9,6 +9,7 @@
 //   packets > 1000 && signal > -60
 //   manuf ~ apple                 icontains;  name =~ /^corp-/  matches
 //   last_time < 5m                age(last_time) < 5m, for time fields
+//   uptime > 1d                   1d in the field's own units, for duration fields
 //   00:11:22 || aa:bb             MACs: 2-6 octets anywhere in the address, in
 //                                 every MAC field; ^00:11 prefix, 22:33$ suffix
 //   ssid* ~ guest                 name* is the wider set of fields, if there is one
@@ -17,8 +18,10 @@
 // Field names are full paths, the server's short names, column ids (without a
 // group prefix like wifi_) and titles, or search field ids, which match if any
 // of their fields do.  Columns and search fields may say what they hold with
-// filterKind ('text', 'number', 'time', 'mac') and their wider set with
-// filterWide (paths).
+// filterKind ('text', 'number', 'time', 'mac', 'duration') and their wider set
+// with filterWide (paths).  A duration field takes 30s, 5m, 2h, 1d and turns
+// them into its own units with filterConvert(seconds), such as durationIn.us;
+// a plain number is used as it is.
 //
 // compileQuery(text, fieldContext(columns, searchFields)) returns
 // { search } or { filter, sort }, and throws a QueryError with the position.
@@ -51,6 +54,16 @@ const aliases = {
     max_signal: ['kismet.device.base.signal/kismet.common.signal.max_signal', 'number'],
 };
 
+// filterConvert functions for duration fields, from seconds to the field's units
+export const durationIn = {
+    s: (s) => s,
+    ms: (s) => s * 1e3,
+    us: (s) => s * 1e6,
+    ns: (s) => s * 1e9,
+};
+
+const durSeconds = { s: 1, m: 60, h: 3600, d: 86400 };
+
 const aliasByPath = new Map(Object.entries(aliases).map(([n, [p]]) => [p, n]));
 
 const pathOf = (spec) => (Array.isArray(spec) ? spec[0] : spec);
@@ -61,14 +74,15 @@ const aliasKind = (path) => aliases[aliasByPath.get(path)]?.[1] ?? null;
 
 // Names the box knows, from the columns and search fields (registry lists).
 // Each name has its paths and the kind of each; a search field's filterKind
-// may be one kind or { path: kind }, and is text when not given.
+// may be one kind or { path: kind }, and is text when not given.  Its
+// filterConvert may likewise be one function or { path: function }.
 export function fieldContext(columns = [], searchFields = []) {
     const names = new Map();
     const macFields = [];
     const addMac = (p) => macFields.includes(p) || macFields.push(p);
 
     for (const [n, [path, kind]] of Object.entries(aliases)) {
-        names.set(n, { paths: [path], kinds: [kind] });
+        names.set(n, { paths: [path], kinds: [kind], convs: [null] });
         if (kind === 'mac')
             addMac(path);
     }
@@ -84,7 +98,7 @@ export function fieldContext(columns = [], searchFields = []) {
         if (!path || path.startsWith('#'))
             continue;
         const kind = c.filterKind ?? aliasKind(path) ?? (/_time$/.test(path) ? 'time' : null);
-        const entry = { paths: [path], kinds: [kind], wide: c.filterWide };
+        const entry = { paths: [path], kinds: [kind], convs: [c.filterConvert ?? null], wide: c.filterWide };
         if (kind === 'mac')
             addMac(path);
         // wifi_ssid in the Wi-Fi group is ssid
@@ -99,8 +113,10 @@ export function fieldContext(columns = [], searchFields = []) {
         const paths = (s.fields ?? []).map(pathOf).filter((p) => !p.startsWith('#'));
         const fk = s.filterKind;
         const kinds = paths.map((p) => (typeof fk === 'string' ? fk : fk?.[p]) ?? aliasKind(p) ?? 'text');
+        const fc = s.filterConvert;
+        const convs = paths.map((p) => (typeof fc === 'function' ? fc : fc?.[p]) ?? null);
         if (paths.length)
-            add(s.id, { paths, kinds });
+            add(s.id, { paths, kinds, convs });
     }
 
     return { names, macFields };
@@ -319,7 +335,7 @@ function resolve(ctx, tok) {
     const name = tok.v;
     if (name.includes('.') || name.includes('/')) {
         const path = name.replace(/\*$/, '');
-        return { name, paths: [path], kinds: [aliasKind(path)] };
+        return { name, paths: [path], kinds: [aliasKind(path)], convs: [null] };
     }
 
     const low = name.toLowerCase();
@@ -327,15 +343,15 @@ function resolve(ctx, tok) {
     const base = wide ? low.slice(0, -1) : low;
 
     if (wide && base === 'mac')
-        return { name, paths: ctx.macFields, kinds: ctx.macFields.map(() => 'mac') };
+        return { name, paths: ctx.macFields, kinds: ctx.macFields.map(() => 'mac'), convs: ctx.macFields.map(() => null) };
 
     const e = ctx.names.get(base);
     if (!e)
         throw new QueryError(`unknown field '${name.replace(/\*$/, '')}'`, tok.pos);
 
     if (wide && e.wide?.length)
-        return { name: `${base}*`, paths: e.wide, kinds: e.wide.map(() => e.kinds[0]) };
-    return { name: base, paths: e.paths, kinds: e.kinds };
+        return { name: `${base}*`, paths: e.wide, kinds: e.wide.map(() => e.kinds[0]), convs: e.wide.map(() => e.convs[0]) };
+    return { name: base, paths: e.paths, kinds: e.kinds, convs: e.convs };
 }
 
 function macParts(text) {
@@ -367,8 +383,16 @@ function macEntries(text) {
     return list;
 }
 
+// A duration such as 1d in a field's units
+function durationValue(name, conv, v) {
+    const n = Math.round((conv ?? durationIn.s)(Number(v.v.slice(0, -1)) * durSeconds[v.v.slice(-1)]));
+    if (!Number.isSafeInteger(n))
+        throw new QueryError(`${v.v} is too long for ${name}`, v.pos);
+    return String(n);
+}
+
 // One value as the server's literal for a field of kind k
-function literal(name, k, op, v) {
+function literal(name, k, op, v, conv) {
 
     if (v.t === 'regex')
         return quote(v.v);
@@ -380,6 +404,14 @@ function literal(name, k, op, v) {
         if (suffix && octets.length < 6)
             return macEntries(v.v)[0];
         return macStr(octets);
+    }
+
+    if (k === 'duration') {
+        if (v.t === 'duration')
+            return durationValue(name, conv, v);
+        if (v.t !== 'number')
+            throw new QueryError(`${name} is a length of time, like 30s, 5m, 2h or 1d`, v.pos);
+        return v.v;
     }
 
     if (k === 'number' || (k === 'time' && v.t !== 'duration')) {
@@ -403,10 +435,10 @@ function literal(name, k, op, v) {
 const serverOp = { '~': 'icontains', '=~': 'matches' };
 
 // One comparison on one path of kind k
-function term(name, p, k, op, v, pos) {
+function term(name, p, k, conv, op, v, pos) {
     if (['<', '<=', '>', '>='].includes(op) && (k === 'text' || k === 'mac'))
         throw new QueryError(`${name} is ${k === 'mac' ? 'a MAC address' : 'text'}; use ~ or ==`, pos);
-    if ((op === '~' || op === '=~') && (k === 'number' || k === 'time'))
+    if ((op === '~' || op === '=~') && (k === 'number' || k === 'time' || k === 'duration'))
         throw new QueryError(`${name} is a number; use == != < <= > >=`, pos);
     if (op === '=~' && k === 'mac')
         throw new QueryError(`${name} is a MAC address; use == or ~`, pos);
@@ -418,7 +450,7 @@ function term(name, p, k, op, v, pos) {
         return `${out(p)} in [${macEntries(v.v).join(', ')}]`;
     }
 
-    const lit = literal(name, k, op, v);
+    const lit = literal(name, k, op, v, conv);
     const age = k === 'time' && v.t === 'duration';
     return `${age ? `age(${out(p)})` : out(p)} ${serverOp[op] ?? op} ${lit}`;
 }
@@ -430,7 +462,7 @@ function terms(f, fn) {
     let err = null;
     f.paths.forEach((p, i) => {
         try {
-            list.push(fn(p, f.kinds[i]));
+            list.push(fn(p, f.kinds[i], f.convs?.[i]));
         } catch (e) {
             if (!(e instanceof QueryError))
                 throw e;
@@ -448,8 +480,8 @@ function cmp(ctx, n) {
 
     // Not equal to any of them
     if (op === '!=' && f.paths.length > 1)
-        return `not ${any(terms(f, (p, k) => term(f.name, p, k, '==', v, pos)))}`;
-    return any(terms(f, (p, k) => term(f.name, p, k, op, v, pos)));
+        return `not ${any(terms(f, (p, k, conv) => term(f.name, p, k, conv, '==', v, pos)))}`;
+    return any(terms(f, (p, k, conv) => term(f.name, p, k, conv, op, v, pos)));
 }
 
 const any = (terms) => (terms.length === 1 ? terms[0] : `(${terms.join(' or ')})`);
@@ -507,12 +539,12 @@ function orTerms(ctx, list) {
         const { f, nodes } = groups.get(key);
         if (nodes.length === 1)
             return gen(ctx, nodes[0]);
-        return any(terms(f, (p, k) => {
+        return any(terms(f, (p, k, conv) => {
             const vals = [];
             let err = null;
             for (const c of nodes) {
                 try {
-                    vals.push(literal(f.name, k, '==', c.value));
+                    vals.push(literal(f.name, k, '==', c.value, conv));
                 } catch (e) {
                     if (!(e instanceof QueryError))
                         throw e;
