@@ -1654,7 +1654,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         if (!dissect_data)
             hidedata_truncate(in_pack, chunk, packinfo);
 
-        if (packinfo->cryptset == 0 && dissect_data && datasize > 0) {
+        // datasize counts what the capture cut off, so a frame captured shorter than its
+        // header can still have a positive size; only read a payload that's in the buffer
+        if (packinfo->cryptset == 0 && dissect_data && datasize > 0 &&
+                chunk->length() > packinfo->header_offset) {
             // Keep whatever datachunk we already found
             auto datachunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
 
