@@ -14,7 +14,9 @@ const vectors = {
 // History oldest-first as a plain array, ending at `now` (server seconds).
 // It never runs past when the server sent the RRD: on a slow link `now` is
 // already later, and those seconds aren't zero, just not known yet.
-export function history(rrd, now, span = 'minute') {
+// With a `blank` value (such as null), bins with nothing recorded, and the
+// RRD's own blank value, read as that instead of zero.
+export function history(rrd, now, span = 'minute', { blank } = {}) {
     const [name, bin] = vectors[span];
     const data = rrd?.[name];
     if (!Array.isArray(data) || data.length === 0)
@@ -29,10 +31,17 @@ export function history(rrd, now, span = 'minute') {
     const end = Math.floor(at / bin);
     const len = data.length;
     const out = new Array(len);
+    const keep = blank !== undefined;
+    const rrdBlank = rrd['kismet.common.rrd.blank_val'];
 
     for (let i = 0; i < len; i++) {
         const t = end - (len - 1 - i);
-        out[i] = (t > last || t <= last - len) ? 0 : data[((t % len) + len) % len];
+        if (t > last || t <= last - len) {
+            out[i] = keep ? blank : 0;
+            continue;
+        }
+        const v = data[((t % len) + len) % len];
+        out[i] = keep && v === rrdBlank ? blank : v;
     }
 
     return out;
