@@ -54,8 +54,10 @@ struct tree_eval {
         const std::string& lit = n->b->str;
 
         switch (o) {
-            case op::eq: return s == lit;
-            case op::ne: return s != lit;
+            case op::eq:
+                return n->icase ? str_ieq(s.data(), s.size(), lit.data(), lit.size()) : s == lit;
+            case op::ne:
+                return n->icase ? !str_ieq(s.data(), s.size(), lit.data(), lit.size()) : s != lit;
             case op::contains: return s.find(lit) != std::string_view::npos;
             case op::icontains: {
                 std::string a(s), b(lit);
@@ -123,7 +125,8 @@ struct tree_eval {
                     }
                     break;
                 case vtype::string:
-                    if (std::string_view(v.s, v.len) == e->str)
+                    if (n->icase ? str_ieq(v.s, v.len, e->str.data(), e->str.size()) :
+                            std::string_view(v.s, v.len) == e->str)
                         return true;
                     break;
                 case vtype::mac:

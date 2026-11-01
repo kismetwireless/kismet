@@ -200,6 +200,8 @@ struct node {
     std::string str;
     int slot;
     int aux;
+    // String == != and 'in' ignore case
+    bool icase;
 
     std::unique_ptr<node> a, b;
     std::vector<std::unique_ptr<node>> set;
@@ -280,8 +282,8 @@ enum class bc : uint8_t {
     addf, subf, mulf, divf, negf,
     eqi, nei, lti, lei, gti, gei,
     eqf, nef, ltf, lef, gtf, gef,
-    seq, sne, scont, sicont, spre, ssuf, sre,
-    ini, inf, ins, inm,
+    seq, sne, scont, sicont, spre, ssuf, sre, sieq, sine,
+    ini, inf, ins, inm, insi,
     meq, mne,
     mpred,
     exists, count,
@@ -475,6 +477,7 @@ protected:
 
 // Lower-case ASCII compare helpers shared by the backends
 bool str_icontains(const char *h, size_t hl, const char *n, size_t nl);
+bool str_ieq(const char *a, size_t al, const char *b, size_t bl);
 
 // Sort keys of many devices, captured one device at a time, then ordered.  Missing
 // keys sort last in either direction; ties keep the order rows were added.
