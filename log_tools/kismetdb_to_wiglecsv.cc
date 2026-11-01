@@ -116,7 +116,7 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
     return ret;
 }
 
-std::string WifiCryptToString(unsigned long cryptset) {
+std::string WifiCryptToString(uint64_t cryptset) {
     std::stringstream ss;
 
     if (cryptset & dot11_crypt_akm_wps)
@@ -647,7 +647,7 @@ int main(int argc, char *argv[]) {
         auto sourcemac = sqlite3_column_as<std::string>(p, 1);
         auto phy = sqlite3_column_as<std::string>(p, 2);
 
-        auto lat = 0.0f, lon = 0.0f, alt = 0.0f;
+        double lat = 0, lon = 0, alt = 0;
 
         auto signal = sqlite3_column_as<int>(p, 5);
         auto channel = sqlite3_column_as<double>(p, 6);
@@ -733,7 +733,7 @@ int main(int argc, char *argv[]) {
 
                     // Handle the aliased ssid_record for modern info
                     if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", 0));
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
                     } else {
                         if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null())
                             throw std::runtime_error("No last beaconed checksum");
@@ -744,7 +744,7 @@ int main(int argc, char *argv[]) {
 
                         ss << last_ssid_key;
 
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", 0));
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
                     }
 
                     crypt += "[ESS]";
@@ -787,9 +787,9 @@ int main(int argc, char *argv[]) {
         if (cached->filtered)
             continue;
 
-        // Rate throttle
+        // Rate throttle: one record per device per rate_limit seconds
         if (rate_limit != 0 && cached->last_time_sec != 0) {
-            if (cached->last_time_sec + rate_limit < ts) {
+            if (ts < cached->last_time_sec + rate_limit) {
                 n_discarded_logs_rate++;
                 continue;
             }
@@ -801,7 +801,7 @@ int main(int argc, char *argv[]) {
 
         // [BSSID],[SSID],[Capabilities],[First timestamp seen],[Channel],[Frequency],[RSSI],
         //    [Latitude],[Longitude],[Altitude],[Accuracy],[RCOIs],[MfgrId],[Type]
-        fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{}\n",
+        fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
                 sourcemac,
                 cached->name,
                 cached->crypto,
@@ -811,6 +811,8 @@ int main(int argc, char *argv[]) {
                 signal,
                 lat, lon, alt,
                 0, // TODO - derive a gps accuracy
+                "", // rcoi blank
+                "", // no mfgr id for wifi
                 "WIFI");
 
         n_saved++;
@@ -844,7 +846,7 @@ int main(int argc, char *argv[]) {
             auto sourcemac = sqlite3_column_as<std::string>(p, 1);
             auto phy = sqlite3_column_as<std::string>(p, 2);
 
-            auto lat = 0.0f, lon = 0.0f, alt = 0.0f;
+            double lat = 0, lon = 0, alt = 0;
             auto signal = 0;
 
             if (db_version < 5) {
@@ -938,9 +940,9 @@ int main(int argc, char *argv[]) {
             if (cached == nullptr)
                 continue;
 
-            // Rate throttle
+            // Rate throttle: one record per device per rate_limit seconds
             if (rate_limit != 0 && cached->last_time_sec != 0) {
-                if (cached->last_time_sec + rate_limit < ts) {
+                if (ts < cached->last_time_sec + rate_limit) {
                     n_discarded_logs_rate++;
                     continue;
                 }
