@@ -55,7 +55,11 @@
 #include <linux/sched.h>
 #include <sched.h>
 #include <sys/mount.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
 #endif
+
+#include <limits.h>
 
 #include "capture_framework.h"
 
@@ -5601,9 +5605,29 @@ int cf_ipc_find_exec(kis_capture_handler_t *caph, char *program) {
     return 0;
 }
 
+/* Closes every descriptor from lowfd up; only async-signal-safe calls, for a forked child */
+static void cf_close_fds_from(int lowfd) {
+    long maxfd;
+
+#if defined(SYS_LINUX) && defined(SYS_close_range)
+    if (syscall(SYS_close_range, (unsigned int) lowfd, ~0U, 0) == 0)
+        return;
+#endif
+
+    maxfd = sysconf(_SC_OPEN_MAX);
+    if (maxfd < 0 || maxfd > INT_MAX)
+        maxfd = 65536;
+
+    for (int fd = lowfd; fd < maxfd; fd++)
+        close(fd);
+}
+
 cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
     cf_ipc_t *ret = NULL;
     pthread_mutexattr_t mutexattr;
+#ifdef SYS_LINUX
+    pid_t parent_pid = getpid();
+#endif
 
     int inpair[2];
     int outpair[2];
@@ -5655,9 +5679,18 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         close(errpair[1]);
         close(errpair[0]);
 
+        /* The tool gets only its stdio, not the server connection, the radio, or the
+         * descriptors the server leaked to us, and goes away with us */
+        cf_close_fds_from(STDERR_FILENO + 1);
+
+#ifdef SYS_LINUX
+        if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0 || getppid() != parent_pid)
+            _exit(255);
+#endif
+
         execvp(argv[0], argv);
 
-        return NULL;
+        _exit(255);
     } else {
         close(inpair[0]);
         close(errpair[1]);
