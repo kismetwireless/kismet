@@ -74,6 +74,18 @@
  * script has been installed alongside the capture helper. */
 #define DEFAULT_SCRIPT_PATH DATA_LOC "/kismet/zigbee900/zigbee900_live_rx.py"
 
+/* A source definition can come from any web admin, so running as root only the installed
+ * script runs; a setuid helper runs it as the user who launched the helper */
+static int zigbee900_script_allowed(char *msg) {
+    if (getuid() == 0) {
+        snprintf(msg, STATUS_MAX, "zigbee900sdr does not accept script= when running as root; "
+                "only the installed script (%s) is used", DEFAULT_SCRIPT_PATH);
+        return 0;
+    }
+
+    return 1;
+}
+
 #define MAX_PSDU_BYTES 127
 
 typedef struct {
@@ -320,6 +332,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "script", definition)) > 0) {
+        if (!zigbee900_script_allowed(msg))
+            return 0;
         script_path = strndup(placeholder, placeholder_len);
     } else {
         script_path = strdup(DEFAULT_SCRIPT_PATH);
@@ -426,6 +440,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "script", definition)) > 0) {
+        if (!zigbee900_script_allowed(msg))
+            return -1;
         local900->script_path = strndup(placeholder, placeholder_len);
     } else {
         local900->script_path = strdup(DEFAULT_SCRIPT_PATH);
