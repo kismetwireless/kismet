@@ -98,6 +98,10 @@ DATASOURCE_COMMON_C_O = \
 	simple_ringbuf_c.c.o version.c.o capture_framework.c.o firmware_file.c.o
 DATASOURCE_COMMON_A = libkismetdatasource.a
 
+# Wi-Fi channel code shared by several capture tools, built here once so their
+# sub-makes don't build the same object at the same time
+DATASOURCE_WIFI_C_O = interface_control.c.o wifi_ht_channels.c.o
+
 CAPTURE_PCAPFILE_O = \
 	capture_pcapfile.c.o
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
@@ -444,16 +448,16 @@ $(CAPTURE_PCAPFILE):	$(DATASOURCE_COMMON_A) $(CAPTURE_PCAPFILE_O)
 $(CAPTURE_KISMETDB):	$(DATASOURCE_COMMON_A) $(CAPTURE_KISMETDB_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_KISMETDB) $(CAPTURE_KISMETDB_O) $(DATASOURCE_COMMON_A) $(DATASOURCE_LIBS) -lsqlite3
 
-$(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 	(cd capture_linux_wifi && $(MAKE))
 
 $(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_bluetooth && $(MAKE))
 
-$(CAPTURE_OPENBSD_WIFI):	$(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_OPENBSD_WIFI):	$(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 	(cd capture_openbsd_wifi && $(MAKE))
 
-$(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 	(cd capture_osx_corewlan_wifi && $(MAKE))
 
 $(CAPTURE_SDR_RTL433V2): $(DATASOURCE_COMMON_A) FORCE
@@ -507,7 +511,7 @@ $(CAPTURE_SNIFFLE_BLE): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_LORAPIPE): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_lorapipe && $(MAKE))
 
-$(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 	(cd capture_bladerf_wiphy && $(MAKE))
 
 $(CAPTURE_HAK5_COCONUT): $(DATASOURCE_COMMON_A) FORCE
