@@ -200,6 +200,9 @@ struct tree_eval {
                 return v;
             }
 
+            case nkind::text:
+                return invalid();
+
             case nkind::unary: {
                 auto a = eval(n->a.get());
                 if (n->o == op::lnot)

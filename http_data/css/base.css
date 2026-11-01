@@ -274,6 +274,8 @@ input:focus, select:focus, button:focus-visible {
 }
 .search-box input { border: none; outline: none; padding-left: 0; width: 14rem; }
 .search-box:focus-within { border-color: var(--accent); }
+.search-box:has(input[aria-invalid]) { border-color: var(--error); }
+.search-error { color: var(--error); font-size: 0.85em; }
 .count-info { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .table-area {

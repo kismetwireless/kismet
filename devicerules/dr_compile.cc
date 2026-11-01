@@ -428,6 +428,11 @@ private:
                 break;
             }
 
+            case nkind::text:
+                expand_text(n);
+                check(n, want_bool);
+                return;
+
             case nkind::unary:
                 if (n->o == op::lnot) {
                     check(n->a, true);
@@ -450,6 +455,78 @@ private:
 
         if (want_bool && n->type == vtype::integer)
             to_bool(n);
+    }
+
+    std::unique_ptr<node> mk_node(nkind k, const node *at) {
+        auto n = std::make_unique<node>();
+        n->kind = k;
+        n->o = op::add;
+        n->type = vtype::none;
+        n->line = at->line;
+        n->col = at->col;
+        n->lit = value{};
+        n->mask = 0;
+        n->slot = -1;
+        n->aux = -1;
+        return n;
+    }
+
+    // Balanced so a long list of fields doesn't nest deeply
+    std::unique_ptr<node> or_tree(std::vector<std::unique_ptr<node>>& terms, size_t s, size_t e) {
+        if (e - s == 1)
+            return std::move(terms[s]);
+        auto m = s + (e - s) / 2;
+        auto n = mk_node(nkind::binary, terms[s].get());
+        n->o = op::lor;
+        n->a = or_tree(terms, s, m);
+        n->b = or_tree(terms, m, e);
+        return n;
+    }
+
+    // text("s") is true when any string text field contains s, ignoring case; text
+    // fields that don't resolve or aren't strings are skipped
+    void expand_text(std::unique_ptr<node>& n) {
+        if (rs.text_fields.empty())
+            error(n.get(), "text() can only be used in device list filters");
+
+        std::vector<std::unique_ptr<node>> terms;
+        ankerl::unordered_dense::set<int> seen;
+
+        for (const auto& t : rs.text_fields) {
+            int slot;
+            try {
+                slot = resolve_field(n.get(), t);
+            } catch (const parse_error&) {
+                continue;
+            }
+
+            if (rs.fields[slot].type != vtype::string || !seen.insert(slot).second)
+                continue;
+
+            auto f = mk_node(nkind::field, n.get());
+            f->str = rs.fields[slot].text;
+
+            auto s = mk_node(nkind::literal, n.get());
+            s->type = vtype::string;
+            s->str = n->str;
+            s->lit.valid = 1;
+
+            auto c = mk_node(nkind::binary, n.get());
+            c->o = op::icontains;
+            c->a = std::move(f);
+            c->b = std::move(s);
+            terms.push_back(std::move(c));
+        }
+
+        if (terms.empty()) {
+            auto f = mk_node(nkind::literal, n.get());
+            f->type = vtype::boolean;
+            f->lit.valid = 1;
+            n = std::move(f);
+            return;
+        }
+
+        n = or_tree(terms, 0, terms.size());
     }
 
     void check_binary(std::unique_ptr<node>& n) {
@@ -743,6 +820,9 @@ private:
             case nkind::count:
                 emit(bc::count, r, n->slot, 0);
                 return;
+
+            case nkind::text:
+                error(n, "unexpanded text()");
 
             case nkind::unary:
                 gen(n->a.get(), r);

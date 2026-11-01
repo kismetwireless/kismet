@@ -632,35 +632,7 @@ public:
                 error("expected 'by'");
             advance();
 
-            while (true) {
-                if (s->keys.size() >= max_sort_keys)
-                    error("too many sort keys");
-
-                sort_key k;
-                k.desc = false;
-                k.type = vtype::none;
-                k.cr = compiled_rule{};
-
-                if (is_word("rule"))
-                    advance();
-                else {
-                    ops = 0;
-                    k.expr = parse_expr();
-                }
-
-                if (is_word("asc")) {
-                    advance();
-                } else if (is_word("desc")) {
-                    k.desc = true;
-                    advance();
-                }
-
-                s->keys.push_back(std::move(k));
-
-                if (cur.t != tok::comma)
-                    break;
-                advance();
-            }
+            parse_keys(*s);
         }
 
         size_t end = lex.offset();
@@ -672,6 +644,71 @@ public:
         s->source = src.substr(start, end - start);
 
         return s;
+    }
+
+    // A device list filter: the whole text is one expression
+    std::unique_ptr<rule_def> parse_filter() {
+        if (cur.t == tok::end)
+            error("expected a filter");
+
+        auto r = std::make_unique<rule_def>();
+        r->view = false;
+        r->alert = false;
+        r->live = false;
+        r->uses_now = false;
+        r->line = cur.line;
+        r->name = "filter";
+        ops = 0;
+        r->expr = parse_expr();
+        r->source = src;
+        return r;
+    }
+
+    // Comma separated sort keys alone, as a device list sends them
+    std::unique_ptr<sort_def> parse_sort_keys() {
+        if (cur.t == tok::end)
+            error("expected a sort key");
+
+        auto s = std::make_unique<sort_def>();
+        s->uses_now = false;
+        s->line = cur.line;
+        s->col = cur.col;
+        s->name = "filter";
+        parse_keys(*s);
+        s->source = src;
+        return s;
+    }
+
+    void parse_keys(sort_def& s) {
+        while (true) {
+            if (s.keys.size() >= max_sort_keys)
+                error("too many sort keys");
+
+            sort_key k;
+            k.desc = false;
+            k.type = vtype::none;
+            k.cr = compiled_rule{};
+
+            if (is_word("rule"))
+                advance();
+            else {
+                ops = 0;
+                k.expr = parse_expr();
+            }
+
+            if (is_word("asc")) {
+                advance();
+            } else if (is_word("desc")) {
+                k.desc = true;
+                advance();
+            }
+
+            s.keys.push_back(std::move(k));
+
+            if (cur.t != tok::comma)
+                break;
+            advance();
+        }
     }
 
 private:
@@ -1050,6 +1087,19 @@ private:
             return n;
         }
 
+        if (w == "text") {
+            auto n = mk(nkind::text);
+            advance();
+            expect(tok::lparen, "'('");
+            if (cur.t != tok::string || cur.text.empty())
+                error("text() needs a string to look for");
+            n->str = cur.text;
+            n->type = vtype::boolean;
+            advance();
+            expect(tok::rparen, "')'");
+            return n;
+        }
+
         if (is_keyword(w))
             error("unexpected '" + w + "'");
 
@@ -1066,7 +1116,7 @@ private:
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "when", "tag", "color", "view", "alert", "live", "rule",
+            "count", "age", "text", "when", "tag", "color", "view", "alert", "live", "rule",
             "sort", "by", "asc", "desc", "include" };
 
         for (auto k : kw)
@@ -1127,6 +1177,20 @@ void ruleset::parse(const std::string& text, const parse_source& src) {
                 throw parse_error("expected a rule", src.line_base + 1, 1);
             p.expect_end("rule");
             add_rule(std::move(r));
+            return;
+        }
+
+        if (src.only == parse_source::block::filter) {
+            auto r = p.parse_filter();
+            p.expect_end("filter");
+            add_rule(std::move(r));
+            return;
+        }
+
+        if (src.only == parse_source::block::sort_keys) {
+            auto s = p.parse_sort_keys();
+            p.expect_end("sort");
+            add_sort(std::move(s));
             return;
         }
 

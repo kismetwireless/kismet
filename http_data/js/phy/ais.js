@@ -19,6 +19,7 @@ export function register(kismet) {
     ui.searchFields.add({
         id: 'ais', description: 'AIS MMSI, name, and callsign',
         fields: [`${ais}/${ais}.mmsi`, `${ais}/${ais}.name`, `${ais}/${ais}.callsign`],
+        filterKind: { [`${ais}/${ais}.mmsi`]: 'number' },
     });
 
     ui.deviceIcons.add({

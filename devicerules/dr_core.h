@@ -103,6 +103,10 @@ struct parse_source {
         // One rule or sort without its leading keyword, as written on a config line
         rule,
         sort,
+        // A device list filter: one expression, which becomes the rule 'filter'
+        filter,
+        // The keys of a sort, without 'by' or braces, which become the sort 'filter'
+        sort_keys,
     };
 
     std::string origin;
@@ -181,6 +185,8 @@ enum class nkind : uint8_t {
     binary,
     exists,
     count,
+    // text("s"), expanded into icontains over the ruleset's text fields
+    text,
 };
 
 struct node {
@@ -433,6 +439,8 @@ public:
     std::vector<std::unique_ptr<rule_def>> rules;
     std::vector<std::unique_ptr<sort_def>> sorts;
     std::vector<field_slot> fields;
+    // Fields text() searches; text() is an error when there are none
+    std::vector<std::string> text_fields;
     std::vector<value> consts;
     std::vector<std::string> const_strings;
     // mac, mask

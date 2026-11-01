@@ -7,6 +7,7 @@ import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
 import * as sources from '../core/sources.js';
 import { onLogin } from '../core/auth.js';
+import { compileQuery, fieldContext } from '../core/filterquery.js';
 import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields } from '../registry/columns.js';
 import { deviceViews } from '../registry/devices.js';
 import { openDevice } from './detailpanel.js';
@@ -123,6 +124,8 @@ export function createDeviceTable(container) {
         defaultSort: { column: 'last_time', dir: 'desc' },
         noun: 'devices',
         toolbar: () => viewSelect,
+        // Filters in the search box name the device list's columns and search fields
+        query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list())),
     });
 
     loadViews();

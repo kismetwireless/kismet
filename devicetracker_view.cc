@@ -528,6 +528,12 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // Sort from the device rules, which replaces the order path
     auto rule_sort = std::string{};
 
+    // Device list filter and sort keys in the device rules language; text() in the
+    // filter searches the requested fields
+    auto filter = std::string{};
+    auto filter_sort = std::string{};
+    auto text_fields = std::vector<std::string>{};
+
     // Regular expression terms, if any
     auto regex = con->json()["regex"];
 
@@ -560,11 +566,13 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         for (const auto& i : fields) {
             if (i.is_string()) {
                 summary_vec.push_back(std::make_shared<tracker_element_summary>(i.get<std::string>()));
+                text_fields.push_back(i.get<std::string>());
             } else if (i.is_array()) {
                 if (i.size() != 2)
                     throw std::runtime_error("Invalid field map, expected [field, rename]");
 
                 summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].get<std::string>(), i[1].get<std::string>()));
+                text_fields.push_back(i[0].get<std::string>());
             } else {
                 throw std::runtime_error("Invalid field map, exected field or [field, rename]");
             }
@@ -598,6 +606,18 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             rule_sort = rule_sort_k->second;
         else
             rule_sort = con->json().value("rule_sort", std::string{});
+
+        auto filter_k = con->http_variables().find("filter");
+        if (filter_k != con->http_variables().end())
+            filter = filter_k->second;
+        else
+            filter = con->json().value("filter", std::string{});
+
+        auto filter_sort_k = con->http_variables().find("filter_sort");
+        if (filter_sort_k != con->http_variables().end())
+            filter_sort = filter_sort_k->second;
+        else
+            filter_sort = con->json().value("filter_sort", std::string{});
 
         // Generic pagination
         auto start_k = con->http_variables().find("page");
@@ -784,6 +804,31 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             os << "Invalid regex: " << e.what() << "\n";
             return;
         }
+    }
+
+    // Filters and their sorts replace the vector, so they go before the window is
+    // taken from it
+    if (filter.length() > 0 || filter_sort.length() > 0) {
+        auto rules = Globalreg::fetch_global_as<device_rules>();
+
+        if (rules == nullptr) {
+            con->set_status(400);
+            os << nlohmann::json{{"ok", false}, {"error", "device rules aren't available"}}.dump();
+            return;
+        }
+
+        try {
+            rules->filter_devices(filter, filter_sort, text_fields, next_work_vec);
+        } catch (const devicerules::parse_error& e) {
+            con->set_status(400);
+            con->set_mime_type("application/json");
+            os << nlohmann::json{{"ok", false}, {"error", e.what()}, {"line", e.line}, {"col", e.col},
+                {"in", e.origin}}.dump();
+            return;
+        }
+
+        if (filter_sort.length() > 0)
+            order_field.clear();
     }
 
     // Apply the filtered length
