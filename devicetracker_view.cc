@@ -80,10 +80,14 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     if (in_aux_path.size() == 0)
         return;
 
-    // Concatenate the alternate endpoints and register the same endpoint handlers
+    // Join the alternate path elements and register the same endpoint handlers there;
+    // register_urls adds the slash before "devices"
     std::stringstream ss;
-    for (const auto& i : in_aux_path)
-        ss << i << "/";
+    for (size_t i = 0; i < in_aux_path.size(); i++) {
+        if (i > 0)
+            ss << "/";
+        ss << in_aux_path[i];
+    }
 
     register_urls(ss.str());
 }
