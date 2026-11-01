@@ -523,6 +523,9 @@ public:
     // frame again from one of them is a new transmission, not a duplicate.
     std::vector<const void *> dedupe_sources;
 
+    // The source this packet came from, set before it's visible to the dedupe scan
+    const void *dedupe_source;
+
     // Packet lock
     kis_mutex mutex;
 };

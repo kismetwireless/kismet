@@ -496,6 +496,7 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
     const auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
     if (datasrc != nullptr)
         source = datasrc->ref_source;
+    packet->dedupe_source = source;
 
     // Earlier packets sharing this hash; per thread so we don't allocate per packet
     thread_local std::vector<std::shared_ptr<kis_packet>> candidates;
@@ -514,6 +515,10 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
             if (window.hash[i] != packet->hash || window.pkt[i] == nullptr)
                 continue;
 
+            // Our own source's packets, originals or duplicates, already list it
+            if (source != nullptr && window.pkt[i]->dedupe_source == source)
+                continue;
+
             const auto a = window.arrival_no[i];
             const auto dist = a > packet->arrival_no ? a - packet->arrival_no : packet->arrival_no - a;
 
@@ -523,7 +528,8 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
         }
 
         for (const auto& p : window.pending) {
-            if (p->hash == packet->hash && arrival_distance_us(*p, *packet) <= dedupe_max_age_us)
+            if (p->hash == packet->hash && (source == nullptr || p->dedupe_source != source) &&
+                    arrival_distance_us(*p, *packet) <= dedupe_max_age_us)
                 candidates.push_back(p);
         }
 
