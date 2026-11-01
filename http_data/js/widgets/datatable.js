@@ -20,12 +20,17 @@
 //       onRowClick: (row) => openSsid(row),
 //       defaultSort: { column: 'last_time', dir: 'desc' },
 //       noun: 'SSIDs',
+//       query,                         // optional; the search box's filters (below)
 //   });
 //
 // endpoint is any Kismet list that pages like the device views (page,
 // length, sort, sort_dir, search, and a fields list; answering with data,
 // last_page, last_row, total_row), or a function giving the path, for a list
 // that changes (the device view).
+//
+// query(text) turns the search box into { search } or, for the device views,
+// a device rules { filter, sort } (see js/core/filterquery.js); it throws an
+// error with a pos for text it can't use.
 
 import { el, debounce } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -86,11 +91,14 @@ export function createDataTable(container, {
     toolbar = null,
     refreshSeconds = 2,
     watch = [],
+    query = null,
 }) {
     const firstSortable = columns.list().find((c) => c.sortField);
     const state = {
         sort: settings.get(`${id}.sort`, defaultSort ?? { column: firstSortable?.id, dir: 'desc' }),
         search: '',
+        // { filter, sort } from query, instead of search
+        filter: null,
         unfiltered: 0,
         timer: null,
         rowHeight: 0,
@@ -111,15 +119,47 @@ export function createDataTable(container, {
     // sends 'search') turns searching off at once; typing waits for a pause
     function applySearch() {
         const term = searchInput.value.trim();
-        if (term === state.search)
+        let next = { search: term, filter: null };
+
+        if (query) {
+            try {
+                const q = query(term);
+                next = q.search !== undefined ? { search: q.search, filter: null } : { search: '', filter: q };
+            } catch (err) {
+                if (typeof err.pos !== 'number')
+                    throw err;
+                // Keep the last good list while the text is wrong
+                showQueryError(err.pos >= 0 ? `${err.message} (at ${err.pos + 1})` : err.message);
+                return;
+            }
+            showQueryError(null);
+            searchInput.title = next.filter ?
+                [next.filter.filter && `Filter: ${next.filter.filter}`, next.filter.sort && `Sort: ${next.filter.sort}`]
+                    .filter(Boolean).join('\n') : queryHelp;
+        }
+
+        if (next.search === state.search && JSON.stringify(next.filter) === JSON.stringify(state.filter))
             return;
-        state.search = term;
+        const resort = (next.filter?.sort ?? '') !== (state.filter?.sort ?? '');
+        state.search = next.search;
+        state.filter = next.filter;
+        if (resort)
+            buildHeader();
         restart(true);
     }
     const typedSearch = debounce(300, applySearch);
-    const searchInput = el('input', { type: 'search', class: 'search', placeholder: 'Search',
+    const queryHelp = 'Search, or filter: packets > 100 || ssid ~ guest, 00:11:22, sort: signal desc';
+    const searchInput = el('input', { type: 'search', class: 'search', placeholder: query ? 'Search or filter' : 'Search',
+        title: query ? queryHelp : '',
         oninput: () => (searchInput.value.trim() === '' ? applySearch() : typedSearch()),
         onsearch: applySearch });
+    const queryError = el('span', { class: 'search-error', hidden: true, role: 'alert' });
+
+    function showQueryError(text) {
+        queryError.textContent = text ?? '';
+        queryError.hidden = !text;
+        searchInput.toggleAttribute('aria-invalid', !!text);
+    }
 
     const countInfo = el('span', { class: 'count-info' });
     const editButton = el('button', { class: 'icon-button', title: 'Edit columns', onclick: () => setEditing(true) }, icon('edit'));
@@ -229,7 +269,8 @@ export function createDataTable(container, {
             cols.push(col);
             colEls.set(c.id, col);
 
-            const sorted = state.sort.column === c.id;
+            // A sort: in the search box replaces the column's
+            const sorted = state.sort.column === c.id && !state.filter?.sort;
             const th = el('th', {
                 class: [c.sortField && !state.editing && 'sortable', sorted && 'sorted', `align-${c.align}`],
                 title: c.description || c.title,
@@ -526,15 +567,17 @@ export function createDataTable(container, {
             outline.retry();
     }
 
+    const searching = () => !!(state.search || state.filter?.filter);
+
     function updateInfo(first, last) {
         const total = rows.total;
         if (total === null) {
             countInfo.textContent = '';
         } else if (total === 0) {
-            countInfo.textContent = state.search ? `0 of ${state.unfiltered.toLocaleString()} ${noun}` : `0 ${noun}`;
+            countInfo.textContent = searching() ? `0 of ${state.unfiltered.toLocaleString()} ${noun}` : `0 ${noun}`;
         } else {
             const shown = `${(first + 1).toLocaleString()}-${Math.min(total, last + 1).toLocaleString()}`;
-            countInfo.textContent = state.search ?
+            countInfo.textContent = searching() ?
                 `${shown} of ${total.toLocaleString()} matching (${state.unfiltered.toLocaleString()} ${noun})` :
                 `${shown} of ${total.toLocaleString()} ${noun}`;
         }
@@ -543,7 +586,7 @@ export function createDataTable(container, {
         if (state.error && rows.total === null)
             text = `Could not load ${noun}: ${state.error.message}`;
         else if (total === 0)
-            text = state.search ? `No ${noun} match the search` : (emptyText ?? `No ${noun} yet`);
+            text = searching() ? `No ${noun} match the search` : (emptyText ?? `No ${noun} yet`);
         message.textContent = text;
         message.hidden = text === '';
     }
@@ -557,9 +600,29 @@ export function createDataTable(container, {
             sort: sortColumn?.sortField,
             // Kismet's sort_dir is backwards on every list: "desc" sorts ascending
             sort_dir: sortColumn?.sortField ? (state.sort.dir === 'asc' ? 'desc' : 'asc') : undefined,
+            filter: state.filter?.filter || undefined,
+            filter_sort: state.filter?.sort || undefined,
         };
         const path = typeof endpoint === 'function' ? endpoint() : endpoint;
-        const result = await api.post(path, { fields: wantedFields() }, vars, { signal });
+        let result;
+        try {
+            result = await api.post(path, { fields: wantedFields() }, vars, { signal });
+        } catch (err) {
+            // The server's own check of a filter
+            let j = null;
+            if (state.filter && err instanceof api.ApiError && err.status === 400) {
+                try {
+                    j = JSON.parse(err.message);
+                } catch {
+                    j = null;
+                }
+            }
+            if (j?.error) {
+                showQueryError(`${j.in === 'sort' ? 'Sort' : 'Filter'}: ${j.error}`);
+                throw new api.ApiError(400, `the ${j.in === 'sort' ? 'sort' : 'filter'} didn't work: ${j.error}`);
+            }
+            throw err;
+        }
         state.unfiltered = result.total_row ?? 0;
         return { rows: result.data ?? [], total: result.last_row ?? 0 };
     }
@@ -593,6 +656,7 @@ export function createDataTable(container, {
     const handle = { restart, draw, element: container };
     toolbarEl.append(...[toolbar?.(handle)].flat().filter(Boolean),
         el('label', { class: 'search-box' }, icon('search'), searchInput),
+        queryError,
         el('div', { class: 'spacer' }),
         countInfo,
         editButton);

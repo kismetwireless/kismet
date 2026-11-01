@@ -133,6 +133,11 @@ export function register(kismet) {
         description: 'Network name the access point advertises',
         fields: [[`${beacon}/dot11.advertisedssid.ssid`, 'ssid']],
         sortField: `${beacon}/dot11.advertisedssid.ssid`,
+        filterKind: 'text',
+        // ssid* in the search box: every SSID it advertised, answered, or probed for
+        filterWide: ['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid',
+            'dot11.device/dot11.device.responded_ssid_map/dot11.advertisedssid.ssid',
+            'dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid'],
         render: (row) => row.ssid ?? '',
     });
 
@@ -141,6 +146,7 @@ export function register(kismet) {
         description: 'Wi-Fi clients seen talking to this access point',
         fields: ['dot11.device/dot11.device.num_associated_clients'],
         sortField: 'dot11.device/dot11.device.num_associated_clients',
+        filterKind: 'number',
         render: (row) => row['dot11.device.num_associated_clients'] || '',
     });
 
@@ -149,6 +155,9 @@ export function register(kismet) {
         description: 'The access point a client last used',
         fields: ['dot11.device/dot11.device.last_bssid'],
         sortField: 'dot11.device/dot11.device.last_bssid',
+        filterKind: 'mac',
+        // bssid* also takes the BSSIDs in its probes
+        filterWide: ['dot11.device/dot11.device.last_bssid', 'dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.bssid'],
         render: (row) => {
             const b = row['dot11.device.last_bssid'];
             return b && b !== '00:00:00:00:00:00' ? el('span', { class: 'mono' }, b) : '';
@@ -160,6 +169,7 @@ export function register(kismet) {
         description: 'Access point uptime, from its beacon timestamp',
         fields: ['dot11.device/dot11.device.bss_timestamp'],
         sortField: 'dot11.device/dot11.device.bss_timestamp',
+        filterKind: 'number',
         render: (row) => (row['dot11.device.bss_timestamp'] ? format.duration(row['dot11.device.bss_timestamp'] / 1e6) : ''),
     });
 

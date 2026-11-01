@@ -30,6 +30,9 @@ import { createRegistry } from './registry.js';
 //   width         starting CSS width, e.g. '8em' (optional; users can resize)
 //   align         'left' | 'right' | 'center' (optional)
 //   defaultVisible  shown until the user changes their columns
+//   filterKind    what sortField holds, for the search box's filters: 'text',
+//                 'number', 'time', or 'mac' (optional; see js/core/filterquery.js)
+//   filterWide    field paths the search box uses for name* (optional)
 export function createColumnRegistry(name) {
     return createRegistry(name, {
         required: ['title', 'render'],
@@ -75,7 +78,9 @@ export const phyColors = createRegistry('phyColors', {
 // Fields always fetched for the device list, whatever columns are showing.
 // The server searches only the fields a request asks for, so phys add the
 // fields people will search for (a ship's name, an aircraft's callsign) here.
-//   id, description, fields
+// The id names them all in the search box's filters.
+//   id, description, fields,
+//   filterKind: the kind of the fields that aren't text, as { path: kind }
 export const searchFields = createRegistry('searchFields', {
     required: ['fields'],
     defaults: { description: '' },
