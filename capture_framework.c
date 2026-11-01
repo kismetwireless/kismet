@@ -1630,6 +1630,31 @@ void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
     pthread_setcanceltype(oldtype, NULL);
 }
 
+/* Map a position in the hop cycle to an index in the channel list.  Without
+ * shuffling the cycle is the list in order.  With shuffling it visits every
+ * spacing'th channel starting at 0, then every spacing'th starting at 1, and so
+ * on, so each channel is visited once per cycle.  Split sources start at
+ * different positions of the same cycle, so they stay apart. */
+static size_t cf_chanhop_index(size_t pos, size_t list_sz, int shuffle, size_t spacing) {
+    size_t pass, pass_sz;
+
+    pos %= list_sz;
+
+    if (!shuffle || spacing <= 1 || spacing >= list_sz)
+        return pos;
+
+    for (pass = 0; pass < spacing; pass++) {
+        pass_sz = (list_sz - pass + spacing - 1) / spacing;
+
+        if (pos < pass_sz)
+            return pass + pos * spacing;
+
+        pos -= pass_sz;
+    }
+
+    return 0;
+}
+
 /* Internal capture thread which drives channel hopping
  */
 void *cf_int_chanhop_thread(void *arg) {
@@ -1639,8 +1664,9 @@ void *cf_int_chanhop_thread(void *arg) {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
+    /* Position in the hop cycle, and the channel index it maps to */
     size_t hoppos;
-    size_t hoppos_start = 0;
+    size_t hopidx;
 
     /* How long we're waiting until the next time */
     unsigned int wait_sec = 0;
@@ -1692,9 +1718,12 @@ void *cf_int_chanhop_thread(void *arg) {
             return NULL;
         }
 
+        hopidx = cf_chanhop_index(hoppos, caph->channel_hop_list_sz,
+                caph->channel_hop_shuffle, caph->channel_hop_shuffle_spacing);
+
         errstr[0] = 0;
         if ((r = (caph->chancontrol_cb)(caph, 0,
-                    caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], errstr)) < 0) {
+                    caph->custom_channel_hop_list[hopidx], errstr)) < 0) {
             fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
             cf_send_error(caph, 0, errstr);
             caph->hopping_running = 0;
@@ -1708,7 +1737,7 @@ void *cf_int_chanhop_thread(void *arg) {
 
             for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
                     err != NULL; err = err->next) {
-                if (err->channel_pos == (hoppos % caph->channel_hop_list_sz)) {
+                if (err->channel_pos == hopidx) {
                     err_seen = 1;
                     break;
                 }
@@ -1717,28 +1746,19 @@ void *cf_int_chanhop_thread(void *arg) {
             // Only add error positions we haven't seen in error before
             if (!err_seen) {
                 err = (struct cf_channel_error *) malloc(sizeof(struct cf_channel_error));
-                err->channel_pos = hoppos % caph->channel_hop_list_sz;
+                err->channel_pos = hopidx;
                 err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
                 caph->channel_hop_failure_list = err;
                 caph->channel_hop_failure_list_sz++;
             }
         }
 
-        /* Increment by the shuffle amount */
-        if (caph->channel_hop_shuffle)
-            hoppos += caph->channel_hop_shuffle_spacing;
-        else
-            hoppos++;
-
-        /* offset the restart of the loop */
-        if (hoppos >= caph->channel_hop_list_sz) {
-            hoppos = (++hoppos_start % caph->channel_hop_shuffle_spacing) % caph->channel_hop_list_sz;
-        }
+        hoppos = (hoppos + 1) % caph->channel_hop_list_sz;
 
         /* If we've gotten back to 0, look at the failed channel list.  This is super
          * inefficient because it has to do multiple crawls of a linked list, but
          * it should only happen once per interface to clean out the bogons. */
-        if ((hoppos % caph->channel_hop_list_sz) == 0 &&
+        if (hoppos == 0 &&
                 caph->channel_hop_failure_list_sz != 0) {
             char **channel_hop_list_new;
             void **custom_channel_hop_list_new;
