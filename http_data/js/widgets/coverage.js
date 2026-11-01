@@ -11,6 +11,8 @@
 //              across the frequencies it takes in
 //   Heat map   every frequency as a row and time across, over the last
 //              minute, hour, or day, colored by how busy it was
+//   Time       an estimate of how much of the time each frequency is
+//              listened to, from the sources' channel lists and hop rates
 //
 // Bars sit at their real frequency, so channel spacing and overlap look the
 // way they are on the air.  The server keeps a minute of per-second history
@@ -27,6 +29,7 @@ import * as settings from '../core/settings.js';
 import { themeColor, onChange } from '../core/theme.js';
 import { sourceChannels, channelNames } from '../registry/devices.js';
 import { dialog } from './dialog.js';
+import { barList, stat } from './charts.js';
 
 const channelSeconds = 2;
 const sourceSeconds = 1;
@@ -111,7 +114,7 @@ const sourceFields = [
     'kismet.datasource.uuid', 'kismet.datasource.name', 'kismet.datasource.running',
     'kismet.datasource.type_driver/kismet.datasource.driver.type',
     'kismet.datasource.channel', 'kismet.datasource.hop_channels', 'kismet.datasource.hopping',
-    'kismet.datasource.hop_rate', 'kismet.datasource.channel_spans',
+    'kismet.datasource.hop_rate', 'kismet.datasource.hop_offset', 'kismet.datasource.channel_spans',
 ];
 
 // A source's channel as a frequency: a phy that knows the source's channels,
@@ -202,14 +205,17 @@ export function openCoverage({ view: startView = null } = {}) {
             note.textContent = metrics[id].note;
             shown.clear();
             tip.hidden = true;
-            if (view === 'heat')
+            if (view !== 'live')
                 draw();
         } }, m.title));
     const note = el('span', { class: 'muted coverage-note' }, metrics[metric].note);
 
     let view = startView ?? settings.get('coverage.view', 'live');
+    if (!['live', 'heat', 'time'].includes(view))
+        view = 'live';
     let span = spans[settings.get('coverage.span', 'hour')] ? settings.get('coverage.span', 'hour') : 'hour';
-    const viewButtons = [['live', 'Live'], ['heat', 'Heat map']].map(([id, title]) => el('button', { type: 'button',
+    const views = [['live', 'Live'], ['heat', 'Heat map'], ['time', 'Time']];
+    const viewButtons = views.map(([id, title]) => el('button', { type: 'button',
         onclick: () => setView(id) }, title));
     const spanButtons = Object.entries(spans).map(([id, sp]) => el('button', { type: 'button',
         onclick: () => {
@@ -222,7 +228,35 @@ export function openCoverage({ view: startView = null } = {}) {
         } }, sp.title));
     const spanBar = el('div', { class: 'graph-tabs coverage-span' }, spanButtons);
 
-    const stage = el('div', { class: 'coverage-stage' }, canvas, heatScroll, tip);
+    // The time view: charts and a table of the listening estimate, scrolling
+    const timeCanvas = el('canvas', { class: 'coverage-time-canvas' });
+    const timeStats = [stat('frequencies listened to'), stat('busy frequencies heard under 25% of the time'),
+        stat('sources with a channel plan')];
+    const timeSources = el('div', { class: 'coverage-time-sources' });
+    const timeMissed = barList({ empty: 'Nothing busy is going unheard', fmt: (v) => metrics[metric].fmt(v) });
+    const timeTable = el('tbody');
+    const timeMissedTitle = el('h4', {});
+    const timeScroll = el('div', { class: 'coverage-time' },
+        el('p', { class: 'muted coverage-time-note' }, 'Estimated from each source\'s channel list and hop rate: a hopping ',
+            'source gives every channel in its list an equal share of its time.  Time spent changing channels, and a ',
+            'source that falls behind, aren\'t counted.'),
+        el('div', { class: 'coverage-time-stats' }, timeStats.map((t) => t.node)),
+        el('h4', {}, 'Estimated time listened, by frequency'),
+        el('div', { class: 'coverage-time-legend muted' },
+            el('span', {}, el('span', { class: 'swatch' }), 'listened to'),
+            el('span', {}, el('span', { class: 'swatch warn' }), 'busy, heard under 25% of the time')),
+        timeCanvas,
+        el('h4', {}, 'Where each source spends its time'),
+        timeSources,
+        timeMissedTitle,
+        timeMissed.node,
+        el('h4', {}, 'Every frequency'),
+        el('div', { class: 'coverage-time-table' }, el('table', { class: 'data-table' },
+            el('thead', {}, el('tr', {}, ['Channel', 'Frequency', 'Listened (est.)', 'Sources', 'Each visit', 'Heard every', 'Activity']
+                .map((t) => el('th', {}, t)))),
+            timeTable)));
+
+    const stage = el('div', { class: 'coverage-stage' }, canvas, heatScroll, timeScroll, tip);
     // The sources get their own strip, which scrolls when there are many
     const srcCanvas = el('canvas', { class: 'coverage-sources-canvas' });
     const srcScroll = el('div', { class: 'coverage-sources' }, srcCanvas);
@@ -261,12 +295,13 @@ export function openCoverage({ view: startView = null } = {}) {
     let pinned = null;
 
     function showButtons() {
-        viewButtons.forEach((b, i) => b.classList.toggle('active', ['live', 'heat'][i] === view));
+        viewButtons.forEach((b, i) => b.classList.toggle('active', views[i][0] === view));
         spanButtons.forEach((b, i) => b.classList.toggle('active', Object.keys(spans)[i] === span));
         spanBar.hidden = view !== 'heat';
-        canvas.hidden = view === 'heat';
+        canvas.hidden = view !== 'live';
         heatScroll.hidden = view !== 'heat';
-        srcScroll.hidden = view === 'heat';
+        timeScroll.hidden = view !== 'time';
+        srcScroll.hidden = view !== 'live';
     }
 
     function setView(id) {
@@ -345,7 +380,7 @@ export function openCoverage({ view: startView = null } = {}) {
                 freqs = next;
                 fetchedAt = performance.now();
                 serverNow = now;
-                if (view === 'heat')
+                if (view !== 'live')
                     draw();
                 status.textContent = '';
                 buildTabs();
@@ -365,6 +400,8 @@ export function openCoverage({ view: startView = null } = {}) {
                 sources = (await api.post('datasource/all_sources.json', { fields: sourceFields }))
                     .filter((s) => s['kismet.datasource.running']);
                 buildTabs();
+                if (view === 'time')
+                    draw();
             } catch (err) {
                 console.error('coverage: could not load sources:', err);
             }
@@ -394,6 +431,116 @@ export function openCoverage({ view: startView = null } = {}) {
                 reach: [...hops.map((h) => h.f), cur?.f, ...[...hopSpans, currentSpan].filter(Boolean).flatMap((sp) => [sp.low, sp.high])].filter(Boolean),
             };
         });
+    }
+
+    // How much of the time each frequency is listened to, estimated from the
+    // sources' hop plans: a hopping source gives each entry in its channel
+    // list an equal slice (a channel listed twice gets two), a source on one
+    // channel is there all the time.  Sources hopping the same list at the
+    // same rate from different offsets (hop_split) are on different entries
+    // at once; other sources are taken as independent.  A wide Wi-Fi channel
+    // counts at its primary frequency, an SDR's range across all of it.
+    //
+    // Returns { byFreq: f -> { coverage, listening, visitsPerSec, visit,
+    // fixed, shares: [{ name, share }] }, plans: [per source] }
+    function timeEstimate() {
+        const covers = (src, c) => {
+            const known = src['kismet.datasource.channel_spans']?.[c];
+            const named = /^([\d.]+)\/([\d.]+)$/.test(String(c).trim());
+            const sp = Array.isArray(known) || named ? sourceSpan(src, c) : null;
+            if (sp) {
+                const inside = [...freqs.keys()].filter((f) => f >= sp.low && f <= sp.high);
+                return inside.length ? inside : [(sp.low + sp.high) / 2];
+            }
+            const sp2 = sourceSpan(src, c);
+            let f = sourceFrequency(src, c);
+            if (sp2 && !(f >= sp2.low && f <= sp2.high))
+                f = (sp2.low + sp2.high) / 2;
+            return f ? [f] : [];
+        };
+
+        const plans = sources.map((src) => {
+            const rate = Number(src['kismet.datasource.hop_rate']) || 0;
+            const list = src['kismet.datasource.hop_channels'] ?? [];
+            const hopping = !!src['kismet.datasource.hopping'] && rate > 0 && list.length > 1;
+            const channel = src['kismet.datasource.channel'];
+            const entries = hopping ? list : (channel ? [channel] : (list.length === 1 ? list : []));
+            const per = new Map();
+            const bandsIn = new Map();
+            for (const c of entries) {
+                const fs = covers(src, c);
+                for (const f of fs)
+                    per.set(f, (per.get(f) ?? 0) + 1);
+                if (fs.length) {
+                    const b = bandOf(fs[0]);
+                    bandsIn.set(b, (bandsIn.get(b) ?? 0) + 1);
+                }
+            }
+            return {
+                src, name: src['kismet.datasource.name'] ?? '?', hopping, rate, n: entries.length, per, bandsIn,
+                offset: src['kismet.datasource.hop_offset'] ?? 0,
+                key: hopping ? `${rate}|${list.join()}` : null,
+            };
+        });
+
+        // Hop split groups: the members' distinct offsets are on distinct entries
+        const groups = new Map();
+        for (const p of plans) {
+            if (!p.key)
+                continue;
+            if (!groups.has(p.key))
+                groups.set(p.key, []);
+            groups.get(p.key).push(p);
+        }
+        for (const members of groups.values())
+            for (const p of members)
+                p.splitWith = members.filter((o) => o !== p).map((o) => o.name);
+
+        const all = new Set();
+        for (const p of plans)
+            for (const f of p.per.keys())
+                all.add(f);
+
+        const byFreq = new Map();
+        for (const f of all) {
+            let none = 1;
+            let listening = 0;
+            let visitsPerSec = 0;
+            let visit = Infinity;
+            let fixed = false;
+            const shares = [];
+            for (const p of plans) {
+                const k = p.per.get(f) ?? 0;
+                if (!k)
+                    continue;
+                const share = p.hopping ? k / p.n : 1;
+                listening += share;
+                shares.push({ name: p.name, share });
+                if (p.hopping) {
+                    visitsPerSec += (k * p.rate) / p.n;
+                    visit = Math.min(visit, 1 / p.rate);
+                } else {
+                    fixed = true;
+                }
+            }
+            for (const p of plans)
+                if (!p.hopping && p.per.get(f))
+                    none = 0;
+            for (const members of groups.values()) {
+                const k = members[0].per.get(f) ?? 0;
+                if (!k)
+                    continue;
+                const L = members[0].n;
+                // Chance none of d sources on d different entries is on one of the k
+                const d = Math.min(L, new Set(members.map((m) => m.offset)).size);
+                let miss = 1;
+                for (let i = 0; i < d; i++)
+                    miss *= Math.max(0, L - k - i) / (L - i);
+                none *= miss;
+            }
+            byFreq.set(f, { coverage: 1 - none, listening, visitsPerSec, visit: fixed ? null : visit, fixed, shares });
+        }
+        return { byFreq, plans };
     }
 
     // The canvas extent of a frequency range, a piece per segment it shows in
@@ -447,8 +594,8 @@ export function openCoverage({ view: startView = null } = {}) {
     // it gets a segment, to scale inside itself and trimmed to what's there;
     // "All" puts the segments side by side, a single band fills the width.
     // x(f) is the canvas x of a frequency, or null if it isn't shown.
-    function layout(W, ratio) {
-        const left = 110 * ratio;
+    function layout(W, ratio, leftCss = 110) {
+        const left = leftCss * ratio;
         const right = 14 * ratio;
         const plotW = Math.max(1, W - left - right);
         const shownBands = band === 'all' ? bands : bands.filter((b) => b.id === band);
@@ -503,6 +650,57 @@ export function openCoverage({ view: startView = null } = {}) {
     // 'BLE 37'), else the frequency
     const label = (khz) => frequencyLabel(khz, freqs.get(khz)?.channel);
 
+    // Frequency labels on their side under a graph: the channel nearest the
+    // graph, then the frequency in MHz.  A label that's already a frequency
+    // shows once.
+    function freqLabelParts(f) {
+        const name = label(f);
+        const mhz = String(+(f / 1000).toFixed(3));
+        return name === format.frequency(f).replace(' ', '') ? [mhz, null] : [name, mhz];
+    }
+
+    function freqLabelsHeight(ctx, list, font, maxH) {
+        const gap = font * 0.6;
+        let longest = 0;
+        for (const f of list) {
+            const [a, b] = freqLabelParts(f);
+            longest = Math.max(longest, ctx.measureText(a).width + (b ? gap + ctx.measureText(b).width : 0));
+        }
+        return Math.min(maxH, Math.max(font * 2.4, longest + font));
+    }
+
+    // Labels that would touch the one before are left out; the hovered or
+    // picked frequency always gets its label
+    function drawFreqLabels(ctx, list, x, top, font, colors, picked = null) {
+        const gap = font * 0.6;
+        const byX = list.filter((f) => x(f) !== null).sort((a, z) => x(a) - x(z));
+        const keep = [];
+        let lastX = -Infinity;
+        for (const f of byX) {
+            if (x(f) - lastX >= font * 1.25 || f === picked) {
+                if (f === picked && keep.length && x(f) - lastX < font * 1.25)
+                    keep.pop();
+                keep.push(f);
+                lastX = x(f);
+            }
+        }
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (const f of keep) {
+            const [a, b] = freqLabelParts(f);
+            ctx.save();
+            ctx.translate(x(f), top + font * 0.5);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = f === picked ? colors.accent : colors.text;
+            ctx.fillText(a, 0, 0);
+            if (b) {
+                ctx.fillStyle = f === picked ? colors.accent : colors.muted;
+                ctx.fillText(b, -(ctx.measureText(a).width + gap), 0);
+            }
+            ctx.restore();
+        }
+    }
+
     // The chosen measure's last minute for a frequency, oldest first
     const history = (f, which = metric) => freqs.get(f)?.[which] ?? [];
 
@@ -520,6 +718,8 @@ export function openCoverage({ view: startView = null } = {}) {
             return;
         if (view === 'heat')
             return drawHeat();
+        if (view === 'time')
+            return drawTime();
         // Nothing to see in a hidden tab; look again in a second
         if (document.visibilityState === 'hidden') {
             idle = setTimeout(draw, 1000);
@@ -544,13 +744,13 @@ export function openCoverage({ view: startView = null } = {}) {
         // Two areas, top to bottom; the sources are in their own strip below
         const laneH = 26 * ratio;
         const sourcesH = 0;
-        const labelsH = font * 2.4;
-        const actH = (H - sourcesH - labelsH) * 0.55;
-        const histH = H - sourcesH - labelsH - actH;
+        const labelsH = freqLabelsHeight(ctx, list, font, H * 0.25);
+        const gapH = font;
+        const actH = (H - sourcesH - labelsH - gapH) * 0.55;
         const actTop = font;
         const actBottom = actH;
-        const histTop = actH + labelsH;
-        const histBottom = histTop + histH - font;
+        const histTop = actH + gapH;
+        const histBottom = H - sourcesH - labelsH;
 
         const barW = Math.max(3 * ratio, Math.min(28 * ratio, plotW / Math.max(1, list.length) * 0.5,
             // never wider than the gap to the nearest neighbour
@@ -648,19 +848,8 @@ export function openCoverage({ view: startView = null } = {}) {
             }
         }
 
-        // Channel labels between the bars and the history, skipping ones that would overlap
-        ctx.fillStyle = text;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        let lastRight = -Infinity;
-        for (const f of list) {
-            const t = label(f);
-            const half = ctx.measureText(t).width / 2;
-            if (x(f) - half > lastRight + 4 * ratio) {
-                ctx.fillText(t, x(f), actBottom + labelsH / 2);
-                lastRight = x(f) + half;
-            }
-        }
+        // Channel and frequency labels under both graphs
+        drawFreqLabels(ctx, list, x, histBottom, font, { text, muted, accent }, hover ?? pinned);
 
         // History waterfall: one row per second, newest at the top.  Rows are
         // placed by how long ago they were, so they slide down smoothly as
@@ -935,6 +1124,225 @@ export function openCoverage({ view: startView = null } = {}) {
         setView('live');
     });
 
+    // The time view: the estimate as a few numbers, a bar per frequency at its
+    // place on the air, each source's time by band, the busy frequencies
+    // heard least, and a table of every frequency
+    let timeLayout = null;
+    let timeHover = null;
+
+    // The chosen measure's average over the last minute's full seconds
+    function activity(f) {
+        const h = history(f).slice(0, -1);
+        return h.length ? h.reduce((a, z) => a + z, 0) / h.length : 0;
+    }
+
+    const pct = (v) => (v > 0 && v < 0.01 ? '<1%' : `${Math.round(v * 100)}%`);
+    const secs = (s) => {
+        if (s < 1)
+            return `${Math.round(s * 1000)} ms`;
+        if (s < 60)
+            return `${s < 10 ? +s.toFixed(1) : Math.round(s)} s`;
+        return format.duration(Math.round(s));
+    };
+
+    function drawTime() {
+        const est = timeEstimate();
+        timeLayout = null;
+        if (!timeScroll.clientWidth)
+            return;
+
+        const peakAct = Math.max(0, ...[...freqs.keys()].map(activity));
+        const busy = (f) => {
+            const a = activity(f);
+            return a > 0 && a >= peakAct * 0.05;
+        };
+        const coverage = (f) => est.byFreq.get(f)?.coverage ?? 0;
+        const rarely = (f) => busy(f) && coverage(f) < 0.25;
+
+        timeStats[0].update(format.count([...est.byFreq.values()].filter((e) => e.coverage > 0).length));
+        timeStats[1].update(format.count([...freqs.keys()].filter(rarely).length));
+        timeStats[2].update(`${est.plans.filter((p) => p.n).length} of ${est.plans.length}`);
+
+        // The bars, on their own so hovering redraws only them
+        const chart = () => {
+            const accent = themeColor('--accent') || '#4b9fe8';
+            const text = themeColor('--text') || '#ddd';
+            const muted = themeColor('--muted') || '#888';
+            const grid = themeColor('--border') || '#444';
+            const warn = themeColor('--warn') || '#fc3';
+            const ratio = window.devicePixelRatio || 1;
+            const font = 11 * ratio;
+
+            // Every frequency with traffic or a source planned on it
+            const cssW = timeCanvas.clientWidth || timeScroll.clientWidth;
+            const probe = timeCanvas.getContext('2d');
+            probe.font = `${font}px system-ui, sans-serif`;
+            const { segments, x, left } = layout(cssW * ratio, ratio, 44);
+            const list = [...new Set([...freqs.keys(), ...est.byFreq.keys()])].filter((f) => x(f) !== null).sort((a, z) => a - z);
+            const plotH = 170 * ratio;
+            const top = font * 1.6;
+            const labelsH = freqLabelsHeight(probe, list, font, 90 * ratio);
+            const cssH = Math.round((top + plotH + labelsH) / ratio);
+            if (timeCanvas.style.height !== `${cssH}px`)
+                timeCanvas.style.height = `${cssH}px`;
+            const { w: W, h: H } = fitCanvas(timeCanvas, cssW, cssH);
+            const ctx = timeCanvas.getContext('2d');
+            ctx.clearRect(0, 0, W, H);
+            ctx.font = `${font}px system-ui, sans-serif`;
+            const bottom = top + plotH;
+            const y = (v) => bottom - v * plotH;
+
+            // Recessive gridlines at quarters, labelled down the left
+            ctx.strokeStyle = grid;
+            ctx.lineWidth = ratio;
+            ctx.fillStyle = muted;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (const q of [0, 0.25, 0.5, 0.75, 1]) {
+                ctx.globalAlpha = q === 0 ? 1 : 0.45;
+                for (const sg of segments) {
+                    ctx.beginPath();
+                    ctx.moveTo(sg.x0, Math.round(y(q)) + 0.5);
+                    ctx.lineTo(sg.x0 + sg.w, Math.round(y(q)) + 0.5);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                ctx.fillText(`${q * 100}%`, left - 6 * ratio, y(q));
+            }
+            if (segments.length > 1) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                for (const sg of segments)
+                    ctx.fillText(sg.band.title, sg.x0 + sg.w / 2, 0);
+            }
+
+            if (!list.length) {
+                ctx.textAlign = 'center';
+                ctx.fillText('No source has a channel plan to estimate from', W / 2, top + plotH / 2);
+            }
+
+            const barW = Math.max(3 * ratio, Math.min(18 * ratio,
+                ...list.slice(1).map((f, i) => (x(f) - x(list[i])) * 0.7).filter((d) => d > 0)));
+            const radius = Math.min(4 * ratio, barW / 2);
+            for (const f of list) {
+                const v = coverage(f);
+                if (!(v > 0))
+                    continue;
+                const h = Math.max(2 * ratio, v * plotH);
+                ctx.fillStyle = rarely(f) ? warn : accent;
+                ctx.globalAlpha = timeHover === null || timeHover === f ? 1 : 0.7;
+                ctx.beginPath();
+                ctx.roundRect(x(f) - barW / 2, bottom - h, barW, h, [radius, radius, 0, 0]);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            // Busy frequencies nobody listens to, as a mark on the baseline
+            for (const f of list) {
+                if (coverage(f) === 0 && rarely(f)) {
+                    ctx.fillStyle = warn;
+                    ctx.fillRect(x(f) - barW / 2, bottom - 2 * ratio, barW, 2 * ratio);
+                }
+            }
+            drawFreqLabels(ctx, list, x, bottom, font, { text, muted, accent }, timeHover);
+            timeLayout = { x, list, ratio, est, rarely, redraw: chart };
+            return list;
+        };
+        const list = chart();
+
+        // Each source's time by band, labelled in place
+        timeSources.replaceChildren(...est.plans.map((p) => {
+            let how;
+            if (!p.n)
+                how = 'No channel to estimate from';
+            else if (!p.hopping)
+                how = `On ${p.src['kismet.datasource.channel'] || p.src['kismet.datasource.hop_channels']?.[0]} all the time`;
+            else if (!p.per.size)
+                how = `${p.n} channels at ${num(p.rate)} hops/s, on frequencies the web UI doesn't know`;
+            else
+                how = `${p.n} channels at ${num(p.rate)} hops/s: ${secs(1 / p.rate)} on each, back every ${secs(p.n / p.rate)}` +
+                    (p.splitWith.length ? `, split with ${p.splitWith.join(', ')}` : '');
+            const parts = [...p.bandsIn].sort((a, z) => bands.indexOf(a[0]) - bands.indexOf(z[0]));
+            const counted = parts.reduce((a, [, c]) => a + c, 0) || 1;
+            return el('div', { class: 'coverage-time-source' },
+                el('span', { class: 'coverage-time-name', title: p.name }, p.name),
+                parts.length ? el('span', { class: 'coverage-time-split' }, parts.map(([b, c], i) =>
+                    el('span', { class: ['seg', i % 2 && 'alt'], style: { flexGrow: c }, title: `${b.title}: ${pct(c / counted)}` },
+                        `${b.title} ${pct(c / counted)}`))) : null,
+                el('span', { class: 'muted coverage-time-how' }, how));
+        }));
+
+        // Busy but rarely heard: activity times the share of time nobody's listening
+        const unit = metrics[metric].unit.toLowerCase();
+        timeMissedTitle.textContent = `Busy but rarely heard: ${unit} on average while no source listens`;
+        timeMissed.update([...freqs.keys()].filter(rarely).map((f) => ({
+            id: f, label: `${label(f)} · ${format.frequency(f)}`, value: activity(f) * (1 - coverage(f)),
+            title: `${metrics[metric].fmt(activity(f))} ${unit} on average, listened to about ${pct(coverage(f))} of the time`,
+        })).sort((a, z) => z.value - a.value).slice(0, 10));
+
+        timeTable.replaceChildren(...list.map((f) => {
+            const e = est.byFreq.get(f);
+            const v = e?.coverage ?? 0;
+            return el('tr', { class: rarely(f) ? 'coverage-time-rare' : null },
+                el('td', {}, label(f)),
+                el('td', {}, format.frequency(f)),
+                el('td', {}, el('span', { class: 'coverage-time-meter' }, el('span', { style: { width: `${v * 100}%` } })), ` ${pct(v)}`),
+                el('td', { title: e?.shares.map((s) => `${s.name} ${pct(s.share)}`).join(', ') ?? '' },
+                    e?.shares.map((s) => `${s.name} ${pct(s.share)}`).join(', ') || '–'),
+                el('td', {}, e ? (e.fixed ? 'all the time' : secs(e.visit)) : '–'),
+                el('td', {}, e ? (e.fixed ? '–' : secs(1 / e.visitsPerSec)) : 'never'),
+                el('td', {}, metrics[metric].fmt(activity(f))));
+        }));
+    }
+
+    timeCanvas.addEventListener('pointermove', (e) => {
+        if (!timeLayout)
+            return;
+        const { x, list, ratio, est, rarely } = timeLayout;
+        const r = timeCanvas.getBoundingClientRect();
+        const px = (e.clientX - r.left) * ratio;
+        let best = null;
+        let bestD = 12 * ratio;
+        for (const f of list) {
+            const d = Math.abs(x(f) - px);
+            if (d < bestD) {
+                best = f;
+                bestD = d;
+            }
+        }
+        if (best !== timeHover) {
+            timeHover = best;
+            timeLayout.redraw();
+        }
+        if (best === null) {
+            tip.hidden = true;
+            return;
+        }
+        const est1 = est.byFreq.get(best);
+        const named = channelsAt(best).map((c) => `${c.phy} ${c.channel}`);
+        const lines = [el('b', {}, [...named, format.frequency(best)].filter((v, i, a) => a.indexOf(v) === i).join(' · '))];
+        if (!est1) {
+            lines.push(el('div', {}, 'No source listens here'));
+        } else {
+            lines.push(el('div', {}, `Listened to about ${pct(est1.coverage)} of the time (estimated)`));
+            lines.push(el('div', {}, est1.fixed ? 'A source stays on it' :
+                `${secs(est1.visit)} at a time, about every ${secs(1 / est1.visitsPerSec)}`));
+            lines.push(el('div', { class: 'muted' }, est1.shares.map((s) => `${s.name} ${pct(s.share)}`).join(', ')));
+        }
+        lines.push(el('div', {}, `${metrics[metric].fmt(activity(best))} ${metrics[metric].unit.toLowerCase()} on average`));
+        if (rarely(best))
+            lines.push(el('div', { class: 'muted' }, 'Busy, but heard under a quarter of the time'));
+        tip.replaceChildren(...lines);
+        tip.hidden = false;
+        const sr = stage.getBoundingClientRect();
+        tip.style.left = `${Math.min(Math.max(0, e.clientX - sr.left + 14), sr.width - tip.offsetWidth - 4)}px`;
+        tip.style.top = `${Math.max(0, e.clientY - sr.top - tip.offsetHeight - 10)}px`;
+    });
+    timeCanvas.addEventListener('pointerleave', () => {
+        timeHover = null;
+        tip.hidden = true;
+        timeLayout?.redraw();
+    });
+
     // The source lanes, in their own canvas under the graphs, using the same
     // layout so ticks and markers line up with the bars.  Returns true while a
     // marker is still moving.
@@ -1078,7 +1486,7 @@ export function openCoverage({ view: startView = null } = {}) {
 
     // Hovering over a frequency shows what's on it
     stage.addEventListener('pointermove', (e) => {
-        if (view === 'heat')
+        if (view !== 'live')
             return;
         const ratio = window.devicePixelRatio || 1;
         const r = stage.getBoundingClientRect();
@@ -1115,7 +1523,7 @@ export function openCoverage({ view: startView = null } = {}) {
         tip.style.top = `${Math.max(0, e.clientY - r.top - tip.offsetHeight - 10)}px`;
     });
     stage.addEventListener('pointerleave', () => {
-        if (view === 'heat')
+        if (view !== 'live')
             return;
         hover = null;
         tip.hidden = true;
