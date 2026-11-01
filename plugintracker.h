@@ -170,6 +170,15 @@ public:
     __Proxy(plugin_ui2, std::string, std::string, std::string, plugin_ui2);
     __Proxy(plugin_http_external, std::string, std::string, std::string, plugin_http_external);
 
+    // Device rules files, relative to the plugin directory
+    void add_plugin_device_rules(const std::string& in_file) {
+        plugin_device_rules->push_back(in_file);
+    }
+
+    std::shared_ptr<tracker_element_vector_string> get_plugin_device_rules() {
+        return plugin_device_rules;
+    }
+
     void set_plugin_dlfile(void *in_dlfile) {
         dlfile = in_dlfile;
     }
@@ -196,6 +205,7 @@ protected:
         register_field("kismet.plugin.path", "path to plugin content", &plugin_path);
         register_field("kismet.plugin.jsmodule", "Plugin javascript module", &plugin_js);
         register_field("kismet.plugin.ui2module", "Plugin module for the new web UI", &plugin_ui2);
+        register_field("kismet.plugin.device_rules", "Device rules files the plugin loads", &plugin_device_rules);
 
     }
 
@@ -212,6 +222,7 @@ protected:
 
     std::shared_ptr<tracker_element_string> plugin_js;
     std::shared_ptr<tracker_element_string> plugin_ui2;
+    std::shared_ptr<tracker_element_vector_string> plugin_device_rules;
 
     void *dlfile;
 

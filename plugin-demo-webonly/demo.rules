@@ -1,0 +1,11 @@
+# Device rules from the demo plugin; see conf/kismet_device_rules.txt for the format
+
+rule demoweb-busy {
+    description "Devices with more than 10000 packets"
+    when packets > 10000
+    tag "busy"
+}
+
+sort demoweb-busiest {
+    by packets desc
+}

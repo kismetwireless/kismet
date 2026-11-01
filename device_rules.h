@@ -179,6 +179,15 @@ public:
         mac_addr mac;
     };
 
+    // A device rules file named in a plugin's manifest, read now and built in by
+    // plugins_loaded, once every plugin has registered its fields
+    void add_plugin_rules(const std::string& plugin, const std::string& path);
+
+    // Every plugin is loaded: build their rules in after the configured rules files
+    // and before the rules on config lines.  A plugin whose rules don't build is
+    // left out, with the error logged.
+    void plugins_loaded();
+
     // Replace the rules set over the API, which come after the configured rules; throws
     // parse_error, leaving the old rules in place.  saved says whether they were written
     // to the API rules file, with save_err when that failed.
@@ -192,6 +201,25 @@ protected:
 
     // Rules from the config, as read at startup, and the rules set over the API
     std::vector<rules_chunk> config_chunks;
+
+    // What defined a rule: a rules file ("file"), a config line ("config"), a plugin
+    // ("plugin") or the API ("api"), and the file, config file or plugin name
+    struct rule_source {
+        std::string type;
+        std::string name;
+    };
+
+    // Plugin rules read but not yet built in, and the ones built in, in plugin load
+    // order, each with its plugin
+    std::vector<std::pair<std::string, std::vector<rules_chunk>>> plugin_pending, plugin_chunks;
+
+    // The source of each origin file, filled as rules are read; needs set_mutex
+    std::map<std::string, rule_source> sources;
+    static rule_source source_of(const std::map<std::string, rule_source>& srcs, const std::string& origin);
+    void note_sources(const std::vector<rules_chunk>& chunks, const rule_source& src);
+
+    // Config rules files, built-in plugin rules, then config lines, without the disables
+    void replay_configured(devicerules::ruleset& rs) const;
     std::vector<std::string> rule_disables, sort_disables;
     std::string api_text;
     bool api_save;
@@ -272,6 +300,9 @@ protected:
             const std::shared_ptr<device_tracker_view>& view, const std::string& rule);
 
     std::shared_ptr<tracker_element> rules_endpoint();
+    std::shared_ptr<tracker_element> sources_endpoint();
+    std::shared_ptr<tracker_element_map> rule_record(const devicerules::rule_def& rd, const rule_source& src);
+    std::shared_ptr<tracker_element_map> sort_record(const devicerules::sort_def& sd, const rule_source& src);
     void check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void test_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);

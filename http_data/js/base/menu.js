@@ -15,6 +15,11 @@ export function register(kismet) {
     });
 
     ui.menuItems.add({
+        id: 'devicerules', title: 'Device rules', icon: 'list',
+        onClick: () => kismet.widgets.devicerules.openRules(),
+    });
+
+    ui.menuItems.add({
         id: 'gps', title: 'GPS', icon: 'gps',
         onClick: () => kismet.widgets.gps.openGps(),
     });

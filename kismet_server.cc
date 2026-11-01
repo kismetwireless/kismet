@@ -1123,6 +1123,10 @@ int main(int argc, char *argv[], char *envp[]) {
         plugintracker->finalize_plugins();
     }
 
+    // Plugin device rules build in now that every plugin has registered its fields; this
+    // also reports rule disables that match nothing
+    Globalreg::fetch_mandatory_global_as<device_rules>()->plugins_loaded();
+
     // Open the configured sources only now, so a source can use a type a plugin registered
     Globalreg::fetch_mandatory_global_as<datasource_tracker>()->launch_configured_sources();
 
