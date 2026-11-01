@@ -85,6 +85,7 @@ void kis_packet::reset() {
     common_info.reset();
 
     original.reset();
+    dedupe_sources.clear();
 
     suppress_gps = false;
     gps_info.reset();

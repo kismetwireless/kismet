@@ -519,6 +519,10 @@ public:
     // Original packet if we're a duplicate
     std::shared_ptr<kis_packet> original;
 
+    // On an original, the sources that delivered its frame, its own first.  The same
+    // frame again from one of them is a new transmission, not a duplicate.
+    std::vector<const void *> dedupe_sources;
+
     // Packet lock
     kis_mutex mutex;
 };

@@ -489,6 +489,14 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
         return;
     }
 
+    // A duplicate is the same frame heard by another source.  A source that delivers the
+    // same frame again saw a new transmission: BLE advertisers send the same PDU on each
+    // advertising channel and often keep their data for seconds.
+    const void *source = nullptr;
+    const auto datasrc = packet->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+    if (datasrc != nullptr)
+        source = datasrc->ref_source;
+
     // Earlier packets sharing this hash; per thread so we don't allocate per packet
     thread_local std::vector<std::shared_ptr<kis_packet>> candidates;
     candidates.clear();
@@ -521,6 +529,7 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
 
         if (candidates.empty()) {
             packet->packet_no = unique_packet_no.fetch_add(1);
+            packet->dedupe_sources.assign(1, source);
             evicted = dedupe_insert(window, packet);
             return;
         }
@@ -528,6 +537,12 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
         // Pending before we release the lock so a simultaneous identical packet finds us
         window.pending.push_back(packet);
     }
+
+    // Oldest first, so the copies a slower source delivers pair up with the originals in order
+    std::sort(candidates.begin(), candidates.end(),
+            [](const std::shared_ptr<kis_packet>& a, const std::shared_ptr<kis_packet>& b) {
+                return a->arrival_no < b->arrival_no;
+            });
 
     // A hash match only means a possible duplicate.  Wait for each candidate to finish its
     // chain (they were visible before us, so waits never cycle) and compare the frames.
@@ -544,6 +559,15 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
         const auto& orig = (c->duplicate && c->original != nullptr) ? c->original : c;
 
         kis_lock_guard<kis_mutex> olg(orig->mutex, "packetchain dedupe original");
+
+        // This source already delivered that frame; ours is a new transmission.  Without a
+        // source on either side there's nothing to tell apart, so it's a duplicate as before.
+        if (source != nullptr) {
+            if (std::find(orig->dedupe_sources.begin(), orig->dedupe_sources.end(), source) !=
+                    orig->dedupe_sources.end())
+                continue;
+            orig->dedupe_sources.push_back(source);
+        }
 
         packet->duplicate = true;
         packet->packet_no = orig->packet_no;
@@ -580,9 +604,10 @@ void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {
 
     window.pending.erase(std::find(window.pending.begin(), window.pending.end(), packet));
 
-    // Hash collision with different frames; we're an original
+    // Hash collision with different frames, or a repeat from the same source; we're an original
     if (!duplicate) {
         packet->packet_no = unique_packet_no.fetch_add(1);
+        packet->dedupe_sources.assign(1, source);
         evicted = dedupe_insert(window, packet);
     }
 }

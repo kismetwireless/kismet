@@ -756,6 +756,26 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     if (btle_info == nullptr)
         return 0;
 
+    // Another source heard the same frame; it shares the original's decode, which made or
+    // updated the device.  Add what this source saw: seen-by, signal, frequency, location.
+    if (in_pack->duplicate) {
+        if (btle_info->btle_decode == nullptr || !btle_info->btle_decode->has_advertising_address())
+            return 1;
+
+        in_pack->common_info.common_info_ok = true;
+        in_pack->common_info.phyid = mphy->fetch_phy_id();
+        in_pack->common_info.basic_crypt_set = crypt_none;
+        in_pack->common_info.type = packet_basic_mgmt;
+        in_pack->common_info.source = btle_info->btle_decode->advertising_address();
+        in_pack->common_info.transmitter = btle_info->btle_decode->advertising_address();
+
+        mphy->devicetracker->update_common_device(in_pack->common_info.source, mphy, in_pack,
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION |
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_EXISTING_ONLY),
+                "BTLE Device");
+        return 1;
+    }
+
     if (!in_pack->common_info.common_info_ok) {
         return 0;
     }
