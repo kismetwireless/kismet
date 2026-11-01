@@ -223,7 +223,7 @@ fi
 AS_IF([test x"$GCC_MAJOR" = x"13" -o x"$GCC_MAJOR" = x"14"],
     [
         AC_MSG_WARN([setting -Wno-dangling-reference for gcc${GCC_MAJOR}])
-        CPPFLAGS="${CPPFLAGS} -Wno-dangling-reference"
+        CXXFLAGS="${CXXFLAGS} -Wno-dangling-reference"
     ],
     []
 )

@@ -10153,7 +10153,7 @@ then :
 
         { printf '%s\n' "$as_me:${as_lineno-$LINENO}: WARNING: setting -Wno-dangling-reference for gcc${GCC_MAJOR}" >&5
 printf '%s\n' "$as_me: WARNING: setting -Wno-dangling-reference for gcc${GCC_MAJOR}" >&2;}
-        CPPFLAGS="${CPPFLAGS} -Wno-dangling-reference"
+        CXXFLAGS="${CXXFLAGS} -Wno-dangling-reference"
 
 fi
 
