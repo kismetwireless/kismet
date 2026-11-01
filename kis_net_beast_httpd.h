@@ -53,6 +53,7 @@ template <>struct fmt::formatter<boost::beast::http::verb> : fmt::ostream_format
 template <>struct fmt::formatter<boost::beast::string_view> : fmt::ostream_formatter {};
 
 class kis_net_beast_httpd_connection;
+class kis_net_beast_conn_slot;
 class kis_net_beast_route;
 class kis_net_beast_auth;
 class kis_net_web_endpoint;
@@ -227,6 +228,21 @@ protected:
 
     boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ip::tcp::acceptor acceptor;
+
+    // Open connections, in all and per client address; each holds a thread and a socket
+    // until it closes, so they're capped at accept
+    unsigned int max_connections_;
+    unsigned int max_connections_per_addr_;
+    kis_mutex conn_mutex;
+    unsigned int conn_count_;
+    std::unordered_map<std::string, unsigned int> conn_by_addr_;
+    time_t conn_limit_warned_;
+
+    friend class kis_net_beast_conn_slot;
+
+    // A slot for a new connection from addr, or nullptr when over a limit
+    std::unique_ptr<kis_net_beast_conn_slot> claim_connection(const std::string& addr);
+    void release_connection(const std::string& addr);
 
 
     void start_accept();

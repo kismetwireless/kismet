@@ -95,10 +95,15 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     running{false},
     endpoint{endpoint},
     acceptor{Globalreg::globalreg->io},
+    max_connections_{512},
+    max_connections_per_addr_{128},
+    conn_count_{0},
+    conn_limit_warned_{0},
     ssl_acceptor{Globalreg::globalreg->io} {
 
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
+    conn_mutex.set_name("kis_net_beast_httpd connections");
 
     // Reported by fetch_port() and fetch_using_ssl(), for the server announcement and the console
     port = endpoint.port();
@@ -231,6 +236,13 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
     allowed_cors_referrer_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
+
+    max_connections_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("httpd_max_connections",
+                max_connections_);
+    max_connections_per_addr_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("httpd_max_connections_per_ip",
+                max_connections_per_addr_);
 
     https_proxy_ = Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_https_proxy", false);
     public_url_ = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_public_url", "");
@@ -630,6 +642,88 @@ int kis_net_beast_httpd::stop_httpd() {
     return 1;
 }
 
+// Held by a connection's thread for as long as it runs
+class kis_net_beast_conn_slot {
+public:
+    kis_net_beast_conn_slot(std::shared_ptr<kis_net_beast_httpd> httpd, const std::string& addr) :
+        httpd{httpd},
+        addr{addr} { }
+
+    ~kis_net_beast_conn_slot() {
+        httpd->release_connection(addr);
+    }
+
+    kis_net_beast_conn_slot(const kis_net_beast_conn_slot&) = delete;
+    kis_net_beast_conn_slot& operator=(const kis_net_beast_conn_slot&) = delete;
+
+private:
+    std::shared_ptr<kis_net_beast_httpd> httpd;
+    std::string addr;
+};
+
+std::unique_ptr<kis_net_beast_conn_slot> kis_net_beast_httpd::claim_connection(const std::string& addr) {
+    kis_lock_guard<kis_mutex> lk(conn_mutex, "beast_httpd claim_connection");
+
+    auto ai = conn_by_addr_.find(addr);
+    auto addr_count = ai == conn_by_addr_.end() ? 0 : ai->second;
+
+    if ((max_connections_ > 0 && conn_count_ >= max_connections_) ||
+            (max_connections_per_addr_ > 0 && addr_count >= max_connections_per_addr_)) {
+        auto now = time(0);
+
+        if (now - conn_limit_warned_ >= 60) {
+            conn_limit_warned_ = now;
+            _MSG_ERROR("Refusing HTTP connections from {}: too many open connections ({} from "
+                    "this address, {} total; httpd_max_connections_per_ip={}, "
+                    "httpd_max_connections={})", addr, addr_count, conn_count_,
+                    max_connections_per_addr_, max_connections_);
+        }
+
+        return nullptr;
+    }
+
+    conn_count_++;
+    conn_by_addr_[addr] = addr_count + 1;
+
+    return std::unique_ptr<kis_net_beast_conn_slot>(new kis_net_beast_conn_slot(shared_from_this(), addr));
+}
+
+void kis_net_beast_httpd::release_connection(const std::string& addr) {
+    kis_lock_guard<kis_mutex> lk(conn_mutex, "beast_httpd release_connection");
+
+    if (conn_count_ > 0)
+        conn_count_--;
+
+    auto ai = conn_by_addr_.find(addr);
+    if (ai != conn_by_addr_.end()) {
+        if (ai->second <= 1)
+            conn_by_addr_.erase(ai);
+        else
+            ai->second--;
+    }
+}
+
+static std::string beast_peer_addr(const boost::asio::ip::tcp::socket& socket) {
+    boost::system::error_code ec;
+    auto ep = socket.remote_endpoint(ec);
+
+    if (ec)
+        return "";
+
+    auto addr = ep.address();
+
+    // An IPv4 client on a dual-stack socket counts with its plain IPv4 address
+    if (addr.is_v6() && addr.to_v6().is_v4_mapped())
+        return boost::asio::ip::make_address_v4(boost::asio::ip::v4_mapped, addr.to_v6()).to_string();
+
+    return addr.to_string();
+}
+
+static void beast_refuse(boost::asio::ip::tcp::socket& socket) {
+    boost::system::error_code ec;
+    socket.close(ec);
+}
+
 void kis_net_beast_httpd::start_accept() {
     if (!running)
         return;
@@ -648,29 +742,42 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
 
     // Spin each connection into its own thread
     if (!ec) {
-        std::thread conthread([this, tcp_socket = boost::beast::tcp_stream(std::move(socket))]() mutable {
-                thread_set_process_name("BEAST");
+        auto slot = claim_connection(beast_peer_addr(socket));
 
-                while (tcp_socket.socket().is_open()) {
-                    // Associate the socket
-                    auto conn =
-                        std::make_shared<kis_net_beast_httpd_connection>(tcp_socket, shared_from_this());
+        if (slot == nullptr) {
+            beast_refuse(socket);
+            return start_accept();
+        }
 
-                    // Run the connection
-                    auto retain = conn->start();
+        try {
+            std::thread conthread([this, slot = std::move(slot),
+                    tcp_socket = boost::beast::tcp_stream(std::move(socket))]() mutable {
+                    thread_set_process_name("BEAST");
 
-                    if (retain == false)
-                        break;
-                }
+                    while (tcp_socket.socket().is_open()) {
+                        // Associate the socket
+                        auto conn =
+                            std::make_shared<kis_net_beast_httpd_connection>(tcp_socket, shared_from_this());
 
-                try {
-                    tcp_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-                } catch (...) {
-                    ;
-                }
-            });
+                        // Run the connection
+                        auto retain = conn->start();
 
-        conthread.detach();
+                        if (retain == false)
+                            break;
+                    }
+
+                    try {
+                        tcp_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+                    } catch (...) {
+                        ;
+                    }
+                });
+
+            conthread.detach();
+        } catch (const std::system_error& e) {
+            // Out of threads; the lambda, its socket and slot, are gone with the failed thread
+            _MSG_ERROR("Unable to start a thread for a HTTP connection: {}", e.what());
+        }
     }
 
     // Accept another connection
@@ -692,61 +799,72 @@ void kis_net_beast_httpd::handle_ssl_connection(const boost::system::error_code&
         return;
 
     if (!ec) {
+        auto slot = claim_connection(beast_peer_addr(socket));
+
+        if (slot == nullptr) {
+            beast_refuse(socket);
+            return start_ssl_accept();
+        }
+
         auto tls = std::make_shared<kis_net_beast_httpd_connection::tls_stream_t>(
                 boost::beast::tcp_stream(std::move(socket)), *ssl_ctx);
 
-        std::thread conthread([this, tls, ctx = ssl_ctx]() mutable {
-                thread_set_process_name("BEAST-TLS");
+        try {
+            std::thread conthread([this, tls, ctx = ssl_ctx, slot = std::move(slot)]() mutable {
+                    thread_set_process_name("BEAST-TLS");
 
-                // The handshake runs on the socket's strand so a stalled client times out
-                auto hs_promise = std::make_shared<std::promise<boost::system::error_code>>();
-                auto hs_future = hs_promise->get_future();
-                boost::system::error_code hs_ec;
+                    // The handshake runs on the socket's strand so a stalled client times out
+                    auto hs_promise = std::make_shared<std::promise<boost::system::error_code>>();
+                    auto hs_future = hs_promise->get_future();
+                    boost::system::error_code hs_ec;
 
-                try {
-                    boost::asio::post(tls->get_executor(), [tls, hs_promise]() {
-                        try {
-                            boost::beast::get_lowest_layer(*tls).expires_after(std::chrono::seconds(30));
-                            tls->async_handshake(boost::asio::ssl::stream_base::server,
-                                    [hs_promise](const boost::system::error_code& ec) {
-                                        hs_promise->set_value(ec);
-                                    });
-                        } catch (...) {
-                            hs_promise->set_exception(std::current_exception());
-                        }
-                    });
-
-                    hs_ec = hs_future.get();
-                } catch (const std::exception&) {
-                    hs_ec = boost::asio::error::operation_aborted;
-                }
-
-                // Plain HTTP to the HTTPS port, or a client that doesn't trust the certificate
-                if (hs_ec) {
                     try {
-                        boost::beast::get_lowest_layer(*tls).socket().close();
+                        boost::asio::post(tls->get_executor(), [tls, hs_promise]() {
+                            try {
+                                boost::beast::get_lowest_layer(*tls).expires_after(std::chrono::seconds(30));
+                                tls->async_handshake(boost::asio::ssl::stream_base::server,
+                                        [hs_promise](const boost::system::error_code& ec) {
+                                            hs_promise->set_value(ec);
+                                        });
+                            } catch (...) {
+                                hs_promise->set_exception(std::current_exception());
+                            }
+                        });
+
+                        hs_ec = hs_future.get();
+                    } catch (const std::exception&) {
+                        hs_ec = boost::asio::error::operation_aborted;
+                    }
+
+                    // Plain HTTP to the HTTPS port, or a client that doesn't trust the certificate
+                    if (hs_ec) {
+                        try {
+                            boost::beast::get_lowest_layer(*tls).socket().close();
+                        } catch (...) {
+                            ;
+                        }
+                        return;
+                    }
+
+                    while (boost::beast::get_lowest_layer(*tls).socket().is_open()) {
+                        auto conn =
+                            std::make_shared<kis_net_beast_httpd_connection>(*tls, shared_from_this());
+
+                        if (conn->start() == false)
+                            break;
+                    }
+
+                    try {
+                        boost::beast::get_lowest_layer(*tls).socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
                     } catch (...) {
                         ;
                     }
-                    return;
-                }
+                });
 
-                while (boost::beast::get_lowest_layer(*tls).socket().is_open()) {
-                    auto conn =
-                        std::make_shared<kis_net_beast_httpd_connection>(*tls, shared_from_this());
-
-                    if (conn->start() == false)
-                        break;
-                }
-
-                try {
-                    boost::beast::get_lowest_layer(*tls).socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-                } catch (...) {
-                    ;
-                }
-            });
-
-        conthread.detach();
+            conthread.detach();
+        } catch (const std::system_error& e) {
+            _MSG_ERROR("Unable to start a thread for a HTTPS connection: {}", e.what());
+        }
     }
 
     return start_ssl_accept();
