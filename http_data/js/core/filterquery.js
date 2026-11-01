@@ -24,7 +24,8 @@
 // a plain number is used as it is.  filterEmpty is the value (or list of
 // values) a field holds when it has no data, such as 0 for an uptime nobody
 // reported, and filterPresent a field that is 0 or missing when it has none;
-// a comparison on the field never matches those devices.  filterNames are
+// a comparison on the field never matches those devices, negated or not.
+// filterNames are
 // more names for a column or search field.  A name given by several of them
 // matches any of their fields; the server's short names stay as they are.
 //
@@ -536,8 +537,10 @@ function terms(f, fn) {
     return list;
 }
 
-function cmp(ctx, n) {
-    const f = resolve(ctx, n.field);
+// Any of the fields has data
+const anyData = (has) => any(has.map((h) => (h.includes(' and ') ? `(${h})` : h)));
+
+function cmp(ctx, n, f = resolve(ctx, n.field)) {
     const { op, value: v, pos } = n;
 
     // Not equal to any of them, and, when every field says what no data is, one
@@ -545,7 +548,7 @@ function cmp(ctx, n) {
     if (op === '!=' && f.paths.length > 1) {
         const none = `not ${any(terms(f, (p, k, conv) => term(f.name, p, k, conv, null, '==', v, pos)))}`;
         const has = f.paths.map((p, i) => hasData(p, f.kinds[i], f.guards?.[i]));
-        return has.every(Boolean) ? `(${any(has.map((h) => (h.includes(' and ') ? `(${h})` : h)))} and ${none})` : none;
+        return has.every(Boolean) ? `(${anyData(has)} and ${none})` : none;
     }
     return any(terms(f, (p, k, conv, g) => term(f.name, p, k, conv, g, op, v, pos)));
 }
@@ -562,6 +565,45 @@ function bare(ctx, v) {
     return `text(${quote(v.v)})`;
 }
 
+// Whether a comparison under n is on a field that says what no data is
+function guardedIn(ctx, n) {
+    if (n.t === 'cmp')
+        return !!resolve(ctx, n.field).guards?.some(Boolean);
+    if (n.t === 'not')
+        return guardedIn(ctx, n.a);
+    if (n.t === 'and' || n.t === 'or')
+        return n.a.some((c) => guardedIn(ctx, c));
+    return false;
+}
+
+// not n.  A device with no data for a field matches neither a comparison on it
+// nor its negation, so the not moves down to the comparisons (and and or
+// swap) and each keeps its data test outside the not.
+function negate(ctx, n) {
+    // 'not' takes a comparison, so only and/or need parentheses
+    if (!guardedIn(ctx, n))
+        return n.t === 'and' || n.t === 'or' ? `not (${gen(ctx, n)})` : `not ${gen(ctx, n)}`;
+
+    switch (n.t) {
+        case 'not':
+            return gen(ctx, n.a);
+        case 'and':
+            return `(${n.a.map((c) => negate(ctx, c)).join(' or ')})`;
+        case 'or':
+            return n.a.map((c) => negate(ctx, c)).join(' and ');
+        default: {
+            const f = resolve(ctx, n.field);
+            const has = f.paths.map((p, i) => hasData(p, f.kinds[i], f.guards?.[i]));
+            if (!has.every(Boolean))
+                return `not ${cmp(ctx, n)}`;
+            // not (none of them equal) is any of them equal
+            if (n.op === '!=' && f.paths.length > 1)
+                return `(${anyData(has)} and ${cmp(ctx, { ...n, op: '==' }, { ...f, guards: null })})`;
+            return `(${anyData(has)} and not ${cmp(ctx, n, { ...f, guards: null })})`;
+        }
+    }
+}
+
 function gen(ctx, n) {
     switch (n.t) {
         case 'cmp':
@@ -569,8 +611,7 @@ function gen(ctx, n) {
         case 'bare':
             return bare(ctx, n.value);
         case 'not':
-            // 'not' takes a comparison, so only and/or need parentheses
-            return n.a.t === 'and' || n.a.t === 'or' ? `not (${gen(ctx, n.a)})` : `not ${gen(ctx, n.a)}`;
+            return negate(ctx, n.a);
         case 'and':
             return n.a.map((c) => (c.t === 'or' ? `(${gen(ctx, c)})` : gen(ctx, c))).join(' and ');
         case 'or':
