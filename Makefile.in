@@ -630,16 +630,8 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_USB_RADIACODE) $(BIN)/`basename $(CAPTURE_USB_RADIACODE)` ; \
 	fi;
 
-	@if test "$(BUILD_CAPTURE_SDR_RTL433V2)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTL433V2) $(BIN)/`basename $(CAPTURE_SDR_RTL433V2)` ; \
-	fi;
-
 	@if test "$(BUILD_CAPTURE_SDR_RTLADSBV2)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_RTLADSBV2) $(BIN)/`basename $(CAPTURE_SDR_RTLADSBV2)` ; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_SDR_ZIGBEE900)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_SDR_ZIGBEE900) $(BIN)/`basename $(CAPTURE_SDR_ZIGBEE900)` ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTLAIS)"x = "1"x; then \
