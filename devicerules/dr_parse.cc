@@ -805,6 +805,7 @@ private:
         n->mask = 0;
         n->slot = -1;
         n->aux = -1;
+        n->icase = false;
         return n;
     }
 

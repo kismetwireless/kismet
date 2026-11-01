@@ -54,6 +54,22 @@ constexpr alias aliases[] = {
     { "seenby", "kismet.device.base.seenby" },
 };
 
+// Fields whose string values match without regard to case
+constexpr const char *icase_fields[] = {
+    "kismet.device.base.type",
+};
+
+char ascii_lower(char c) {
+    return (c >= 'A' && c <= 'Z') ? c + 32 : c;
+}
+
+std::string lower_copy(const char *s, size_t len) {
+    std::string r(s, len);
+    for (auto& c : r)
+        c = ascii_lower(c);
+    return r;
+}
+
 bool is_numeric(vtype t) {
     return t == vtype::integer || t == vtype::real;
 }
@@ -327,6 +343,7 @@ private:
         zero->mask = 0;
         zero->slot = -1;
         zero->aux = -1;
+        zero->icase = false;
 
         auto ne = std::make_unique<node>();
         ne->kind = nkind::binary;
@@ -338,6 +355,7 @@ private:
         ne->mask = 0;
         ne->slot = -1;
         ne->aux = 0;
+        ne->icase = false;
         ne->a = std::move(n);
         ne->b = std::move(zero);
         n = std::move(ne);
@@ -468,6 +486,7 @@ private:
         n->mask = 0;
         n->slot = -1;
         n->aux = -1;
+        n->icase = false;
         return n;
     }
 
@@ -627,6 +646,7 @@ private:
                 error(n.get(), "strings can't be ordered; use ==, !=, contains, startswith, endswith or matches");
             if (!is_lit(n->b))
                 error(n.get(), "strings can only be compared to a string value");
+            n->icase = is_icase(n->a);
             n->aux = add_string(n->b->str);
             return;
         }
@@ -672,6 +692,7 @@ private:
 
         value_set vs;
         vs.type = (at == vtype::integer && any_real) ? vtype::real : at;
+        n->icase = at == vtype::string && is_icase(n->a);
 
         for (auto& e : sn->set) {
             switch (vs.type) {
@@ -682,7 +703,7 @@ private:
                     vs.reals.push_back(e->type == vtype::integer ? (double) e->lit.i : e->lit.f);
                     break;
                 case vtype::string:
-                    vs.strings.insert(e->str);
+                    vs.strings.insert(n->icase ? lower_copy(e->str.data(), e->str.size()) : e->str);
                     break;
                 default:
                     if (e->mask == ~(uint64_t) 0)
@@ -698,6 +719,15 @@ private:
         n->aux = rs.sets.size();
         rs.sets.push_back(std::move(vs));
         n->type = vtype::boolean;
+    }
+
+    bool is_icase(const std::unique_ptr<node>& f) const {
+        if (f->kind != nkind::field)
+            return false;
+        for (const auto& p : icase_fields)
+            if (rs.fields[f->slot].text == p)
+                return true;
+        return false;
     }
 
     int add_string(const std::string& s) {
@@ -854,7 +884,7 @@ private:
             switch (vs.type) {
                 case vtype::integer: t = bc::ini; break;
                 case vtype::real: t = bc::inf; break;
-                case vtype::string: t = bc::ins; break;
+                case vtype::string: t = n->icase ? bc::insi : bc::ins; break;
                 default: t = bc::inm; break;
             }
 
@@ -900,6 +930,8 @@ private:
 
         if (at == vtype::string) {
             bc t = str_op(o);
+            if (n->icase)
+                t = o == op::eq ? bc::sieq : bc::sine;
             if (multi) {
                 gen_mpred(n, r, t, n->aux, false);
                 return;
@@ -1012,19 +1044,26 @@ bool str_icontains(const char *h, size_t hl, const char *n, size_t nl) {
     if (nl > hl)
         return false;
 
-    auto lc = [](char c) -> char {
-        return (c >= 'A' && c <= 'Z') ? c + 32 : c;
-    };
-
     for (size_t i = 0; i + nl <= hl; i++) {
         size_t j = 0;
-        while (j < nl && lc(h[i + j]) == lc(n[j]))
+        while (j < nl && ascii_lower(h[i + j]) == ascii_lower(n[j]))
             j++;
         if (j == nl)
             return true;
     }
 
     return false;
+}
+
+bool str_ieq(const char *a, size_t al, const char *b, size_t bl) {
+    if (al != bl)
+        return false;
+
+    for (size_t i = 0; i < al; i++)
+        if (ascii_lower(a[i]) != ascii_lower(b[i]))
+            return false;
+
+    return true;
 }
 
 bool ruleset::load_cached(eval_ctx& ctx, uint32_t slot, value& out) const {
@@ -1089,6 +1128,12 @@ bool ruleset::leaf_test(eval_ctx& ctx, bc o, const value& v, uint32_t k) const {
 #else
             return false;
 #endif
+        case bc::sieq:
+        case bc::sine: {
+            const auto& s = const_strings[k];
+            bool eq = str_ieq(v.s, v.len, s.data(), s.size());
+            return o == bc::sieq ? eq : !eq;
+        }
 
         case bc::ini:
             return sets[k].ints.find(v.i) != sets[k].ints.end();
@@ -1099,6 +1144,8 @@ bool ruleset::leaf_test(eval_ctx& ctx, bc o, const value& v, uint32_t k) const {
             return false;
         case bc::ins:
             return sets[k].strings.find(std::string(v.s, v.len)) != sets[k].strings.end();
+        case bc::insi:
+            return sets[k].strings.find(lower_copy(v.s, v.len)) != sets[k].strings.end();
         case bc::inm: {
             const auto& vs = sets[k];
             if (vs.macs.find(v.m) != vs.macs.end())
@@ -1168,8 +1215,8 @@ const char *bc_name(bc b) {
         "addf", "subf", "mulf", "divf", "negf",
         "eqi", "nei", "lti", "lei", "gti", "gei",
         "eqf", "nef", "ltf", "lef", "gtf", "gef",
-        "seq", "sne", "scont", "sicont", "spre", "ssuf", "sre",
-        "ini", "inf", "ins", "inm",
+        "seq", "sne", "scont", "sicont", "spre", "ssuf", "sre", "sieq", "sine",
+        "ini", "inf", "ins", "inm", "insi",
         "meq", "mne",
         "mpred",
         "exists", "count",

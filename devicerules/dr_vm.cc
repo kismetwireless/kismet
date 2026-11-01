@@ -177,10 +177,13 @@ static __attribute__((always_inline)) inline void exec_op(const ruleset& rs, eva
         case bc::spre:
         case bc::ssuf:
         case bc::sre:
+        case bc::sieq:
+        case bc::sine:
         case bc::ini:
         case bc::inf:
         case bc::ins:
         case bc::inm:
+        case bc::insi:
         case bc::meq:
         case bc::mne:
             boolean(R, pc->a, rs.leaf_test(ctx, pc->o, R[pc->b], pc->c));

@@ -27,7 +27,8 @@
 #   current time and age(field) is now - field.
 #
 #   Strings compare with == and !=, or with contains, icontains (any case),
-#   startswith, endswith and matches (a PCRE regex), against a "string".
+#   startswith, endswith and matches (a PCRE regex), against a "string".  The
+#   device type matches in any case: type == "wi-fi ap" matches "Wi-Fi AP".
 #
 #   MAC addresses are written aa:bb:cc:dd:ee:ff, with an optional mask as /24 or
 #   /ff:ff:ff:00:00:00; a short address such as aa:bb:cc matches the prefix.
