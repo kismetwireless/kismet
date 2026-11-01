@@ -17,6 +17,7 @@ all:	manifest.conf
 install:
 	mkdir -p $(DESTDIR)/$(plugindir)/$(PLUGIN_NAME)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 444 manifest.conf $(DESTDIR)/$(plugindir)/$(PLUGIN_NAME)/manifest.conf
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 444 demo.rules $(DESTDIR)/$(plugindir)/$(PLUGIN_NAME)/demo.rules
 
 	mkdir -p $(DESTDIR)/$(plugindir)/$(PLUGIN_NAME)/httpd
 	cp -r httpd/* $(DESTDIR)/$(plugindir)/$(PLUGIN_NAME)/httpd
@@ -24,6 +25,7 @@ install:
 userinstall:
 	mkdir -p ${HOME}/.kismet/plugins/$(PLUGIN_NAME)
 	$(INSTALL) manifest.conf $(HOME)/.kismet/plugins/$(PLUGIN_NAME)/manifest.conf
+	$(INSTALL) demo.rules $(HOME)/.kismet/plugins/$(PLUGIN_NAME)/demo.rules
 
 	mkdir -p ${HOME}/.kismet/plugins/$(PLUGIN_NAME)/httpd
 	cp -r httpd/* $(HOME)/.kismet/plugins/${PLUGIN_NAME}/httpd

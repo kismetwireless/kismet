@@ -36,6 +36,7 @@
 #include "plugintracker.h"
 #include "version.h"
 #include "kis_httpd_registry.h"
+#include "device_rules.h"
 
 void plugin_registration_data::activate_external_http() {
     // If we have a http proxy, instantiate and load it
@@ -264,6 +265,19 @@ int plugin_tracker::scan_directory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_ui2(s);
         }
 
+        // Device rules files, which have to be inside the plugin directory
+        for (const auto& r : cf.fetch_opt_vec("devicerules")) {
+            if (r.empty() || r[0] == '/' || r == ".." || r.find("../") == 0 ||
+                    r.find("/../") != std::string::npos ||
+                    (r.length() >= 3 && r.compare(r.length() - 3, 3, "/..") == 0)) {
+                _MSG_ERROR("Found an invalid 'devicerules=' in plugin manifest '{}', devicerules= "
+                        "should be a path inside the plugin directory", manifest);
+                continue;
+            }
+
+            preg->add_plugin_device_rules(r);
+        }
+
         // Make sure we haven't already loaded another copy of the plugin
         // based on the so or the pluginname
         for (auto x : plugin_preload) {
@@ -450,6 +464,16 @@ int plugin_tracker::activate_plugins() {
         // Alias the plugin directory
         httpd->register_static_dir("/plugin/" + x->get_plugin_dirname() + "/",
                 x->get_plugin_path() + "/httpd/");
+
+        // Device rules the plugin ships, built in once every plugin is loaded
+        if (x->get_plugin_device_rules()->size() > 0) {
+            auto devicerules = Globalreg::fetch_mandatory_global_as<device_rules>();
+            auto dir = x->get_plugin_path();
+            if (dir.empty() || dir.back() != '/')
+                dir += "/";
+            for (const auto& r : *x->get_plugin_device_rules())
+                devicerules->add_plugin_rules(x->get_plugin_name(), dir + r);
+        }
 
         _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);
 

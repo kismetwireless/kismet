@@ -659,25 +659,30 @@ private:
     }
 };
 
-// Parse recorded chunks again, feeding each include what it read the first time
+void replay_chunks(devicerules::ruleset& rs, const std::vector<device_rules::rules_chunk>& chunks);
+
+// Parse a recorded chunk again, feeding each include what it read the first time
+void replay_chunk(devicerules::ruleset& rs, const device_rules::rules_chunk& c) {
+    devicerules::parse_source src;
+    src.origin = c.origin;
+    src.line_base = c.line_base;
+    src.col_base = c.col_base;
+    src.only = c.only;
+
+    size_t next = 0;
+    if (c.only == devicerules::parse_source::block::any)
+        src.include = [&rs, &c, &next](const std::string&, size_t line, size_t col) {
+            if (next >= c.includes.size())
+                throw devicerules::parse_error("include out of step with the rules as read", line, col);
+            replay_chunks(rs, c.includes[next++]);
+        };
+
+    rs.parse(c.text, src);
+}
+
 void replay_chunks(devicerules::ruleset& rs, const std::vector<device_rules::rules_chunk>& chunks) {
-    for (const auto& c : chunks) {
-        devicerules::parse_source src;
-        src.origin = c.origin;
-        src.line_base = c.line_base;
-        src.col_base = c.col_base;
-        src.only = c.only;
-
-        size_t next = 0;
-        if (c.only == devicerules::parse_source::block::any)
-            src.include = [&rs, &c, &next](const std::string&, size_t line, size_t col) {
-                if (next >= c.includes.size())
-                    throw devicerules::parse_error("include out of step with the rules as read", line, col);
-                replay_chunks(rs, c.includes[next++]);
-            };
-
-        rs.parse(c.text, src);
-    }
+    for (const auto& c : chunks)
+        replay_chunk(rs, c);
 }
 
 // Read a whole regular file of at most max bytes; missing is set when it doesn't exist
@@ -777,6 +782,12 @@ device_rules::device_rules() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
                     return rules_endpoint();
+                }));
+
+    httpd->register_route("/devices/rules/sources", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
+                    return sources_endpoint();
                 }));
 
     httpd->register_route("/devices/rules/check", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -1146,17 +1157,126 @@ void device_rules::load_configured() {
     for (const auto& v : conf->fetch_opt_vec_sourced("device_sort"))
         loader.load_line(v, devicerules::parse_source::block::sort);
 
+    // Disables that match nothing are reported by plugins_loaded, as they may name a
+    // plugin's rule
     rule_disables = conf->fetch_opt_vec("device_rule_disable");
     sort_disables = conf->fetch_opt_vec("device_sort_disable");
 
-    for (const auto& n : rule_disables)
-        if (!rs.remove_rule(n))
-            _MSG_ERROR("device_rule_disable={} doesn't match any device rule", n);
-    for (const auto& n : sort_disables)
-        if (!rs.remove_sort(n))
-            _MSG_ERROR("device_sort_disable={} doesn't match any device sort", n);
+    sources.clear();
+    for (const auto& c : chunks)
+        note_sources({c}, rule_source{c.only == devicerules::parse_source::block::any ? "file" : "config", c.origin});
 
     config_chunks = std::move(chunks);
+}
+
+void device_rules::note_sources(const std::vector<rules_chunk>& chunks, const rule_source& src) {
+    for (const auto& c : chunks) {
+        sources.emplace(c.origin, src);
+        for (const auto& inc : c.includes)
+            note_sources(inc, src);
+    }
+}
+
+device_rules::rule_source device_rules::source_of(const std::map<std::string, rule_source>& srcs,
+        const std::string& origin) {
+    if (origin == api_origin)
+        return rule_source{"api", "API"};
+    auto s = srcs.find(origin);
+    if (s == srcs.end())
+        return rule_source{"file", origin};
+    return s->second;
+}
+
+void device_rules::replay_configured(devicerules::ruleset& rs) const {
+    // Config lines go last so they can still replace a plugin's rule
+    for (const auto& c : config_chunks)
+        if (c.only == devicerules::parse_source::block::any)
+            replay_chunk(rs, c);
+    for (const auto& p : plugin_chunks)
+        replay_chunks(rs, p.second);
+    for (const auto& c : config_chunks)
+        if (c.only != devicerules::parse_source::block::any)
+            replay_chunk(rs, c);
+}
+
+void device_rules::add_plugin_rules(const std::string& plugin, const std::string& path) {
+    kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules add_plugin_rules");
+
+    // Parsed here for the errors; built once every plugin is loaded
+    devicerules::ruleset rs;
+    std::vector<rules_chunk> chunks;
+    rules_loader loader(rs, chunks);
+
+    try {
+        loader.load_file(path, true);
+    } catch (const devicerules::parse_error& e) {
+        _MSG_ERROR("Device rules from plugin '{}' not loaded: {}", plugin, describe(e));
+        return;
+    }
+
+    if (chunks.empty())
+        return;
+
+    note_sources(chunks, rule_source{"plugin", plugin});
+    plugin_pending.emplace_back(plugin, std::move(chunks));
+}
+
+void device_rules::plugins_loaded() {
+    kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules plugins_loaded");
+
+    kismet_resolver r(entrytracker);
+
+    // Each plugin's rules have to build with the configured ones and the plugins before it
+    auto pending = std::move(plugin_pending);
+    plugin_pending.clear();
+    bool added = false;
+
+    for (auto& p : pending) {
+        plugin_chunks.push_back(std::move(p));
+        try {
+            devicerules::ruleset rs;
+            replay_configured(rs);
+            rs.compile(r);
+            added = true;
+        } catch (const devicerules::parse_error& e) {
+            _MSG_ERROR("Device rules from plugin '{}' not loaded: {}", plugin_chunks.back().first, describe(e));
+            plugin_chunks.pop_back();
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Device rules from plugin '{}' not loaded: {}", plugin_chunks.back().first, e.what());
+            plugin_chunks.pop_back();
+        }
+    }
+
+    try {
+        devicerules::ruleset rs;
+        replay_configured(rs);
+        for (const auto& n : rule_disables)
+            if (!rs.remove_rule(n))
+                _MSG_ERROR("device_rule_disable={} doesn't match any device rule", n);
+        for (const auto& n : sort_disables)
+            if (!rs.remove_sort(n))
+                _MSG_ERROR("device_sort_disable={} doesn't match any device sort", n);
+    } catch (const std::exception&) {
+        // The configured rules didn't parse at startup either, and that was logged
+    }
+
+    if (!added)
+        return;
+
+    std::shared_ptr<active_set> as;
+    try {
+        as = build_set(api_text);
+    } catch (const std::exception& e) {
+        _MSG_ERROR("Device rules from plugins not loaded, the rules set over the API don't build "
+                "with them: {}", e.what());
+        plugin_chunks.clear();
+        return;
+    }
+
+    for (const auto& p : plugin_chunks)
+        _MSG_INFO("Device rules: loaded the rules from plugin '{}'", p.first);
+
+    install_set(as);
 }
 
 std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::string& api) {
@@ -1165,7 +1285,7 @@ std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::str
 
     auto rs = std::make_unique<devicerules::ruleset>();
 
-    replay_chunks(*rs, config_chunks);
+    replay_configured(*rs);
 
     for (const auto& n : rule_disables)
         rs->remove_rule(n);
@@ -1635,78 +1755,197 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
     f_backend->set(as->jit ? "jit" : "vm");
     f_jiterr->set(as->jit_error);
 
+    std::map<std::string, rule_source> srcs;
+    {
+        kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules rules_endpoint sources");
+        srcs = sources;
+    }
+    auto from = [&srcs](const std::string& origin) { return source_of(srcs, origin); };
+
+    for (size_t i = 0; i < as->rs->size(); i++)
+        f_rules->push_back(rule_record(as->rs->rule(i), from(as->rs->rule(i).origin)));
+
+    for (size_t i = 0; i < as->rs->sort_count(); i++)
+        f_sorts->push_back(sort_record(as->rs->sort(i), from(as->rs->sort(i).origin)));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules::rule_def& rd,
+        const rule_source& src) {
+    auto r = std::make_shared<tracker_element_map>();
+
+    auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.name",
+            tracker_element_factory<tracker_element_string>(), "rule name");
+    auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.source",
+            tracker_element_factory<tracker_element_string>(), "rule text");
+    auto description = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.description",
+            tracker_element_factory<tracker_element_string>(), "what the rule finds");
+    auto tags = entrytracker->register_and_get_field_as<tracker_element_vector_string>("kismet.devicerules.rule.tags",
+            tracker_element_factory<tracker_element_vector_string>(), "tags set by the rule");
+    auto color = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.color",
+            tracker_element_factory<tracker_element_string>(), "highlight color set by the rule");
+    auto view = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.view",
+            tracker_element_factory<tracker_element_string>(), "view of devices matching the rule");
+    auto alert = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.alert",
+            tracker_element_factory<tracker_element_uint8>(), "rule raises an alert");
+    auto live = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.live",
+            tracker_element_factory<tracker_element_uint8>(), "rule is checked on every packet");
+    auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.origin",
+            tracker_element_factory<tracker_element_string>(), "file and line the rule came from");
+
+    name->set(rd.name);
+    source->set(rd.source);
+    description->set(rd.description);
+    for (const auto& t : rd.tags)
+        tags->push_back(t);
+    color->set(rd.color);
+    if (rd.view)
+        view->set(fmt::format("rule-{}", rd.name));
+    alert->set(rd.alert);
+    live->set(rd.live);
+    if (!rd.origin.empty())
+        origin->set(fmt::format("{}:{}", rd.origin, rd.line));
+
+    r->insert(name);
+    r->insert(source);
+    r->insert(description);
+    r->insert(tags);
+    r->insert(color);
+    r->insert(view);
+    r->insert(alert);
+    r->insert(live);
+    r->insert(origin);
+    auto from_type = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.from_type",
+            tracker_element_factory<tracker_element_string>(), "what defined the rule: file, config, plugin or api");
+    auto from_name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.from_name",
+            tracker_element_factory<tracker_element_string>(), "the file, config file or plugin that defined the rule");
+    from_type->set(src.type);
+    from_name->set(src.name);
+    r->insert(from_type);
+    r->insert(from_name);
+
+    return r;
+}
+
+std::shared_ptr<tracker_element_map> device_rules::sort_record(const devicerules::sort_def& sd,
+        const rule_source& src) {
+    auto r = std::make_shared<tracker_element_map>();
+
+    auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.name",
+            tracker_element_factory<tracker_element_string>(), "sort name");
+    auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.source",
+            tracker_element_factory<tracker_element_string>(), "sort text");
+    auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.origin",
+            tracker_element_factory<tracker_element_string>(), "file and line the sort came from");
+
+    name->set(sd.name);
+    source->set(sd.source);
+    if (!sd.origin.empty())
+        origin->set(fmt::format("{}:{}", sd.origin, sd.line));
+
+    r->insert(name);
+    r->insert(source);
+    r->insert(origin);
+    auto from_type = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.from_type",
+            tracker_element_factory<tracker_element_string>(), "what defined the sort: file, config, plugin or api");
+    auto from_name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.from_name",
+            tracker_element_factory<tracker_element_string>(), "the file, config file or plugin that defined the sort");
+    from_type->set(src.type);
+    from_name->set(src.name);
+    r->insert(from_type);
+    r->insert(from_name);
+
+    return r;
+}
+
+std::shared_ptr<tracker_element> device_rules::sources_endpoint() {
+    auto ret = std::make_shared<tracker_element_map>();
+
+    auto f_sources = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.sources",
+            tracker_element_factory<tracker_element_vector>(), "device rules and sorts by what defined them");
+    ret->insert(f_sources);
+
+    auto as = get_current();
+    if (as == nullptr)
+        return ret;
+
+    std::map<std::string, rule_source> srcs;
+    {
+        kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules sources_endpoint");
+        srcs = sources;
+    }
+    auto from = [&srcs](const std::string& origin) { return source_of(srcs, origin); };
+
+    struct group {
+        std::shared_ptr<tracker_element_vector> rules, sorts, files, replaced;
+    };
+    // Groups in the order their first rule or sort comes in
+    std::map<std::pair<std::string, std::string>, group> groups;
+
+    auto group_of = [&](const std::string& origin) -> group& {
+        auto src = from(origin);
+        auto key = std::make_pair(src.type, src.name);
+        auto g = groups.find(key);
+        if (g != groups.end())
+            return g->second;
+
+        auto m = std::make_shared<tracker_element_map>();
+        auto type = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.source.type",
+                tracker_element_factory<tracker_element_string>(), "what defined these: file, config, plugin or api");
+        auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.source.name",
+                tracker_element_factory<tracker_element_string>(), "the file, config file or plugin");
+        group ng;
+        ng.files = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.source.files",
+                tracker_element_factory<tracker_element_vector>(), "files the rules and sorts came from");
+        ng.rules = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.source.rules",
+                tracker_element_factory<tracker_element_vector>(), "rules, in rule order");
+        ng.sorts = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.source.sorts",
+                tracker_element_factory<tracker_element_vector>(), "sorts");
+        ng.replaced = entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.devicerules.source.replaced",
+                tracker_element_factory<tracker_element_vector>(), "rules and sorts these replaced");
+        type->set(src.type);
+        name->set(src.name);
+        m->insert(type);
+        m->insert(name);
+        m->insert(ng.files);
+        m->insert(ng.rules);
+        m->insert(ng.sorts);
+        m->insert(ng.replaced);
+        f_sources->push_back(m);
+        return groups.emplace(key, ng).first->second;
+    };
+
+    std::map<std::pair<std::string, std::string>, std::unordered_set<std::string>> seen_files;
+    auto add_file = [&](group& g, const std::string& origin) {
+        auto src = from(origin);
+        if (origin.empty() || origin == api_origin ||
+                !seen_files[std::make_pair(src.type, src.name)].insert(origin).second)
+            return;
+        auto f = std::make_shared<tracker_element_string>();
+        f->set(origin);
+        g.files->push_back(f);
+    };
+
     for (size_t i = 0; i < as->rs->size(); i++) {
         const auto& rd = as->rs->rule(i);
-
-        auto r = std::make_shared<tracker_element_map>();
-
-        auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.name",
-                tracker_element_factory<tracker_element_string>(), "rule name");
-        auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.source",
-                tracker_element_factory<tracker_element_string>(), "rule text");
-        auto description = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.description",
-                tracker_element_factory<tracker_element_string>(), "what the rule finds");
-        auto tags = entrytracker->register_and_get_field_as<tracker_element_vector_string>("kismet.devicerules.rule.tags",
-                tracker_element_factory<tracker_element_vector_string>(), "tags set by the rule");
-        auto color = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.color",
-                tracker_element_factory<tracker_element_string>(), "highlight color set by the rule");
-        auto view = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.view",
-                tracker_element_factory<tracker_element_string>(), "view of devices matching the rule");
-        auto alert = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.alert",
-                tracker_element_factory<tracker_element_uint8>(), "rule raises an alert");
-        auto live = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.live",
-                tracker_element_factory<tracker_element_uint8>(), "rule is checked on every packet");
-        auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.origin",
-                tracker_element_factory<tracker_element_string>(), "file and line the rule came from");
-
-        name->set(rd.name);
-        source->set(rd.source);
-        description->set(rd.description);
-        for (const auto& t : rd.tags)
-            tags->push_back(t);
-        color->set(rd.color);
-        if (rd.view)
-            view->set(fmt::format("rule-{}", rd.name));
-        alert->set(rd.alert);
-        live->set(rd.live);
-        if (!rd.origin.empty())
-            origin->set(fmt::format("{}:{}", rd.origin, rd.line));
-
-        r->insert(name);
-        r->insert(source);
-        r->insert(description);
-        r->insert(tags);
-        r->insert(color);
-        r->insert(view);
-        r->insert(alert);
-        r->insert(live);
-        r->insert(origin);
-
-        f_rules->push_back(r);
+        auto& g = group_of(rd.origin);
+        add_file(g, rd.origin);
+        g.rules->push_back(rule_record(rd, from(rd.origin)));
     }
 
     for (size_t i = 0; i < as->rs->sort_count(); i++) {
         const auto& sd = as->rs->sort(i);
+        auto& g = group_of(sd.origin);
+        add_file(g, sd.origin);
+        g.sorts->push_back(sort_record(sd, from(sd.origin)));
+    }
 
-        auto r = std::make_shared<tracker_element_map>();
-
-        auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.name",
-                tracker_element_factory<tracker_element_string>(), "sort name");
-        auto source = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.source",
-                tracker_element_factory<tracker_element_string>(), "sort text");
-        auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.sort.origin",
-                tracker_element_factory<tracker_element_string>(), "file and line the sort came from");
-
-        name->set(sd.name);
-        source->set(sd.source);
-        if (!sd.origin.empty())
-            origin->set(fmt::format("{}:{}", sd.origin, sd.line));
-
-        r->insert(name);
-        r->insert(source);
-        r->insert(origin);
-
-        f_sorts->push_back(r);
+    for (const auto& x : as->rs->replaced) {
+        auto& g = group_of(x.by);
+        auto s = std::make_shared<tracker_element_string>();
+        s->set(x.text);
+        g.replaced->push_back(s);
     }
 
     return ret;

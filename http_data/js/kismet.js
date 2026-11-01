@@ -49,6 +49,7 @@ import * as charts from './widgets/charts.js';
 import * as overview from './widgets/overview.js';
 import * as gps from './widgets/gps.js';
 import * as packetgraphs from './widgets/packetgraphs.js';
+import * as devicerules from './widgets/devicerules.js';
 import * as loading from './widgets/loading.js';
 import * as panesWidget from './widgets/panes.js';
 import * as datasourcesWindow from './widgets/datasources.js';
@@ -88,6 +89,7 @@ export const kismet = {
         overview,
         gps,
         packetgraphs,
+        devicerules,
         loading,
         panes: panesWidget,
         datasources: datasourcesWindow,

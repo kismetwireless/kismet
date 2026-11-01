@@ -1269,6 +1269,18 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .pk-window section + section { border-top: 1px solid var(--border); padding-top: 0.8rem; }
 .pk-bar, .pk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; }
 .pk-bar .muted { font-size: 0.85rem; }
+.dr-window { display: flex; flex-direction: column; gap: 1rem; }
+.dr-window section + section { border-top: 1px solid var(--border); padding-top: 0.8rem; }
+.dr-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1rem; }
+.dr-head h3 { margin: 0 0 0.4rem; font-size: 1rem; overflow-wrap: anywhere; }
+.dr-window h4 { margin: 0.6rem 0 0.3rem; font-size: 0.9rem; }
+.dr-window p { margin: 0 0 0.4rem; }
+.dr-entry { padding: 0.2rem 0; }
+.dr-entry summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+.dr-entry > :not(summary) { margin-left: 1.2rem; }
+.dr-entry pre { margin-top: 0.3rem; padding: 0.6rem; background: var(--surface-2); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dr-replaced { overflow-wrap: anywhere; }
+.dr-color { width: 0.8rem; height: 0.8rem; border-radius: 3px; background: var(--tag); }
 .pk-channels { margin-left: auto; }
 .pk-head h3 { margin: 0; }
 .pk-head { margin-bottom: 0.4rem; }

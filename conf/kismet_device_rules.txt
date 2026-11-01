@@ -44,6 +44,10 @@
 #   include "<file>"         a file, relative to this one
 #   include "<dir>/*.rules"  every matching file, in natural order
 #
+# Plugins can ship rules files too, named in their manifest.conf with
+# devicerules=<file>.  Plugin rules load after the rules files and before
+# device_rule= lines in the config, so either can replace a plugin rule by name.
+#
 # Sorts order devices for the device views:
 #
 #   sort <name> {
