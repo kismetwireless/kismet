@@ -276,10 +276,6 @@ std::string kis_external_tcp::remote_addresss() {
     return tcpsocket_.remote_endpoint().address().to_string();
 }
 
-bool kis_external_tcp::is_remote() {
-    return !(remote_addresss().compare(0, 4, "127.") == 0);
-}
-
 void kis_external_tcp::start_read() {
     read_frames(tcpsocket_);
 }
@@ -355,14 +351,6 @@ std::string kis_external_ws::remote_addresss() {
     }
 
     return "WS: n/a";
-}
-
-bool kis_external_ws::is_remote() {
-    if (ws_ != nullptr) {
-        return !(ws_->remote_address().compare(0, 4, "127.") == 0);
-    }
-
-    return true;
 }
 
 void kis_external_ws::write_impl() {
@@ -1358,10 +1346,11 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
 void kis_external_interface::handle_packet_http_auth_request_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
     if (io_->is_remote() && !allow_remote_web_auth_) {
-        _MSG_ERROR("Remotely connected handler from {} requested a web auth token, which "
-                "is blocked by the current Kismet config", io_->remote_addresss());
-        trigger_error("Remote handlers can not request web auth tokens, check your Kismet "
-                "configuration");
+        _MSG_ERROR("Remote capture connection from {} requested a web auth token, which "
+                "is blocked by the current Kismet config (remote_capture_allow_http_auth)",
+                io_->remote_addresss());
+        trigger_error("Remote capture connections can not request web auth tokens, check "
+                "your Kismet configuration");
     } else {
         auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
         auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);

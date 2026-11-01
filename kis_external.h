@@ -124,6 +124,8 @@ public:
 
     virtual std::string remote_addresss() { return ""; }
 
+    /* Only the IPC transport, a helper Kismet launched itself, is local; every network
+     * connection is remote, including loopback, which any local user can reach */
     virtual bool is_remote() { return true; }
 
     virtual boost::asio::io_context::strand &strand() { return strand_; }
@@ -224,7 +226,6 @@ public:
     void close_impl();
 
     virtual std::string remote_addresss() override;
-    virtual bool is_remote() override;
 
     tcp::socket tcpsocket_;
 };
@@ -257,7 +258,6 @@ public:
     virtual void close() override;
 
     virtual std::string remote_addresss() override;
-    virtual bool is_remote() override;
 
     std::shared_ptr<kis_net_web_websocket_endpoint> ws_;
     boost::asio::io_context::strand ws_strand_;
