@@ -4982,8 +4982,19 @@ int main(int argc, char *argv[]) {
     /* Support remote capture */
     cf_handler_remote_capture(caph);
 
-    /* Jail filesystem — serial devices need to be accessible */
-    cf_jail_filesystem(caph);
+    /* Jail filesystem; serial devices stay reachable, and the band lock state
+     * is saved under ~/.kismet */
+    {
+        char home[1024], state_dir[1100];
+        const char *keep[2] = { NULL, NULL };
+
+        if (cell_home_dir(home, sizeof(home)) == 0) {
+            snprintf(state_dir, sizeof(state_dir), "%s/.kismet", home);
+            keep[0] = state_dir;
+        }
+
+        cf_jail_filesystem_keep(caph, keep);
+    }
 
     /* Drop most capabilities but keep what we need for serial */
     cf_drop_most_caps(caph);

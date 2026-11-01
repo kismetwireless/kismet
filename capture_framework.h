@@ -679,16 +679,21 @@ void cf_handler_spindown(kis_capture_handler_t *caph);
 void cf_handler_set_close_grace(kis_capture_handler_t *caph, unsigned int grace_ms);
 int cf_handler_close_requested(kis_capture_handler_t *caph);
 
-/* Pivot into a new namespace and remount root as read-only - this should be
- * used whenever possible by data sources on Linux which can be installed as suidroot;
- * this pivots into a new namespace and remounts root as readonly.
+/* Pivot into a new mount namespace where every filesystem is read-only except
+ * /dev, /proc, /sys, /run, /tmp, /var/tmp and the lock dirs; this should be used
+ * whenever possible by data sources on Linux which can be installed as suidroot,
+ * and must be called before cf_drop_most_caps.
+ *
+ * cf_jail_filesystem_keep also keeps a NULL-terminated list of directories
+ * writable, for a source which saves state elsewhere.
  *
  * Returns
  * -1   Error pivoting into restricted namespace
- *  0   Not compiled on Linux
+ *  0   Not compiled on Linux, or not running as root
  *  1   Success
  */
 int cf_jail_filesystem(kis_capture_handler_t *caph);
+int cf_jail_filesystem_keep(kis_capture_handler_t *caph, const char **writable);
 
 /* Drop most root capabilities - this should be used whenever possible by data
  * sources which can be installed as suidroot; this removes all capabilities except
