@@ -4,6 +4,10 @@ const base = 'kismet.device.base';
 
 export function register(kismet) {
     const { ui, icons } = kismet;
+    // Search box names for the Bluetooth details
+    ui.filterHints.add({ id: 'bluetooth_services', phy: 'Bluetooth', names: ['services'],
+        fields: ['bluetooth.device/bluetooth.device.service_uuid_strs'] });
+
     const isBluetooth = (row) => row[`${base}.phyname`] === 'Bluetooth';
 
     ui.deviceIcons.add({

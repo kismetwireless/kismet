@@ -8,7 +8,7 @@ import * as settings from '../core/settings.js';
 import * as sources from '../core/sources.js';
 import { onLogin } from '../core/auth.js';
 import { compileQuery, fieldContext } from '../core/filterquery.js';
-import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields } from '../registry/columns.js';
+import { deviceColumns, deviceIcons, rowHighlights, searchFields, filterHints, alwaysFields } from '../registry/columns.js';
 import { deviceViews } from '../registry/devices.js';
 import { openDevice } from './detailpanel.js';
 import { createDataTable } from './datatable.js';
@@ -18,6 +18,8 @@ export function createDeviceTable(container) {
     let view = settings.get('devicelist.view', 'all');
     let lastViews = null;
     let table = null;
+    // The phys this server has, so filters leave out hints for the others
+    let serverPhys = null;
 
     const viewSelect = el('select', { class: 'view-select', title: 'Which devices to list',
         onchange: () => {
@@ -124,12 +126,24 @@ export function createDeviceTable(container) {
         defaultSort: { column: 'last_time', dir: 'desc' },
         noun: 'devices',
         toolbar: () => viewSelect,
-        // Filters in the search box name the device list's columns and search fields
-        query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list())),
+        // Filters in the search box name the device list's columns, search fields and hints
+        query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list(),
+            filterHints.list(), serverPhys)),
     });
 
+    async function loadPhys() {
+        try {
+            const list = await api.get('phy/all_phys.json');
+            serverPhys = Array.isArray(list) ? new Set(list.map((p) => p['kismet.phy.phy_name'])) : null;
+        } catch {
+            serverPhys = null;
+        }
+    }
+
     loadViews();
+    loadPhys();
     onLogin(loadViews);
+    onLogin(loadPhys);
     // Keep the counts in the picker current
     const viewTimer = setInterval(() => {
         if (!container.isConnected)

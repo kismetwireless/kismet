@@ -7,6 +7,15 @@ const hex = (digits) => (v) => `0x${v.toString(16).padStart(digits, '0')}`;
 
 export function register(kismet) {
     const { ui, icons } = kismet;
+    // Search box names for the 802.15.4 details
+    const filterHint = (id, names, path, more = {}) =>
+        ui.filterHints.add({ id, phy: '802.15.4', names, fields: [`${d}/${d}.${path}`], ...more });
+    filterHint('802154_pan_id', ['pan_id', 'pan'], 'pan_id', { filterKind: 'number' });
+    filterHint('802154_short_addr', ['short_addr'], 'short_addr', { filterKind: 'number' });
+    filterHint('802154_ext_pan_id', ['ext_pan_id'], 'ext_pan_id', { filterEmpty: '' });
+    filterHint('802154_network_name', ['network_name'], 'network_name', { filterEmpty: '' });
+    filterHint('802154_role', ['role'], 'role', { filterEmpty: '' });
+
     const is802154 = (row) => row[`${base}.phyname`] === '802.15.4';
 
     ui.deviceIcons.add({
@@ -28,6 +37,7 @@ export function register(kismet) {
         description: 'Zigbee, Zigbee Green Power, Thread, or 6LoWPAN',
         fields: [[`${d}/${d}.network_type`, 'network_type']],
         sortField: `${d}/${d}.network_type`,
+        filterKind: 'text',
         render: (row) => row.network_type || '',
     });
 

@@ -7,6 +7,13 @@ const m = 'meter.device';
 
 export function register(kismet) {
     const { ui, icons, dom } = kismet;
+    // Search box names for the meter details
+    const filterHint = (id, names, path, more = {}) =>
+        ui.filterHints.add({ id, phy: 'METER', names, fields: [`${m}/${m}.${path}`], ...more });
+    filterHint('meter_id', ['meter_id'], 'meter_id', { filterKind: 'number' });
+    filterHint('meter_type', ['meter_type'], 'meter_type', { filterEmpty: '' });
+    filterHint('meter_consumption', ['consumption'], 'consumption', { filterKind: 'number' });
+
     const isMeter = (row) => row[`${base}.phyname`] === 'METER';
 
     icons.define('meter', '<path d="M4 11l8-7 8 7v9H4z"/><circle cx="12" cy="14.5" r="3"/><path d="M12 14.5l1.5-1.5"/>');

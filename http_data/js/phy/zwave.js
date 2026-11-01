@@ -5,6 +5,12 @@ const z = 'zwave.device';
 
 export function register(kismet) {
     const { ui } = kismet;
+    // Search box names for the Z-Wave details
+    ui.filterHints.add({ id: 'zwave_home_id', phy: 'Z-Wave', names: ['home_id'], fields: [`${z}/${z}.home_id`],
+        filterKind: 'number' });
+    ui.filterHints.add({ id: 'zwave_device_id', phy: 'Z-Wave', names: ['zwave_id'], fields: [`${z}/${z}.device_id`],
+        filterKind: 'number' });
+
     const hex = (v) => v.toString(16);
 
     ui.mapSources.add({

@@ -14,6 +14,13 @@ const nodeTypes = {
 
 export function register(kismet) {
     const { ui, icons, format, dom } = kismet;
+    // Search box names for the node details
+    const filterHint = (id, names, path, more = {}) =>
+        ui.filterHints.add({ id, phy: 'MeshCore', names, fields: [`${n}/${n}.${path}`], ...more });
+    filterHint('meshcore_name', ['node_name'], 'name', { filterEmpty: '' });
+    filterHint('meshcore_pubkey', ['pubkey', 'public_key'], 'pubkey', { filterEmpty: '' });
+    filterHint('meshcore_hops', ['hops'], 'advert_hops', { filterKind: 'number' });
+
     const isMeshcore = (row) => row[`${base}.phyname`] === 'MeshCore';
 
     // The same picture as Meshtastic's; whichever module loads first defines it

@@ -63,6 +63,15 @@ export const trackerName = (tr) => classNames[tr.deviceClass] ?? typeNames[tr.ty
 
 export function registerTrackers(kismet) {
     const { ui, format, icons } = kismet;
+    // Search box names for trackers, on BTLE and on Bluetooth devices
+    [['BTLE', paths[0]], ['Bluetooth', paths[1]]].forEach(([phy, p]) => {
+        const filterHint = (id, names, path, more = {}) =>
+            ui.filterHints.add({ id: `${id}_${phy}`, phy, names, fields: [`${p}/${t}.${path}`], ...more });
+        filterHint('tracker_network', ['tracker', 'tracker_network'], 'type', { filterEmpty: '' });
+        filterHint('tracker_battery', ['battery'], 'battery', { filterEmpty: '' });
+        filterHint('tracker_separated', ['separated'], 'separated', { filterKind: 'number' });
+    });
+
 
     const listFields = fieldsFor('trk');
 

@@ -24,6 +24,17 @@ const telemetryFields = ['battery', 'voltage', 'chan_util', 'chan_tx_util', 'upt
 
 export function register(kismet) {
     const { ui, icons, format, api } = kismet;
+    // Search box names for the node details
+    const filterHint = (id, names, path, more = {}) =>
+        ui.filterHints.add({ id, phy: 'Meshtastic', names, fields: [`${n}/${n}.${path}`], ...more });
+    filterHint('meshtastic_node_id', ['node_id', 'nodeid'], 'nodeid', { filterEmpty: '' });
+    filterHint('meshtastic_long_name', ['node_name', 'long_name'], 'longname', { filterEmpty: '' });
+    filterHint('meshtastic_short_name', ['node_name', 'short_name'], 'shortname', { filterEmpty: '' });
+    filterHint('meshtastic_battery', ['battery'], 'telem.battery', { filterKind: 'number', filterEmpty: 0 });
+    filterHint('meshtastic_voltage', ['voltage'], 'telem.voltage', { filterKind: 'number', filterEmpty: 0 });
+    filterHint('meshtastic_channel_use', ['channel_use'], 'telem.chan_util', { filterKind: 'number', filterEmpty: 0 });
+    filterHint('meshtastic_uptime', ['uptime'], 'telem.uptime', { filterKind: 'duration', filterEmpty: 0 });
+
     const isMeshtastic = (row) => row[`${base}.phyname`] === 'Meshtastic';
 
     icons.define('mesh', '<circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="17" r="2.2"/><circle cx="19" cy="17" r="2.2"/><path d="M10.9 6.9L6.1 15M13.1 6.9l4.8 8.1M7.2 17h9.6"/>');

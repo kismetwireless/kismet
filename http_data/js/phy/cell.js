@@ -204,6 +204,23 @@ function intervalText(ms) {
 
 export function register(kismet) {
     const { ui, icons, dom, format, datasources: sources } = kismet;
+    // Search box names for the cell details
+    const filterHint = (id, names, path, more = {}) =>
+        ui.filterHints.add({ id, phy: 'Cellular', names, fields: [`${cd}/cellular.cell.${path}`], ...more });
+    const numeric = { filterKind: 'number', filterEmpty: 0 };
+    filterHint('cell_operator', ['operator'], 'operator', { filterEmpty: '' });
+    filterHint('cell_mcc', ['mcc'], 'mcc', { filterEmpty: '' });
+    filterHint('cell_mnc', ['mnc'], 'mnc', { filterEmpty: '' });
+    filterHint('cell_plmn', ['plmn'], 'plmn', { filterEmpty: '' });
+    filterHint('cell_tac', ['tac'], 'tac', numeric);
+    filterHint('cell_id', ['cell_id', 'cellid'], 'cellid', numeric);
+    filterHint('cell_pci', ['pci'], 'pci', { filterKind: 'number' });
+    filterHint('cell_arfcn', ['arfcn'], 'arfcn', numeric);
+    filterHint('cell_band', ['band'], 'band', numeric);
+    filterHint('cell_rsrp', ['rsrp'], 'rsrp', numeric);
+    filterHint('cell_rsrq', ['rsrq'], 'rsrq', numeric);
+    filterHint('cell_sinr', ['sinr'], 'sinr', numeric);
+
     const { el, replace } = dom;
     const { confirm } = kismet.widgets.dialog;
     const muted = ui.muted;
@@ -227,6 +244,7 @@ export function register(kismet) {
         description: 'The cell\'s radio access technology (GSM, UMTS, LTE, NR)',
         fields: [`${cd}/cellular.cell.rat`],
         sortField: `${cd}/cellular.cell.rat`,
+        filterKind: 'text',
         render: (row) => row['cellular.cell.rat'] || '',
     });
     ui.deviceColumns.add({
@@ -234,6 +252,7 @@ export function register(kismet) {
         description: 'The cell\'s identity: MCC/MNC_TAC_CellID, or PCI and channel for a cell only heard as a neighbor',
         fields: [`${cd}/cellular.cell.key`],
         sortField: `${cd}/cellular.cell.key`,
+        filterKind: 'text',
         render: (row) => row['cellular.cell.key'] || '',
     });
     ui.searchFields.add({
