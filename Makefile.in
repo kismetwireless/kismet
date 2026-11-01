@@ -1098,11 +1098,11 @@ firmware_file.c.o firmware_file.c.d: CFLAGS += $(FIRMWARECFLAGS)
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 %.cc.o: %.cc
 %.cc.o:	%.cc %.cc.d
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@ -MMD -MP -MF $(@:.o=.d)
 
 %.c.d:  %.c
 	$(CC) -MM -MP $(CFLAGS) $(CPPFLAGS) -MT $*.c.o $*.c -MF $*.c.d

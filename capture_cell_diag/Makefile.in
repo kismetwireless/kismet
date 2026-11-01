@@ -162,7 +162,7 @@ LOGSTREAM_DUMP_BIN = diag_logstream_dump
 all: $(MONITOR_BIN) $(PROBE_BIN) $(LOGSTREAM_DUMP_BIN)
 
 usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 usbserial.c.d:	../usbserial/usbserial.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../usbserial/usbserial.c | \
@@ -461,20 +461,20 @@ clean:
 	    $< > $@
 
 %.cpp.o : %.cpp %.cpp.d
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
 
 %.cc.d : %.cc
 	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -MT $*.cc.o \
 	    $< > $@
 
 %.cc.o : %.cc %.cc.d
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
 
 .PRECIOUS: %.cpp.d %.cc.d
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
 %.c.d:	%.c
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
