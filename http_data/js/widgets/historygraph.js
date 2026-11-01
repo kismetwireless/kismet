@@ -35,7 +35,7 @@
 //       for times something was wrong
 // The readout lists the marks and bands at the value pointed at.
 
-import { el } from '../core/dom.js';
+import { el, fitCanvas } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
 
 export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = null, title = '', minBar = false,
@@ -94,13 +94,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             lines ? lines.flatMap((l) => l.values) : values;
         const count = lines ? Math.max(...lines.map((l) => l.values.length)) : values.length;
 
-        const ratio = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(canvas.clientWidth * ratio));
-        const h = Math.max(1, Math.round(canvas.clientHeight * ratio));
-        if (canvas.width !== w || canvas.height !== h) {
-            canvas.width = w;
-            canvas.height = h;
-        }
+        const { w, h, ratio } = fitCanvas(canvas);
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, w, h);

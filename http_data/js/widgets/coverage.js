@@ -18,7 +18,7 @@
 // /datasource/all_sources.json.  Both are polled only while the window is
 // open and the page visible.
 
-import { el } from '../core/dom.js';
+import { el, fitCanvas } from '../core/dom.js';
 import * as api from '../core/api.js';
 import * as rrd from '../core/rrd.js';
 import * as clock from '../core/clock.js';
@@ -179,10 +179,10 @@ export function sourceSpan(source, channel) {
 let openWindow = null;
 
 export function openCoverage({ view: startView = null } = {}) {
-    if (openWindow) {
+    if (openWindow?.dialog.node.isConnected) {
         if (startView)
             openWindow.setView(startView);
-        openWindow.dialog.node.dispatchEvent(new PointerEvent('pointerdown'));
+        openWindow.dialog.raise();
         return openWindow.dialog;
     }
     const canvas = el('canvas', { class: 'coverage-canvas' });
@@ -525,13 +525,7 @@ export function openCoverage({ view: startView = null } = {}) {
             idle = setTimeout(draw, 1000);
             return;
         }
-        const ratio = window.devicePixelRatio || 1;
-        const W = Math.max(1, Math.round(stage.clientWidth * ratio));
-        const H = Math.max(1, Math.round(stage.clientHeight * ratio));
-        if (canvas.width !== W || canvas.height !== H) {
-            canvas.width = W;
-            canvas.height = H;
-        }
+        const { w: W, h: H, ratio } = fitCanvas(canvas, stage.clientWidth, stage.clientHeight);
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, W, H);
 
@@ -760,12 +754,7 @@ export function openCoverage({ view: startView = null } = {}) {
         const cssH = Math.max(heatScroll.clientHeight, top + bottom + rows.length * rowMin);
         if (heatCanvas.style.height !== `${cssH}px`)
             heatCanvas.style.height = `${cssH}px`;
-        const W = Math.round(cssW * ratio);
-        const H = Math.round(cssH * ratio);
-        if (heatCanvas.width !== W || heatCanvas.height !== H) {
-            heatCanvas.width = W;
-            heatCanvas.height = H;
-        }
+        const { w: W, h: H } = fitCanvas(heatCanvas, cssW, cssH);
         const ctx = heatCanvas.getContext('2d');
         ctx.clearRect(0, 0, W, H);
         ctx.font = `${font}px system-ui, sans-serif`;

@@ -47,9 +47,12 @@ export function dialog({ title, body, modal = true, closable = true, className =
     let filled = 0;
     const node = el('dialog', { class: ['dialog', modal ? 'modal' : 'panel', className] }, header, content);
 
+    // Clicking a panel brings it in front of the other panels
+    const raise = () => {
+        if (!modal)
+            node.style.zIndex = String(++topLayer);
+    };
     if (!modal) {
-        // Clicking a panel brings it in front of the other panels
-        const raise = () => { node.style.zIndex = String(++topLayer); };
         node.addEventListener('pointerdown', raise);
         raise();
     }
@@ -199,6 +202,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
         node,
         body: content,
         close,
+        raise,
         setTitle: (t) => titleEl.replaceChildren(t),
         // Widen a panel to `width` (no wider than the window), moving it left
         // if its right edge would go off screen

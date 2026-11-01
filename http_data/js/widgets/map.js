@@ -27,6 +27,7 @@ import { icon } from '../core/icons.js';
 import { mapSources } from '../registry/ui.js';
 import { openDevice } from './detailpanel.js';
 import { confirm } from './dialog.js';
+import { expandTool } from './panes.js';
 
 const base = 'kismet.device.base';
 const refreshMs = 2000;
@@ -204,8 +205,6 @@ export function createMap(container, area = null) {
         onclick: () => askTiles(true) }, icon('gps'), 'Blank map');
     const fitButton = el('button', { class: 'map-tool icon-only', title: 'Show all devices', onclick: () => fitAll() },
         icon('target'));
-    // Lives in the tab bar, so it's only there while the map is
-    const expandButton = el('button', { class: 'icon-button tab-tool', onclick: () => setExpanded(!expanded) });
     const tools = el('div', { class: 'map-tools' }, tilesButton, fitButton);
 
     const search = el('input', { type: 'search', class: 'map-search', placeholder: 'Search the map',
@@ -291,7 +290,6 @@ export function createMap(container, area = null) {
     let selfMarker = null;
     let trail = null;
     let visible = false;
-    let expanded = false;
     let timer = null;
     let collectTimer = null;
     let busy = false;
@@ -332,37 +330,17 @@ export function createMap(container, area = null) {
     }
 
     // Expanding fills the window with the map's tab area; with no area to
-    // expand (the map shown somewhere else), only the map itself does
-    function setExpanded(on) {
-        if (area)
-            area.setExpanded(on);
-        else
-            showExpanded(on);
-    }
-
-    function showExpanded(on) {
-        expanded = on;
-        if (!area)
-            root.classList.toggle('expanded', on);
-        expandButton.replaceChildren(icon(on ? 'collapse' : 'expand'));
-        expandButton.title = on ? 'Back to the dashboard (Esc)' : 'Fill the window with the map';
-        expandButton.setAttribute('aria-pressed', on ? 'true' : 'false');
-        requestAnimationFrame(() => map?.invalidateSize());
-    }
-    showExpanded(false);
-    const stopExpand = area?.onExpand(showExpanded);
-
-    function onKey(e) {
-        if (!expanded || !visible || e.key !== 'Escape' || e.defaultPrevented)
-            return;
-        if (document.querySelector('dialog[open], .menu-list:not([hidden])'))
-            return;
-        if (e.target.matches?.('input, textarea, select') && e.target.value)
-            return;
-        e.preventDefault();
-        setExpanded(false);
-    }
-    document.addEventListener('keydown', onKey);
+    // expand (the map shown somewhere else), only the map itself does.  The
+    // button lives in the tab bar, so it's only there while the map is.
+    const expand = expandTool(area, 'the map', {
+        isShowing: () => visible,
+        setExpanded: (on) => (area ? area.setExpanded(on) : expand.show(on)),
+        onChange: (on) => {
+            if (!area)
+                root.classList.toggle('expanded', on);
+            requestAnimationFrame(() => map?.invalidateSize());
+        },
+    });
     const flushRange = () => range.flush();
     window.addEventListener('pagehide', flushRange);
 
@@ -1257,12 +1235,11 @@ export function createMap(container, area = null) {
         settings.watch('map.range', () => { rangeAt = 0; loadRange(); drawRange(); }),
         settings.watch('map.rangeWindow', () => { windowSelect.value = rangeWindow(); drawRange(); }),
         () => { window.removeEventListener('pagehide', flushRange); range.flush(); },
-        () => document.removeEventListener('keydown', onKey),
-        () => stopExpand?.(),
+        () => expand.destroy(),
     ];
 
     return {
-        tools: [expandButton],
+        tools: [expand.button],
         show() {
             visible = true;
             if (!L && !leafletLoad)
@@ -1275,8 +1252,8 @@ export function createMap(container, area = null) {
         },
         hide() {
             visible = false;
-            if (expanded)
-                setExpanded(false);
+            if (expand.isExpanded())
+                expand.setExpanded(false);
             stop();
             startCollecting();
         },

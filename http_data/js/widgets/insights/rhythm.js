@@ -6,7 +6,7 @@
 //   const r = rhythm({ onPick: (key) => ... });
 //   r.update(result)        a result of model.rhythm()
 
-import { el, replace } from '../../core/dom.js';
+import { el, replace, scaleCanvas } from '../../core/dom.js';
 import * as theme from '../../core/theme.js';
 import * as charts from '../charts.js';
 import * as censor from '../../core/censor.js';
@@ -38,15 +38,9 @@ export function rhythm({ onPick = null } = {}) {
 
     function draw() {
         const rows = data.rows;
-        const dpr = window.devicePixelRatio || 1;
         const h = Math.max(1, rows.length) * rowH + 26;
         const w = Math.max(420, width);
-        canvas.style.width = `${w}px`;
-        canvas.style.height = `${h}px`;
-        canvas.width = Math.round(w * dpr);
-        canvas.height = Math.round(h * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, w, h);
+        scaleCanvas(canvas, w, h);
         const c = (n) => theme.themeColor(n) || '#888';
         const text = c('--text'), muted = c('--muted'), accent = c('--accent'), border = c('--border');
         const cols = rows[0]?.values.length ?? 59;

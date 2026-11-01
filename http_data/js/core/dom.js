@@ -73,3 +73,31 @@ export function debounce(ms, fn) {
         timer = setTimeout(() => fn(...args), ms);
     };
 }
+
+// Size a canvas's backing store to `width` x `height` CSS pixels (its laid-out
+// size by default) at the screen's pixel ratio; drawing is in device pixels.
+// Returns { w, h, ratio }, the backing size and the ratio.
+export function fitCanvas(canvas, width = canvas.clientWidth, height = canvas.clientHeight) {
+    const ratio = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(width * ratio));
+    const h = Math.max(1, Math.round(height * ratio));
+    if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+    }
+    return { w, h, ratio };
+}
+
+// Size a canvas to `w` x `h` CSS pixels and return its cleared context,
+// scaled so drawing is in CSS pixels.
+export function scaleCanvas(canvas, w, h) {
+    const ratio = window.devicePixelRatio || 1;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return ctx;
+}

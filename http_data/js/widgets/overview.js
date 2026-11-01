@@ -35,7 +35,7 @@ import * as clock from '../core/clock.js';
 import * as settings from '../core/settings.js';
 import { icon } from '../core/icons.js';
 import { dashboardCards } from '../registry/ui.js';
-import { showPane } from './panes.js';
+import { showPane, expandTool } from './panes.js';
 import * as loading from './loading.js';
 
 const base = 'kismet.device.base';
@@ -162,19 +162,17 @@ export function createOverview(container, area = null) {
     // Tab bar tools: arrange the cards, and fill the window with the overview
     const editButton = el('button', { class: 'icon-button tab-tool', title: 'Arrange the cards',
         onclick: () => setEditing(!editing) }, icon('edit'));
-    const expandButton = el('button', { class: 'icon-button tab-tool',
-        onclick: () => area?.setExpanded(!expanded) });
-    const toolNode = el('span', { class: 'ov-tools' }, editButton, area ? expandButton : null);
-    let expanded = false;
-
-    function showExpanded(on) {
-        expanded = on;
-        expandButton.replaceChildren(icon(on ? 'collapse' : 'expand'));
-        expandButton.title = on ? 'Back to the dashboard (Esc)' : 'Fill the window with the overview';
-        expandButton.setAttribute('aria-pressed', on ? 'true' : 'false');
-    }
-    showExpanded(false);
-    const stopExpand = area?.onExpand(showExpanded);
+    // Escape finishes arranging first, then leaves the full window
+    const expand = expandTool(area, 'the overview', {
+        isShowing: () => visible,
+        onEscape: () => {
+            if (!editing)
+                return false;
+            setEditing(false);
+            return true;
+        },
+    });
+    const toolNode = el('span', { class: 'ov-tools' }, editButton, area ? expand.button : null);
 
     const cards = new Map();   // id -> { entry, node, handle, ready, round, loader, busy }
     const data = {};
@@ -425,22 +423,6 @@ export function createOverview(container, area = null) {
         editButton.title = editing ? 'Finish arranging (Esc)' : 'Arrange the cards';
     }
 
-    // Escape finishes arranging first, then leaves the full window
-    function onKey(e) {
-        if (!visible || e.key !== 'Escape' || e.defaultPrevented || (!editing && !expanded))
-            return;
-        if (document.querySelector('dialog[open], .menu-list:not([hidden])'))
-            return;
-        if (e.target.matches?.('input, textarea') && e.target.value)
-            return;
-        e.preventDefault();
-        if (editing)
-            setEditing(false);
-        else
-            area?.setExpanded(false);
-    }
-    document.addEventListener('keydown', onKey);
-
     // Dragging a card's title moves it, its corner resizes it.  The card
     // follows the pointer; the placeholder shows where it will land, and the
     // other cards move out of the way as it goes.
@@ -645,8 +627,7 @@ export function createOverview(container, area = null) {
             clearInterval(timer);
             stopWatch();
             resize.disconnect();
-            stopExpand?.();
-            document.removeEventListener('keydown', onKey);
+            expand.destroy();
             for (const c of cards.values())
                 destroyCard(c);
             root.remove();

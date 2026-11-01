@@ -17,6 +17,57 @@ import { panes } from '../registry/ui.js';
 
 const areas = new Map();        // area name -> its api
 
+// The tab bar button that fills the window with a tab's area, and Escape to
+// leave it.  `what` finishes the button's title ("Fill the window with the
+// map"); isShowing() says the tab is on screen.  With no area, setExpanded
+// does the expanding instead.  onChange(on) follows each change, and onEscape(),
+// when given, gets Escape first and returns true if it used it.
+// -> { button, isExpanded(), setExpanded(on), show(on), destroy() }
+export function expandTool(area, what, { isShowing, setExpanded = (on) => area?.setExpanded(on), onChange = null,
+    onEscape = null }) {
+    let expanded = false;
+    const button = el('button', { class: 'icon-button tab-tool', onclick: () => setExpanded(!expanded) });
+
+    function show(on) {
+        expanded = on;
+        button.replaceChildren(icon(on ? 'collapse' : 'expand'));
+        button.title = on ? 'Back to the dashboard (Esc)' : `Fill the window with ${what}`;
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        onChange?.(on);
+    }
+    show(false);
+    const stopExpand = area?.onExpand(show);
+
+    function onKey(e) {
+        if (!isShowing() || e.key !== 'Escape' || e.defaultPrevented)
+            return;
+        if (document.querySelector('dialog[open], .menu-list:not([hidden])'))
+            return;
+        if (e.target.matches?.('input, textarea, select') && e.target.value)
+            return;
+        if (onEscape?.()) {
+            e.preventDefault();
+            return;
+        }
+        if (!expanded)
+            return;
+        e.preventDefault();
+        setExpanded(false);
+    }
+    document.addEventListener('keydown', onKey);
+
+    return {
+        button,
+        isExpanded: () => expanded,
+        setExpanded,
+        show,
+        destroy() {
+            stopExpand?.();
+            document.removeEventListener('keydown', onKey);
+        },
+    };
+}
+
 export function showPane(id) {
     const pane = panes.get(id) ?? panes.get(`table-${id}`);
     const areaApi = pane && areas.get(pane.area);
