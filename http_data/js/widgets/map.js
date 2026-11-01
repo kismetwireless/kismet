@@ -10,10 +10,12 @@
 // path joins those with the server's location history, when it keeps one.
 // The same positions build the receiver range outline (maprange.js).
 //
-// The map background comes from a public tile server, so nothing is loaded
-// from it until the user agrees (see askTiles).  Without tiles the devices
-// are drawn on a blank map.  The server can set a default tile server and
-// policy (httpd_map_tile_url, httpd_map_tiles); a browser's own settings win.
+// The map background comes from a tile server, so nothing is loaded from it
+// until the user agrees to that server (see askTiles); agreeing covers that
+// tile address only, and a different one is asked about again.  Without tiles
+// the devices are drawn on a blank map.  The server can set a default tile
+// server, and ask or deny as the default policy (httpd_map_tile_url,
+// httpd_map_tiles); a browser's own settings win.
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
@@ -138,7 +140,8 @@ export function loadServerTiles() {
                 serverTiles = {
                     url: usableTileUrl(j?.url) ? String(j.url) : '',
                     attribution: String(j?.attribution ?? ''),
-                    tiles: ['allow', 'deny', 'ask'].includes(j?.tiles) ? j.tiles : 'ask',
+                    // The server can't agree to tiles for the user
+                    tiles: j?.tiles === 'deny' ? 'deny' : 'ask',
                 };
             })
             // Servers before this have no such route
@@ -168,7 +171,7 @@ export function tileSource() {
     return { url: defaultTileUrl, custom: false };
 }
 
-function tileHost(url) {
+export function tileHost(url) {
     try {
         return new URL(url.replace(/\{[a-z]\}/g, 'a')).host;
     } catch {
@@ -176,23 +179,40 @@ function tileHost(url) {
     }
 }
 
-// 'allow', 'deny', or 'ask'; a choice made without "don't ask again" lasts
-// until the page is reloaded
+// { choice: 'allow' or 'deny', url }; a choice made without "don't ask
+// again" lasts until the page is reloaded, for that tile address only
 let sessionChoice = null;
 
+// 'allow', 'deny', or 'ask'.  'allow' only covers the tile address the user
+// agreed to (map.tilesAccepted), or any when they chose not to be asked ('*').
 export function tilePolicy() {
     return settings.get('map.tiles', serverTiles.tiles);
 }
 
+// map.tilesAccepted when the user agreed to every tile server
+export const anyTiles = '*';
+
+export function acceptedTileUrl() {
+    return String(settings.get('map.tilesAccepted', '') || '');
+}
+
+// Allowed for the current tile address, by a remembered or a session choice
+export function tilesAccepted(url = tileSource().url) {
+    if (tilePolicy() === 'deny')
+        return false;
+    if (sessionChoice?.url === url)
+        return sessionChoice.choice === 'allow';
+    const accepted = acceptedTileUrl();
+    return tilePolicy() === 'allow' && (accepted === url || accepted === anyTiles);
+}
+
 function tilesAllowed() {
-    const policy = tilePolicy();
-    if (policy === 'allow' || policy === 'deny')
-        return policy === 'allow';
-    return sessionChoice === 'allow';
+    return tilesAccepted();
 }
 
 function mustAsk() {
-    return tilePolicy() === 'ask' && sessionChoice === null;
+    const { url } = tileSource();
+    return tilePolicy() !== 'deny' && sessionChoice?.url !== url && !tilesAccepted(url);
 }
 
 // Servers older than 2026-10 don't keep a reported location; ADS-B and AIS
@@ -384,11 +404,17 @@ export function createMap(container, area = null) {
             return;
         const { url, custom, server } = tileSource();
         const host = tileHost(url);
-        const remember = el('input', { type: 'checkbox' });
+        const before = acceptedTileUrl();
+        // Either one remembers the choice; the second also covers later tile servers
+        const remember = el('input', { type: 'checkbox', onchange: () => { if (remember.checked) any.checked = false; } });
+        const any = el('input', { type: 'checkbox', onchange: () => { if (any.checked) remember.checked = false; } });
         const choose = (choice) => {
-            sessionChoice = choice;
-            if (remember.checked)
+            sessionChoice = { choice, url };
+            if (remember.checked || any.checked) {
+                if (choice === 'allow')
+                    settings.set('map.tilesAccepted', any.checked ? anyTiles : url);
                 settings.set('map.tiles', choice);
+            }
             overlay.hidden = true;
             overlay.replaceChildren();
             applyTiles();
@@ -401,9 +427,12 @@ export function createMap(container, area = null) {
                 el('strong', {}, host), '.  Showing it needs internet access, and it can reveal your location: every ',
                 'piece of map your browser fetches tells that server, along with your IP address, which part of the ',
                 'world you are looking at, and the map follows the devices around you.'),
+            before && before !== url && before !== anyTiles ? el('p', {}, 'This is a different map server from the one you agreed to before, ',
+                el('strong', {}, tileHost(before)), '.') : null,
             el('p', { class: 'muted' }, 'Without it, devices are still drawn, on a blank map.  You can change this later in ',
                 'Settings > Map.'),
-            el('label', { class: 'map-consent-remember' }, remember, 'Don\'t ask me again'),
+            el('label', { class: 'map-consent-remember' }, remember, 'Don\'t ask me again for this server'),
+            el('label', { class: 'map-consent-remember' }, any, 'Don\'t ask for any tile server'),
             el('div', { class: 'form-buttons' },
                 el('button', { onclick: () => choose('deny') }, 'Use a blank map'),
                 el('button', { class: 'primary', onclick: () => choose('allow') }, 'Load the map'))));
@@ -424,6 +453,10 @@ export function createMap(container, area = null) {
             const attribution = custom ? el('span', {}, customAttribution).innerHTML : defaultAttribution;
             tileLayer = L.tileLayer(url, { maxZoom: 19, attribution }).addTo(map);
             tileUrl = url;
+        }
+        if (allowed && overlay.querySelector('.map-consent')) {
+            overlay.hidden = true;
+            overlay.replaceChildren();
         }
         root.classList.toggle('no-tiles', !allowed);
         tilesButton.hidden = allowed;
@@ -1240,7 +1273,8 @@ export function createMap(container, area = null) {
     }
 
     const unwatch = [
-        settings.watch('map.tiles', () => applyTiles()),
+        settings.watch('map.tiles', () => { applyTiles(); askTiles(); }),
+        settings.watch('map.tilesAccepted', () => { applyTiles(); askTiles(); }),
         settings.watch('map.tileUrl', () => { sessionChoice = null; applyTiles(); askTiles(); }),
         settings.watch('map.tileAttribution', () => { tileLayer?.remove(); tileLayer = null; applyTiles(); }),
         settings.watch('map.darkTiles', applyTheme),

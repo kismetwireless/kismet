@@ -994,6 +994,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-consent h3 { margin: 0 0 0.6rem; }
 .map-consent p { margin: 0 0 0.7rem; line-height: 1.45; }
 .map-consent-remember { display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.8rem; }
+.map-consent-remember:has(+ .map-consent-remember) { margin-bottom: 0.3rem; }
 
 /* Device markers: an icon in a disc of the device's color */
 .map-marker-box { background: none; border: none; }
