@@ -5,6 +5,17 @@ var local_uri_prefix = "";
 if (typeof(KISMET_URI_PREFIX) !== 'undefined')
     local_uri_prefix = KISMET_URI_PREFIX;
 
+// The tile server set in kismet_httpd.conf (httpd_map_tile_url), if any
+var map_tiles = null;
+$.get(local_uri_prefix + 'ui/map_tiles.json')
+.done(function(d) {
+    if (typeof(d) === 'string')
+        d = JSON.parse(d);
+    if (d && typeof(d['url']) === 'string' && /^https?:\/\/[^\s"'<>]+$/i.test(d['url']) &&
+            d['url'].includes('{z}') && d['url'].includes('{x}') && d['url'].includes('{y}'))
+        map_tiles = d;
+});
+
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'ADSB') {
         return '<i class="fa fa-plane"></i>';
@@ -473,11 +484,19 @@ function map_cb(d) {
             loadingControl: true
         });
         map.fitBounds([[lat1, lon1], [lat2, lon2]])
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            className: 'map-tiles',
-        }).addTo(map);
+        if (map_tiles != null) {
+            L.tileLayer(map_tiles['url'], {
+                maxZoom: 19,
+                attribution: $('<span>').text(String(map_tiles['attribution'] || '')).html(),
+                className: 'map-tiles',
+            }).addTo(map);
+        } else {
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                className: 'map-tiles',
+            }).addTo(map);
+        }
 
         console.log(map.getSize());
     }

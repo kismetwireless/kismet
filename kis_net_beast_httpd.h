@@ -243,6 +243,11 @@ protected:
     bool https_proxy_;
     std::string public_url_;
 
+    // Map background defaults for the web UI; a browser's own settings win
+    std::string map_tile_url_;
+    std::string map_tile_attribution_;
+    std::string map_tiles_;
+
     void configure_ssl();
     void start_ssl_accept();
     void handle_ssl_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);

@@ -250,6 +250,29 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         _MSG_ERROR("httpd_https_proxy is set, but httpd_public_url is not an https:// address; set it to the "
                 "address the proxy serves Kismet at");
 
+    map_tile_url_ = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_map_tile_url", "");
+    if (map_tile_url_.length()) {
+        bool valid = map_tile_url_.length() < 1024 &&
+            (map_tile_url_.rfind("https://", 0) == 0 || map_tile_url_.rfind("http://", 0) == 0) &&
+            map_tile_url_.find("{z}") != std::string::npos &&
+            map_tile_url_.find("{x}") != std::string::npos &&
+            map_tile_url_.find("{y}") != std::string::npos &&
+            std::all_of(map_tile_url_.begin(), map_tile_url_.end(),
+                    [](unsigned char c) { return c > 0x20 && c < 0x7F && c != '"' && c != '\'' && c != '<' && c != '>'; });
+        if (!valid) {
+            _MSG_ERROR("Ignoring httpd_map_tile_url '{}', expected an http:// or https:// address with "
+                    "{{z}}, {{x}} and {{y}}", map_tile_url_);
+            map_tile_url_ = "";
+        }
+    }
+    map_tile_attribution_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_map_tile_attribution", "");
+    map_tiles_ = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_map_tiles", "ask");
+    if (map_tiles_ != "allow" && map_tiles_ != "deny" && map_tiles_ != "ask") {
+        _MSG_ERROR("Ignoring httpd_map_tiles '{}', expected allow, deny or ask", map_tiles_);
+        map_tiles_ = "ask";
+    }
+
     redirect_unknown_target_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_redirect_unknown", "");
     redirect_unknown_ = redirect_unknown_target_.length();
@@ -456,6 +479,21 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 j["ca_sha256"] = ssl_ca_fingerprint;
                 j["https_proxy"] = https_proxy_;
                 j["public_url"] = public_url_;
+                os << j.dump();
+                }));
+
+    // Where the web UI map loads its background from, unless the browser has its own
+    // settings; none of it is secret, so any client may read it
+    register_unauth_route("/ui/map_tiles", {"GET"}, {"json"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("application/json");
+                std::ostream os(&con->response_stream());
+
+                nlohmann::json j;
+                j["url"] = map_tile_url_;
+                j["attribution"] = map_tile_attribution_;
+                j["tiles"] = map_tiles_;
                 os << j.dump();
                 }));
 
