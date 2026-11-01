@@ -1,7 +1,7 @@
 // Logging in to Kismet.
 //
 // Logging in once with the username and password makes the server set a
-// session cookie (KISMET), which every later request and the websocket use.
+// session cookie (KISMET_<port>), which every later request and the websocket use.
 // On another server (js/core/servers.js) the login instead makes an API key
 // for this app there, which is kept in place of a cookie.
 // The password is only stored when "Remember this login" is ticked: then it is

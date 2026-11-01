@@ -73,6 +73,9 @@ public:
     const static std::string RO_ROLE;
     const static std::string AUTH_COOKIE;
 
+    // The session cookie, named for the port so servers on one host each keep their own.
+    // A plain AUTH_COOKIE cookie is still accepted, and is the token's name in a URI.
+    const std::string& auth_cookie() const { return auth_cookie_name; }
 
 private:
     kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint);
@@ -193,6 +196,7 @@ public:
 protected:
     std::atomic<bool> running;
     unsigned int port;
+    std::string auth_cookie_name;
 
     bool allow_auth_creation;
     bool allow_auth_view;
@@ -501,7 +505,7 @@ protected:
         // Append the session headers
         if (auth_token_.length()) {
             r.set(boost::beast::http::field::set_cookie,
-                    fmt::format("{}={}; Path=/", httpd->AUTH_COOKIE, auth_token_));
+                    fmt::format("{}={}; Path=/", httpd->auth_cookie(), auth_token_));
         }
 
         // Turn off caching

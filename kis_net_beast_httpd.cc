@@ -102,6 +102,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
 
     // Reported by fetch_port() and fetch_using_ssl(), for the server announcement and the console
     port = endpoint.port();
+    auth_cookie_name = fmt::format("{}_{}", AUTH_COOKIE, port);
     use_ssl = false;
     https_proxy_ = false;
 }
@@ -1617,7 +1618,9 @@ bool kis_net_beast_httpd_connection::start() {
         auto cookie_decode = httpd->decode_uri(cookie_h->value(), true);
         httpd->decode_cookies(cookie_decode, cookies_);
 
-        auto auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
+        auto auth_cookie_k = cookies_.find(httpd->auth_cookie());
+        if (auth_cookie_k == cookies_.end())
+            auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
         if (auth_cookie_k != cookies_.end())
             auth_token_ = auth_cookie_k->second;
     }
