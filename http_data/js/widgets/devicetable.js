@@ -5,6 +5,7 @@
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
+import * as sources from '../core/sources.js';
 import { onLogin } from '../core/auth.js';
 import { deviceColumns, deviceIcons, rowHighlights, searchFields, alwaysFields } from '../registry/columns.js';
 import { deviceViews } from '../registry/devices.js';
@@ -26,11 +27,30 @@ export function createDeviceTable(container) {
 
     // The server's device views, grouped for the picker
     async function loadViews() {
-        let serverViews = [];
-        try {
-            serverViews = await api.get('devices/views/all_views.json');
-        } catch (err) {
-            console.error('Could not load device views:', err);
+        const [serverViews, sourceList] = await Promise.all([
+            api.get('devices/views/all_views.json').catch((err) => {
+                console.error('Could not load device views:', err);
+                return [];
+            }),
+            sources.list(['kismet.datasource.uuid', 'kismet.datasource.name', 'kismet.datasource.interface'])
+                .catch(() => []),
+        ]);
+
+        // Data source views are named by uuid; show the source's name, and its
+        // interface too when sources share a name
+        const sourceNames = new Map();
+        const nameCount = new Map();
+        for (const s of sourceList) {
+            const name = s['kismet.datasource.name'];
+            if (name)
+                nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
+        }
+        for (const s of sourceList) {
+            const name = s['kismet.datasource.name'];
+            const iface = s['kismet.datasource.interface'];
+            if (name && s['kismet.datasource.uuid'])
+                sourceNames.set(s['kismet.datasource.uuid'].toUpperCase(),
+                    nameCount.get(name) > 1 && iface && iface !== name ? `${name} (${iface})` : name);
         }
 
         const groups = new Map();
@@ -53,7 +73,8 @@ export function createDeviceTable(container) {
             else if (id.startsWith('phy-'))
                 addOption('Phy types', id, v['kismet.devices.view.description'] || id.slice(4), count);
             else if (id.startsWith('seenby-'))
-                addOption('Data sources', id, v['kismet.devices.view.description'] || id, count);
+                addOption('Data sources', id, sourceNames.get(id.slice(7).toUpperCase()) ||
+                    v['kismet.devices.view.description'] || id, count);
             else
                 addOption('Other', id, v['kismet.devices.view.description'] || id, count);
         }
