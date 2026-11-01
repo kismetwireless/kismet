@@ -17612,7 +17612,7 @@ else
 fi
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
-printf "          Setuid group: $suidgroup"
+printf "          Setuid group: $suidgroup\n"
 
 printf "        Prelude  SIEM : $wantprelude\n"
 
