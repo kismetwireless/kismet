@@ -13,7 +13,7 @@ const windows = [[300, '5 minutes'], [900, '15 minutes'], [3600, 'hour']];
 const maxDevices = 500;
 
 export function register(kismet) {
-    const { ui, api, dom, settings, clock, rrd, format, icons } = kismet;
+    const { ui, api, dom, settings, clock, rrd, format } = kismet;
     const { el } = dom;
 
     // A device whose signal rose sharply over the last minute is coming closer
@@ -132,29 +132,7 @@ export function register(kismet) {
             body.append(bar, stage);
 
             // Fills the window with the tab's area, like the map
-            let expanded = false;
-            const expandButton = el('button', { class: 'icon-button tab-tool',
-                onclick: () => area?.setExpanded(!expanded) });
-            function showExpanded(on) {
-                expanded = on;
-                expandButton.replaceChildren(icons.icon(on ? 'collapse' : 'expand'));
-                expandButton.title = on ? 'Back to the dashboard (Esc)' : 'Fill the window with the insights';
-                expandButton.setAttribute('aria-pressed', on ? 'true' : 'false');
-            }
-            showExpanded(false);
-            const stopExpand = area?.onExpand(showExpanded);
-
-            function onKey(e) {
-                if (!expanded || !showing || e.key !== 'Escape' || e.defaultPrevented)
-                    return;
-                if (document.querySelector('dialog[open], .menu-list:not([hidden])'))
-                    return;
-                if (e.target.matches?.('input, textarea, select') && e.target.value)
-                    return;
-                e.preventDefault();
-                area.setExpanded(false);
-            }
-            document.addEventListener('keydown', onKey);
+            const expand = kismet.widgets.panes.expandTool(area, 'the insights', { isShowing: () => showing });
 
             // views phy modules add, after the built-in ones
             const extra = new Map();
@@ -326,7 +304,7 @@ export function register(kismet) {
             addViews();
             const offViews = ui.insightViews.watch(addViews);
             return {
-                tools: area ? [expandButton] : [],
+                tools: area ? [expand.button] : [],
                 show() {
                     showing = true;
                     setView(view);
@@ -335,15 +313,14 @@ export function register(kismet) {
                 hide() {
                     showing = false;
                     clearTimeout(timer);
-                    if (expanded)
+                    if (expand.isExpanded())
                         area.setExpanded(false);
                 },
                 destroy() {
                     showing = false;
                     clearTimeout(timer);
                     offViews?.();
-                    stopExpand?.();
-                    document.removeEventListener('keydown', onKey);
+                    expand.destroy();
                     flowView.destroy();
                     rh.destroy();
                     for (const h of extra.values())

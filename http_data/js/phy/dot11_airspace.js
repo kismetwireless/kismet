@@ -74,14 +74,7 @@ export function registerAirspace(kismet) {
                 const w = gutter + cw * columns.length + gap * (bands.length - 1) + 4;
                 const top2 = head + 60 * secRow + 18;
                 const h = top2 + 60 * minRow + 6;
-                const dpr = window.devicePixelRatio || 1;
-                canvas.style.width = `${w}px`;
-                canvas.style.height = `${h}px`;
-                canvas.width = Math.round(w * dpr);
-                canvas.height = Math.round(h * dpr);
-                const c = canvas.getContext('2d');
-                c.setTransform(dpr, 0, 0, dpr, 0, 0);
-                c.clearRect(0, 0, w, h);
+                const c = dom.scaleCanvas(canvas, w, h);
                 const col = (name) => theme.themeColor(name) || '#888';
                 const accent = col('--accent'), muted = col('--muted'), text = col('--text'), warn = col('--warn'), border = col('--border');
 

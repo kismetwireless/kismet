@@ -3,7 +3,7 @@
 //   const spark = sparkline();           // a <canvas> sized by CSS
 //   spark.draw([1, 4, 2, 8, ...]);
 
-import { el } from '../core/dom.js';
+import { el, fitCanvas } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
 
 export function sparkline({ color = '--accent', className = 'sparkline' } = {}) {
@@ -13,13 +13,7 @@ export function sparkline({ color = '--accent', className = 'sparkline' } = {}) 
     function draw(newValues = values) {
         values = newValues;
 
-        const ratio = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(canvas.clientWidth * ratio));
-        const h = Math.max(1, Math.round(canvas.clientHeight * ratio));
-        if (canvas.width !== w || canvas.height !== h) {
-            canvas.width = w;
-            canvas.height = h;
-        }
+        const { w, h, ratio } = fitCanvas(canvas);
 
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, w, h);

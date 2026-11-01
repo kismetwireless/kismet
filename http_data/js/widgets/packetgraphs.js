@@ -119,7 +119,7 @@ function tabs(choices, current, onPick) {
 
 export function openPackets() {
     if (openWindow?.node.isConnected) {
-        openWindow.node.dispatchEvent(new Event('pointerdown'));
+        openWindow.raise();
         return openWindow;
     }
 

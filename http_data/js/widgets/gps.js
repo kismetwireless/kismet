@@ -263,7 +263,7 @@ let openWindow = null;
 
 export function openGps() {
     if (openWindow?.node.isConnected) {
-        openWindow.node.dispatchEvent(new Event('pointerdown'));
+        openWindow.raise();
         return openWindow;
     }
     const body = el('div', { class: 'gps-window' }, el('div', { class: 'muted' }, 'Waiting for the GPS status…'));

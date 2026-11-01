@@ -315,8 +315,8 @@ function updateInterfaceCard(card, intf) {
 }
 
 export function openSources() {
-    if (openWindow) {
-        openWindow.dialog.node.dispatchEvent(new PointerEvent('pointerdown'));
+    if (openWindow?.dialog.node.isConnected) {
+        openWindow.dialog.raise();
         return openWindow.dialog;
     }
 
