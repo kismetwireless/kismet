@@ -7,7 +7,8 @@ if (typeof(KISMET_URI_PREFIX) !== 'undefined')
 
 // The tile server set in kismet_httpd.conf (httpd_map_tile_url), if any
 var map_tiles = null;
-$.get(local_uri_prefix + 'ui/map_tiles.json')
+var osm_tiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+var map_tiles_load = $.get(local_uri_prefix + 'ui/map_tiles.json')
 .done(function(d) {
     if (typeof(d) === 'string')
         d = JSON.parse(d);
@@ -296,7 +297,7 @@ function BuildContentElement(element) {
     <div id="adsb-holder" style="height: 100%; width: 100%; position: relative;">
     <div id="warning" class="warning">
         <p><b>Warning!</b>
-        <p>To display the live ADSB map, your browser will connect to the Leaflet and OpenStreetMap servers to fetch the map tiles.  This requires you have a functional Internet connection, and will reveal something about your location (the bounding region where planes have been seen.)
+        <p>To display the live ADSB map, your browser will connect to <b id="tilehost">the OpenStreetMap servers</b> to fetch the map tiles.  This requires you have a functional Internet connection, and will reveal something about your location (the bounding region where planes have been seen.)
         <p><input id="dontwarn" type="checkbox">Don't warn me again</input>
         <p><button id="continue">Continue</button>
     </div>
@@ -426,19 +427,32 @@ function ActivateTab() {
             $('#adsb_marker_icon_' + d['key']).addClass('adsb-selected-plane');
         });
 
-        load_maps = kismet.getStorage('kismet.adsb.maps_ok', false);
+        // Agreeing covers one tile address; a different one asks again
+        map_tiles_load.always(function() {
+            var tile_url = map_tiles != null ? map_tiles['url'] : osm_tiles;
 
-        if (load_maps)
-            $('#warning').hide();
+            if (map_tiles != null) {
+                var host = tile_url;
+                try {
+                    host = new URL(tile_url.replace(/\{[a-z]\}/g, 'a')).host;
+                } catch (e) { }
+                $('#tilehost').text(host);
+            }
 
-        $('#continue').on('click', function() {
-            if ($('#dontwarn').is(":checked"))
-                kismet.putStorage('kismet.adsb.maps_ok', true);
-            $('#warning').hide();
-            load_maps = true;
+            load_maps = kismet.getStorage('kismet.adsb.maps_ok', '') === tile_url;
+
+            if (load_maps)
+                $('#warning').hide();
+
+            $('#continue').on('click', function() {
+                if ($('#dontwarn').is(":checked"))
+                    kismet.putStorage('kismet.adsb.maps_ok', tile_url);
+                $('#warning').hide();
+                load_maps = true;
+            });
+
+            poll_map();
         });
-
-        poll_map();
 
     });
 }
@@ -491,7 +505,7 @@ function map_cb(d) {
                 className: 'map-tiles',
             }).addTo(map);
         } else {
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer(osm_tiles, {
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 className: 'map-tiles',

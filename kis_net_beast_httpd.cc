@@ -268,8 +268,12 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     map_tile_attribution_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_map_tile_attribution", "");
     map_tiles_ = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_map_tiles", "ask");
-    if (map_tiles_ != "allow" && map_tiles_ != "deny" && map_tiles_ != "ask") {
-        _MSG_ERROR("Ignoring httpd_map_tiles '{}', expected allow, deny or ask", map_tiles_);
+    if (map_tiles_ == "allow") {
+        _MSG_ERROR("Ignoring httpd_map_tiles=allow: browsers always ask before loading map tiles; "
+                "expected ask or deny");
+        map_tiles_ = "ask";
+    } else if (map_tiles_ != "deny" && map_tiles_ != "ask") {
+        _MSG_ERROR("Ignoring httpd_map_tiles '{}', expected ask or deny", map_tiles_);
         map_tiles_ = "ask";
     }
 

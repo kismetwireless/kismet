@@ -21,25 +21,43 @@ export function register(kismet) {
     ui.settingsPanes.add({
         id: 'map', title: 'Map', priority: 20,
         create(body) {
-            // On: always fetch tiles.  Off: never.  Until the user picks one,
-            // the map does what the server says (httpd_map_tiles), by default
-            // asking the first time it opens.
+            // On: fetch tiles from the tile server shown now, and ask again if it
+            // changes.  Off: never.  Until the user picks one, the map does what
+            // the server says (httpd_map_tiles), by default asking when it opens.
             const fetchTiles = el('input', { type: 'checkbox', role: 'switch',
-                onchange: () => settings.set('map.tiles', fetchTiles.checked ? 'allow' : 'deny') });
+                onchange: () => {
+                    if (fetchTiles.checked && map.acceptedTileUrl() !== map.anyTiles)
+                        settings.set('map.tilesAccepted', map.tileSource().url);
+                    settings.set('map.tiles', fetchTiles.checked ? 'allow' : 'deny');
+                } });
+            // Off: tiles from any tile server, without asking when it changes
+            const askEach = el('input', { type: 'checkbox',
+                onchange: () => settings.set('map.tilesAccepted', askEach.checked ? map.tileSource().url : map.anyTiles) });
+            const askEachItem = el('label', { class: 'choice-item' }, askEach, 'Ask before using a different tile server');
             const policyNote = el('span', { class: 'muted' });
             const askAgain = el('button', { class: 'link-button', onclick: () => settings.set('map.tiles', 'ask') },
                 'Ask me when the map opens instead');
             const policy = el('div', { class: 'map-tile-policy' },
                 el('label', { class: 'choice-item' }, fetchTiles, 'Fetch map tiles from a remote server'),
+                askEachItem,
                 el('p', {}, policyNote, ' ', askAgain));
 
-            function showPolicy(v = map.tilePolicy()) {
-                v = v ?? map.tilePolicy();
-                fetchTiles.checked = v === 'allow';
+            function showPolicy() {
+                const v = map.tilePolicy();
+                const host = map.tileHost(map.tileSource().url);
+                const accepted = map.acceptedTileUrl();
+                const anyServer = accepted === map.anyTiles;
+                const current = v === 'allow' && (anyServer || accepted === map.tileSource().url);
+                fetchTiles.checked = current;
+                askEach.checked = !anyServer;
+                askEachItem.hidden = !current;
                 policyNote.textContent = v === 'ask' ?
                     'Not chosen yet: the map asks before fetching any tiles.' :
-                    v === 'allow' ? 'The map loads its background from the tile server below.' :
-                        'The map is drawn on a blank background.';
+                    current && anyServer ? `The map loads its background from ${host}, and from any other tile server without asking.` :
+                    current ? `The map loads its background from ${host}, and asks again if the tile server changes.` :
+                        v === 'allow' ? `You agreed to tiles from ${map.tileHost(accepted || '') || 'another server'}; ` +
+                            `the map asks before loading them from ${host}.` :
+                            'The map is drawn on a blank background.';
                 askAgain.hidden = v === 'ask';
             }
             showPolicy();
@@ -111,7 +129,8 @@ export function register(kismet) {
                 el('label', { class: 'choice-item' }, collect, 'Keep collecting paths while the map is not shown'),
                 el('label', { class: 'field' }, 'Keep paths for', keep));
 
-            return settings.watch('map.tiles', (v) => showPolicy(v));
+            const unwatch = ['map.tiles', 'map.tilesAccepted', 'map.tileUrl'].map((k) => settings.watch(k, () => showPolicy()));
+            return () => unwatch.forEach((u) => u());
         },
     });
 }
