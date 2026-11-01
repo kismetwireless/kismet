@@ -31,7 +31,10 @@ import { createRegistry } from './registry.js';
 //   align         'left' | 'right' | 'center' (optional)
 //   defaultVisible  shown until the user changes their columns
 //   filterKind    what sortField holds, for the search box's filters: 'text',
-//                 'number', 'time', or 'mac' (optional; see js/core/filterquery.js)
+//                 'number', 'time' (a timestamp), 'mac', or 'duration' (a length
+//                 of time) (optional; see js/core/filterquery.js)
+//   filterConvert for a duration, seconds to the field's units, such as
+//                 ui.durationIn.us (optional; seconds when not given)
 //   filterWide    field paths the search box uses for name* (optional)
 export function createColumnRegistry(name) {
     return createRegistry(name, {
@@ -81,6 +84,7 @@ export const phyColors = createRegistry('phyColors', {
 // The id names them all in the search box's filters.
 //   id, description, fields,
 //   filterKind: the kind of the fields that aren't text, as { path: kind }
+//   filterConvert: for duration fields, as { path: function } (see columns)
 export const searchFields = createRegistry('searchFields', {
     required: ['fields'],
     defaults: { description: '' },

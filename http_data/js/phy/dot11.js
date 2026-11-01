@@ -169,7 +169,9 @@ export function register(kismet) {
         description: 'Access point uptime, from its beacon timestamp',
         fields: ['dot11.device/dot11.device.bss_timestamp'],
         sortField: 'dot11.device/dot11.device.bss_timestamp',
-        filterKind: 'number',
+        // uptime > 1d; the beacon timestamp counts microseconds
+        filterKind: 'duration',
+        filterConvert: ui.durationIn.us,
         render: (row) => (row['dot11.device.bss_timestamp'] ? format.duration(row['dot11.device.bss_timestamp'] / 1e6) : ''),
     });
 
