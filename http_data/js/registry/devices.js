@@ -56,6 +56,9 @@ export const channelNames = createRegistry('channelNames', {
 //   match(source) -> bool    whether this applies; source is the datasource record
 //   frequency(channel) -> kHz, or null if it can't tell
 //   span(channel) -> { low, high } kHz, optional: what a wide channel takes in
+//   title, optional: the phy's short name, or title(channel) -> it, to label
+//          a frequency these sources listen on by their own channel
+//          ('802.15.4 12', not the BLE channel that shares the frequency)
 // Channels that are plain frequencies ("2412", "433.92MHz") work without one.
 export const sourceChannels = createRegistry('sourceChannels', {
     required: ['match', 'frequency'],

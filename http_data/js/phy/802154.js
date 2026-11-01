@@ -32,6 +32,38 @@ export function register(kismet) {
 
     ui.phyColors.add({ id: '802.15.4', title: '802.15.4/Zigbee', color: '#b2f2bb' });
 
+    // The 802.15.4 channel plan: 0 at 868.3 MHz, 1-10 every 2 MHz from 906,
+    // 11-26 every 5 MHz from 2405
+    const channelFrequency = (channel) => {
+        if (!/^\d{1,2}$/.test(String(channel ?? '').trim()))
+            return null;
+        const n = Number(channel);
+        if (n > 26)
+            return null;
+        return n === 0 ? 868300 : n <= 10 ? 906000 + (n - 1) * 2000 : 2405000 + (n - 11) * 5000;
+    };
+    const channelName = (khz) => {
+        if (khz === 868300)
+            return '0';
+        if (khz >= 906000 && khz <= 924000 && (khz - 906000) % 2000 === 0)
+            return String((khz - 906000) / 2000 + 1);
+        if (khz >= 2405000 && khz <= 2480000 && (khz - 2405000) % 5000 === 0)
+            return String((khz - 2405000) / 5000 + 11);
+        return null;
+    };
+
+    ui.channelNames.add({ id: '802.15.4', title: '802.15.4', priority: 20, name: channelName, frequency: channelFrequency });
+    // Ahead of Bluetooth LE, which also claims 'nrf' sources; the KW41Z hops
+    // the BLE advertising channels as well as 802.15.4's
+    const bleAdvertising = { 37: 2402000, 38: 2426000, 39: 2480000 };
+    ui.sourceChannels.add({
+        id: '802154', priority: -10,
+        title: (channel) => (bleAdvertising[Number(channel)] ? 'BLE' : '802.15.4'),
+        match: (src) => /^(ticc2531|nrf52840|rzkillerbee|catsniffer_zigbee|freaklabszigbee|nxp_kw41z|zigbee900sdr)$/i
+            .test(src['kismet.datasource.driver.type'] ?? ''),
+        frequency: (channel) => channelFrequency(channel) ?? bleAdvertising[Number(channel)] ?? null,
+    });
+
     ui.deviceColumns.add({
         id: '802154_network', title: '802.15.4 network', priority: 110, group: '802.15.4', width: '8em',
         description: 'Zigbee, Zigbee Green Power, Thread, or 6LoWPAN',

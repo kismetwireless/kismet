@@ -54,7 +54,7 @@ export function register(kismet) {
 
     ui.channelNames.add({ id: 'BTLE', title: 'BLE', priority: 10, name: bleChannel, frequency: bleFrequency });
     ui.sourceChannels.add({
-        id: 'btle',
+        id: 'btle', title: 'BLE',
         match: (src) => /nrf|cc2540|sniffle|ble|wch/i.test(src['kismet.datasource.driver.type'] ?? ''),
         frequency: bleFrequency,
     });

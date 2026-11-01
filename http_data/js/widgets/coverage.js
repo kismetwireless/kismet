@@ -120,6 +120,12 @@ const sourceFields = [
 // A source's channel as a frequency: a phy that knows the source's channels,
 // or a channel that's already a frequency ('2412', '433.92MHz', '915000')
 export function sourceFrequency(source, channel) {
+    return sourceChannel(source, channel)?.f ?? null;
+}
+
+// A source's channel as { f, title }: the frequency, and the short name of the
+// phy whose numbering it's in, when its mapping gives one
+function sourceChannel(source, channel) {
     if (channel === undefined || channel === null || channel === '')
         return null;
     for (const s of sourceChannels.list()) {
@@ -127,7 +133,7 @@ export function sourceFrequency(source, channel) {
             if (s.match(source)) {
                 const f = s.frequency(channel);
                 if (f)
-                    return f;
+                    return { f, title: (typeof s.title === 'function' ? s.title(channel) : s.title) ?? null };
             }
         } catch (err) {
             console.error(`source channels ${s.id} failed:`, err);
@@ -139,11 +145,11 @@ export function sourceFrequency(source, channel) {
     const n = parseFloat(m[1]);
     const unit = (m[2] ?? '').toLowerCase();
     if (unit === 'ghz')
-        return n * 1e6;
+        return { f: n * 1e6, title: null };
     if (unit === 'mhz' || (!unit && n >= 1000 && n < 100000))
-        return n * 1000;
+        return { f: n * 1000, title: null };
     if (unit === 'khz' || (!unit && n >= 100000))
-        return n;
+        return { f: n, title: null };
     return null;
 }
 
@@ -399,6 +405,15 @@ export function openCoverage({ view: startView = null } = {}) {
             try {
                 sources = (await api.post('datasource/all_sources.json', { fields: sourceFields }))
                     .filter((s) => s['kismet.datasource.running']);
+                const named = new Map();
+                for (const src of sources) {
+                    for (const c of [src['kismet.datasource.channel'], ...(src['kismet.datasource.hop_channels'] ?? [])]) {
+                        const at = sourceChannel(src, c);
+                        if (at?.title && !named.has(at.f))
+                            named.set(at.f, `${at.title} ${c}`);
+                    }
+                }
+                sourceLabels = named;
                 buildTabs();
                 if (view === 'time')
                     draw();
@@ -645,10 +660,17 @@ export function openCoverage({ view: startView = null } = {}) {
         return { left, right, plotW, segments, x, list };
     }
 
-    // A frequency's label: the server's channel name, else the phys' channel
-    // numbering (the first phy plainly, others with their name, like
+    // A frequency's label: the server's channel name, else the channel a
+    // source listens to there, by its phy ('802.15.4 12'), else the phys'
+    // channel numbering (the first phy plainly, others with their name, like
     // 'BLE 37'), else the frequency
-    const label = (khz) => frequencyLabel(khz, freqs.get(khz)?.channel);
+    let sourceLabels = new Map();
+    const label = (khz) => {
+        const channel = freqs.get(khz)?.channel;
+        if (channel && channel !== 'unknown' && channel !== '0')
+            return String(channel);
+        return sourceLabels.get(khz) ?? frequencyLabel(khz);
+    };
 
     // Frequency labels on their side under a graph: the channel nearest the
     // graph, then the frequency in MHz.  A label that's already a frequency
@@ -669,21 +691,19 @@ export function openCoverage({ view: startView = null } = {}) {
         return Math.min(maxH, Math.max(font * 2.4, longest + font));
     }
 
-    // Labels that would touch the one before are left out; the hovered or
-    // picked frequency always gets its label
+    // Labels that would touch one already placed are left out.  They're
+    // placed in order of interest: the hovered or picked frequency, then ones
+    // with traffic in the last minute, then the rest, each left to right.
     function drawFreqLabels(ctx, list, x, top, font, colors, picked = null) {
         const gap = font * 0.6;
-        const byX = list.filter((f) => x(f) !== null).sort((a, z) => x(a) - x(z));
-        const keep = [];
-        let lastX = -Infinity;
-        for (const f of byX) {
-            if (x(f) - lastX >= font * 1.25 || f === picked) {
-                if (f === picked && keep.length && x(f) - lastX < font * 1.25)
-                    keep.pop();
-                keep.push(f);
-                lastX = x(f);
-            }
-        }
+        const rank = (f) => (f === picked ? 0 : history(f, 'packets').some((v) => v > 0) ? 1 : freqs.has(f) ? 2 : 3);
+        const order = list.filter((f) => x(f) !== null).map((f) => ({ f, r: rank(f), x: x(f) }))
+            .sort((a, z) => a.r - z.r || a.x - z.x);
+        const placed = [];
+        for (const o of order)
+            if (!placed.some((p) => Math.abs(p.x - o.x) < font * 1.25))
+                placed.push(o);
+        const keep = placed.map((o) => o.f);
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         for (const f of keep) {
@@ -1181,7 +1201,7 @@ export function openCoverage({ view: startView = null } = {}) {
             const list = [...new Set([...freqs.keys(), ...est.byFreq.keys()])].filter((f) => x(f) !== null).sort((a, z) => a - z);
             const plotH = 170 * ratio;
             const top = font * 1.6;
-            const labelsH = freqLabelsHeight(probe, list, font, 90 * ratio);
+            const labelsH = freqLabelsHeight(probe, list, font, 130 * ratio);
             const cssH = Math.round((top + plotH + labelsH) / ratio);
             if (timeCanvas.style.height !== `${cssH}px`)
                 timeCanvas.style.height = `${cssH}px`;
