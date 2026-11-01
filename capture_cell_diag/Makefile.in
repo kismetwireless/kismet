@@ -105,6 +105,12 @@ NATIVE_OBJS_FULL = \
 	diag_native_decode.cpp.o \
 	$(notdir $(patsubst %.cpp,%.cpp.o,$(patsubst %.cc,%.cc.o,$(DIAGSPEC_SRCS))))
 
+# kaitai-struct-compiler output compares its signed value instances against the
+# unsigned stream size; the bounds checks are still correct, so quiet them in
+# the generated code only.
+DIAGSPEC_GEN_OBJS = $(notdir $(patsubst %.cpp,%.cpp.o,$(filter ../diagspec/generated/%,$(DIAGSPEC_SRCS))))
+$(DIAGSPEC_GEN_OBJS): CXXFLAGS += -Wno-sign-compare
+
 # The native legs are compiled from ../diagspec/. A tree without it stops here
 # with the reason, not with a missing-file error from deep in the build.
 DIAGSPEC_DEFS = $(wildcard ../diagspec/generated/cpp/*.cpp)
