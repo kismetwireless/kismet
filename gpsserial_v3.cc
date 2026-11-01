@@ -886,6 +886,7 @@ void kis_gps_serial_v3::ubx_cfg_observed() {
 
 std::vector<ubx_msg_rate> kis_gps_serial_v3::ubx_wanted_msgs(bool port_keys, bool uart) {
     std::vector<ubx_msg_rate> msgs;
+    msgs.reserve(5);
 
     if (!ubx_seen_pos) {
         // u-blox 6 and older don't report a protocol version or have NAV-PVT
