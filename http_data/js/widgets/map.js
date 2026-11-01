@@ -12,7 +12,8 @@
 //
 // The map background comes from a public tile server, so nothing is loaded
 // from it until the user agrees (see askTiles).  Without tiles the devices
-// are drawn on a blank map.
+// are drawn on a blank map.  The server can set a default tile server and
+// policy (httpd_map_tile_url, httpd_map_tiles); a browser's own settings win.
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
@@ -126,11 +127,44 @@ function point(p, fix) {
     return Array.isArray(p) && (p[0] || p[1]) && (fix ?? 2) >= 2 ? p : null;
 }
 
-// The tile server the settings name, if it's a plain http(s) template
+// Defaults from kismet_httpd.conf, for browsers without their own settings
+let serverTiles = { url: '', attribution: '', tiles: 'ask' };
+let serverTilesLoad = null;
+
+export function loadServerTiles() {
+    if (!serverTilesLoad) {
+        serverTilesLoad = api.get('ui/map_tiles.json', { noAuthEvent: true })
+            .then((j) => {
+                serverTiles = {
+                    url: usableTileUrl(j?.url) ? String(j.url) : '',
+                    attribution: String(j?.attribution ?? ''),
+                    tiles: ['allow', 'deny', 'ask'].includes(j?.tiles) ? j.tiles : 'ask',
+                };
+            })
+            // Servers before this have no such route
+            .catch(() => {});
+    }
+    return serverTilesLoad;
+}
+
+export function serverTileDefaults() {
+    return serverTiles;
+}
+
+function usableTileUrl(url) {
+    url = String(url ?? '').trim();
+    return url !== '' && /^https?:\/\/[^\s"'<>]+$/i.test(url) && ['{z}', '{x}', '{y}'].every((k) => url.includes(k));
+}
+
+// The tile server the settings name, if it's a plain http(s) template, else
+// the server's default, else OpenStreetMap
 export function tileSource() {
     const url = String(settings.get('map.tileUrl', '') || '').trim();
-    if (url && /^https?:\/\/[^\s"'<>]+$/i.test(url) && ['{z}', '{x}', '{y}'].every((k) => url.includes(k)))
-        return { url, custom: true };
+    if (usableTileUrl(url))
+        return { url, custom: true, attribution: String(settings.get('map.tileAttribution', '') || '') };
+    if (serverTiles.url)
+        return { url: serverTiles.url, custom: true, server: true,
+            attribution: String(settings.get('map.tileAttribution', '') || '') || serverTiles.attribution };
     return { url: defaultTileUrl, custom: false };
 }
 
@@ -147,7 +181,7 @@ function tileHost(url) {
 let sessionChoice = null;
 
 export function tilePolicy() {
-    return settings.get('map.tiles', 'ask');
+    return settings.get('map.tiles', serverTiles.tiles);
 }
 
 function tilesAllowed() {
@@ -348,7 +382,7 @@ export function createMap(container, area = null) {
     function askTiles(force = false) {
         if (!force && !mustAsk())
             return;
-        const { url, custom } = tileSource();
+        const { url, custom, server } = tileSource();
         const host = tileHost(url);
         const remember = el('input', { type: 'checkbox' });
         const choose = (choice) => {
@@ -361,7 +395,9 @@ export function createMap(container, area = null) {
         };
         overlay.replaceChildren(el('div', { class: 'map-consent', role: 'dialog', 'aria-label': 'Load the map background?' },
             el('h3', {}, 'Load the map background from the internet?'),
-            el('p', {}, 'The map background comes from ', custom ? 'the map server set in Settings, ' : 'a public map server, ',
+            el('p', {}, 'The map background comes from ',
+                custom ? (server ? 'the map server set on the Kismet server, ' : 'the map server set in Settings, ') :
+                    'a public map server, ',
                 el('strong', {}, host), '.  Showing it needs internet access, and it can reveal your location: every ',
                 'piece of map your browser fetches tells that server, along with your IP address, which part of the ',
                 'world you are looking at, and the map follows the devices around you.'),
@@ -378,15 +414,14 @@ export function createMap(container, area = null) {
         if (!map)
             return;
         const allowed = tilesAllowed();
-        const { url, custom } = tileSource();
+        const { url, custom, attribution: customAttribution } = tileSource();
         if (tileLayer && (!allowed || url !== tileUrl)) {
             tileLayer.remove();
             tileLayer = null;
         }
         if (allowed && !tileLayer) {
-            // A custom server's attribution is the user's own text, shown as text
-            const attribution = custom ?
-                el('span', {}, String(settings.get('map.tileAttribution', '') || '')).innerHTML : defaultAttribution;
+            // A custom server's attribution is configured text, shown as text
+            const attribution = custom ? el('span', {}, customAttribution).innerHTML : defaultAttribution;
             tileLayer = L.tileLayer(url, { maxZoom: 19, attribution }).addTo(map);
             tileUrl = url;
         }
@@ -428,6 +463,7 @@ export function createMap(container, area = null) {
         });
 
         legacy = await legacyServer();
+        await loadServerTiles();
         applyTiles();
         askTiles();
         start();

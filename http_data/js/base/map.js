@@ -22,7 +22,8 @@ export function register(kismet) {
         id: 'map', title: 'Map', priority: 20,
         create(body) {
             // On: always fetch tiles.  Off: never.  Until the user picks one,
-            // the map asks the first time it opens.
+            // the map does what the server says (httpd_map_tiles), by default
+            // asking the first time it opens.
             const fetchTiles = el('input', { type: 'checkbox', role: 'switch',
                 onchange: () => settings.set('map.tiles', fetchTiles.checked ? 'allow' : 'deny') });
             const policyNote = el('span', { class: 'muted' });
@@ -33,6 +34,7 @@ export function register(kismet) {
                 el('p', {}, policyNote, ' ', askAgain));
 
             function showPolicy(v = map.tilePolicy()) {
+                v = v ?? map.tilePolicy();
                 fetchTiles.checked = v === 'allow';
                 policyNote.textContent = v === 'ask' ?
                     'Not chosen yet: the map asks before fetching any tiles.' :
@@ -55,12 +57,30 @@ export function register(kismet) {
 
             function checkUrl() {
                 const typed = url.value.trim();
-                if (typed && !map.tileSource().custom)
-                    urlNote.textContent = 'Not a usable tile address: it needs to start with http:// or https:// and contain {z}, {x}, and {y}.  Using OpenStreetMap.';
+                const server = map.serverTileDefaults();
+                const fallback = server.url ? 'the tile server set on the Kismet server' : 'OpenStreetMap';
+                const source = map.tileSource();
+                if (typed && (!source.custom || source.server))
+                    urlNote.textContent = 'Not a usable tile address: it needs to start with http:// or https:// and ' +
+                        `contain {z}, {x}, and {y}.  Using ${fallback}.`;
+                else if (typed)
+                    urlNote.textContent = 'Using this server.';
                 else
-                    urlNote.textContent = typed ? 'Using this server.' : 'Leave empty for OpenStreetMap.';
+                    urlNote.textContent = server.url ? `Leave empty for the tile server set on the Kismet server, ${server.url}.` :
+                        'Leave empty for OpenStreetMap.';
             }
             checkUrl();
+
+            // The Kismet server's defaults, shown where this browser has none
+            map.loadServerTiles().then(() => {
+                const server = map.serverTileDefaults();
+                if (server.url)
+                    url.placeholder = server.url;
+                if (server.attribution)
+                    attribution.placeholder = server.attribution;
+                checkUrl();
+                showPolicy();
+            });
 
             const dark = el('input', { type: 'checkbox', checked: settings.get('map.darkTiles', true) !== false,
                 onchange: () => settings.set('map.darkTiles', dark.checked) });
@@ -91,7 +111,7 @@ export function register(kismet) {
                 el('label', { class: 'choice-item' }, collect, 'Keep collecting paths while the map is not shown'),
                 el('label', { class: 'field' }, 'Keep paths for', keep));
 
-            return settings.watch('map.tiles', (v) => showPolicy(v ?? 'ask'));
+            return settings.watch('map.tiles', (v) => showPolicy(v));
         },
     });
 }
