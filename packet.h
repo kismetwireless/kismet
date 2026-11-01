@@ -103,7 +103,7 @@ public:
         phyid = -1;
         error = 0;
         datasize = 0;
-        channel = "0";
+        channel.assign(1, '0');
         freq_khz = 0;
         basic_crypt_set = 0;
 
@@ -279,7 +279,7 @@ public:
         datarate = 0;
         freq_khz = 0;
         accuracy = 0;
-        channel = "0";
+        channel.assign(1, '0');
         antenna_signal_map.clear();
         content_checkum = 0;
     }
