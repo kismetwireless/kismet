@@ -149,7 +149,7 @@ namespace kissqlite3 {
     typedef struct __LIKE { std::string op = "LIKE"; } _LIKE;
     static auto LIKE = _LIKE{};
 
-    typedef struct __ORDERBY { std::string op = "ORDER_BY"; } _ORDERBY;
+    typedef struct __ORDERBY { std::string op = "ORDER BY"; } _ORDERBY;
     static auto ORDERBY = _ORDERBY{};
 
     typedef struct __LIMIT { std::string op = "LIMIT"; } _LIMIT;

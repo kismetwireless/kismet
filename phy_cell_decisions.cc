@@ -250,6 +250,10 @@ static bool all_digits(const std::string& s) {
     return true;
 }
 
+bool wigle_cell_type(const std::string& rat) {
+    return rat == "GSM" || rat == "WCDMA" || rat == "LTE" || rat == "NR";
+}
+
 bool mcc_has_three_digit_mnc(int64_t mcc) {
     /* WiGLE's determineMnc() consults a recognised-MNC table; the MCC-BLOCK
      * form of that table is below. These are the assignments that broadcast a

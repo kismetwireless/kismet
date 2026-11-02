@@ -24,6 +24,7 @@
 #include "phy_80211.h"
 #include "phy_bluetooth.h"
 #include "phy_btle.h"
+#include "phy_cell_decisions.h"
 #include "version.h"
 
 // Aggressive additional mangle of text to handle converting ',' and '"' to
@@ -442,6 +443,9 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         if (!is_full && !is_resolved)
             return 1;
 
+        if (!cell_decisions::wigle_cell_type(cell->get_cell_rat()))
+            return 1;
+
         std::string emit_key = is_resolved ?
             cell->get_cell_resolved_key() : cell->get_cell_key();
         std::string emit_operator = is_resolved ?
@@ -478,12 +482,13 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         // [MAC],[SSID],[AuthMode],[FirstSeen],[Channel],[Frequency],[RSSI],
         //   [CurrentLatitude],[CurrentLongitude],[AltitudeMeters],[AccuracyMeters],
         //   [RCOIs],[MfgrId],[Type]
+        // Cells leave Channel blank and give the ARFCN as the frequency
         fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
                 munge_for_csv(emit_key),
                 munge_for_csv(emit_operator),
                 munge_for_csv(authmode),
                 ts.str(),
-                munge_for_csv(dev->get_channel()),
+                "",
                 (uint32_t) cell->get_cell_arfcn(),
                 signal,
                 in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
@@ -491,6 +496,9 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 "",
                 "",
                 munge_for_csv(cell->get_cell_rat()));
+    } else {
+        // No WiGLE record type for this phy
+        return 1;
     }
 
     {
