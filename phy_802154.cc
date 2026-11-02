@@ -329,6 +329,14 @@ constexpr unsigned int meshcop_ext_pan_id = 2, meshcop_network_name = 3, meshcop
  * data: no commissioner, so no new devices) and the joiner port.  Other MLE commands are secured.
  */
 static void read_mle(const uint8_t *p, size_t n, kis_802154_packinfo *pi) {
+    // Secured (suite 0): the auxiliary header gives the key sequence as its key source (key ID
+    // mode 2): security control, frame counter, key source, key index
+    if (n >= 11 && p[0] == 0x00 && ((p[1] >> 3) & 0x03) == 0x02) {
+        pi->has_mle_key_seq = true;
+        pi->mle_key_seq = ((uint32_t) p[6] << 24) | ((uint32_t) p[7] << 16) | ((uint32_t) p[8] << 8) | p[9];
+        return;
+    }
+
     if (n < 2 || p[0] != 0xff)
         return;
 
@@ -925,6 +933,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     bool dest_pan_present = false, src_pan_present = false;
     unsigned int payload_off = 0;   // where a readable payload starts (0: none)
 
+    // From the MAC header: a data poll, a CSL period, the security key index (-1: none)
+    bool data_poll = false;
+    uint16_t csl_period = 0;
+    int key_index = -1;
+
     unsigned short fcf = 0;
     auto hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
 
@@ -1173,6 +1186,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         // which is readable when it is not encrypted (security levels 4-7 encrypt it)
         bool clear = true;
         bool well_formed = true;
+        unsigned int mic_len = 0;
 
         if (hdr_802_15_4_fcf->security) {
             static const unsigned int key_id_len[4] = {0, 1, 5, 9};
@@ -1180,19 +1194,26 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             if (pkt_ctr + 1 > frame_end) {
                 well_formed = false;
             } else {
+                static const unsigned int mic_lens[4] = {0, 4, 8, 16};
                 const uint8_t sc = mpdu[pkt_ctr];
-                unsigned int n = 1 + key_id_len[(sc >> 3) & 0x03];
+                const unsigned int key_mode = (sc >> 3) & 0x03;
+                unsigned int n = 1 + key_id_len[key_mode];
 
                 // the frame counter, unless suppressed (2015)
                 if (!(hdr_802_15_4_fcf->frame_ver >= 0x02 && (sc & 0x20)))
                     n += 4;
 
                 clear = (sc & 0x07) < 4;
+                mic_len = mic_lens[sc & 0x03];
 
-                if (pkt_ctr + n > frame_end)
+                if (pkt_ctr + n > frame_end) {
                     well_formed = false;
-                else
+                } else {
+                    // key ID mode 1: the key index alone, the last octet of the header
+                    if (key_mode == 1)
+                        key_index = mpdu[pkt_ctr + n - 1];
                     pkt_ctr += n;
+                }
             }
         }
 
@@ -1209,6 +1230,10 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                     well_formed = false;
                     break;
                 }
+
+                // CSL: phase, then period
+                if (id == 0x1a && len >= 4)
+                    csl_period = mpdu[pkt_ctr + 4] | (mpdu[pkt_ctr + 5] << 8);
 
                 pkt_ctr += 2 + len;
 
@@ -1240,6 +1265,16 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         if (well_formed && clear && pkt_ctr < frame_end)
             payload_off = pkt_ctr;
+
+        // A Data Request between short addresses: its command ID, which 2006 frames send in the
+        // clear; a secured 2015 command frame with only a command ID and its MIC is taken for one
+        if (well_formed && hdr_802_15_4_fcf->type == CMD_802154 && dmode == 0x02 && smode == 0x02 &&
+                pkt_ctr < frame_end) {
+            if (hdr_802_15_4_fcf->security && hdr_802_15_4_fcf->frame_ver >= 0x02)
+                data_poll = frame_end - pkt_ctr == 1 + mic_len;
+            else
+                data_poll = mpdu[pkt_ctr] == 0x04;
+        }
     }
 
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
@@ -1286,6 +1321,14 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         auto pi = mphy->packetchain->new_packet_component<kis_802154_packinfo>();
         bool keep = false;
+
+        if (data_poll || csl_period || key_index >= 0) {
+            pi->data_poll = data_poll;
+            pi->csl_period = csl_period;
+            pi->has_key_index = key_index >= 0;
+            pi->key_index = (uint8_t) (key_index >= 0 ? key_index : 0);
+            keep = true;
+        }
 
         // A sender on the broadcast PAN (associating, rejoining, orphaned) keeps the PAN it was
         // last seen in
@@ -1442,6 +1485,8 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                 source_kis_802154->set_thread_joiner_port(pi->thread_joiner_port);
             if (pi->thread_disc != thread_disc_state::none)
                 source_kis_802154->set_thread_discovery(pi->thread_disc);
+            if (pi->has_mle_key_seq)
+                source_kis_802154->set_thread_key_seq(pi->mle_key_seq);
 
             // The role a beacon shows: the PAN coordinator, or a beaconing router; in Zigbee every
             // router beacons, in Thread none does after 1.1
@@ -1570,6 +1615,71 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                     source_kis_802154->set_ext_pan_id(ext_pan_id);
             }
 
+            // Thread devices by their RLOC16 (the short address): the router ID (6 bits), a reserved
+            // bit, the child ID (9 bits; 0 for the router itself).  Children poll their parent,
+            // and synchronized sleepy children carry a CSL IE.
+            if (source.length() == 4 && source_kis_802154->get_network_rank() ==
+                    static_cast<uint8_t>(net_kind::thread)) {
+                const uint16_t rloc = (source[2] << 8) | source[3];
+                const unsigned int router = rloc >> 10, child = rloc & 0x1ff;
+
+                if (!(rloc & 0x0200) && router < 63) {
+                    uint8_t routers = 0;
+                    uint16_t children = 0;
+
+                    const bool counted =
+                        mphy->thread_topology(src_pan, rloc, in_pack->ts.tv_sec, routers, children);
+
+                    source_kis_802154->set_thread_router_id(router);
+                    source_kis_802154->set_thread_child_id(child);
+                    if (counted)
+                        source_kis_802154->set_thread_routers(routers);
+
+                    if (pi != nullptr && pi->data_poll) {
+                        const uint64_t now_ms = (uint64_t) in_pack->ts.tv_sec * 1000 + in_pack->ts.tv_usec / 1000;
+                        const uint64_t last = source_kis_802154->has_thread_last_poll() ?
+                            source_kis_802154->get_thread_last_poll() : 0;
+
+                        // Polls repeated within a moment (no answer yet) and long gaps don't
+                        // count toward the usual interval
+                        if (last != 0 && now_ms > last && now_ms - last >= 200 && now_ms - last <= 3600 * 1000) {
+                            const uint32_t gap = (uint32_t) (now_ms - last);
+                            const uint32_t avg = source_kis_802154->has_thread_poll_interval() ?
+                                source_kis_802154->get_thread_poll_interval() : 0;
+                            source_kis_802154->set_thread_poll_interval(avg == 0 ? gap :
+                                    (uint32_t) (((uint64_t) avg * 3 + gap) / 4));
+                        }
+
+                        if (now_ms > last)
+                            source_kis_802154->set_thread_last_poll(now_ms);
+                        source_kis_802154->set_thread_polls(source_kis_802154->has_thread_polls() ?
+                                source_kis_802154->get_thread_polls() + 1 : 1);
+                    }
+
+                    if (pi != nullptr && pi->csl_period)
+                        source_kis_802154->set_thread_csl_period(pi->csl_period);
+
+                    if (child == 0) {
+                        source_kis_802154->set_role("Router");
+                        if (counted)
+                            source_kis_802154->set_thread_children(children);
+                    } else {
+                        const uint8_t parent[4] = {(uint8_t) (src_pan >> 8), (uint8_t) src_pan,
+                            (uint8_t) (router << 2), 0x00};
+
+                        source_kis_802154->set_thread_parent(device_key(mphy->fetch_phyname_hash(),
+                                    mac_addr(parent, 4)));
+                        source_kis_802154->set_role(source_kis_802154->has_thread_csl_period() ?
+                                "Synchronized sleepy end device" : source_kis_802154->has_thread_polls() ?
+                                "Sleepy end device" : "End device");
+                    }
+                }
+            }
+
+            if (pi != nullptr && pi->has_key_index &&
+                    source_kis_802154->get_network_rank() == static_cast<uint8_t>(net_kind::thread))
+                source_kis_802154->set_thread_key_index(pi->key_index);
+
             // A network open to new devices, once per PAN each time it opens
             if (pi != nullptr && pi->thread_join != thread_join_state::unknown &&
                     mphy->alert_threadjoin_ref >= 0 && mphy->thread_alert_due(src_pan, pi->thread_join)) {
@@ -1619,7 +1729,8 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             if (net == "Zigbee")
                 type = role == "PAN coordinator" ? "Zigbee coordinator" : role == "Router" ? "Zigbee router" : "Zigbee device";
             else if (net == "Thread")
-                type = "Thread device";
+                type = !source_kis_802154->has_thread_child_id() ? "Thread device" :
+                    source_kis_802154->get_thread_child_id() == 0 ? "Thread router" : "Thread end device";
             else
                 type = net + " device";
 
@@ -1823,6 +1934,55 @@ bool kis_802154_phy::thread_alert_due(uint16_t pan, thread_join_state state) {
         return false;
 
     ti->second.alerted |= bit;
+    return true;
+}
+
+bool kis_802154_phy::thread_topology(uint16_t pan, uint16_t rloc16, time_t now, uint8_t& routers,
+        uint16_t& children) {
+    kis_lock_guard<kis_mutex> lk(thread_pan_mutex, "802154_thread_topology");
+
+    routers = 0;
+    children = 0;
+
+    auto ti = thread_pans.find(pan);
+    if (ti == thread_pans.end())
+        return false;
+
+    auto& net = ti->second;
+    const unsigned int router = rloc16 >> 10;
+
+    net.router_seen[router] = now;
+
+    if (rloc16 & 0x1ff) {
+        auto ci = net.child_seen.find(rloc16);
+
+        if (ci != net.child_seen.end()) {
+            ci->second = now;
+        } else {
+            if (net.child_seen.size() >= thread_children_max) {
+                for (auto i = net.child_seen.begin(); i != net.child_seen.end(); ) {
+                    if (now - i->second > thread_topology_window)
+                        i = net.child_seen.erase(i);
+                    else
+                        ++i;
+                }
+            }
+
+            if (net.child_seen.size() < thread_children_max)
+                net.child_seen.emplace(rloc16, now);
+        }
+    }
+
+    for (const auto t : net.router_seen)
+        if (t != 0 && now - t <= thread_topology_window)
+            routers++;
+
+    // A router's children: the RLOC16s under its router ID
+    if (!(rloc16 & 0x1ff))
+        for (const auto& c : net.child_seen)
+            if ((c.first >> 10) == router && now - c.second <= thread_topology_window)
+                children++;
+
     return true;
 }
 
