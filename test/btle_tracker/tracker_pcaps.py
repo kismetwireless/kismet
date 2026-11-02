@@ -16,7 +16,9 @@
 #   42:00:00:00:00:99  plain advertiser with a name and no service data
 #   c2:00:00:00:00:98  plain advertiser with a static address, kept with btle_ignore_random,
 #                      with 16-bit service data (FEAF)
-#   c2:00:00:00:00:97  static address, 32-bit and 128-bit service data
+#   c2:00:00:00:00:97  static address, a service UUID list (FEAF), 32-bit and 128-bit service data
+#   c2:00:00:00:00:96  iBeacon, UUID 00..0f, major 1, minor 2, -59 dBm at 1 m
+#   c2:00:00:00:00:95  BTHome v2 sensor, battery 90%, 25.00 C
 import struct, sys
 
 AA = 0x8E89BED6
@@ -84,7 +86,10 @@ ADVERTISERS = [
     ("42:00:00:b2:fc:02", [FLAGS + fmdn(0x40, 20, False), FLAGS + dult(0x02, 0x00, b"")]),
     ("42:00:00:00:00:99", [FLAGS + ad(0x09, b"tracker-test")]),
     ("c2:00:00:00:00:98", [FLAGS + ad(0x09, b"static-test") + ad(0x16, b"\xaf\xfe\x01\x02\x03\x04")]),
-    ("c2:00:00:00:00:97", [ad(0x20, b"\x04\x03\x02\x01\xaa") + ad(0x21, bytes(range(16)) + b"\xbb\xcc")]),
+    ("c2:00:00:00:00:97", [ad(0x03, b"\xaf\xfe") + ad(0x20, b"\x04\x03\x02\x01\xaa") +
+                           ad(0x21, bytes(range(16)) + b"\xbb\xcc")]),
+    ("c2:00:00:00:00:96", [FLAGS + ad(0xFF, b"\x4c\x00\x02\x15" + bytes(range(16)) + b"\x00\x01\x00\x02\xc5")]),
+    ("c2:00:00:00:00:95", [FLAGS + ad(0x16, b"\xd2\xfc\x40\x01\x5a\x02\xc4\x09")]),
 ]
 
 def main():

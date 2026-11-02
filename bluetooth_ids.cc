@@ -22,6 +22,7 @@
 
 #include "configfile.h"
 #include "entrytracker.h"
+#include "kis_net_beast_httpd.h"
 #include "messagebus.h"
 
 size_t kis_bt_id_table::load(gzFile file) {
@@ -92,6 +93,13 @@ kis_bt_oid::kis_bt_oid() {
 
     unknown_oid = std::make_shared<tracker_element_string>(oid_id);
     unknown_oid->set("Unknown");
+
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    httpd->register_route("/phy/bluetooth/uuid_names", {"POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return uuid_names_endpoint(con);
+                }));
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("btoid_lookup", true) == false) {
         _MSG_INFO("Disabling Bluetooth OID name lookup");
@@ -179,6 +187,73 @@ std::shared_ptr<tracker_element_string> kis_bt_oid::lookup_oid(uint32_t in_oid) 
 
 bool kis_bt_oid::is_unknown_oid(std::shared_ptr<tracker_element_string> in_oid) {
     return in_oid == unknown_oid;
+}
+
+namespace {
+
+constexpr size_t max_uuid_names = 64;
+
+constexpr bool all_hex(const char *s, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        const char c = s[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
+            return false;
+    }
+    return len > 0;
+}
+
+// The assigned 16-bit number of a lowercase UUID: 'feaf', '0000feaf', or the 128-bit
+// Bluetooth base form '0000feaf-0000-1000-8000-00805f9b34fb'
+bool assigned_uuid16(const std::string& u, uint32_t& out) {
+    static constexpr char base_suffix[] = "-0000-1000-8000-00805f9b34fb";
+    std::string hex;
+
+    if (u.size() == 4 && all_hex(u.data(), 4))
+        hex = u;
+    else if (u.size() == 8 && all_hex(u.data(), 8) && u.compare(0, 4, "0000") == 0)
+        hex = u.substr(4);
+    else if (u.size() == 36 && all_hex(u.data(), 8) && u.compare(0, 4, "0000") == 0 &&
+            u.compare(8, std::string::npos, base_suffix) == 0)
+        hex = u.substr(4, 4);
+    else
+        return false;
+
+    out = std::stoul(hex, nullptr, 16);
+    return true;
+}
+
+}
+
+std::shared_ptr<tracker_element> kis_bt_oid::uuid_names_endpoint(
+        std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    auto ret = std::make_shared<tracker_element_string_map>();
+
+    const auto& j = con->json();
+    const auto ju = j.is_object() ? j.find("uuids") : j.end();
+    if (ju == j.end() || !ju->is_array() || ju->size() > max_uuid_names) {
+        con->set_status(400);
+        return ret;
+    }
+
+    for (const auto& e : *ju) {
+        if (!e.is_string())
+            continue;
+
+        auto u = e.get<std::string>();
+        if (u.size() > 36)
+            continue;
+        std::transform(u.begin(), u.end(), u.begin(), [](unsigned char c) { return std::tolower(c); });
+
+        uint32_t id;
+        if (!assigned_uuid16(u, id))
+            continue;
+
+        auto name = lookup_oid(id);
+        if (name != nullptr && !is_unknown_oid(name))
+            ret->replace(u, name);
+    }
+
+    return ret;
 }
 
 
