@@ -44,6 +44,7 @@ const paths = {
     battery: '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
     play: '<path d="M7 4.5v15l12-7.5z"/>',
+    more: '<circle cx="12" cy="5" r=".8" fill="currentColor"/><circle cx="12" cy="12" r=".8" fill="currentColor"/><circle cx="12" cy="19" r=".8" fill="currentColor"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     source: '<path d="M12 12v10M8 22h8"/><circle cx="12" cy="9" r="2"/><path d="M7.8 4.8a6 6 0 0 0 0 8.4M16.2 4.8a6 6 0 0 1 0 8.4"/>',
     link: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4"/>',
