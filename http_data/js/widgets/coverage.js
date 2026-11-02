@@ -681,6 +681,9 @@ export function openCoverage({ view: startView = null } = {}) {
         return name === format.frequency(f).replace(' ', '') ? [mhz, null] : [name, mhz];
     }
 
+    // Labels slant down to the left, so a long one takes less height
+    const labelAngle = Math.PI / 4;
+
     function freqLabelsHeight(ctx, list, font, maxH) {
         const gap = font * 0.6;
         let longest = 0;
@@ -688,7 +691,7 @@ export function openCoverage({ view: startView = null } = {}) {
             const [a, b] = freqLabelParts(f);
             longest = Math.max(longest, ctx.measureText(a).width + (b ? gap + ctx.measureText(b).width : 0));
         }
-        return Math.min(maxH, Math.max(font * 2.4, longest + font));
+        return Math.min(maxH, Math.max(font * 2.4, longest * Math.sin(labelAngle) + font * 1.5));
     }
 
     // Labels that would touch one already placed are left out.  They're
@@ -699,9 +702,11 @@ export function openCoverage({ view: startView = null } = {}) {
         const rank = (f) => (f === picked ? 0 : history(f, 'packets').some((v) => v > 0) ? 1 : freqs.has(f) ? 2 : 3);
         const order = list.filter((f) => x(f) !== null).map((f) => ({ f, r: rank(f), x: x(f) }))
             .sort((a, z) => a.r - z.r || a.x - z.x);
+        // Slanted labels side by side need more room across than upright ones
+        const apart = (font * 1.15) / Math.sin(labelAngle);
         const placed = [];
         for (const o of order)
-            if (!placed.some((p) => Math.abs(p.x - o.x) < font * 1.25))
+            if (!placed.some((p) => Math.abs(p.x - o.x) < apart))
                 placed.push(o);
         const keep = placed.map((o) => o.f);
         ctx.textAlign = 'right';
@@ -709,8 +714,8 @@ export function openCoverage({ view: startView = null } = {}) {
         for (const f of keep) {
             const [a, b] = freqLabelParts(f);
             ctx.save();
-            ctx.translate(x(f), top + font * 0.5);
-            ctx.rotate(-Math.PI / 2);
+            ctx.translate(x(f) + font * 0.3, top + font * 0.6);
+            ctx.rotate(-labelAngle);
             ctx.fillStyle = f === picked ? colors.accent : colors.text;
             ctx.fillText(a, 0, 0);
             if (b) {
