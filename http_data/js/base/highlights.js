@@ -99,7 +99,7 @@ export function register(kismet) {
     }
 
     ui.settingsPanes.add({
-        id: 'highlights', title: 'Device Highlights', parent: 'appearance', priority: 5,
+        id: 'highlights', title: 'Device Highlights', priority: 5,
         create(body) {
             const holder = el('div', { class: 'dh-list' });
 
