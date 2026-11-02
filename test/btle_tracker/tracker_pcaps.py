@@ -1,18 +1,20 @@
 # Test pcap (DLT 256, BTLE_RADIO) with BTLE location tracker advertisements.  Every address
 # and payload is synthetic.  Usage: tracker_pcaps.py <outfile>
 #
-# Advertisers, all with random static addresses (TxAdd=1) and ADV_IND, every 2 s for 60 s:
-#   c2:00:00:5a:fd:01  Samsung SmartTag, overmature offline (3), battery full, no UWB
-#   c2:00:00:5a:fd:02  Samsung SmartTag, connected (5), battery low, UWB
-#   c2:00:00:5a:fd:03  FD5A service data with a different frame id: not a SmartTag
-#   c2:00:00:4c:00:01  Apple Find My, AirTag, separated frame, battery medium
-#   c2:00:00:4c:00:02  Apple Find My, AirPods, near-owner frame, battery full
-#   c2:00:00:4c:00:03  Apple Find My frame from an Apple device (type 0): not a tracker
-#   c2:00:00:aa:fe:01  Google FMDN, unwanted tracking protection mode, 160-bit, hashed flags
-#   c2:00:00:aa:fe:02  Eddystone UID frame in FEAA: not FMDN
-#   c2:00:00:b2:fc:01  DULT only, separated, network ID 7, proprietary payload
-#   c2:00:00:b2:fc:02  Google FMDN (normal) and DULT (separated, network ID 2) in turns
-#   c2:00:00:00:00:99  plain advertiser with a name and no service data
+# Advertisers with random addresses (TxAdd=1) and ADV_IND, every 2 s for 60 s; resolvable
+# private (42:...) like real trackers, which rotate, apart from one static address:
+#   42:00:00:5a:fd:01  Samsung SmartTag, overmature offline (3), battery full, no UWB
+#   42:00:00:5a:fd:02  Samsung SmartTag, connected (5), battery low, UWB
+#   42:00:00:5a:fd:03  FD5A service data with a different frame id: not a SmartTag
+#   42:00:00:4c:00:01  Apple Find My, AirTag, separated frame, battery medium
+#   42:00:00:4c:00:02  Apple Find My, AirPods, near-owner frame, battery full
+#   42:00:00:4c:00:03  Apple Find My frame from an Apple device (type 0): not a tracker
+#   42:00:00:aa:fe:01  Google FMDN, unwanted tracking protection mode, 160-bit, hashed flags
+#   42:00:00:aa:fe:02  Eddystone UID frame in FEAA: not FMDN
+#   42:00:00:b2:fc:01  DULT only, separated, network ID 7, proprietary payload
+#   42:00:00:b2:fc:02  Google FMDN (normal) and DULT (separated, network ID 2) in turns
+#   42:00:00:00:00:99  plain advertiser with a name and no service data
+#   c2:00:00:00:00:98  plain advertiser with a static address, kept with btle_ignore_random
 import struct, sys
 
 AA = 0x8E89BED6
@@ -68,17 +70,18 @@ EDDYSTONE_UID = ad(0x16, struct.pack("<H", 0xFEAA) + b"\x00\xee" + bytes(range(1
 
 # Each advertiser cycles through its advertisements, one per round
 ADVERTISERS = [
-    ("c2:00:00:5a:fd:01", [FLAGS + smarttag(0x13, 0x0102, bytes.fromhex("1122334455667788"), 0x03)]),
-    ("c2:00:00:5a:fd:02", [FLAGS + smarttag(0x15, 0x0a0b0c, bytes.fromhex("8877665544332211"), 0x05)]),
-    ("c2:00:00:5a:fd:03", [FLAGS + smarttag(0x23, 0x0102, bytes.fromhex("1122334455667788"), 0x03)]),
-    ("c2:00:00:4c:00:01", [findmy(True, 0x50)]),
-    ("c2:00:00:4c:00:02", [FLAGS + findmy(False, 0x30)]),
-    ("c2:00:00:4c:00:03", [findmy(True, 0x00)]),
-    ("c2:00:00:aa:fe:01", [FLAGS + fmdn(0x41, 20, True)]),
-    ("c2:00:00:aa:fe:02", [FLAGS + EDDYSTONE_UID]),
-    ("c2:00:00:b2:fc:01", [FLAGS + dult(0x07, 0x00, bytes.fromhex("01020304"))]),
-    ("c2:00:00:b2:fc:02", [FLAGS + fmdn(0x40, 20, False), FLAGS + dult(0x02, 0x00, b"")]),
-    ("c2:00:00:00:00:99", [FLAGS + ad(0x09, b"tracker-test")]),
+    ("42:00:00:5a:fd:01", [FLAGS + smarttag(0x13, 0x0102, bytes.fromhex("1122334455667788"), 0x03)]),
+    ("42:00:00:5a:fd:02", [FLAGS + smarttag(0x15, 0x0a0b0c, bytes.fromhex("8877665544332211"), 0x05)]),
+    ("42:00:00:5a:fd:03", [FLAGS + smarttag(0x23, 0x0102, bytes.fromhex("1122334455667788"), 0x03)]),
+    ("42:00:00:4c:00:01", [findmy(True, 0x50)]),
+    ("42:00:00:4c:00:02", [FLAGS + findmy(False, 0x30)]),
+    ("42:00:00:4c:00:03", [findmy(True, 0x00)]),
+    ("42:00:00:aa:fe:01", [FLAGS + fmdn(0x41, 20, True)]),
+    ("42:00:00:aa:fe:02", [FLAGS + EDDYSTONE_UID]),
+    ("42:00:00:b2:fc:01", [FLAGS + dult(0x07, 0x00, bytes.fromhex("01020304"))]),
+    ("42:00:00:b2:fc:02", [FLAGS + fmdn(0x40, 20, False), FLAGS + dult(0x02, 0x00, b"")]),
+    ("42:00:00:00:00:99", [FLAGS + ad(0x09, b"tracker-test")]),
+    ("c2:00:00:00:00:98", [FLAGS + ad(0x09, b"static-test")]),
 ]
 
 def main():
