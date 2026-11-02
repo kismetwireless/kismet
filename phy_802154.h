@@ -46,6 +46,7 @@
 #include "tap_802_15_4.h"
 #include "zigbee_crypto.h"
 
+#include <array>
 #include <atomic>
 #include <deque>
 #include <set>
@@ -109,6 +110,12 @@ public:
         thread_join = thread_join_state::unknown;
         thread_joiner_port = 0;
         thread_disc = thread_disc_state::none;
+        data_poll = false;
+        csl_period = 0;
+        has_key_index = false;
+        key_index = 0;
+        has_mle_key_seq = false;
+        mle_key_seq = 0;
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -168,6 +175,20 @@ public:
     thread_join_state thread_join = thread_join_state::unknown;
     uint16_t thread_joiner_port = 0;
     thread_disc_state thread_disc = thread_disc_state::none;
+
+    // A MAC Data Request: a device without its receiver on asking its parent for frames.  Read
+    // from the command ID, sent in the clear in 2006 frames; a secured 2015 command frame with
+    // nothing after the command ID but its MIC is taken for one.
+    bool data_poll = false;
+    // The CSL IE's period (2015 header IE, in units of 10 symbols): a sleepy device that wakes
+    // on this schedule (Thread 1.2 and later)
+    uint16_t csl_period = 0;
+    // The key index of MAC security (key ID mode 1), and the key sequence of MLE security (its
+    // key source, key ID mode 2)
+    bool has_key_index = false;
+    uint8_t key_index = 0;
+    bool has_mle_key_seq = false;
+    uint32_t mle_key_seq = 0;
 };
 
 // A key the user gave (zigbee_key=name,key): tried after the publicly known keys, as the network
@@ -251,13 +272,25 @@ public:
             thread_joiner_port_id);
     __ProxyDynamic(thread_discovery, uint8_t, thread_disc_state, thread_disc_state, thread_discovery,
             thread_discovery_id);
+    __ProxyDynamic(thread_router_id, uint8_t, uint8_t, uint8_t, thread_router_id, thread_router_id_id);
+    __ProxyDynamic(thread_child_id, uint16_t, uint16_t, uint16_t, thread_child_id, thread_child_id_id);
+    __ProxyDynamic(thread_parent, device_key, device_key, device_key, thread_parent, thread_parent_id);
+    __ProxyDynamic(thread_children, uint16_t, uint16_t, uint16_t, thread_children, thread_children_id);
+    __ProxyDynamic(thread_routers, uint8_t, uint8_t, uint8_t, thread_routers, thread_routers_id);
+    __ProxyDynamic(thread_polls, uint64_t, uint64_t, uint64_t, thread_polls, thread_polls_id);
+    __ProxyDynamic(thread_last_poll, uint64_t, uint64_t, uint64_t, thread_last_poll, thread_last_poll_id);
+    __ProxyDynamic(thread_poll_interval, uint32_t, uint32_t, uint32_t, thread_poll_interval,
+            thread_poll_interval_id);
+    __ProxyDynamic(thread_csl_period, uint16_t, uint16_t, uint16_t, thread_csl_period, thread_csl_period_id);
+    __ProxyDynamic(thread_key_index, uint8_t, uint8_t, uint8_t, thread_key_index, thread_key_index_id);
+    __ProxyDynamic(thread_key_seq, uint32_t, uint32_t, uint32_t, thread_key_seq, thread_key_seq_id);
 
 protected:
 
     virtual void register_fields() override {
         register_field("802154.device.pan_id", "PAN ID (0xFFFF if not seen)", &pan_id);
         register_field("802154.device.network_type", "Network: Zigbee, Zigbee Green Power, Thread, 6LoWPAN", &network_type);
-        register_field("802154.device.role", "Role: PAN coordinator, router", &role);
+        register_field("802154.device.role", "Role: PAN coordinator, router; in Thread, router, end device, sleepy end device", &role);
         register_field("802154.device.short_addr", "Short address (0xFFFF if not seen)", &short_addr);
         register_field("802154.device.ieee_addr", "IEEE (EUI-64) address learned for a short address", &ieee_addr);
         register_field("802154.device.ext_pan_id", "Extended PAN ID", &ext_pan_id);
@@ -297,6 +330,28 @@ protected:
             register_dynamic_field("802154.device.thread_joiner_port", "The UDP port joining devices use to reach it", &thread_joiner_port);
         thread_discovery_id =
             register_dynamic_field("802154.device.thread_discovery", "Its Thread discovery requests: 1 looking for networks, 2 looking for a network to join", &thread_discovery);
+        thread_router_id_id =
+            register_dynamic_field("802154.device.thread_router_id", "Thread router ID, from its short address (RLOC16)", &thread_router_id);
+        thread_child_id_id =
+            register_dynamic_field("802154.device.thread_child_id", "Thread child ID, from its short address (RLOC16); 0 for a router", &thread_child_id);
+        thread_parent_id =
+            register_dynamic_field("802154.device.thread_parent", "The device key of its parent router (the router its short address names)", &thread_parent);
+        thread_children_id =
+            register_dynamic_field("802154.device.thread_children", "A Thread router's children heard in the last hour", &thread_children);
+        thread_routers_id =
+            register_dynamic_field("802154.device.thread_routers", "Routers of its Thread network heard in the last hour", &thread_routers);
+        thread_polls_id =
+            register_dynamic_field("802154.device.thread_polls", "Data polls (MAC Data Requests) it sent its parent", &thread_polls);
+        thread_last_poll_id =
+            register_dynamic_field("802154.device.thread_last_poll", "When it last polled its parent (ms, internal)", &thread_last_poll);
+        thread_poll_interval_id =
+            register_dynamic_field("802154.device.thread_poll_interval", "Its usual time between data polls, in ms", &thread_poll_interval);
+        thread_csl_period_id =
+            register_dynamic_field("802154.device.thread_csl_period", "Its CSL period, in units of 10 symbols (160 us at 2.4 GHz): how often a synchronized sleepy device wakes", &thread_csl_period);
+        thread_key_index_id =
+            register_dynamic_field("802154.device.thread_key_index", "The key index its MAC security uses (the key sequence, mod 127, plus 1)", &thread_key_index);
+        thread_key_seq_id =
+            register_dynamic_field("802154.device.thread_key_seq", "The key sequence its MLE security uses: how many times its network key has rotated", &thread_key_seq);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -351,6 +406,28 @@ protected:
     uint16_t thread_joiner_port_id;
     std::shared_ptr<tracker_element_uint8> thread_discovery;
     uint16_t thread_discovery_id;
+    std::shared_ptr<tracker_element_uint8> thread_router_id;
+    uint16_t thread_router_id_id;
+    std::shared_ptr<tracker_element_uint16> thread_child_id;
+    uint16_t thread_child_id_id;
+    std::shared_ptr<tracker_element_device_key> thread_parent;
+    uint16_t thread_parent_id;
+    std::shared_ptr<tracker_element_uint16> thread_children;
+    uint16_t thread_children_id;
+    std::shared_ptr<tracker_element_uint8> thread_routers;
+    uint16_t thread_routers_id;
+    std::shared_ptr<tracker_element_uint64> thread_polls;
+    uint16_t thread_polls_id;
+    std::shared_ptr<tracker_element_uint64> thread_last_poll;
+    uint16_t thread_last_poll_id;
+    std::shared_ptr<tracker_element_uint32> thread_poll_interval;
+    uint16_t thread_poll_interval_id;
+    std::shared_ptr<tracker_element_uint16> thread_csl_period;
+    uint16_t thread_csl_period_id;
+    std::shared_ptr<tracker_element_uint8> thread_key_index;
+    uint16_t thread_key_index_id;
+    std::shared_ptr<tracker_element_uint32> thread_key_seq;
+    uint16_t thread_key_seq_id;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -433,9 +510,17 @@ protected:
         // The joining states already alerted (THREADJOINABLE), a bit for each; cleared when the
         // network closes, so a later opening alerts again
         uint8_t alerted = 0;
+
+        // When each router (by router ID) and each child (by RLOC16) was last heard, to count the
+        // ones heard in the last hour.  Children are capped; a full table takes no new ones until
+        // old ones age out.
+        std::array<time_t, 63> router_seen{};
+        std::unordered_map<uint16_t, time_t> child_seen;
     };
 
-    static constexpr size_t thread_pan_max = 1024;
+    static constexpr size_t thread_pan_max = 256;
+    static constexpr size_t thread_children_max = 1024;
+    static constexpr time_t thread_topology_window = 3600;
     kis_mutex thread_pan_mutex;
     std::unordered_map<uint16_t, thread_pan> thread_pans;
     std::deque<uint16_t> thread_pan_order;
@@ -453,6 +538,12 @@ protected:
     // couldn't be raised
     bool thread_alert_due(uint16_t pan, thread_join_state state);
     void unmark_thread_alert(uint16_t pan, thread_join_state state);
+
+    // A Thread device heard by its RLOC16 on a known Thread PAN: note it, and give the routers of
+    // the network heard in the last hour and, for a router, its children heard in that time;
+    // false when the PAN isn't known (any more)
+    bool thread_topology(uint16_t pan, uint16_t rloc16, time_t now, uint8_t& routers,
+            uint16_t& children);
 
     int alert_threadjoin_ref;
 };
