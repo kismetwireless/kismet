@@ -21,6 +21,7 @@
 //       defaultSort: { column: 'last_time', dir: 'desc' },
 //       noun: 'SSIDs',
 //       query,                         // optional; the search box's filters (below)
+//       pausable: true,                // optional; a button to stop the updates
 //   });
 //
 // endpoint is any Kismet list that pages like the device views (page,
@@ -37,7 +38,7 @@ import { icon } from '../core/icons.js';
 import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
 import { fieldName } from '../registry/columns.js';
-import { makeDraggable, makeResizable, moveColumn, defaultColumns, chooseColumns } from './columnedit.js';
+import { makeDraggable, makeResizable, moveColumn, defaultColumns, chooseColumns, columnVariant } from './columnedit.js';
 import { createRowSource } from './rowsource.js';
 import * as loading from './loading.js';
 import { chooseHighlights, highlightSetting } from './highlightedit.js';
@@ -52,14 +53,15 @@ const maxFitEm = 28;
 const minFlexEm = 8;
 
 // The saved layout for a table: { columns: [ids in order], widths: { id: px },
-// highlights: { id: { enabled, color } } }.  Until the user picks columns,
-// the defaults are used.
+// highlights: { id: { enabled, color } }, variants: { id: variant id } }.
+// Until the user picks columns, the defaults are used.
 function savedLayout(id, columns) {
     const chosen = settings.get(`${id}.columns`, null);
     return {
         columns: Array.isArray(chosen) ? chosen : defaultColumns(columns),
         widths: settings.get(`${id}.widths`, {}),
         highlights: settings.get(`${id}.highlights`, {}),
+        variants: settings.get(`${id}.variants`, {}),
     };
 }
 
@@ -68,6 +70,7 @@ function savedLayout(id, columns) {
 function saveLayout(id, columns, layout) {
     settings.set(`${id}.highlights`, layout.highlights);
     settings.set(`${id}.widths`, layout.widths);
+    settings.set(`${id}.variants`, layout.variants);
     if (layout.columns.join() === defaultColumns(columns).join())
         settings.remove(`${id}.columns`);
     else
@@ -92,6 +95,7 @@ export function createDataTable(container, {
     refreshSeconds = 2,
     watch = [],
     query = null,
+    pausable = false,
 }) {
     const firstSortable = columns.list().find((c) => c.sortField);
     const state = {
@@ -113,6 +117,7 @@ export function createDataTable(container, {
         layout: savedLayout(id, columns),
         editing: false,
         snapshot: null,
+        paused: false,
     };
 
     // An empty box (deleted, or cleared with its clear button, which only
@@ -162,6 +167,20 @@ export function createDataTable(container, {
     }
 
     const countInfo = el('span', { class: 'count-info' });
+
+    // Paused, the rows on screen stay as they are; scrolling still loads more
+    const pauseButton = pausable ? el('button', { class: 'icon-button pause-button', title: 'Pause updates',
+        'aria-pressed': 'false', onclick: () => setPaused(!state.paused) }, icon('pause')) : null;
+    function setPaused(on) {
+        state.paused = on;
+        pauseButton.replaceChildren(icon(on ? 'play' : 'pause'));
+        pauseButton.title = on ? 'Resume updates' : 'Pause updates';
+        pauseButton.setAttribute('aria-pressed', String(on));
+        pauseButton.classList.toggle('paused', on);
+        if (!on && onScreen())
+            rows.refresh();
+        draw(true);
+    }
     const editButton = el('button', { class: 'icon-button', title: 'Edit columns', onclick: () => setEditing(true) }, icon('edit'));
 
     const toolbarEl = el('div', { class: 'table-toolbar' });
@@ -171,17 +190,18 @@ export function createDataTable(container, {
         icon('edit'),
         el('span', {}, 'Drag headings to move columns, drag their edges to resize.'),
         el('div', { class: 'spacer' }),
-        el('button', { onclick: () => chooseColumns(columns, state.layout.columns, (ids) => {
+        el('button', { onclick: () => chooseColumns(columns, state.layout.columns, (ids, variants) => {
             state.layout.columns = ids;
+            state.layout.variants = variants;
             layoutChanged();
-        }) }, icon('columns'), ' Choose columns'),
+        }, state.layout.variants) }, icon('columns'), ' Choose columns'),
         highlights ? el('button', { onclick: () => (editHighlights ? editHighlights() :
             chooseHighlights(highlights, state.layout.highlights, (h) => {
                 state.layout.highlights = h;
                 layoutChanged();
             })) }, icon('highlight'), ' Highlights') : null,
         el('button', { title: 'Default columns, widths, and highlights', onclick: () => {
-            state.layout = { columns: defaultColumns(columns), widths: {}, highlights: {} };
+            state.layout = { columns: defaultColumns(columns), widths: {}, highlights: {}, variants: {} };
             layoutChanged();
         } }, 'Defaults'),
         el('button', { onclick: () => setEditing(false, false) }, 'Cancel'),
@@ -208,6 +228,8 @@ export function createDataTable(container, {
 
     let shownColumns = [];
     const iconCol = icons ? 1 : 0;
+    // The row each drawn <tr> shows, for tooltips
+    const rowData = new WeakMap();
 
     function setEditing(on, keep = true) {
         if (on) {
@@ -277,6 +299,13 @@ export function createDataTable(container, {
             }, el('span', { class: 'th-label' }, c.title, sorted ? icon(state.sort.dir === 'asc' ? 'up' : 'down') : null));
             labels.set(c.id, th.firstChild);
 
+            if (c.variants?.length && !state.editing)
+                th.firstChild.append(el('button', { class: 'icon-button th-variant', title: `How to show ${c.title}`,
+                    'aria-haspopup': 'menu', onclick: (e) => {
+                        e.stopPropagation();
+                        variantMenu(c, e.currentTarget);
+                    } }, icon('more')));
+
             if (c.sortField)
                 th.addEventListener('click', () => {
                     if (!state.editing)
@@ -314,6 +343,42 @@ export function createDataTable(container, {
             grow(cid, label.scrollWidth + pad, Infinity);
         applyWidths();
     }
+
+    // The menu of a column's variants, under its heading
+    const menu = el('div', { class: 'menu-list variant-menu', role: 'menu', popover: 'auto', hidden: true });
+    document.body.append(menu);
+    function variantMenu(c, button) {
+        const current = columnVariant(c, state.layout.variants);
+        menu.replaceChildren(...c.variants.map((v) => el('button', { class: ['menu-item', v === current && 'checked'],
+            role: 'menuitemradio', 'aria-checked': String(v === current), onclick: () => {
+                closeMenu();
+                state.layout.variants = { ...state.layout.variants, [c.id]: v.id };
+                saveLayout(id, columns, state.layout);
+                draw(true);
+            } }, v.title)));
+        menu.hidden = false;
+        const r = button.getBoundingClientRect();
+        Object.assign(menu.style, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.bottom + 4)}px` });
+        if (typeof menu.showPopover === 'function')
+            menu.showPopover();
+        // Kept on screen for a heading near the right edge
+        const w = menu.getBoundingClientRect().width;
+        menu.style.left = `${Math.max(4, Math.min(r.left, innerWidth - w - 4))}px`;
+        menu.querySelector('button')?.focus();
+    }
+    function closeMenu() {
+        if (menu.matches?.(':popover-open'))
+            menu.hidePopover();
+        menu.hidden = true;
+    }
+    menu.addEventListener('toggle', (e) => {
+        if (e.newState === 'closed')
+            menu.hidden = true;
+    });
+    document.addEventListener('click', (e) => {
+        if (!menu.hidden && !menu.contains(e.target))
+            closeMenu();
+    });
 
     function emPx() {
         return parseFloat(getComputedStyle(table).fontSize) || 14;
@@ -449,7 +514,7 @@ export function createDataTable(container, {
         for (const c of shownColumns) {
             let content;
             try {
-                content = c.render(row);
+                content = (columnVariant(c, state.layout.variants)?.render ?? c.render)(row);
             } catch (err) {
                 console.error(`${id} column ${c.id} failed:`, err);
                 content = '!';
@@ -476,6 +541,7 @@ export function createDataTable(container, {
             }
         }
 
+        rowData.set(tr, row);
         return tr;
     }
 
@@ -535,6 +601,7 @@ export function createDataTable(container, {
                 out.push(spacer((total - end) * state.rowHeight));
             tbody.replaceChildren(...out);
             fitContents();
+            refreshTip();
         }
 
         // Preloads ahead of the user stay quiet; the bar is only for rows they're waiting on
@@ -581,6 +648,8 @@ export function createDataTable(container, {
                 `${shown} of ${total.toLocaleString()} matching (${state.unfiltered.toLocaleString()} ${noun})` :
                 `${shown} of ${total.toLocaleString()} ${noun}`;
         }
+        if (state.paused)
+            countInfo.textContent += ' (paused)';
 
         let text = '';
         if (state.error && rows.total === null)
@@ -636,6 +705,81 @@ export function createDataTable(container, {
         draw(true);
     }
 
+    // A column's tooltip, worked out while the pointer is over one of its
+    // cells, and again when the rows are redrawn under it
+    const tip = el('div', { class: 'cell-tip', role: 'tooltip', hidden: true });
+    document.body.append(tip);
+    const pointer = { x: 0, y: 0, cell: null, timer: null };
+
+    function tooltipFor(td) {
+        const tr = td?.parentElement;
+        const row = tr && rowData.get(tr);
+        const c = row && shownColumns[td.cellIndex - iconCol];
+        if (!c)
+            return null;
+        const fn = columnVariant(c, state.layout.variants)?.tooltip ?? c.tooltip;
+        if (!fn)
+            return null;
+        try {
+            return fn(row);
+        } catch (err) {
+            console.error(`${id} column ${c.id} tooltip failed:`, err);
+            return null;
+        }
+    }
+
+    function hideTip() {
+        clearTimeout(pointer.timer);
+        pointer.cell = null;
+        tip.hidden = true;
+    }
+
+    function showTip() {
+        const content = tooltipFor(pointer.cell);
+        if (content === null || content === undefined || content === '') {
+            tip.hidden = true;
+            return;
+        }
+        tip.replaceChildren(content);
+        tip.hidden = false;
+        const r = tip.getBoundingClientRect();
+        tip.style.left = `${Math.max(4, Math.min(pointer.x + 12, innerWidth - r.width - 4))}px`;
+        tip.style.top = `${pointer.y + 18 + r.height > innerHeight ? pointer.y - r.height - 8 : pointer.y + 18}px`;
+    }
+
+    tbody.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse')
+            return;
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+        const td = e.target.closest('td');
+        if (td === pointer.cell) {
+            if (!tip.hidden)
+                showTip();
+            return;
+        }
+        hideTip();
+        if (!td || state.editing)
+            return;
+        pointer.cell = td;
+        pointer.timer = setTimeout(showTip, 400);
+    });
+    tbody.addEventListener('pointerleave', hideTip);
+
+    // Rows were redrawn: follow the cell now under the pointer
+    function refreshTip() {
+        if (!pointer.cell)
+            return;
+        const td = document.elementFromPoint(pointer.x, pointer.y)?.closest('td');
+        if (!td || !tbody.contains(td)) {
+            hideTip();
+            return;
+        }
+        pointer.cell = td;
+        if (!tip.hidden)
+            showTip();
+    }
+
     holder.addEventListener('scroll', () => {
         const top = holder.scrollTop;
         state.direction = top >= state.lastScroll ? 1 : -1;
@@ -645,7 +789,7 @@ export function createDataTable(container, {
 
     // Keep what's on screen current, while it's on screen
     function tick() {
-        if (document.visibilityState !== 'hidden' && onScreen()) {
+        if (document.visibilityState !== 'hidden' && onScreen() && !state.paused) {
             rows.refresh();
             draw();
         }
@@ -656,6 +800,7 @@ export function createDataTable(container, {
     const handle = { restart, draw, element: container };
     toolbarEl.append(...[toolbar?.(handle)].flat().filter(Boolean),
         el('label', { class: 'search-box' }, icon('search'), searchInput),
+        pauseButton,
         queryError,
         el('div', { class: 'spacer' }),
         countInfo,

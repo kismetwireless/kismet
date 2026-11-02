@@ -277,6 +277,26 @@ input:focus, select:focus, button:focus-visible {
 .search-box:has(input[aria-invalid]) { border-color: var(--error); }
 .search-error { color: var(--error); font-size: 0.85em; }
 .count-info { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pause-button.paused { color: var(--accent); background: var(--accent-soft); }
+.data-table th .th-variant { padding: 0 0.1em; margin-left: 0.1em; }
+.data-table th .th-variant .icon { margin-left: 0; }
+.variant-menu { position: fixed; top: auto; }
+.variant-menu .menu-item.checked { font-weight: 600; }
+.variant-menu .menu-item.checked::after { content: '✓'; margin-left: auto; color: var(--accent); }
+.cell-tip {
+    position: fixed;
+    z-index: 2147483647;
+    pointer-events: none;
+    padding: 0.3rem 0.55rem;
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
 
 .table-area {
     position: relative;
@@ -383,21 +403,38 @@ input:focus, select:focus, button:focus-visible {
 .edit-bar { background: var(--accent-soft); }
 .edit-bar > .icon { color: var(--accent); }
 
-/* Groups flow into side-by-side columns, so the dialog is wide rather than tall */
+/* One scrolling list of columns, under a heading for each group */
 .column-chooser { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.column-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.column-groups { columns: 16rem; column-gap: 0.8rem; }
-.column-chooser fieldset { border: 1px solid var(--border); border-radius: 8px; margin: 0 0 0.8rem; padding: 0.3rem 0.8rem; }
-.column-chooser legend { font-weight: 600; padding: 0 0.3rem; }
-.column-chooser .check-item {
-    break-inside: avoid;
+.column-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 0.3rem; }
+.column-group {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 0.5rem 0.2rem 0.3rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9em;
+}
+.column-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    padding: 0.35rem 0.2rem;
+    border-bottom: 1px solid var(--border);
+}
+.column-row:hover { background: var(--row-hover); }
+.column-check {
+    flex: 1 1 18rem;
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0 0.5em;
-    border-bottom: none;
-    padding: 0.25rem 0;
+    gap: 0 0.6em;
+    align-items: baseline;
+    cursor: pointer;
 }
-.column-chooser .check-item .muted { grid-column: 2; font-size: 0.85em; }
+.column-check .muted { grid-column: 2; font-size: 0.85em; }
+.column-show { display: flex; align-items: center; gap: 0.4em; margin-left: auto; font-size: 0.9em; }
 .column-chooser .form-buttons { gap: 0.4rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
 .column-chooser .spacer { flex: 1; }
 .highlight-chooser { display: flex; flex-direction: column; gap: 0.6rem; }
@@ -428,7 +465,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 }
 .fill-bar-fill { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 45%, transparent); }
 .fill-bar-text { position: relative; display: block; text-align: center; font-size: 0.85em; line-height: 1.3em; font-variant-numeric: tabular-nums; }
-.dialog.modal.columns-dialog { width: 60vw; min-width: min(36rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+.dialog.modal.columns-dialog { width: min(44rem, calc(100vw - 2rem)); }
 .columns-dialog .dialog-body { overflow: hidden; }
 .columns-dialog .column-scroll { max-height: min(60vh - 4rem, 100vh - 10rem); }
 .data-table th.sortable:hover, .data-table th.sorted { color: var(--text); }

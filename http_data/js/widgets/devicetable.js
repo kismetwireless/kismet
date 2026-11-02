@@ -126,6 +126,7 @@ export function createDeviceTable(container) {
         defaultSort: { column: 'last_time', dir: 'desc' },
         noun: 'devices',
         toolbar: () => viewSelect,
+        pausable: true,
         // Filters in the search box name the device list's columns, search fields and hints
         query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list(),
             filterHints.list(), serverPhys)),

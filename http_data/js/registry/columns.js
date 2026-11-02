@@ -26,6 +26,12 @@ import { createRegistry } from './registry.js';
 //   fields        fields this column needs (see above)
 //   sortField     field path the server sorts on; omit for unsortable columns
 //   render(row)   returns a string or a DOM node for the cell
+//   tooltip(row)  optional; a string or a DOM node shown while the pointer is
+//                 over a cell, worked out each time it's shown
+//   variants      optional; ways to show the column that the user picks from
+//                 its heading or the column chooser, the first by default:
+//                 [{ id, title, render(row), tooltip(row) }], saved by id.
+//                 A variant without render or tooltip uses the column's.
 //   group         heading in the column chooser, e.g. 'Wi-Fi' (default 'General')
 //   width         starting CSS width, e.g. '8em' (optional; users can resize)
 //   align         'left' | 'right' | 'center' (optional)

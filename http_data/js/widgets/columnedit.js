@@ -112,10 +112,20 @@ export function defaultColumns(columns) {
     return columns.list().filter((c) => c.defaultVisible).map((c) => c.id);
 }
 
+// The variant of a column the user picked from `chosen` ({ column id:
+// variant id }), or its first; null for a column without variants
+export function columnVariant(c, chosen) {
+    if (!c.variants?.length)
+        return null;
+    return c.variants.find((v) => v.id === chosen?.[c.id]) ?? c.variants[0];
+}
+
 // The column chooser: every one of a table's columns, grouped, ticked when
-// shown.  Calls onApply(ids) with the new choice, keeping the order of
-// columns already shown and adding newly ticked ones at the end.
-export function chooseColumns(columns, current, onApply) {
+// shown, with a choice of how to show those with variants.  Calls
+// onApply(ids, variants) with the new choice, keeping the order of columns
+// already shown and adding newly ticked ones at the end.
+export function chooseColumns(columns, current, onApply, variants = {}) {
+    const pickers = [];
     const groups = new Map();
     for (const c of columns.list()) {
         const g = c.group || 'General';
@@ -126,18 +136,27 @@ export function chooseColumns(columns, current, onApply) {
 
     const boxes = [];
     const form = el('form', { class: 'column-chooser' });
-    const groupList = el('div', { class: 'column-groups' });
+    // One list, a heading for each group, so every column is in reach by scrolling
+    const groupList = el('div', { class: 'column-list' });
     form.append(el('div', { class: 'column-scroll' }, groupList));
     for (const [group, cols] of groups) {
-        groupList.append(el('fieldset', {},
-            el('legend', {}, group),
-            cols.map((c) => {
-                const box = el('input', { type: 'checkbox', value: c.id, checked: current.includes(c.id) });
-                boxes.push(box);
-                return el('label', { class: 'check-item' }, box,
-                    el('span', {}, c.title),
-                    c.description ? el('span', { class: 'muted' }, c.description) : null);
-            })));
+        groupList.append(el('h4', { class: 'column-group' }, group));
+        for (const c of cols) {
+            const box = el('input', { type: 'checkbox', value: c.id, checked: current.includes(c.id) });
+            boxes.push(box);
+            let picker = null;
+            if (c.variants?.length) {
+                picker = el('select', { class: 'column-variant', 'aria-label': `How to show ${c.title}`, dataset: { column: c.id } },
+                    c.variants.map((v) => el('option', { value: v.id }, v.title)));
+                picker.value = columnVariant(c, variants).id;
+                pickers.push(picker);
+            }
+            groupList.append(el('div', { class: 'column-row' },
+                el('label', { class: 'column-check' }, box,
+                    el('span', { class: 'column-title' }, c.title),
+                    c.description ? el('span', { class: 'muted' }, c.description) : null),
+                picker ? el('label', { class: 'column-show' }, el('span', { class: 'muted' }, 'Show'), picker) : null));
+        }
     }
 
     const apply = () => {
@@ -146,7 +165,10 @@ export function chooseColumns(columns, current, onApply) {
         for (const b of boxes)
             if (b.checked && !kept.includes(b.value))
                 kept.push(b.value);
-        onApply(kept);
+        const picked = { ...variants };
+        for (const p of pickers)
+            picked[p.dataset.column] = p.value;
+        onApply(kept, picked);
         d.close();
     };
 
@@ -155,6 +177,8 @@ export function chooseColumns(columns, current, onApply) {
             const defaults = new Set(defaultColumns(columns));
             for (const b of boxes)
                 b.checked = defaults.has(b.value);
+            for (const p of pickers)
+                p.selectedIndex = 0;
         } }, 'Defaults'),
         el('div', { class: 'spacer' }),
         el('button', { type: 'button', onclick: () => d.close() }, 'Cancel'),
