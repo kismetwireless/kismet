@@ -611,6 +611,9 @@ int main(int argc, char *argv[]) {
                 "lat", NEQ, 0,
                 AND,
                 "lon", NEQ, 0));
+    // Only Wi-Fi is exported from the packets table here; BTLE from sniffers is exported with
+    // the Bluetooth records below, and the other phys have no WiGLE record type
+    query.append_where(AND, _WHERE("phyname", EQ, "IEEE802.11"));
 
     auto bt_query = _SELECT(db, "data", bt_fields,
             _WHERE("lat", NEQ, 0, AND, "lon", NEQ, 0));
@@ -824,151 +827,165 @@ int main(int argc, char *argv[]) {
     if (db_version < 10) {
         fmt::print(stderr, "* Not processing BT/BTLE, newer Kismet required for database with signal levels.\n");
     } else {
-        for (auto p : bt_query) {
-            // Brute-force cache maintenance; if we're full at the start of the
-            // processing loop, nuke the ENTIRE cache and rebuild it; this is
-            // cleaner than constantly re-sorting it.
-            if (device_cache_map.size() >= cache_limit) {
-                if (verbose)
-                    fmt::print(stderr, "* Cleaning cache...\n");
+        // BT and BTLE from scan reports (data), and BTLE frames from sniffers such as nRF,
+        // TI and Ubertooth (packets).  Both share the device cache, so a device seen both
+        // ways is rate limited as one.
+        auto btle_packet_query = _SELECT(db, "packets",
+                {"ts_sec", "sourcemac", "phyname", "lat", "lon", "alt", "signal"},
+                _WHERE("sourcemac", NEQ, "00:00:00:00:00:00",
+                    AND,
+                    "lat", NEQ, 0,
+                    AND,
+                    "lon", NEQ, 0));
+        btle_packet_query.append_where(AND, _WHERE("phyname", EQ, "BTLE"));
 
-                device_cache_map.clear();
-            }
+        for (auto bt_source : {&bt_query, &btle_packet_query}) {
+            for (auto p : *bt_source) {
+                // Brute-force cache maintenance; if we're full at the start of the
+                // processing loop, nuke the ENTIRE cache and rebuild it; this is
+                // cleaner than constantly re-sorting it.
+                if (device_cache_map.size() >= cache_limit) {
+                    if (verbose)
+                        fmt::print(stderr, "* Cleaning cache...\n");
 
-            n_logs++;
-            if (n_logs % n_division == 0 && verbose)
-                std::cerr <<
-                    fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
-                            (int) (((float) n_logs / (float) n_data_db) * 100) + 1,
-                            n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
-
-            auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
-            auto sourcemac = sqlite3_column_as<std::string>(p, 1);
-            auto phy = sqlite3_column_as<std::string>(p, 2);
-
-            double lat = 0, lon = 0, alt = 0;
-            auto signal = 0;
-
-            if (db_version < 5) {
-                lat = sqlite3_column_as<double>(p, 3) / 100000;
-                lon = sqlite3_column_as<double>(p, 4) / 100000;
-            } else {
-                lat = sqlite3_column_as<double>(p, 3);
-                lon = sqlite3_column_as<double>(p, 4);
-                alt = sqlite3_column_as<double>(p, 5);
-            }
-
-            if (db_version >= 10) {
-                signal = sqlite3_column_as<int>(p, 6);
-            }
-
-            auto ci = device_cache_map.find(sourcemac);
-            std::shared_ptr<cache_obj> cached;
-
-            if (ci != device_cache_map.end()) {
-                cached = ci->second;
-            } else {
-                auto dev_query = _SELECT(db, "devices", {"device"},
-                        _WHERE("devmac", EQ, sourcemac,
-                            AND,
-                            "phyname", EQ, phy));
-
-                auto dev = dev_query.begin();
-
-                if (dev == dev_query.end()) {
-                    // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
-                    continue;
+                    device_cache_map.clear();
                 }
 
-                // Check to see if we lie in any exclusion zones
-                bool violates_exclusion = false;
-                for (auto ez : exclusion_zones) {
-                    if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                        violates_exclusion = true;
-                        break;
-                    }
-                }
-
-                if (violates_exclusion) {
-                    n_discarded_logs_zones++;
-                    continue;
-                }
-
-                nlohmann::json json;
-                std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
-
-                try {
-                    ss >> json;
-
-                    auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
-                    auto type = json["kismet.device.base.type"].get<std::string>();
-                    auto name = MungeForCSV(json["kismet.device.base.commonname"]);
-
-                    if (name == sourcemac)
-                        name = "";
-
-                    std::time_t timet(timestamp);
-                    std::tm tm;
-                    std::stringstream ts;
-                    auto crypt = std::string{""};
-                    auto mod_type = std::string("");
-
-                    gmtime_r(&timet, &tm);
-
-                    char tmstr[256];
-                    strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
-                    ts << tmstr;
-
-                    if (type == "BTLE") {
-                        crypt = "Misc [LE]";
-                        mod_type = "BLE";
-                    } else {
-                        crypt = "Misc [BT]";
-                        mod_type = "BT";
-                    }
-
-                    cached = std::make_shared<cache_obj>(ts.str(), name, crypt, mod_type);
-
-                    device_cache_map[sourcemac] = cached;
-
-                } catch (const std::exception& e) {
+                n_logs++;
+                if (n_logs % n_division == 0 && verbose)
                     std::cerr <<
-                        fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
+                        fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
+                                (int) (((float) n_logs / (float) n_data_db) * 100) + 1,
+                                n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
+
+                auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
+                auto sourcemac = sqlite3_column_as<std::string>(p, 1);
+                auto phy = sqlite3_column_as<std::string>(p, 2);
+
+                double lat = 0, lon = 0, alt = 0;
+                auto signal = 0;
+
+                if (db_version < 5) {
+                    lat = sqlite3_column_as<double>(p, 3) / 100000;
+                    lon = sqlite3_column_as<double>(p, 4) / 100000;
+                } else {
+                    lat = sqlite3_column_as<double>(p, 3);
+                    lon = sqlite3_column_as<double>(p, 4);
+                    alt = sqlite3_column_as<double>(p, 5);
                 }
-            }
 
-            if (cached == nullptr)
-                continue;
+                if (db_version >= 10) {
+                    signal = sqlite3_column_as<int>(p, 6);
+                }
 
-            // Rate throttle: one record per device per rate_limit seconds
-            if (rate_limit != 0 && cached->last_time_sec != 0) {
-                if (ts < cached->last_time_sec + rate_limit) {
-                    n_discarded_logs_rate++;
+                auto ci = device_cache_map.find(sourcemac);
+                std::shared_ptr<cache_obj> cached;
+
+                if (ci != device_cache_map.end()) {
+                    cached = ci->second;
+                } else {
+                    auto dev_query = _SELECT(db, "devices", {"device"},
+                            _WHERE("devmac", EQ, sourcemac,
+                                AND,
+                                "phyname", EQ, phy));
+
+                    auto dev = dev_query.begin();
+
+                    if (dev == dev_query.end()) {
+                        // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
+                        continue;
+                    }
+
+                    // Check to see if we lie in any exclusion zones
+                    bool violates_exclusion = false;
+                    for (auto ez : exclusion_zones) {
+                        if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                            violates_exclusion = true;
+                            break;
+                        }
+                    }
+
+                    if (violates_exclusion) {
+                        n_discarded_logs_zones++;
+                        continue;
+                    }
+
+                    nlohmann::json json;
+                    std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
+
+                    try {
+                        ss >> json;
+
+                        auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
+                        auto type = json["kismet.device.base.type"].get<std::string>();
+                        auto name = MungeForCSV(json["kismet.device.base.commonname"]);
+
+                        if (name == sourcemac)
+                            name = "";
+
+                        std::time_t timet(timestamp);
+                        std::tm tm;
+                        std::stringstream ts;
+                        auto crypt = std::string{""};
+                        auto mod_type = std::string("");
+
+                        gmtime_r(&timet, &tm);
+
+                        char tmstr[256];
+                        strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+                        ts << tmstr;
+
+                        if (type == "BTLE") {
+                            crypt = "Misc [LE]";
+                            mod_type = "BLE";
+                        } else {
+                            crypt = "Misc [BT]";
+                            mod_type = "BT";
+                        }
+
+                        cached = std::make_shared<cache_obj>(ts.str(), name, crypt, mod_type);
+
+                        device_cache_map[sourcemac] = cached;
+
+                    } catch (const std::exception& e) {
+                        std::cerr <<
+                            fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
+                    }
+                }
+
+                if (cached == nullptr)
                     continue;
+
+                // Rate throttle: one record per device per rate_limit seconds
+                if (rate_limit != 0 && cached->last_time_sec != 0) {
+                    if (ts < cached->last_time_sec + rate_limit) {
+                        n_discarded_logs_rate++;
+                        continue;
+                    }
                 }
+
+                cached->last_time_sec = ts;
+
+                // [bd_addr],[device name],[capabilities],[first timestamp seen],[channel],
+                //   [frequency],[rssi],[latitude],[longitude],[altitude],[accuracy],[rcois],
+                //   [mfgrid],[type]
+
+                fmt::print(ofile, "{},{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},{},{},{},{}\n",
+                        sourcemac,
+                        cached->name,
+                        cached->crypto,
+                        cached->first_time,
+                        0, // no channel for bluetooth
+                        "", // todo - fill in device type code
+                        signal,
+                        lat, lon, alt,
+                        0, // todo - derive accuracy from gps
+                        "", // rcoi blank
+                        "", // todo - fill bt mfgr id
+                        cached->type);
+
+                n_saved++;
             }
-
-            cached->last_time_sec = ts;
-
-            // [bd_addr],[device name],[capabilities],[first timestamp seen],[channel],
-            //   [frequency],[rssi],[latitude],[longitude],[altitude],[accuracy],[rcois],
-            //   [mfgrid],[type]
-
-            fmt::print(ofile, "{},{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},{},{},{},{}\n",
-                    sourcemac,
-                    cached->name,
-                    cached->crypto,
-                    cached->first_time,
-                    0, // no channel for bluetooth
-                    "", // todo - fill in device type code
-                    signal,
-                    lat, lon, alt,
-                    0, // todo - derive accuracy from gps
-                    "", // rcoi blank
-                    "", // todo - fill bt mfgr id
-                    cached->type);
-
-            n_saved++;
         }
     }
 
