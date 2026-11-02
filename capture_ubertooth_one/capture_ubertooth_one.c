@@ -37,6 +37,8 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
+#include <limits.h>
 
 #include <net/if.h>
 #include <arpa/inet.h>
@@ -71,18 +73,21 @@ unsigned ubertooth_count(void) {
     int usb_devs, i, r;
     unsigned uberteeth = 0;
 
+    /* No devices on error; -1 would read as a huge count */
     r = libusb_init(NULL);
     if (r < 0) {
         fprintf(stderr, "libusb_init failed (got 1.0?)\n");
-        return -1;
+        return 0;
     }
 
     usb_devs = libusb_get_device_list(ctx, &usb_list);
 
     for(i = 0 ; i < usb_devs ; ++i) {
         r = libusb_get_device_descriptor(usb_list[i], &desc);
-        if(r < 0)
+        if(r < 0) {
             fprintf(stderr, "couldn't get usb descriptor for dev #%d!\n", i);
+            continue;
+        }
         if ((desc.idVendor == TC13_VENDORID && desc.idProduct == TC13_PRODUCTID)
                 || (desc.idVendor == U0_VENDORID && desc.idProduct == U0_PRODUCTID)
                 || (desc.idVendor == U1_VENDORID && desc.idProduct == U1_PRODUCTID))
@@ -91,10 +96,45 @@ unsigned ubertooth_count(void) {
         }
     }
 
-    libusb_free_device_list(usb_list,1);
+    if (usb_devs >= 0)
+        libusb_free_device_list(usb_list,1);
+    libusb_exit(NULL);
     return uberteeth;
 }
 #endif
+
+/* "ubertooth" is the first device (-1); "ubertoothN" and "ubertooth-N" are device N.
+ * Returns 0, or -1 if the interface isn't one of these. */
+static int parse_ubertooth_interface(const char *interface, int *number) {
+    const char *num;
+    char *end;
+    unsigned long n;
+
+    if (strncmp(interface, "ubertooth", 9) != 0)
+        return -1;
+
+    num = interface + 9;
+
+    if (*num == '\0') {
+        *number = -1;
+        return 0;
+    }
+
+    if (*num == '-')
+        num++;
+
+    /* strtoul would take a sign */
+    if (!isdigit((unsigned char) *num))
+        return -1;
+
+    errno = 0;
+    n = strtoul(num, &end, 10);
+    if (errno != 0 || *end != '\0' || n > INT_MAX)
+        return -1;
+
+    *number = (int) n;
+    return 0;
+}
 
 /* State tracking, put in userdata */
 typedef struct {
@@ -377,13 +417,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
-    int ret;
     char errstr[STATUS_MAX];
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
-    int u1_num = 0;
     int parse_num = 0;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
@@ -393,24 +431,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
-    u1_num = ubertooth_count();
-
-    /* is it an ubertooth? */
-    if (strcmp("ubertooth", interface) == 0) {
-        snprintf(msg, STATUS_MAX, "Didn't find an Ubertooth interface, skipping");
-        parse_num = -1;
-        free(interface);
-        return 0;
-    } else if ((ret = sscanf(interface, "ubertooth%u", &parse_num)) != 1) {
-        if ((ret = sscanf(interface, "ubertooth-%u", &parse_num)) != 1) {
-            snprintf(msg, STATUS_MAX, "Expected ubertoothX or ubertooth-X, skipping");
-            free(interface);
-            return 0;
-        }
-    }
-
-    /* is it out of range? */
-    if (parse_num > u1_num) {
+    /* Whether the device is present is checked when it's opened, so a source for an
+     * Ubertooth that isn't plugged in yet keeps retrying */
+    if (parse_ubertooth_interface(interface, &parse_num) < 0) {
+        snprintf(msg, STATUS_MAX, "Expected ubertooth, ubertoothX or ubertooth-X, skipping");
         free(interface);
         return 0;
     }
@@ -480,19 +504,23 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     u1_num = ubertooth_count();
 
-    /* is it an ubertooth? */
-    if (strcmp("ubertooth", local_ubertooth->interface) == 0) {
-        ubertooth_number = -1;
-    } else if ((ret = sscanf(local_ubertooth->interface, "ubertooth%u", &ubertooth_number)) != 1) {
-        if ((ret = sscanf(local_ubertooth->interface, "ubertooth-%u", &ubertooth_number)) != 1) {
-            snprintf(msg, STATUS_MAX, "%s could not parse ubertooth device from interface",
-                    local_ubertooth->name);
-            return -1;
-        }
+    if (parse_ubertooth_interface(local_ubertooth->interface, &ubertooth_number) < 0) {
+        snprintf(msg, STATUS_MAX, "%s could not parse ubertooth device from interface",
+                local_ubertooth->name);
+        return -1;
     }
 
-    /* is it out of range? */
-    if (ubertooth_number > u1_num) {
+    /* libubertooth opens the only device whatever number it's given, and with more than
+     * one uses the number unchecked, so check it here */
+    if (u1_num == 0) {
+        snprintf(msg, STATUS_MAX, "%s could not find an ubertooth device",
+                local_ubertooth->name);
+        return -1;
+    } else if (ubertooth_number < 0 && u1_num > 1) {
+        snprintf(msg, STATUS_MAX, "%s found %d ubertooth devices, choose one with "
+                "ubertooth-0 to ubertooth-%d", local_ubertooth->name, u1_num, u1_num - 1);
+        return -1;
+    } else if (ubertooth_number >= u1_num) {
         snprintf(msg, STATUS_MAX, "%s could not find ubertooth %d (%d present)",
                 local_ubertooth->name, ubertooth_number, u1_num);
         return -1;
