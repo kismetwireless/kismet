@@ -1,9 +1,17 @@
 // Bluetooth LE advertisements captured by BTLE radios (nRF, TI, CatSniffer...).
 
 import { registerTrackers } from './btle_trackers.js';
+import { registerBtAdv, serviceLabeler } from './btadv.js';
 
 const base = 'kismet.device.base';
 const b = 'btle.device';
+
+const addressTypes = {
+    static: 'Static random',
+    resolvable: 'Resolvable private (rotating)',
+    'non-resolvable': 'Non-resolvable private (rotating)',
+    reserved: 'Reserved',
+};
 
 // Advertising packet (PDU) types
 const pduTypes = {
@@ -29,6 +37,8 @@ export function register(kismet) {
     const isBtle = (row) => row[`${base}.phyname`] === 'BTLE';
     const supported = (v) => (v ? 'Supported' : 'Not supported');
 
+    const serviceLabel = serviceLabeler(kismet);
+
     // BLE channels: 37, 38, and 39 advertise; 0-36 carry connections
     const bleFrequency = (channel) => {
         const n = Number(channel);
@@ -51,6 +61,7 @@ export function register(kismet) {
     };
 
     registerTrackers(kismet);
+    registerBtAdv(kismet);
 
     ui.channelNames.add({ id: 'BTLE', title: 'BLE', priority: 10, name: bleChannel, frequency: bleFrequency });
     ui.sourceChannels.add({
@@ -96,16 +107,36 @@ export function register(kismet) {
                 help: 'The device can use classic Bluetooth (BR/EDR) as a controller at the same time.' },
             { title: 'BR/EDR host', field: `${b}/${b}.simultaneous_br_edr_host`, format: supported,
                 help: 'The device can use classic Bluetooth (BR/EDR) as a host at the same time.' },
+            { title: 'Appearance', field: `${b}/${b}.appearance_name`, hideEmpty: true,
+                help: 'What the device advertises itself as (its Bluetooth appearance value).' },
+            { title: 'Address type', field: `${b}/${b}.random_address_type`, hideEmpty: true,
+                format: (v) => addressTypes[v] ?? v,
+                help: 'For a random address: static addresses last until the device is reset; resolvable and non-resolvable private addresses change every few minutes.' },
+            { title: 'Linked to', field: `${b}/${b}.alias_group`, hideEmpty: true,
+                format: (v, dev) => {
+                    const how = kismet.api.field(dev, `${b}/${b}.alias_method`);
+                    return kismet.dom.el('span', {}, kismet.dom.el('span', { class: 'mono' }, v), how ? ` (by ${how})` : '');
+                },
+                help: 'Kismet linked this randomized address to others it believes are the same device; this is the first address in the chain.' },
+            { title: 'Advertising set', field: `${b}/${b}.adv_sid`,
+                help: 'The extended advertising set ID the device uses.' },
             { title: 'PDU type', field: `${b}/${b}.pdu_type`, format: (v) => pduTypes[v] ?? `Unknown (${v})`,
                 help: 'The kind of advertising packet, which says whether the device accepts connections.' },
-            { title: 'Manufacturer ID', field: `${b}/${b}.manuf_company_id`, hideZero: true,
+            { title: 'Manufacturer ID', field: `${b}/${b}.manuf_company_id`, hideEmpty: true,
                 format: (v) => `0x${v.toString(16).padStart(4, '0')}`,
                 help: 'The Bluetooth SIG company ID in the device\'s manufacturer data.' },
+            { title: 'Manufacturer data', field: `${b}/${b}.manuf_data`, hideEmpty: true,
+                format: (v) => kismet.dom.el('span', { class: 'mono', style: { wordBreak: 'break-all' } }, v),
+                help: 'The rest of the most recent manufacturer data, in hex.' },
+            { title: 'Services', field: `${b}/${b}.service_uuid_vec`,
+                show: (v) => Array.isArray(v) && v.length > 0,
+                format: (v) => kismet.dom.el('div', {}, v.map((uuid) => kismet.dom.el('div', {}, serviceLabel(uuid)))),
+                help: 'Service UUIDs the device has advertised, with the service or company each is assigned to when Kismet knows it.' },
             { title: 'Service data', field: `${b}/${b}.service_data`,
                 show: (v) => v !== null && typeof v === 'object' && Object.keys(v).length > 0,
                 format: (v) => kismet.dom.el('div', {}, Object.keys(v).sort().map((uuid) =>
-                    kismet.dom.el('div', { class: 'mono', style: { wordBreak: 'break-all' } },
-                        `${uuid}: ${v[uuid] || '(empty)'}`))),
+                    kismet.dom.el('div', { style: { wordBreak: 'break-all' } }, serviceLabel(uuid), ': ',
+                        kismet.dom.el('span', { class: 'mono' }, v[uuid] || '(empty)')))),
                 help: 'The latest payload the device advertised for each service UUID, in hex.  Location trackers are left out; their decoded fields are under Location tracker.' },
             { title: 'Bluetooth version', field: `${b}/${b}.lmp_version`,
                 help: 'The Bluetooth version the device\'s controller reported when a host connected to it.' },

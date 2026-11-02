@@ -119,7 +119,7 @@ for mac in want:
     if mac in devs and "btle.device.service_data" in devs[mac].get("btle.device", {}):
         bad.append(mac + " is a tracker but kept service data")
 print("\n".join(bad))
-' "$1"
+' "$1" || echo "check could not read the device list"
 }
 
 fail=0

@@ -33,6 +33,8 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 
+class kis_net_beast_httpd_connection;
+
 // Sorted id to name records loaded once from a gzipped 'XXXX<tab>Name' file; immutable
 // after loading, so it can be searched without a lock
 class kis_bt_id_table {
@@ -82,6 +84,9 @@ public:
     bool is_unknown_oid(std::shared_ptr<tracker_element_string> in_oid);
 
 protected:
+    // Names of the known UUIDs in the request's 'uuids' list
+    std::shared_ptr<tracker_element> uuid_names_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+
     kis_bt_id_table oid_table;
 
     // Protects oid_map, which holds config file records and known OIDs already looked up
