@@ -47,6 +47,11 @@ typedef struct {
      * remember the last channel used */
     unsigned int channel;
 
+    /* A channel change waiting for the capture thread, under chan_mutex */
+    pthread_mutex_t chan_mutex;
+    unsigned int pending_channel;
+    int channel_pending;
+
     /* keep track of our errors so we can reset if needed */
     unsigned int error_ctr;
 
@@ -694,19 +699,42 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
+/* The hop thread calls this holding the framework lock.  Waiting here for the USB
+ * lock, which the capture thread holds through each read, can keep the framework
+ * from answering Kismet's pings until the source times out, so the capture thread
+ * makes the change between reads instead. */
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
-    int r;
-
-    char errstr[STATUS_MAX];
-    char open_errstr[STATUS_MAX];
 
     if (privchan == NULL) {
         return 0;
     }
-   
-    /* the capture thread can close and re-open the handle */
+
+    pthread_mutex_lock(&(localticc2531->chan_mutex));
+    localticc2531->pending_channel = channel->channel;
+    localticc2531->channel_pending = 1;
+    pthread_mutex_unlock(&(localticc2531->chan_mutex));
+
+    return 1;
+}
+
+/* Apply a waiting channel change; returns TICC_USB_UNRESPONSIVE if the device
+ * didn't take it */
+static int apply_pending_channel(kis_capture_handler_t *caph) {
+    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+    unsigned int channel;
+    int r = 0;
+
+    pthread_mutex_lock(&(localticc2531->chan_mutex));
+    if (!localticc2531->channel_pending) {
+        pthread_mutex_unlock(&(localticc2531->chan_mutex));
+        return 0;
+    }
+    channel = localticc2531->pending_channel;
+    localticc2531->channel_pending = 0;
+    pthread_mutex_unlock(&(localticc2531->chan_mutex));
+
     pthread_mutex_lock(&(localticc2531->usb_mutex));
 
     if (localticc2531->ticc2531_handle == NULL) {
@@ -716,40 +744,16 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
     ticc2531_exit_promisc_mode(caph);
 
-    r = ticc2531_set_channel(caph, channel->channel);
+    r = ticc2531_set_channel(caph, channel);
 
     if (r != TICC_USB_UNRESPONSIVE) {
-        localticc2531->channel = channel->channel;
+        localticc2531->channel = channel;
         ticc2531_enter_promisc_mode(caph);
     }
 
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
-    if (r == TICC_USB_UNRESPONSIVE) {
-        snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' channel unable to be set"
-        ", re-opening the datasource as a precaution", 
-                localticc2531->busno, localticc2531->devno);
-
-        cf_send_warning(caph, errstr);
-
-        /* close usb */
-        pthread_mutex_lock(&(localticc2531->usb_mutex));
-        if (localticc2531->ticc2531_handle) {
-            libusb_close(localticc2531->ticc2531_handle);
-            localticc2531->ticc2531_handle = NULL;
-        }
-        pthread_mutex_unlock(&(localticc2531->usb_mutex));
-
-        if (open_usb_device(caph, open_errstr) < 0) {
-            snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' could not be "
-                    "re-opened: %s", localticc2531->busno, localticc2531->devno, open_errstr);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-        }
-        return 1;
-    }
-
-    return 1;
+    return r == TICC_USB_UNRESPONSIVE ? TICC_USB_UNRESPONSIVE : 0;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -773,6 +777,32 @@ void capture_thread(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
             break;
+        }
+
+        if (apply_pending_channel(caph) == TICC_USB_UNRESPONSIVE) {
+            snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' channel unable to be set"
+                    ", re-opening the datasource as a precaution", 
+                    localticc2531->busno, localticc2531->devno);
+
+            cf_send_warning(caph, errstr);
+
+            /* close usb */
+            pthread_mutex_lock(&(localticc2531->usb_mutex));
+            if (localticc2531->ticc2531_handle) {
+                libusb_close(localticc2531->ticc2531_handle);
+                localticc2531->ticc2531_handle = NULL;
+            }
+            pthread_mutex_unlock(&(localticc2531->usb_mutex));
+
+            if (open_usb_device(caph, open_errstr) < 0) {
+                snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' could not be "
+                        "re-opened: %s", localticc2531->busno, localticc2531->devno, open_errstr);
+                cf_send_error(caph, 0, errstr);
+                cf_handler_spindown(caph);
+                break;
+            }
+
+            continue;
         }
 
         buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
@@ -865,6 +895,7 @@ int main(int argc, char *argv[]) {
     };
 
     pthread_mutex_init(&(localticc2531.usb_mutex), NULL);
+    pthread_mutex_init(&(localticc2531.chan_mutex), NULL);
 
     kis_capture_handler_t *caph = cf_handler_init("ticc2531");
     int r;
