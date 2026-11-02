@@ -103,4 +103,91 @@ export function register(kismet) {
                 help: 'Last time a source\'s opt-in active probing connected to this device.' },
         ],
     });
+
+    registerProbeSection(kismet);
+}
+
+// Active probing on Linux HCI sources: probe= and probe_interval= sent at
+// runtime through set_channel, read back from what the helper reports
+const ds = 'kismet.datasource';
+const lbt = `${ds}.linuxbt`;
+const probeModes = {
+    off: 'Off',
+    name: 'Names: ask classic devices for their names',
+    info: 'Info: names, and connect to read version and features',
+};
+const probeNotes = {
+    name: 'The source transmits name requests to classic (BR/EDR) devices it hears.',
+    info: 'The source transmits: it asks classic devices for their names, and connects to devices to read their ' +
+        'Bluetooth version, chip maker and features.  Devices may log or show the connection.',
+};
+const intervalMin = 60;
+const intervalMax = 86400;
+
+function registerProbeSection(kismet) {
+    const { ui, dom, format, datasources: sources } = kismet;
+    const { el, replace } = dom;
+    const { confirm } = kismet.widgets.dialog;
+    const hint = (text) => el('div', { class: 'ds-hint' }, text);
+    const reported = (s) => (s[`${lbt}.probe`] ?? '') !== '';
+
+    async function setMode(ctx, s, want) {
+        if (want !== 'off' && !await confirm({ title: `Turn on active probing (${want})?`,
+            text: `${probeNotes[want]}\n\nThis lasts until the source re-opens or Kismet restarts; to keep it, add ` +
+                `probe=${want} to the source= line.`, ok: 'Turn on' }))
+            return;
+        ctx.busy(sources.setting(s[`${ds}.uuid`], `probe=${want}`), 'Changing probing...');
+    }
+
+    ui.sourceSections.add({
+        id: 'btprobe', title: 'Active probing', priority: 5, drivers: ['linuxbluetooth'], running: true,
+        fields: [
+            { id: 'mode', title: 'Probing', draw: (cell, v, s, state, ctx) => {
+                if (!state.select) {
+                    state.select = el('select', { onchange: () => { state.touched = true; } },
+                        ...Object.entries(probeModes).map(([value, label]) => el('option', { value }, label)));
+                    state.button = el('button', { type: 'button', onclick: () => {
+                        state.touched = false;
+                        if (state.select.value !== state.current)
+                            setMode(state.ctx, state.source, state.select.value);
+                    } }, 'Apply');
+                    replace(cell, el('span', { class: 'ds-buttons' }, state.select, state.button),
+                        hint('Probing transmits; it is off unless turned on here or with probe= on the source line.'));
+                }
+                state.ctx = ctx;
+                state.source = s;
+                state.current = s[`${lbt}.probe`] ?? '';
+                if (!state.touched && document.activeElement !== state.select && reported(s))
+                    state.select.value = state.current;
+            }, help: 'Off listens only.  Names asks classic devices for their names.  Info also connects to devices ' +
+                'to read their controller\'s version and features.' },
+            { id: 'interval', title: 'Probe interval', show: (v, s) => reported(s), draw: (cell, v, s, state, ctx) => {
+                if (!state.input) {
+                    state.text = el('span');
+                    state.input = el('input', { type: 'number', min: intervalMin, max: intervalMax, step: 1,
+                        placeholder: 'seconds', style: { width: '7em' } });
+                    state.button = el('button', { type: 'button', onclick: () => {
+                        const val = state.input.value.trim();
+                        const n = Number(val);
+                        if (!/^\d+$/.test(val) || n < intervalMin || n > intervalMax) {
+                            state.ctx.message(`The interval is ${intervalMin} to ${intervalMax} seconds.`, 'error');
+                            return;
+                        }
+                        state.input.value = '';
+                        state.ctx.busy(sources.setting(state.uuid, `probe_interval=${n}`), 'Setting the interval...');
+                    } }, 'Set');
+                    replace(cell, el('span', { class: 'ds-buttons' }, state.text, state.input, state.button));
+                }
+                state.ctx = ctx;
+                state.uuid = s[`${ds}.uuid`];
+                const sec = s[`${lbt}.probe_interval`] ?? 0;
+                replace(state.text, `${format.count(sec)} seconds`);
+            }, help: `The least time between probes of the same device, ${intervalMin} to ${intervalMax} seconds.` },
+            { title: 'Devices probed', field: `${lbt}.probes`, show: (v, s) => reported(s), format: format.count,
+                help: 'Devices connected to and probed since the source opened.' },
+            { title: 'Waiting', field: `${lbt}.probe_queue`, show: (v, s) => reported(s) && s[`${lbt}.probe`] !== 'off',
+                format: format.count, help: 'Devices waiting to be probed.' },
+            { title: 'Last probe', field: `${lbt}.probe_last`, hideZero: true, format: format.time },
+        ],
+    });
 }
