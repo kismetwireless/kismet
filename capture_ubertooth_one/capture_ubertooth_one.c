@@ -103,6 +103,20 @@ unsigned ubertooth_count(void) {
 }
 #endif
 
+/* More Ubertooths than this is a bad count, not a real one */
+#define U1_MAX_DEVICES      256
+
+/* libubertooth's ubertooth_count() returns -1 as unsigned when libusb fails; read
+ * that as no devices */
+static int u1_device_count(void) {
+    unsigned n = ubertooth_count();
+
+    if (n > U1_MAX_DEVICES)
+        return 0;
+
+    return (int) n;
+}
+
 /* "ubertooth" is the first device (-1); "ubertoothN" and "ubertooth-N" are device N.
  * Returns 0, or -1 if the interface isn't one of these. */
 static int parse_ubertooth_interface(const char *interface, int *number) {
@@ -203,11 +217,24 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
     int count = 0;
 
     pthread_mutex_lock(&local_ubertooth->u1_mutex);
-    ret = cmd_reset(local_ubertooth->ut->devh);
+    /* The reset drops the device off the bus; close the old handle (and the libusb
+     * reference its connect took) before opening it again.  A failed reconnect left
+     * no handle. */
+    if (local_ubertooth->ut->devh != NULL) {
+        cmd_reset(local_ubertooth->ut->devh);
+        libusb_release_interface(local_ubertooth->ut->devh, 0);
+        libusb_close(local_ubertooth->ut->devh);
+        local_ubertooth->ut->devh = NULL;
+        libusb_exit(NULL);
+    }
 
     sleep(1);
 
-    while (ubertooth_connect(local_ubertooth->ut, local_ubertooth->ubertooth_number) < 1) {
+    /* libubertooth uses the device number unchecked, and devices may have come or gone */
+    while (local_ubertooth->ubertooth_number >= u1_device_count() ||
+            ubertooth_connect(local_ubertooth->ut, local_ubertooth->ubertooth_number) < 1) {
+        /* A failed connect has closed the handle */
+        local_ubertooth->ut->devh = NULL;
         count++;
 
         if (count > 5) {
@@ -363,6 +390,12 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     while (count < 5) {
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
 
+        if (local_ubertooth->ut->devh == NULL) {
+            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
+            ret = -1;
+            break;
+        }
+
         ret = cmd_stop(local_ubertooth->ut->devh);
 
         if (ret < 0) {
@@ -502,7 +535,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_ubertooth->name = strdup(local_ubertooth->interface);
     }
 
-    u1_num = ubertooth_count();
+    u1_num = u1_device_count();
 
     if (parse_ubertooth_interface(local_ubertooth->interface, &ubertooth_number) < 0) {
         snprintf(msg, STATUS_MAX, "%s could not parse ubertooth device from interface",
@@ -639,7 +672,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     unsigned int i;
 
-    num_devs = ubertooth_count();
+    num_devs = u1_device_count();
 
     if (num_devs == 0) {
         *interfaces = NULL;
@@ -648,10 +681,13 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     *interfaces = 
         (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
+    if (*interfaces == NULL)
+        return 0;
 
     for (i = 0; i < num_devs; i++) {
-        (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
-        memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
+        (*interfaces)[i] = (cf_params_list_interface_t *) calloc(1, sizeof(cf_params_list_interface_t));
+        if ((*interfaces)[i] == NULL)
+            return i;
 
         snprintf(errstr, STATUS_MAX, "ubertooth-%u", i);
 
@@ -694,8 +730,9 @@ static void capture_thread_classic(kis_capture_handler_t *caph) {
         got = 0;
 
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
-        r = libusb_bulk_transfer(local_ubertooth->ut->devh, DATA_IN, buf, sizeof(buf),
-                &got, U1_BREDR_TIMEOUT_MS);
+        r = local_ubertooth->ut->devh == NULL ? LIBUSB_ERROR_NO_DEVICE :
+            libusb_bulk_transfer(local_ubertooth->ut->devh, DATA_IN, buf, sizeof(buf),
+                    &got, U1_BREDR_TIMEOUT_MS);
         reset = local_ubertooth->bredr_reset_pending;
         local_ubertooth->bredr_reset_pending = 0;
         pthread_mutex_unlock(&local_ubertooth->u1_mutex);
@@ -744,7 +781,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
-        r = cmd_poll(local_ubertooth->ut->devh, &rx);
+        r = local_ubertooth->ut->devh == NULL ? -1 : cmd_poll(local_ubertooth->ut->devh, &rx);
         pthread_mutex_unlock(&local_ubertooth->u1_mutex);
 
         if (r < 0) {
