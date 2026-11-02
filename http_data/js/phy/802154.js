@@ -10,7 +10,7 @@ const threadJoining = { 1: 'No', 2: 'Devices its commissioner lists', 3: 'Any de
 const threadDiscovery = { 1: 'Looking for Thread networks', 2: 'Looking for a network to join' };
 
 export function register(kismet) {
-    const { ui, icons } = kismet;
+    const { ui, format, icons } = kismet;
     // Search box names for the 802.15.4 details
     const filterHint = (id, names, path, more = {}) =>
         ui.filterHints.add({ id, phy: '802.15.4', names, fields: [`${d}/${d}.${path}`], ...more });
@@ -21,6 +21,13 @@ export function register(kismet) {
     filterHint('802154_role', ['role'], 'role', { filterEmpty: '' });
     filterHint('802154_thread_version', ['thread_version'], 'thread_version', { filterKind: 'number', filterEmpty: 0 });
     // 1 no, 2 listed devices, 3 any: "joining > 1" finds the open networks
+    filterHint('802154_thread_router_id', ['router_id', 'thread_router_id'], 'thread_router_id', { filterKind: 'number' });
+    filterHint('802154_thread_child_id', ['child_id', 'thread_child_id'], 'thread_child_id', { filterKind: 'number' });
+    filterHint('802154_thread_children', ['children', 'thread_children'], 'thread_children', { filterKind: 'number' });
+    filterHint('802154_thread_polls', ['polls', 'thread_polls'], 'thread_polls', { filterKind: 'number', filterEmpty: 0 });
+    // "poll_interval > 30s"
+    filterHint('802154_thread_poll_interval', ['poll_interval'], 'thread_poll_interval',
+        { filterKind: 'duration', filterConvert: ui.durationIn.ms, filterEmpty: 0 });
     filterHint('802154_thread_joining', ['joining', 'thread_joining'], 'thread_joining', { filterKind: 'number', filterEmpty: 0 });
 
     const is802154 = (row) => row[`${base}.phyname`] === '802.15.4';
@@ -90,7 +97,7 @@ export function register(kismet) {
             { title: 'Network', field: `${d}/${d}.network_type`, hideEmpty: true, empty: ui.muted('Unknown'),
                 help: 'What the frames carry: a Zigbee network header or beacon, Zigbee Green Power, Thread (its beacon, MLE over 6LoWPAN, or a PAN that Thread traffic has shown to be a Thread network), or other 6LoWPAN traffic.' },
             { title: 'Role', field: `${d}/${d}.role`, hideEmpty: true, empty: ui.muted('Unknown'),
-                help: 'From its beacons: the PAN coordinator, or a router (Zigbee routers send beacons).' },
+                help: 'From its beacons: the PAN coordinator, or a router (Zigbee routers send beacons).  In a Thread network, from its short address: a router or an end device.  An end device that polls its router for traffic held for it is a sleepy end device, and one that wakes on a schedule it announces (CSL) is a synchronized sleepy end device.' },
             { title: 'PAN ID', field: `${d}/${d}.pan_id`, format: hexOrUnknown(4) },
             { title: 'Short address', field: `${d}/${d}.short_addr`, format: hexOrUnknown(4) },
             { title: 'IEEE address', field: `${d}/${d}.ieee_addr`, show: (v) => v !== '00:00:00:00:00:00',
@@ -116,6 +123,35 @@ export function register(kismet) {
             { title: 'Thread discovery', field: `${d}/${d}.thread_discovery`, hideZero: true,
                 format: (v) => threadDiscovery[v] ?? String(v),
                 help: 'From its Thread discovery requests: a device looking for a network to join, or one looking for networks (a commissioner, border router or phone app).' },
+            { title: 'Thread router ID', field: `${d}/${d}.thread_router_id`,
+                help: 'A Thread short address (RLOC16) holds a router ID (0-62) in its top six bits and, for an end device, the child ID its router gave it in the low bits.  For an end device this is the ID of its parent router.' },
+            { title: 'Thread child ID', field: `${d}/${d}.thread_child_id`, hideZero: true },
+            { title: 'Parent router', field: `${d}/${d}.thread_parent`, show: (v) => v && v !== '0' && v !== '00_0',
+                format: (v, rec) => {
+                    const router = rec[d]?.[`${d}.thread_router_id`] ?? 0;
+                    return kismet.dom.el('a', { href: '#', onclick: (e) => { e.preventDefault(); ui.openDevice(v); } },
+                        `Router ${router} (${hex(4)(router << 10)})`);
+                },
+                help: 'The router this end device is attached to, from its short address.' },
+            { title: 'Children', field: `${d}/${d}.thread_children`, show: (v, rec) => rec[d]?.[`${d}.thread_child_id`] === 0,
+                format: (v) => `${v} seen in the last hour`,
+                help: 'End devices of this router (short addresses with its router ID) seen in the last hour.' },
+            { title: 'Routers in its network', field: `${d}/${d}.thread_routers`, hideZero: true,
+                help: 'Routers of its Thread network seen in the last hour.' },
+            { title: 'Data polls', field: `${d}/${d}.thread_polls`, hideZero: true,
+                format: (v, rec) => {
+                    const ms = rec[d]?.[`${d}.thread_poll_interval`] ?? 0;
+                    const sec = Math.round(ms / 1000);
+                    return ms ? `${v}, about every ${sec < 60 ? `${sec}s` : format.duration(sec)}` : String(v);
+                },
+                help: 'MAC Data Requests: a sleepy end device asking its router for traffic held for it.  The interval averages the gaps between its recent polls.' },
+            { title: 'CSL period', field: `${d}/${d}.thread_csl_period`, hideZero: true,
+                format: (v) => `${Math.round(v * 0.16)} ms`,
+                help: 'How often a synchronized sleepy end device (Thread 1.2 and later) wakes to listen, from the CSL header in its frames.' },
+            { title: 'MAC key index', field: `${d}/${d}.thread_key_index`,
+                help: 'The key index in its secured frames.  Thread derives a new MAC key each time the network key sequence advances, and the index follows it.' },
+            { title: 'Key sequence', field: `${d}/${d}.thread_key_seq`,
+                help: 'The network key sequence from its secured MLE messages.  It advances when the network rotates its keys.' },
         ],
     });
 }
