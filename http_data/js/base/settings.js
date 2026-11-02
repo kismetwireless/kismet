@@ -71,7 +71,7 @@ export function register(kismet) {
     });
 
     ui.settingsPanes.add({
-        id: 'units', title: 'Units', priority: 20,
+        id: 'units', title: 'Units', priority: 2,
         create(body) {
             body.append(
                 el('h4', {}, 'Speed'),
