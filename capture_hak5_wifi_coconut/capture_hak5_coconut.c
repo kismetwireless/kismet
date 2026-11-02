@@ -40,6 +40,8 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
+#include <limits.h>
 
 #include <stdbool.h>
 
@@ -106,6 +108,36 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
 }
 
 
+/* "coconut" is any coconut (-1), "coconut-N" is coconut N, digits only.  Returns 0, or
+ * -1 if the interface isn't one of these. */
+static int parse_coconut_interface(const char *interface, int *number) {
+    const char *num;
+    char *end;
+    unsigned long n;
+
+    if (strcmp(interface, "coconut") == 0) {
+        *number = -1;
+        return 0;
+    }
+
+    if (strncmp(interface, "coconut-", 8) != 0)
+        return -1;
+
+    num = interface + 8;
+
+    /* strtoul would take a sign */
+    if (!isdigit((unsigned char) *num))
+        return -1;
+
+    errno = 0;
+    n = strtoul(num, &end, 10);
+    if (errno != 0 || *end != '\0' || n > INT_MAX)
+        return -1;
+
+    *number = (int) n;
+    return 0;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
@@ -116,7 +148,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int ret;
     char errstr[STATUS_MAX];
 
-    unsigned int coconut_num = 0;
+    int coconut_num = 0;
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
@@ -134,14 +166,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    /* look for coconut-X */
-    ret = sscanf(interface, "coconut-%u", &coconut_num);
-  
-    /* Malformed somehow */
-    if (ret != -1 && ret != 1) {
+    if (parse_coconut_interface(interface, &coconut_num) < 0) {
         snprintf(msg, STATUS_MAX, "Could not parse coconut interface, expected coconut-#");
+        free(interface);
         return 0;
     }
+
+    /* A placeholder uuid; any coconut uses the first */
+    if (coconut_num < 0)
+        coconut_num = 0;
 
     ret = populate_chanlist(caph, interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
@@ -366,11 +399,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     userspace_wifi_init(&local_wifi->coconut_context->context);
     local_wifi->coconut_context->context->local_data = local_wifi;
 
-    /* look for coconut-X */
-    ret = sscanf(local_wifi->interface, "coconut-%d", &local_wifi->coconut_num);
-  
-    /* Malformed somehow */
-    if (ret != -1 && ret != 1) {
+    if (parse_coconut_interface(local_wifi->interface, &local_wifi->coconut_num) < 0) {
         snprintf(msg, STATUS_MAX, "Malformed source; expected 'coconut' or 'coconut-N' for a "
                 "specific coconut.");
         return -1;
