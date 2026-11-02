@@ -277,6 +277,7 @@ input:focus, select:focus, button:focus-visible {
 .search-box:has(input[aria-invalid]) { border-color: var(--error); }
 .search-error { color: var(--error); font-size: 0.85em; }
 .count-info { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pause-button.paused { color: var(--accent); background: var(--accent-soft); }
 
 .table-area {
     position: relative;

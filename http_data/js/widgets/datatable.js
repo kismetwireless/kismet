@@ -21,6 +21,7 @@
 //       defaultSort: { column: 'last_time', dir: 'desc' },
 //       noun: 'SSIDs',
 //       query,                         // optional; the search box's filters (below)
+//       pausable: true,                // optional; a button to stop the updates
 //   });
 //
 // endpoint is any Kismet list that pages like the device views (page,
@@ -92,6 +93,7 @@ export function createDataTable(container, {
     refreshSeconds = 2,
     watch = [],
     query = null,
+    pausable = false,
 }) {
     const firstSortable = columns.list().find((c) => c.sortField);
     const state = {
@@ -113,6 +115,7 @@ export function createDataTable(container, {
         layout: savedLayout(id, columns),
         editing: false,
         snapshot: null,
+        paused: false,
     };
 
     // An empty box (deleted, or cleared with its clear button, which only
@@ -162,6 +165,20 @@ export function createDataTable(container, {
     }
 
     const countInfo = el('span', { class: 'count-info' });
+
+    // Paused, the rows on screen stay as they are; scrolling still loads more
+    const pauseButton = pausable ? el('button', { class: 'icon-button pause-button', title: 'Pause updates',
+        'aria-pressed': 'false', onclick: () => setPaused(!state.paused) }, icon('pause')) : null;
+    function setPaused(on) {
+        state.paused = on;
+        pauseButton.replaceChildren(icon(on ? 'play' : 'pause'));
+        pauseButton.title = on ? 'Resume updates' : 'Pause updates';
+        pauseButton.setAttribute('aria-pressed', String(on));
+        pauseButton.classList.toggle('paused', on);
+        if (!on && onScreen())
+            rows.refresh();
+        draw(true);
+    }
     const editButton = el('button', { class: 'icon-button', title: 'Edit columns', onclick: () => setEditing(true) }, icon('edit'));
 
     const toolbarEl = el('div', { class: 'table-toolbar' });
@@ -581,6 +598,8 @@ export function createDataTable(container, {
                 `${shown} of ${total.toLocaleString()} matching (${state.unfiltered.toLocaleString()} ${noun})` :
                 `${shown} of ${total.toLocaleString()} ${noun}`;
         }
+        if (state.paused)
+            countInfo.textContent += ' (paused)';
 
         let text = '';
         if (state.error && rows.total === null)
@@ -645,7 +664,7 @@ export function createDataTable(container, {
 
     // Keep what's on screen current, while it's on screen
     function tick() {
-        if (document.visibilityState !== 'hidden' && onScreen()) {
+        if (document.visibilityState !== 'hidden' && onScreen() && !state.paused) {
             rows.refresh();
             draw();
         }
@@ -656,6 +675,7 @@ export function createDataTable(container, {
     const handle = { restart, draw, element: container };
     toolbarEl.append(...[toolbar?.(handle)].flat().filter(Boolean),
         el('label', { class: 'search-box' }, icon('search'), searchInput),
+        pauseButton,
         queryError,
         el('div', { class: 'spacer' }),
         countInfo,
