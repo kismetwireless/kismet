@@ -1,5 +1,5 @@
-// The Overview tab and its standard cards: device counts, activity, packet
-// rates, what kinds of device are around, Wi-Fi security, manufacturers,
+// The Overview tab and its standard cards: the last 24 hours as a clock,
+// device counts, activity, packet rates, what kinds of device are around, Wi-Fi security, manufacturers,
 // new arrivals, signal strength, the busiest channels, alerts, the top
 // talkers, and the data sources.
 
@@ -8,7 +8,7 @@ const base = 'kismet.device.base';
 export function register(kismet) {
     const { ui, dom, rrd, format, widgets } = kismet;
     const { el } = dom;
-    const { historyGraph } = widgets;
+    const { historyGraph, dayClock } = widgets;
     const { barGraph } = widgets.cellgraphs;
     const { barList, donut, stat, series } = widgets.charts;
     const { frequencyLabel, openCoverage } = widgets.coverage;
@@ -38,8 +38,44 @@ export function register(kismet) {
     // A count against the window the devices were counted over
     const windowNote = (data) => `heard in ${widgets.overview.windows.find((w) => w.id === data.window)?.title ?? 'the chosen time'}`;
 
+    // The starting layout, on the 12-column grid: the clock at the top left
+    // (12 rows), two rows of cards beside it (8 columns, 6 rows each), then
+    // full rows of 3- and 6-wide cards under it.  Cards are placed in
+    // priority order at the first spot they fit, so the sizes are chosen to
+    // leave no gaps.
+
+    // The last day by hour of the day.  Hours before Kismet started have no
+    // tracked devices, and count as no history.
     ui.dashboardCards.add({
-        id: 'devices', title: 'Devices', loading: ['stat', 'tabs', 'graph'], priority: 0, w: 2, h: 5, needs: ['status'],
+        id: 'dayclock', title: 'Last 24 hours', loading: 'donut', priority: -10, w: 4, h: 12, place: 'top',
+        needs: ['status', 'packets', 'channels'],
+        create(body) {
+            const c = dayClock();
+            body.append(c.node);
+            return {
+                update(data) {
+                    const tracked = rrd.history(data.status?.['kismet.system.devices.rrd'], data.now, 'day');
+                    const packets = rrd.history(data.packets?.['kismet.packetchain.packets_rrd'], data.now, 'day');
+                    let devices = tracked.map(() => 0);
+                    for (const rec of Object.values(data.channels?.['kismet.channeltracker.frequency_map'] ?? {})) {
+                        const h = rrd.history(rec['kismet.channelrec.device_rrd'], data.now, 'day');
+                        devices = devices.map((v, i) => v + (h[i] ?? 0));
+                    }
+                    const known = (i) => tracked[i] > 0;
+                    c.update({
+                        now: data.now,
+                        devices: devices.map((v, i) => (known(i) ? v : null)),
+                        packets: packets.map((v, i) => (known(i) ? v : null)),
+                        tracked: tracked.map((v, i) => (known(i) ? v : null)),
+                    });
+                },
+                destroy: () => c.destroy(),
+            };
+        },
+    });
+
+    ui.dashboardCards.add({
+        id: 'devices', title: 'Devices', loading: ['stat', 'tabs', 'graph'], priority: 0, w: 3, h: 6, needs: ['status'],
         create(body) {
             const total = stat('devices tracked');
             const tabs = spanTabs('devices', () => draw());
@@ -63,7 +99,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'active', title: 'Active devices', loading: ['stat', 'tabs', 'graph'], priority: 10, w: 2, h: 5, needs: ['channels'],
+        id: 'active', title: 'Active devices', loading: ['stat', 'tabs', 'graph'], priority: 10, w: 3, h: 6, needs: ['channels'],
         create(body) {
             const now = stat('heard in the last 30 seconds');
             const tabs = spanTabs('active', () => draw());
@@ -105,7 +141,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'packets', title: 'Packets', loading: ['stat', 'tabs', 'graph'], priority: 20, w: 2, h: 5, needs: ['packets'],
+        id: 'packets', title: 'Packets', loading: ['stat', 'tabs', 'graph'], priority: 20, w: 2, h: 6, needs: ['packets'],
         create(body) {
             const rate = stat('packets per second');
             const tabs = spanTabs('packets', () => draw());
@@ -139,7 +175,7 @@ export function register(kismet) {
     });
 
     ui.dashboardCards.add({
-        id: 'phys', title: 'Devices by type of radio', loading: 'bars', priority: 30, w: 3, h: 5, needs: ['phys'],
+        id: 'phys', title: 'Devices by type of radio', loading: 'bars', priority: 30, w: 4, h: 6, needs: ['phys'],
         create(body, { actions }) {
             const bars = barList({ onPick: (item) => actions.showDevices(`phy-${item.id}`) });
             body.append(bars.node, el('div', { class: 'muted ov-note' }, 'All devices Kismet has seen.  Click one to list them.'));
@@ -172,7 +208,7 @@ export function register(kismet) {
     }
 
     ui.dashboardCards.add({
-        id: 'types', title: 'Kinds of device', loading: 'bars', priority: 40, w: 3, h: 5, needs: ['devices'],
+        id: 'types', title: 'Kinds of device', loading: 'bars', priority: 40, w: 4, h: 6, needs: ['devices'],
         create(body) {
             const bars = barList();
             const note = el('div', { class: 'muted ov-note' });
@@ -367,7 +403,7 @@ export function register(kismet) {
     const nearby = -60, edge = -85;
 
     ui.dashboardCards.add({
-        id: 'signal', title: 'Signal strength', loading: [{ kind: 'text', rows: 2 }, { kind: 'histogram', rows: 14 }], priority: 72, w: 3, h: 5, needs: ['devices'],
+        id: 'signal', title: 'Signal strength', loading: [{ kind: 'text', rows: 2 }, { kind: 'histogram', rows: 14 }], priority: 72, w: 6, h: 6, needs: ['devices'],
         create(body) {
             const counts = el('div', { class: 'ov-signal-counts' });
             const near = stat(`nearby (stronger than ${nearby} dBm)`);

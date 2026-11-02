@@ -1184,6 +1184,20 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .ov-card .history-graph { flex: 1 1 3rem; min-height: 3rem; margin: 0; }
 .ov-card .graph-tabs button { padding: 0 0.5em; }
 .ov-note { font-size: 0.78rem; flex: none; }
+.day-clock-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.day-clock { position: relative; flex: 1 1 14rem; min-height: 14rem; }
+.day-clock-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+.day-clock-tip {
+    position: absolute; pointer-events: none; padding: 0.4rem 0.6rem; border-radius: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); box-shadow: var(--shadow);
+    font-size: 0.88em; white-space: nowrap; z-index: 1;
+}
+.day-clock-legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-size: 0.78rem; flex: none; }
+.day-clock-legend > span { display: inline-flex; align-items: center; gap: 0.35em; }
+.day-clock-legend .key { display: inline-block; box-sizing: border-box; width: 0.75em; height: 0.75em; border-radius: 50%; }
+.day-clock-legend .key.bar { border-radius: 2px; background: var(--accent); }
+.day-clock-legend .key.pk { background: var(--ok); }
+.day-clock-legend .key.add { border: 2px solid var(--text); }
 .ov-note:empty { display: none; }
 .ov-hide, .ov-resize { display: none; }
 

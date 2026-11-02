@@ -312,10 +312,20 @@ export function createOverview(container, area = null) {
         // Known positions first, then the new cards fill in
         items = next.filter((i) => !i.new);
         compact(items);
+        // A card that asks to go first is put at the top left, the rest move down
         for (const it of next.filter((i) => i.new)) {
             delete it.new;
-            Object.assign(it, freeSpot(items, it.w, it.h));
-            items.push(it);
+            if (cards.get(it.id)?.entry.place === 'top') {
+                // Everything moves down out of its way, then floats back up in order
+                for (const o of items)
+                    o.y += it.h;
+                Object.assign(it, { x: 0, y: 0 });
+                items.push(it);
+                compact(items, it);
+            } else {
+                Object.assign(it, freeSpot(items, it.w, it.h));
+                items.push(it);
+            }
         }
         positions = new Map(items.map((i) => [i.id, i]));
         apply();

@@ -71,6 +71,9 @@ export const mapSources = createRegistry('mapSources', {
 //   id, title, priority,
 //   w, h: the card's starting size on the 12-column grid, in columns and
 //     rows of 40 px (3 × 5 if not given; size: 'wide' starts it 6 wide),
+//   place: 'top' puts the card at the top left when it's first shown, even
+//     in a layout the user has already arranged; otherwise it takes the
+//     first free spot,
 //   needs: the shared data it reads ('status', 'packets', 'phys', 'channels',
 //     'alerts', 'sources', 'talkers', 'devices'; see js/widgets/overview.js),
 //   loading: the outline shown until that data arrives, as shapes from
