@@ -58,6 +58,7 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <time.h>
 
@@ -560,6 +561,22 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
     return num_radios;
 }
 
+/* A device index: digits only, below the number of radios */
+static int parse_device_index(const char *str, unsigned int num_devices) {
+    char *end;
+    unsigned long n;
+
+    if (!isdigit((unsigned char) *str))
+        return -1;
+
+    errno = 0;
+    n = strtoul(str, &end, 10);
+    if (errno != 0 || *end != '\0' || n >= num_devices)
+        return -1;
+
+    return (int) n;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition, 
         char *msg, char **uuid,
         cf_params_interface_t **ret_interface, 
@@ -619,15 +636,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         /* Is this a serial #? */
         num_device = rtlsdr_get_index_by_serial(subinterface + 1);
 
-        if (num_device >= 0) {
+        if (num_device < 0)
+            num_device = parse_device_index(subinterface + 1, num_devices);
+
+        if (num_device >= 0)
             matched_device = 1;
-        } else {
-            if (sscanf(subinterface, "%u", &num_device) == 1) {
-                if (num_device >= 0 && num_device < num_devices) {
-                    matched_device = 1;
-                }
-            }
-        }
     }
 
     if (matched_device == 0) {
@@ -729,15 +742,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* Is this a serial #? */
         num_device = rtlsdr_get_index_by_serial(subinterface + 1);
 
-        if (num_device >= 0) {
+        if (num_device < 0)
+            num_device = parse_device_index(subinterface + 1, num_devices);
+
+        if (num_device >= 0)
             matched_device = 1;
-        } else {
-            if (sscanf(subinterface + 1, "%u", &num_device) == 1) {
-                if (num_device >= 0 && num_device < num_devices) {
-                    matched_device = 1;
-                }
-            }
-        }
     }
 
     if (matched_device == 0) {

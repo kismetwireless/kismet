@@ -41,6 +41,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -1602,6 +1603,22 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
 }
 
 
+/* "hciN": the HCI device id, digits only, below HCI_DEV_NONE.  Returns -1 if it isn't one. */
+static int parse_hci_interface(const char *interface) {
+    char *end;
+    unsigned long n;
+
+    if (strncmp(interface, "hci", 3) != 0 || !isdigit((unsigned char) interface[3]))
+        return -1;
+
+    errno = 0;
+    n = strtoul(interface + 3, &end, 10);
+    if (errno != 0 || *end != '\0' || n >= 0xFFFF)
+        return -1;
+
+    return (int) n;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid,
         cf_params_interface_t **ret_interface,
@@ -1630,7 +1647,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
-    if (sscanf(interface, "hci%u", &devid) != 1) {
+    if ((devid = parse_hci_interface(interface)) < 0) {
         snprintf(msg, STATUS_MAX, "Expected hciX interface, skipping");
         free(interface);
         return 0;
@@ -1771,7 +1788,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     interface = strndup(placeholder, placeholder_len);
 
-    if (sscanf(interface, "hci%u", &devid) != 1) {
+    if ((devid = parse_hci_interface(interface)) < 0) {
         snprintf(msg, STATUS_MAX, "Unable to parse device id");
         free(interface);
         return 0;
