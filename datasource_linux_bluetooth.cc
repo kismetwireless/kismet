@@ -61,6 +61,16 @@ kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource
                 tracker_element_factory<tracker_element_uint64>(),
                 "time the last probe ended"));
     insert(probe_last);
+    scan_mode = std::make_shared<tracker_element_string>(
+            et->register_field("kismet.datasource.linuxbt.scan",
+                tracker_element_factory<tracker_element_string>(),
+                "radios asked to scan: both, le or bredr; empty until the helper reports"));
+    insert(scan_mode);
+    scan_active = std::make_shared<tracker_element_string>(
+            et->register_field("kismet.datasource.linuxbt.scan_active",
+                tracker_element_factory<tracker_element_string>(),
+                "radios scanning, limited to what the controller supports"));
+    insert(scan_active);
 }
 
 void kis_datasource_linux_bluetooth::apply_probe_status(const std::string& json_str) {
@@ -93,6 +103,20 @@ void kis_datasource_linux_bluetooth::apply_probe_status(const std::string& json_
     auto lp = j.find("last_probe");
     if (lp != j.end() && lp->is_number_unsigned())
         probe_last->set(lp->get<uint64_t>());
+
+    auto sc = j.find("scan");
+    if (sc != j.end() && sc->is_string()) {
+        const auto& m = sc->get_ref<const std::string&>();
+        if (m == "both" || m == "le" || m == "bredr")
+            scan_mode->set(m);
+    }
+
+    auto sa = j.find("scan_active");
+    if (sa != j.end() && sa->is_string()) {
+        const auto& m = sa->get_ref<const std::string&>();
+        if (m == "both" || m == "le" || m == "bredr" || m == "none")
+            scan_active->set(m);
+    }
 }
 
 void kis_datasource_linux_bluetooth::handle_rx_jsonlayer_v3(std::shared_ptr<kis_packet> packet,

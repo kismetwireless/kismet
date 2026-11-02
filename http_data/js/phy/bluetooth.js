@@ -107,8 +107,9 @@ export function register(kismet) {
     registerProbeSection(kismet);
 }
 
-// Active probing on Linux HCI sources: probe= and probe_interval= sent at
-// runtime through set_channel, read back from what the helper reports
+// Scanning and active probing on Linux HCI sources: scan=, probe= and
+// probe_interval= sent at runtime through set_channel, read back from what
+// the helper reports
 const ds = 'kismet.datasource';
 const lbt = `${ds}.linuxbt`;
 const probeModes = {
@@ -120,6 +121,11 @@ const probeNotes = {
     name: 'The source transmits name requests to classic (BR/EDR) devices it hears.',
     info: 'The source transmits: it asks classic devices for their names, and connects to devices to read their ' +
         'Bluetooth version, chip maker and features.  Devices may log or show the connection.',
+};
+const scanModes = {
+    both: 'LE and classic (BR/EDR)',
+    le: 'LE only',
+    bredr: 'Classic (BR/EDR) only',
 };
 const intervalMin = 60;
 const intervalMax = 86400;
@@ -139,27 +145,52 @@ function registerProbeSection(kismet) {
         ctx.busy(sources.setting(s[`${ds}.uuid`], `probe=${want}`), 'Changing probing...');
     }
 
+    // A select and Apply, built once; the select follows the reported value
+    // unless the user has picked something they haven't applied
+    function chooser(cell, state, { options, current, note, onApply }) {
+        if (!state.select) {
+            state.select = el('select', { onchange: () => { state.touched = true; } },
+                ...Object.entries(options).map(([value, label]) => el('option', { value }, label)));
+            state.button = el('button', { type: 'button', onclick: () => {
+                state.touched = false;
+                if (state.select.value !== state.current)
+                    state.onApply(state.select.value);
+            } }, 'Apply');
+            replace(cell, el('span', { class: 'ds-buttons' }, state.select, state.button), note ? hint(note) : null);
+        }
+        state.current = current;
+        state.onApply = onApply;
+        if (!state.touched && document.activeElement !== state.select && current)
+            state.select.value = current;
+    }
+
+    const scanReported = (s) => (s[`${lbt}.scan`] ?? '') !== '';
+
+    ui.sourceSections.add({
+        id: 'btscan', title: 'Scanning', priority: 4, drivers: ['linuxbluetooth'], running: true,
+        when: (s) => scanReported(s),
+        fields: [
+            { id: 'scan', title: 'Scan for', draw: (cell, v, s, state, ctx) => chooser(cell, state, {
+                options: scanModes, current: s[`${lbt}.scan`],
+                onApply: (want) => ctx.busy(sources.setting(s[`${ds}.uuid`], `scan=${want}`), 'Changing the scan...'),
+            }), help: 'Which advertisements the controller listens for.  Scanning is passive either way.  ' +
+                'A change lasts until the source re-opens; scan= on the source line keeps it.' },
+            { title: 'Scanning', field: `${lbt}.scan_active`,
+                show: (v, s) => !!v && v !== s[`${lbt}.scan`],
+                format: (v) => el('span', { class: 'warn-text' },
+                    v === 'none' ? 'Nothing: the controller supports neither' : `${scanModes[v] ?? v}: the controller can't do the rest`),
+                help: 'What the controller is scanning for, when it can\'t do everything asked.' },
+        ],
+    });
+
     ui.sourceSections.add({
         id: 'btprobe', title: 'Active probing', priority: 5, drivers: ['linuxbluetooth'], running: true,
         fields: [
-            { id: 'mode', title: 'Probing', draw: (cell, v, s, state, ctx) => {
-                if (!state.select) {
-                    state.select = el('select', { onchange: () => { state.touched = true; } },
-                        ...Object.entries(probeModes).map(([value, label]) => el('option', { value }, label)));
-                    state.button = el('button', { type: 'button', onclick: () => {
-                        state.touched = false;
-                        if (state.select.value !== state.current)
-                            setMode(state.ctx, state.source, state.select.value);
-                    } }, 'Apply');
-                    replace(cell, el('span', { class: 'ds-buttons' }, state.select, state.button),
-                        hint('Probing transmits; it is off unless turned on here or with probe= on the source line.'));
-                }
-                state.ctx = ctx;
-                state.source = s;
-                state.current = s[`${lbt}.probe`] ?? '';
-                if (!state.touched && document.activeElement !== state.select && reported(s))
-                    state.select.value = state.current;
-            }, help: 'Off listens only.  Names asks classic devices for their names.  Info also connects to devices ' +
+            { id: 'mode', title: 'Probing', draw: (cell, v, s, state, ctx) => chooser(cell, state, {
+                options: probeModes, current: s[`${lbt}.probe`] ?? '',
+                note: 'Probing transmits; it is off unless turned on here or with probe= on the source line.',
+                onApply: (want) => setMode(ctx, s, want),
+            }), help: 'Off listens only.  Names asks classic devices for their names.  Info also connects to devices ' +
                 'to read their controller\'s version and features.' },
             { id: 'interval', title: 'Probe interval', show: (v, s) => reported(s), draw: (cell, v, s, state, ctx) => {
                 if (!state.input) {

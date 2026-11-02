@@ -26,6 +26,10 @@
  *                              info: names, plus connect and read version/features
  *     probe_interval=<sec>     least time between probes of one device
  *
+ * Which radios the source scans with is a setting too, passive like the default:
+ *
+ *     scan=both|le|bredr       both, LE advertisements only, or classic only
+ *
  * At runtime the same key=value strings arrive through set_channel, like the
  * cell sources' settings.
  */
@@ -42,6 +46,12 @@ typedef enum {
     BT_PROBE_NAME = 1,
     BT_PROBE_INFO = 2,
 } bt_probe_mode_t;
+
+typedef enum {
+    BT_SCAN_BOTH = 0,
+    BT_SCAN_LE = 1,
+    BT_SCAN_BREDR = 2,
+} bt_scan_mode_t;
 
 #define BT_PROBE_INTERVAL_DEFAULT 600
 #define BT_PROBE_INTERVAL_MIN 60
@@ -61,11 +71,16 @@ typedef struct {
     bt_probe_mode_t mode;
     int has_interval;
     unsigned int interval;
+    int has_scan;
+    bt_scan_mode_t scan;
 } bt_probe_setting_t;
 
 const char *bt_probe_mode_str(bt_probe_mode_t m);
 int bt_probe_parse_mode(const char *s, size_t len, bt_probe_mode_t *out);
 int bt_probe_parse_interval(const char *s, size_t len, unsigned int *out);
+
+const char *bt_scan_mode_str(bt_scan_mode_t m);
+int bt_scan_parse_mode(const char *s, size_t len, bt_scan_mode_t *out);
 
 void bt_probe_parse_setting(const char *str, bt_probe_setting_t *out);
 
