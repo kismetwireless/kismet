@@ -8,7 +8,8 @@
 //       rowKey: (row) => row['dot11.ssidgroup.hash'],
 //       onRowClick: (row) => ...,
 //       defaultSort: { column: 'last_time', dir: 'desc' },
-//       columns: [ { id, title, fields, sortField, render, width, align, defaultVisible, description, group }, ... ],
+//       pausable: true,                // a button to pause the updates (optional)
+//       columns: [ { id, title, fields, sortField, render, tooltip, variants, width, align, defaultVisible, description, group }, ... ],
 //       highlights: [ { id, name, description, fields, match, defaultColor, defaultEnabled }, ... ],
 //   });
 //
