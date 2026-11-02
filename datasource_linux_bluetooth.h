@@ -44,6 +44,8 @@ public:
     std::shared_ptr<tracker_element_uint64> probe_count;
     std::shared_ptr<tracker_element_uint32> probe_queued;
     std::shared_ptr<tracker_element_uint64> probe_last;
+    std::shared_ptr<tracker_element_string> scan_mode;
+    std::shared_ptr<tracker_element_string> scan_active;
 
 #ifdef HAVE_PROTOBUF_CPP
     // legacy protobuf code

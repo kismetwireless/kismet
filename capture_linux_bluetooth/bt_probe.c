@@ -70,6 +70,30 @@ int bt_probe_parse_interval(const char *s, size_t len, unsigned int *out) {
     return 1;
 }
 
+const char *bt_scan_mode_str(bt_scan_mode_t m) {
+    switch (m) {
+        case BT_SCAN_LE:
+            return "le";
+        case BT_SCAN_BREDR:
+            return "bredr";
+        default:
+            return "both";
+    }
+}
+
+int bt_scan_parse_mode(const char *s, size_t len, bt_scan_mode_t *out) {
+    if (match(s, len, "both") || match(s, len, "dual") || match(s, len, "all"))
+        *out = BT_SCAN_BOTH;
+    else if (match(s, len, "le") || match(s, len, "ble") || match(s, len, "btle"))
+        *out = BT_SCAN_LE;
+    else if (match(s, len, "bredr") || match(s, len, "classic"))
+        *out = BT_SCAN_BREDR;
+    else
+        return 0;
+
+    return 1;
+}
+
 void bt_probe_parse_setting(const char *str, bt_probe_setting_t *out) {
     const char *eq;
     size_t klen, vlen;
@@ -103,6 +127,12 @@ void bt_probe_parse_setting(const char *str, bt_probe_setting_t *out) {
             return;
         }
         out->has_interval = 1;
+    } else if (match(str, klen, "scan")) {
+        if (!bt_scan_parse_mode(eq + 1, vlen, &out->scan)) {
+            out->result = BT_PROBE_SET_BAD_VALUE;
+            return;
+        }
+        out->has_scan = 1;
     } else {
         out->result = BT_PROBE_SET_UNKNOWN_KEY;
         return;

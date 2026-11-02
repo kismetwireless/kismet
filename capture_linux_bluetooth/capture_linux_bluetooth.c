@@ -79,8 +79,11 @@ typedef struct {
     /* Read ringbuf */
     kis_simple_ringbuf_t *read_rbuf;
 
-    /* Scanning type */
+    /* Scanning type, what the controller supports (0 until read), and the type
+     * the running discovery started with, which stopping it has to repeat */
     uint8_t scan_type;
+    uint8_t scan_supported;
+    uint8_t discovery_type;
 
     /* Controller is discovering, and when we last tried to set it up */
     int discovering;
@@ -92,6 +95,8 @@ typedef struct {
     bt_probe_mode_t probe_mode;
     unsigned int probe_interval;
     int probe_status_dirty;
+    bt_scan_mode_t scan_mode;
+    int scan_dirty;
 
     bt_probe_state_t *probe;
     int hci_fd;
@@ -119,6 +124,40 @@ typedef struct {
 #define SCAN_TYPE_BREDR (1 << BDADDR_BREDR)
 #define SCAN_TYPE_LE ((1 << BDADDR_LE_PUBLIC) | (1 << BDADDR_LE_RANDOM))
 #define SCAN_TYPE_DUAL (SCAN_TYPE_BREDR | SCAN_TYPE_LE)
+
+static uint8_t scan_mode_type(bt_scan_mode_t m) {
+    switch (m) {
+        case BT_SCAN_LE:
+            return SCAN_TYPE_LE;
+        case BT_SCAN_BREDR:
+            return SCAN_TYPE_BREDR;
+        default:
+            return SCAN_TYPE_DUAL;
+    }
+}
+
+static const char *scan_type_str(uint8_t t) {
+    if (t == SCAN_TYPE_DUAL)
+        return "both";
+    if (t == SCAN_TYPE_LE)
+        return "le";
+    if (t == SCAN_TYPE_BREDR)
+        return "bredr";
+    return "none";
+}
+
+/* The requested radios the controller has; all it has when it has none of them */
+static uint8_t scan_effective_type(bt_scan_mode_t m, uint8_t supported) {
+    uint8_t t = scan_mode_type(m);
+
+    if (supported == 0)
+        return t;
+
+    if ((t & supported) == 0)
+        return supported;
+
+    return t & supported;
+}
 
 /* Outbound commands */
 typedef struct {
@@ -365,8 +404,19 @@ int cmd_start_discovery(local_bluetooth_t *localbt) {
 
     memset(&cp, 0, sizeof(cp));
     cp.type = localbt->scan_type;
+    localbt->discovery_type = localbt->scan_type;
 
     return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_START_DISCOVERY,
+            localbt->devid, sizeof(cp), &cp);
+}
+
+int cmd_stop_discovery(local_bluetooth_t *localbt) {
+    struct mgmt_cp_stop_discovery cp;
+
+    memset(&cp, 0, sizeof(cp));
+    cp.type = localbt->discovery_type;
+
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_STOP_DISCOVERY,
             localbt->devid, sizeof(cp), &cp);
 }
 
@@ -416,13 +466,15 @@ void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t l
     supported = le32toh(rp->supported_settings);
 
     /* Figure out if we support BDR/EDR and BTLE */
-    if (!(supported & MGMT_SETTING_BREDR)) {
-        localbt->scan_type &= ~SCAN_TYPE_BREDR;
-    }
+    localbt->scan_supported = 0;
+    if (supported & MGMT_SETTING_BREDR)
+        localbt->scan_supported |= SCAN_TYPE_BREDR;
+    if (supported & MGMT_SETTING_LE)
+        localbt->scan_supported |= SCAN_TYPE_LE;
 
-    if (!(supported & MGMT_SETTING_LE)) {
-        localbt->scan_type &= ~SCAN_TYPE_LE;
-    }
+    pthread_mutex_lock(&localbt->probe_mutex);
+    localbt->scan_type = scan_effective_type(localbt->scan_mode, localbt->scan_supported);
+    pthread_mutex_unlock(&localbt->probe_mutex);
 
     /* Is BREDR enabled? If not, turn it on */
     if ((supported & MGMT_SETTING_BREDR) && !(current & MGMT_SETTING_BREDR)) {
@@ -898,20 +950,28 @@ static void probe_send_json(local_bluetooth_t *localbt, const char *type, const 
 static void probe_send_status(local_bluetooth_t *localbt) {
     bt_probe_mode_t mode;
     unsigned int interval;
+    bt_scan_mode_t scan;
     char json[256];
 
     probe_get_settings(localbt, &mode, &interval);
+
+    pthread_mutex_lock(&localbt->probe_mutex);
+    scan = localbt->scan_mode;
+    pthread_mutex_unlock(&localbt->probe_mutex);
 
     snprintf(json, sizeof(json), "{"
             "\"probe\": \"%s\","
             "\"probe_interval\": %u,"
             "\"probes\": %lu,"
             "\"queued\": %u,"
-            "\"last_probe\": %lu"
+            "\"last_probe\": %lu,"
+            "\"scan\": \"%s\","
+            "\"scan_active\": \"%s\""
             "}",
             bt_probe_mode_str(mode), interval, localbt->probes_done,
             localbt->probe != NULL ? localbt->probe->q_len : 0,
-            (unsigned long) localbt->probe_last_end);
+            (unsigned long) localbt->probe_last_end,
+            bt_scan_mode_str(scan), scan_type_str(localbt->scan_type));
 
     probe_send_json(localbt, "linuxbtprobe", json);
 
@@ -1241,13 +1301,28 @@ static void probe_service(local_bluetooth_t *localbt) {
     time_t now = time(0);
     int dirty;
 
+    uint8_t scan_type = 0;
+    int scan_dirty;
+
     pthread_mutex_lock(&localbt->probe_mutex);
     mode = localbt->probe_mode;
     interval = localbt->probe_interval;
     dirty = localbt->probe_status_dirty;
     localbt->probe_status_dirty = 0;
+    scan_dirty = localbt->scan_dirty;
+    localbt->scan_dirty = 0;
+    if (scan_dirty)
+        scan_type = scan_effective_type(localbt->scan_mode, localbt->scan_supported);
     pthread_mutex_unlock(&localbt->probe_mutex);
     (void) interval;
+
+    /* A new scan type takes effect when discovery restarts; the discovering=0
+     * event that follows the stop starts it again with the new type */
+    if (scan_dirty) {
+        localbt->scan_type = scan_type;
+        if (localbt->discovering && localbt->discovery_type != scan_type)
+            cmd_stop_discovery(localbt);
+    }
 
     if (mode != BT_PROBE_INFO) {
         probe_abort(localbt);
@@ -1334,19 +1409,21 @@ static int probe_chancontrol(kis_capture_handler_t *caph, uint32_t seqno, void *
         case BT_PROBE_SET_OK:
             break;
         case BT_PROBE_SET_UNKNOWN_KEY:
-            snprintf(msg, STATUS_MAX, "%s: unknown setting; use probe=off|name|info or "
-                    "probe_interval=<seconds>", localbt->bt_interface);
+            snprintf(msg, STATUS_MAX, "%s: unknown setting; use scan=both|le|bredr, "
+                    "probe=off|name|info or probe_interval=<seconds>", localbt->bt_interface);
             cf_send_message(caph, msg, MSGFLAG_ERROR);
             return 0;
         case BT_PROBE_SET_BAD_VALUE:
-            snprintf(msg, STATUS_MAX, "%s: bad value; probe takes off, name or info, and "
-                    "probe_interval %u to %u seconds", localbt->bt_interface,
+            snprintf(msg, STATUS_MAX, "%s: bad value; scan takes both, le or bredr, probe "
+                    "takes off, name or info, and probe_interval %u to %u seconds",
+                    localbt->bt_interface,
                     BT_PROBE_INTERVAL_MIN, BT_PROBE_INTERVAL_MAX);
             cf_send_message(caph, msg, MSGFLAG_ERROR);
             return 0;
         default:
             snprintf(msg, STATUS_MAX, "%s has no channels; its settings are "
-                    "probe=off|name|info and probe_interval=<seconds>", localbt->bt_interface);
+                    "scan=both|le|bredr, probe=off|name|info and probe_interval=<seconds>",
+                    localbt->bt_interface);
             cf_send_message(caph, msg, MSGFLAG_ERROR);
             return 0;
     }
@@ -1356,10 +1433,18 @@ static int probe_chancontrol(kis_capture_handler_t *caph, uint32_t seqno, void *
         localbt->probe_mode = s->mode;
     if (s->has_interval)
         localbt->probe_interval = s->interval;
+    if (s->has_scan) {
+        localbt->scan_mode = s->scan;
+        localbt->scan_dirty = 1;
+    }
     localbt->probe_status_dirty = 1;
     pthread_mutex_unlock(&localbt->probe_mutex);
 
-    if (s->has_mode)
+    if (s->has_scan)
+        snprintf(msg, STATUS_MAX, "%s scans %s", localbt->bt_interface,
+                s->scan == BT_SCAN_LE ? "LE only" :
+                s->scan == BT_SCAN_BREDR ? "classic (BR/EDR) only" : "LE and classic (BR/EDR)");
+    else if (s->has_mode)
         snprintf(msg, STATUS_MAX, "%s active probing: %s", localbt->bt_interface,
                 bt_probe_mode_str(s->mode));
     else
@@ -1447,6 +1532,15 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                         snprintf(errstr, STATUS_MAX,
                                 "Bluetooth interface hci%u discovery failed", rindex);
                         cf_send_error(localbt->caph, 0, errstr);
+                    }
+                    break;
+                case MGMT_OP_STOP_DISCOVERY:
+                    if (crec->status != 0) {
+                        snprintf(errstr, STATUS_MAX,
+                                "Bluetooth interface hci%u could not stop discovery to "
+                                "change the scan type; it changes when discovery next "
+                                "restarts", rindex);
+                        cf_send_message(localbt->caph, errstr, MSGFLAG_ERROR);
                     }
                     break;
                 case MGMT_OP_SET_BREDR:
@@ -1786,6 +1880,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     {
         bt_probe_mode_t mode = BT_PROBE_OFF;
         unsigned int interval = BT_PROBE_INTERVAL_DEFAULT;
+        bt_scan_mode_t scan = BT_SCAN_BOTH;
+
+        if ((placeholder_len = cf_find_flag(&placeholder, "scan", definition)) > 0 &&
+                !bt_scan_parse_mode(placeholder, placeholder_len, &scan)) {
+            snprintf(msg, STATUS_MAX, "Invalid scan= option, expected both, le or bredr");
+            return -1;
+        }
 
         if ((placeholder_len = cf_find_flag(&placeholder, "probe", definition)) > 0 &&
                 !bt_probe_parse_mode(placeholder, placeholder_len, &mode)) {
@@ -1812,6 +1913,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localbt->probe_mode = mode;
         localbt->probe_interval = interval;
         localbt->probe_status_dirty = 1;
+        localbt->scan_mode = scan;
+        localbt->scan_dirty = 0;
+        localbt->scan_supported = 0;
+        localbt->scan_type = scan_mode_type(scan);
         pthread_mutex_unlock(&localbt->probe_mutex);
 
         localbt->probe_active = 0;
@@ -1933,6 +2038,7 @@ int main(int argc, char *argv[]) {
         .probe_mutex = PTHREAD_MUTEX_INITIALIZER,
         .probe_mode = BT_PROBE_OFF,
         .probe_interval = BT_PROBE_INTERVAL_DEFAULT,
+        .scan_mode = BT_SCAN_BOTH,
         .probe = NULL,
         .hci_fd = -1,
         .caph = NULL,
