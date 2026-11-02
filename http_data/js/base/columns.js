@@ -5,6 +5,8 @@ const base = 'kismet.device.base';
 export function register(kismet) {
     const { ui, format, icons, dom, rrd, clock } = kismet;
     const { barGraph, peaks } = kismet.widgets.cellgraphs;
+    // The server's time: a replayed capture, or this browser's clock, can be far from it
+    const now = () => (clock.isKnown() ? clock.now() : Date.now() / 1000);
 
     // Always fetched, so searches match them even when their columns are hidden
     // The reported location; meters, and km/h
@@ -99,9 +101,18 @@ export function register(kismet) {
 
     ui.deviceColumns.add({
         id: 'last_time', title: 'Last seen', priority: 65, defaultVisible: true, width: '11.5em', align: 'right',
+        description: 'When the device was last seen, as a time or how long ago; hover a cell for the other',
         fields: [`${base}.last_time`],
         sortField: `${base}.last_time`,
         render: (row) => format.time(row[`${base}.last_time`]),
+        // Whichever way it's shown, the tooltip shows the other
+        tooltip: (row) => format.since(row[`${base}.last_time`], now()),
+        variants: [
+            { id: 'time', title: 'Date and time' },
+            { id: 'since', title: 'Time since last seen',
+                render: (row) => format.since(row[`${base}.last_time`], now()),
+                tooltip: (row) => format.time(row[`${base}.last_time`]) },
+        ],
     });
 
     ui.deviceColumns.add({

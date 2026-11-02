@@ -131,6 +131,24 @@ export function ago(sec, now = Date.now() / 1000) {
     return `${Math.floor(s / 86400)}d`;
 }
 
+// How long ago, in words: "now", "40s ago", "5m ago", "1hr 4m ago", "2d 3hr ago"
+export function since(sec, now = Date.now() / 1000) {
+    if (!sec)
+        return '-';
+    const s = Math.max(0, Math.round(now - sec));
+    if (s < 2)
+        return 'now';
+    if (s < 60)
+        return `${s}s ago`;
+    if (s < 3600)
+        return `${Math.floor(s / 60)}m ago`;
+    const d = Math.floor(s / 86400);
+    const h = Math.floor(s / 3600) % 24;
+    if (!d)
+        return `${h}hr${s % 3600 >= 60 ? ` ${Math.floor(s / 60) % 60}m` : ''} ago`;
+    return `${d}d${h ? ` ${h}hr` : ''} ago`;
+}
+
 export function duration(sec) {
     sec = Math.max(0, Math.round(sec));
     const d = Math.floor(sec / 86400);
