@@ -101,6 +101,12 @@ export function register(kismet) {
             { title: 'Manufacturer ID', field: `${b}/${b}.manuf_company_id`, hideZero: true,
                 format: (v) => `0x${v.toString(16).padStart(4, '0')}`,
                 help: 'The Bluetooth SIG company ID in the device\'s manufacturer data.' },
+            { title: 'Service data', field: `${b}/${b}.service_data`,
+                show: (v) => v !== null && typeof v === 'object' && Object.keys(v).length > 0,
+                format: (v) => kismet.dom.el('div', {}, Object.keys(v).sort().map((uuid) =>
+                    kismet.dom.el('div', { class: 'mono', style: { wordBreak: 'break-all' } },
+                        `${uuid}: ${v[uuid] || '(empty)'}`))),
+                help: 'The latest payload the device advertised for each service UUID, in hex.  Location trackers are left out; their decoded fields are under Location tracker.' },
             { title: 'Bluetooth version', field: `${b}/${b}.lmp_version`,
                 help: 'The Bluetooth version the device\'s controller reported when a host connected to it.' },
             { title: 'Chip maker', field: `${b}/${b}.chip_manufacturer`,

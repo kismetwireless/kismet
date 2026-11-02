@@ -86,6 +86,8 @@ public:
 #define BTLE_ADVDATA_TX_POWER_LEVEL             0x0A
 #define BTLE_ADVDATA_APPEARANCE                 0x19
 #define BTLE_ADVDATA_SERVICE_DATA_UUID16        0x16
+#define BTLE_ADVDATA_SERVICE_DATA_UUID32        0x20
+#define BTLE_ADVDATA_SERVICE_DATA_UUID128       0x21
 #define BTLE_ADVDATA_MANUFACTURER_DATA          0xFF
 
 #define BTLE_ADVDATA_FLAG_LIMITED_DISCOVERABLE      (1 << 0)
@@ -112,6 +114,38 @@ static std::string btle_format_uuid128(const std::string& data) {
     std::string hex = btle_bytes_to_hex(reversed);
     return hex.substr(0, 8) + "-" + hex.substr(8, 4) + "-" + hex.substr(12, 4) + "-" +
         hex.substr(16, 4) + "-" + hex.substr(20, 12);
+}
+
+// Service UUIDs kept per device; a device rarely advertises more than a few
+constexpr size_t btle_max_service_data = 8;
+
+// Records the latest payload of a Service Data element, which starts with a uuid_len byte UUID
+static void btle_set_service_data(btle_tracked_device *btle_dev, const std::string& payload,
+        size_t uuid_len) {
+    if (payload.size() < uuid_len)
+        return;
+
+    std::string uuid;
+    if (uuid_len == 2) {
+        uuid = fmt::format("{:04x}", (uint8_t) payload[0] | ((uint16_t)(uint8_t) payload[1] << 8));
+    } else if (uuid_len == 4) {
+        uuid = fmt::format("{:08x}", (uint8_t) payload[0] | ((uint32_t)(uint8_t) payload[1] << 8) |
+                ((uint32_t)(uint8_t) payload[2] << 16) | ((uint32_t)(uint8_t) payload[3] << 24));
+    } else {
+        uuid = btle_format_uuid128(payload.substr(0, 16));
+    }
+
+    auto hex = btle_bytes_to_hex(payload.substr(uuid_len));
+    auto sd = btle_dev->get_service_data();
+    auto existing = sd->find(uuid);
+
+    if (existing != sd->end()) {
+        auto v = std::static_pointer_cast<tracker_element_string>(existing->second);
+        if (v->get() != hex)
+            v->set(hex);
+    } else if (sd->size() < btle_max_service_data) {
+        sd->insert(uuid, std::make_shared<tracker_element_string>(hex));
+    }
 }
 
 // Appends uuid to vec unless it's already present.
@@ -1040,6 +1074,16 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
             uint16_t company_id = (uint8_t) payload[0] | ((uint16_t)(uint8_t) payload[1] << 8);
             btle_dev->set_manuf_company_id(fmt::format("{:04x}", company_id));
             btle_dev->set_manuf_data(btle_bytes_to_hex(payload.substr(2)));
+
+        } else if (!is_tracker && ad->type() == BTLE_ADVDATA_SERVICE_DATA_UUID16) {
+            // Trackers are left out: their rotating IDs are only kept hashed
+            btle_set_service_data(btle_dev.get(), ad->data(), 2);
+
+        } else if (!is_tracker && ad->type() == BTLE_ADVDATA_SERVICE_DATA_UUID32) {
+            btle_set_service_data(btle_dev.get(), ad->data(), 4);
+
+        } else if (!is_tracker && ad->type() == BTLE_ADVDATA_SERVICE_DATA_UUID128) {
+            btle_set_service_data(btle_dev.get(), ad->data(), 16);
         }
     }
 

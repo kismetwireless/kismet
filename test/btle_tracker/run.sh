@@ -103,6 +103,21 @@ if d is None:
     bad.append("c2:00:00:00:00:98 (static) missing")
 elif d.get("btle.device", {}).get("btle.device.random_address_type") not in (None, "static"):
     bad.append("c2:00:00:00:00:98 random_address_type %r" % d["btle.device"]["btle.device.random_address_type"])
+# Service data by UUID, latest payload in hex; never kept for trackers
+sd_want = {
+    "c2:00:00:00:00:98": {"feaf": "01020304"},
+    "c2:00:00:00:00:97": {"01020304": "aa", "0f0e0d0c-0b0a-0908-0706-050403020100": "bbcc"},
+}
+for mac, sd in sd_want.items():
+    d = devs.get(mac)
+    if d is None:
+        bad.append(mac + " (service data) missing"); continue
+    got = d.get("btle.device", {}).get("btle.device.service_data")
+    if got != sd:
+        bad.append("%s service_data=%r, expected %r" % (mac, got, sd))
+for mac in want:
+    if mac in devs and "btle.device.service_data" in devs[mac].get("btle.device", {}):
+        bad.append(mac + " is a tracker but kept service data")
 print("\n".join(bad))
 ' "$1"
 }
