@@ -59,6 +59,23 @@
 #define KDLT_IEEE802_15_4_NOFCS           230
 #endif
 
+// Whether a Thread network takes new devices, from a router's Discovery Response or a Thread 1.1
+// beacon: its commissioner's steering data lets any device join, only the devices it lists, or
+// none (or there is no commissioner)
+enum class thread_join_state : uint8_t {
+    unknown = 0,
+    closed = 1,
+    specific = 2,
+    any = 3,
+};
+
+// What a Discovery Request says about its sender
+enum class thread_disc_state : uint8_t {
+    none = 0,
+    scanning = 1,       // looking for Thread networks (a commissioner, a border router)
+    joining = 2,        // a device looking for a network to join
+};
+
 // Per-packet 802.15.4 info the classifier needs beyond the common info
 class kis_802154_packinfo : public packet_component {
 public:
@@ -87,6 +104,11 @@ public:
         key_checked = false;
         key_matched = false;
         user_key_name.clear();
+        thread_version = 0;
+        thread_native = false;
+        thread_join = thread_join_state::unknown;
+        thread_joiner_port = 0;
+        thread_disc = thread_disc_state::none;
     }
 
     // PAN ID of the sender; only present if the frame carries one (directly, or as the
@@ -137,6 +159,15 @@ public:
 
     // The name of the user's key (zigbee_key=) that matched, when one did
     std::string user_key_name;
+
+    // Thread: the version and joining state a Discovery Response or Thread 1.1 beacon gives, whether
+    // it allows a native commissioner, the port joiners use; and what a Discovery Request's sender
+    // is doing
+    uint8_t thread_version = 0;
+    bool thread_native = false;
+    thread_join_state thread_join = thread_join_state::unknown;
+    uint16_t thread_joiner_port = 0;
+    thread_disc_state thread_disc = thread_disc_state::none;
 };
 
 // A key the user gave (zigbee_key=name,key): tried after the publicly known keys, as the network
@@ -213,6 +244,13 @@ public:
     __ProxyDynamic(key_frames_matched, uint64_t, uint64_t, uint64_t, key_frames_matched,
             key_frames_matched_id);
     __ProxyDynamic(user_key, std::string, std::string, std::string, user_key, user_key_id);
+    __ProxyDynamic(thread_version, uint8_t, uint8_t, uint8_t, thread_version, thread_version_id);
+    __ProxyDynamic(thread_joining, uint8_t, thread_join_state, thread_join_state, thread_joining, thread_joining_id);
+    __ProxyDynamic(thread_native, uint8_t, bool, bool, thread_native, thread_native_id);
+    __ProxyDynamic(thread_joiner_port, uint16_t, uint16_t, uint16_t, thread_joiner_port,
+            thread_joiner_port_id);
+    __ProxyDynamic(thread_discovery, uint8_t, thread_disc_state, thread_disc_state, thread_discovery,
+            thread_discovery_id);
 
 protected:
 
@@ -249,6 +287,16 @@ protected:
             register_dynamic_field("802154.device.key_frames", "Secured NWK and APS frames checked against the publicly known keys", &key_frames);
         key_frames_matched_id =
             register_dynamic_field("802154.device.key_frames_matched", "Secured frames a publicly known key matched", &key_frames_matched);
+        thread_version_id =
+            register_dynamic_field("802154.device.thread_version", "Thread version it advertises (2 Thread 1.1, 3 1.2, 4 1.3, 5 1.4)", &thread_version);
+        thread_joining_id =
+            register_dynamic_field("802154.device.thread_joining", "Whether its Thread network takes new devices: 1 no, 2 the devices its commissioner lists, 3 any", &thread_joining);
+        thread_native_id =
+            register_dynamic_field("802154.device.thread_native", "Its Thread network allows a native commissioner (on the Thread network itself)", &thread_native);
+        thread_joiner_port_id =
+            register_dynamic_field("802154.device.thread_joiner_port", "The UDP port joining devices use to reach it", &thread_joiner_port);
+        thread_discovery_id =
+            register_dynamic_field("802154.device.thread_discovery", "Its Thread discovery requests: 1 looking for networks, 2 looking for a network to join", &thread_discovery);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -293,6 +341,16 @@ protected:
     uint16_t key_frames_matched_id;
     std::shared_ptr<tracker_element_string> user_key;
     uint16_t user_key_id;
+    std::shared_ptr<tracker_element_uint8> thread_version;
+    uint16_t thread_version_id;
+    std::shared_ptr<tracker_element_uint8> thread_joining;
+    uint16_t thread_joining_id;
+    std::shared_ptr<tracker_element_uint8> thread_native;
+    uint16_t thread_native_id;
+    std::shared_ptr<tracker_element_uint16> thread_joiner_port;
+    uint16_t thread_joiner_port_id;
+    std::shared_ptr<tracker_element_uint8> thread_discovery;
+    uint16_t thread_discovery_id;
 };
 
 class kis_802154_phy : public kis_phy_handler {
@@ -365,6 +423,38 @@ protected:
 
     // The user's keys, from zigbee_key= in kismet_zigbee.conf; read once at startup
     std::vector<zigbee_user_key> user_keys;
+
+    // PANs known to be Thread networks (from a beacon, a Discovery Response or MLE), so devices
+    // whose frames are all encrypted are known as Thread too, with the network's name; the channel
+    // (0 when not known) keeps a Zigbee PAN with the same ID elsewhere out.  Bounded, oldest out.
+    struct thread_pan {
+        std::string name, ext_pan_id;
+        unsigned int channel = 0;
+        // The joining states already alerted (THREADJOINABLE), a bit for each; cleared when the
+        // network closes, so a later opening alerts again
+        uint8_t alerted = 0;
+    };
+
+    static constexpr size_t thread_pan_max = 1024;
+    kis_mutex thread_pan_mutex;
+    std::unordered_map<uint16_t, thread_pan> thread_pans;
+    std::deque<uint16_t> thread_pan_order;
+
+    // Learn or refresh a Thread PAN; the network's name and extended PAN ID, if not empty
+    void learn_thread_pan(uint16_t pan, unsigned int channel, const std::string& name,
+            const std::string& ext_pan_id);
+
+    // A known Thread PAN on this channel (or one not known): its name and extended PAN ID
+    bool find_thread_pan(uint16_t pan, unsigned int channel, std::string& name,
+            std::string& ext_pan_id);
+
+    // Note a joining state of a PAN; true when it should be alerted (open, and not alerted yet),
+    // in which case it's marked as alerted; unmark_thread_alert() undoes that when the alert
+    // couldn't be raised
+    bool thread_alert_due(uint16_t pan, thread_join_state state);
+    void unmark_thread_alert(uint16_t pan, thread_join_state state);
+
+    int alert_threadjoin_ref;
 };
 
 #endif

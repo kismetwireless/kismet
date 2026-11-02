@@ -122,40 +122,77 @@ static unsigned int iphc_length(const uint8_t *p, size_t n, int *nh, uint8_t *nh
     return l;
 }
 
-// The UDP destination port of a 6LoWPAN frame (IPHC, then NHC or inline UDP); -1 when not UDP
-static int lowpan_udp_dport(const uint8_t *p, size_t n) {
+// A UDP datagram carried whole in one 6LoWPAN frame
+struct lowpan_udp_datagram {
+    unsigned int sport = 0, dport = 0;
+    const uint8_t *data = nullptr;
+    size_t len = 0;
+};
+
+// The UDP datagram of an unfragmented 6LoWPAN frame (IPHC, then NHC or inline UDP): its ports and
+// payload.  An inline UDP header's length must fit the frame; with NHC the length is the frame's.
+static bool lowpan_udp(const uint8_t *p, size_t n, lowpan_udp_datagram& u) {
     int nh = 0;
     uint8_t nh_value = 0;
-    unsigned int l;
 
     if (n < 2 || (p[0] & 0xe0) != 0x60)
-        return -1;
+        return false;
 
-    l = iphc_length(p, n, &nh, &nh_value);
+    const unsigned int l = iphc_length(p, n, &nh, &nh_value);
     if (l == 0)
-        return -1;
+        return false;
 
     if (!nh) {
-        // an uncompressed UDP header: source port, destination port
-        if (nh_value != 17 || l + 4 > n)
-            return -1;
-        return (p[l + 2] << 8) | p[l + 3];
+        // an uncompressed UDP header: source port, destination port, length, checksum
+        if (nh_value != 17 || l + 8 > n)
+            return false;
+
+        const size_t ulen = (p[l + 4] << 8) | p[l + 5];
+        if (ulen < 8 || ulen > n - l)
+            return false;
+
+        u.sport = (p[l] << 8) | p[l + 1];
+        u.dport = (p[l + 2] << 8) | p[l + 3];
+        u.data = p + l + 8;
+        u.len = ulen - 8;
+        return true;
     }
 
-    // NHC UDP: 11110CPP
+    // NHC UDP: 11110CPP, the ports (both inline; one 0xf0xx; both 0xf0bx), the checksum unless C
+    static constexpr unsigned int port_len[4] = {4, 3, 3, 1};
+
     if (l + 1 > n || (p[l] & 0xf8) != 0xf0)
-        return -1;
+        return false;
 
     const unsigned int ports = p[l] & 0x03;
+    const size_t o = l + 1 + port_len[ports] + ((p[l] & 0x04) ? 0 : 2);
     const uint8_t *q = p + l + 1;
-    const size_t left = n - l - 1;
+
+    if (o > n)
+        return false;
 
     switch (ports) {
-        case 0: return left >= 4 ? (q[2] << 8) | q[3] : -1;    // both inline
-        case 1: return left >= 3 ? 0xf000 | q[2] : -1;         // source inline, destination 0xf0xx
-        case 2: return left >= 3 ? (q[1] << 8) | q[2] : -1;    // source 0xf0xx, destination inline
-        default: return left >= 1 ? 0xf0b0 | (q[0] & 0x0f) : -1;
+        case 0:
+            u.sport = (q[0] << 8) | q[1];
+            u.dport = (q[2] << 8) | q[3];
+            break;
+        case 1:
+            u.sport = (q[0] << 8) | q[1];
+            u.dport = 0xf000 | q[2];
+            break;
+        case 2:
+            u.sport = 0xf000 | q[0];
+            u.dport = (q[1] << 8) | q[2];
+            break;
+        default:
+            u.sport = 0xf0b0 | (q[0] >> 4);
+            u.dport = 0xf0b0 | (q[0] & 0x0f);
+            break;
     }
+
+    u.data = p + o;
+    u.len = n - o;
+    return true;
 }
 
 // Whether p is a 6LoWPAN frame, its header checked through (RFC 4944, RFC 6282): uncompressed IPv6
@@ -229,6 +266,132 @@ using net_kind = kis_802154_packinfo::network_kind;
 static std::string ext_pan_string(const uint8_t *le8) {
     return fmt::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             le8[7], le8[6], le8[5], le8[4], le8[3], le8[2], le8[1], le8[0]);
+}
+
+// A Thread extended PAN ID, sent most significant octet first
+static std::string thread_ext_pan_string(const uint8_t *be8) {
+    return fmt::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            be8[0], be8[1], be8[2], be8[3], be8[4], be8[5], be8[6], be8[7]);
+}
+
+// Thread MeshCoP TLVs: type, length (0xff: a 2-octet length follows), value.  Calls
+// f(type, value, length) for each whole one, and stops at one that doesn't fit.
+template <typename F>
+static void meshcop_tlvs(const uint8_t *p, size_t n, F&& f) {
+    size_t o = 0;
+
+    while (o + 2 <= n) {
+        const unsigned int type = p[o];
+        size_t len = p[o + 1], hdr = 2;
+
+        if (len == 0xff) {
+            if (o + 4 > n)
+                return;
+            len = (p[o + 2] << 8) | p[o + 3];
+            hdr = 4;
+        }
+
+        if (len > n - o - hdr)
+            return;
+
+        f(type, p + o + hdr, len);
+        o += hdr + len;
+    }
+}
+
+// What a commissioner's steering data says: all ones lets any device join, all zeros none, and
+// anything else is a bloom filter of the devices it expects
+static thread_join_state thread_steering(const uint8_t *v, size_t len) {
+    if (len == 0)
+        return thread_join_state::closed;
+
+    bool ones = true, zeros = true;
+
+    for (size_t i = 0; i < len; i++) {
+        ones = ones && v[i] == 0xff;
+        zeros = zeros && v[i] == 0x00;
+    }
+
+    return ones ? thread_join_state::any : zeros ? thread_join_state::closed : thread_join_state::specific;
+}
+
+constexpr unsigned int thread_mle_port = 19788;
+constexpr unsigned int mle_discovery_request = 16, mle_discovery_response = 17;
+constexpr unsigned int mle_tlv_discovery = 26;
+constexpr unsigned int meshcop_ext_pan_id = 2, meshcop_network_name = 3, meshcop_steering = 8,
+          meshcop_joiner_port = 18, meshcop_discovery_request = 128, meshcop_discovery_response = 129;
+
+/*
+ * MLE (Thread, UDP port 19788): the security suite, then with 255 (none) the command and its TLVs.
+ * A Discovery Request (16) or Response (17) carries a Thread Discovery TLV (26) of MeshCoP TLVs: the
+ * request its version and whether its sender wants to join; the response its network's version,
+ * whether a native commissioner may join, its extended PAN ID, name, steering data (no steering
+ * data: no commissioner, so no new devices) and the joiner port.  Other MLE commands are secured.
+ */
+static void read_mle(const uint8_t *p, size_t n, kis_802154_packinfo *pi) {
+    if (n < 2 || p[0] != 0xff)
+        return;
+
+    const unsigned int cmd = p[1];
+    if (cmd != mle_discovery_request && cmd != mle_discovery_response)
+        return;
+
+    const bool response = cmd == mle_discovery_response;
+    size_t o = 2;
+
+    // MLE TLVs have a one-octet length
+    while (o + 2 <= n) {
+        const unsigned int type = p[o], len = p[o + 1];
+
+        if (len > n - o - 2)
+            return;
+
+        if (type == mle_tlv_discovery) {
+            bool steering = false;
+
+            meshcop_tlvs(p + o + 2, len, [&](unsigned int t, const uint8_t *v, size_t l) {
+                if (t == meshcop_discovery_request && !response && l >= 1) {
+                    pi->thread_version = v[0] >> 4;
+                    pi->thread_disc = (v[0] & 0x08) ? thread_disc_state::joining : thread_disc_state::scanning;
+                } else if (t == meshcop_discovery_response && response && l >= 1) {
+                    pi->thread_version = v[0] >> 4;
+                    pi->thread_native = v[0] & 0x08;
+                } else if (t == meshcop_ext_pan_id && response && l == 8) {
+                    pi->ext_pan_id = thread_ext_pan_string(v);
+                } else if (t == meshcop_network_name && response && l >= 1 && l <= 16) {
+                    pi->network_name = std::string(reinterpret_cast<const char *>(v), strnlen(reinterpret_cast<const char *>(v), l));
+                } else if (t == meshcop_steering && l >= 1 && l <= 16) {
+                    steering = true;
+                    pi->thread_join = thread_steering(v, l);
+                } else if (t == meshcop_joiner_port && l == 2) {
+                    pi->thread_joiner_port = (v[0] << 8) | v[1];
+                }
+            });
+
+            if (response && !steering)
+                pi->thread_join = thread_join_state::closed;
+            if (!response && pi->thread_disc == thread_disc_state::none)
+                pi->thread_disc = thread_disc_state::scanning;
+        }
+
+        o += 2 + len;
+    }
+}
+
+// A channel number from the packet's channel, 0 when it isn't one
+static unsigned int channel_number(const std::string& ch) {
+    if (ch.empty() || ch.length() > 3)
+        return 0;
+
+    unsigned int c = 0;
+
+    for (const char x : ch) {
+        if (x < '0' || x > '9')
+            return 0;
+        c = c * 10 + (x - '0');
+    }
+
+    return c;
 }
 
 static std::string key_string(const uint8_t *k) {
@@ -412,11 +575,27 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
             pi->stack_profile = p[o + 1] & 0x0f;
             pi->ext_pan_id = ext_pan_string(p + o + 3);
         } else if (p[o] == 0x03 && o + 2 + 16 + 8 <= n) {
-            // Thread 1.1: protocol ID, version and flags, network name (16), extended PAN ID (8)
+            // Thread 1.1: protocol ID, version and flags (joining permitted, native commissioner),
+            // network name (16), extended PAN ID (8, most significant octet first), then MeshCoP
+            // TLVs: the steering data says which devices may join
+            const unsigned int flags = p[o + 1];
+
             pi->network = net_kind::thread;
+            pi->thread_version = flags >> 4;
+            pi->thread_native = flags & 0x08;
             const char *name = reinterpret_cast<const char *>(p + o + 2);
             pi->network_name = std::string(name, strnlen(name, 16));
-            pi->ext_pan_id = ext_pan_string(p + o + 18);
+            pi->ext_pan_id = thread_ext_pan_string(p + o + 18);
+
+            if (!(flags & 0x01)) {
+                pi->thread_join = thread_join_state::closed;
+            } else {
+                pi->thread_join = thread_join_state::specific;
+                meshcop_tlvs(p + o + 26, n - o - 26, [&](unsigned int t, const uint8_t *v, size_t l) {
+                    if (t == meshcop_steering && l >= 1 && l <= 16)
+                        pi->thread_join = thread_steering(v, l);
+                });
+            }
         }
 
         return true;
@@ -427,8 +606,15 @@ static bool read_payload(unsigned int frame_type, bool has_mac_src, const uint8_
 
     // 6LoWPAN, by its whole header; MLE (UDP port 19788) is Thread
     if (lowpan_frame(p, n)) {
-        pi->network = lowpan_udp_dport(p, n) == 19788 ?
-            net_kind::thread : net_kind::lowpan;
+        lowpan_udp_datagram u;
+
+        if (lowpan_udp(p, n, u) && (u.dport == thread_mle_port || u.sport == thread_mle_port)) {
+            pi->network = net_kind::thread;
+            read_mle(u.data, u.len, pi);
+        } else {
+            pi->network = net_kind::lowpan;
+        }
+
         return true;
     }
 
@@ -606,6 +792,14 @@ kis_802154_phy::kis_802154_phy(int in_phyid) :
                 "to joining devices), or secured NWK frames with a publicly known network key such "
                 "as the TI Z-Stack default.  Anyone who receives these frames can decrypt the "
                 "network's traffic.", phyid);
+
+    alert_threadjoin_ref =
+        alertracker->activate_configured_alert("THREADJOINABLE",
+                "OTHER", kis_alert_severity::low,
+                "A Thread network is accepting new devices: a router's Discovery Response or Thread "
+                "1.1 beacon shows that its commissioner lets any device, or devices it lists, join "
+                "with the network's joining credential.  Networks open for joining while a device "
+                "is added; one left open, or opened unexpectedly, lets other devices join.", phyid);
 
     // The user's own keys, zigbee_key=name,key (16 octets in hex, colons and spaces allowed)
     auto sv_trim = [](std::string_view s) {
@@ -1161,6 +1355,11 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     // ZIGBEEWEAKKEY alerts to raise once the device list is unlocked
     std::vector<std::string> weak_key_alerts;
 
+    // A THREADJOINABLE alert to raise once the device list is unlocked, with its PAN and state
+    std::string thread_join_alert;
+    uint16_t thread_join_pan = 0;
+    auto thread_join = thread_join_state::unknown;
+
     if (in_pack->duplicate && addr_present(source)) {
         auto source_dev =
             mphy->devicetracker->update_common_device(source,
@@ -1231,6 +1430,18 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             }
             if (pi->stack_profile)
                 source_kis_802154->set_stack_profile(pi->stack_profile);
+
+            // Thread: what a router says of its network, and what a device looking for one is doing
+            if (pi->thread_version)
+                source_kis_802154->set_thread_version(pi->thread_version);
+            if (pi->thread_join != thread_join_state::unknown) {
+                source_kis_802154->set_thread_joining(pi->thread_join);
+                source_kis_802154->set_thread_native(pi->thread_native);
+            }
+            if (pi->thread_joiner_port)
+                source_kis_802154->set_thread_joiner_port(pi->thread_joiner_port);
+            if (pi->thread_disc != thread_disc_state::none)
+                source_kis_802154->set_thread_discovery(pi->thread_disc);
 
             // The role a beacon shows: the PAN coordinator, or a beaconing router; in Zigbee every
             // router beacons, in Thread none does after 1.1
@@ -1330,6 +1541,47 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                                     source.mac_to_string(), src_pan, pi->nwk_key_name,
                                     mphy->show_keys ? " (" + pi->nwk_key + ")" : ""));
                 }
+            }
+        }
+
+        // Thread PANs: a frame that shows its PAN is Thread teaches it, and a device on a known
+        // Thread PAN is Thread, with the network's name, unless its own frames say Zigbee.  Most
+        // Thread frames are encrypted, so this is how most Thread devices are known.
+        if (src_pan != 0xFFFF) {
+            const unsigned int channel = channel_number(in_pack->common_info.channel);
+
+            if (pi != nullptr && pi->network == net_kind::thread)
+                mphy->learn_thread_pan(src_pan, channel, pi->network_name, pi->ext_pan_id);
+
+            const auto rank = source_kis_802154->get_network_rank();
+            std::string name, ext_pan_id;
+
+            if ((rank == static_cast<uint8_t>(net_kind::unknown) ||
+                        rank == static_cast<uint8_t>(net_kind::lowpan) ||
+                        rank == static_cast<uint8_t>(net_kind::thread)) &&
+                    mphy->find_thread_pan(src_pan, channel, name, ext_pan_id)) {
+                if (rank != static_cast<uint8_t>(net_kind::thread)) {
+                    source_kis_802154->set_network_rank(static_cast<uint8_t>(net_kind::thread));
+                    source_kis_802154->set_network_type("Thread");
+                }
+                if (!name.empty() && source_kis_802154->get_network_name() != name)
+                    source_kis_802154->set_network_name(name);
+                if (!ext_pan_id.empty() && source_kis_802154->get_ext_pan_id() != ext_pan_id)
+                    source_kis_802154->set_ext_pan_id(ext_pan_id);
+            }
+
+            // A network open to new devices, once per PAN each time it opens
+            if (pi != nullptr && pi->thread_join != thread_join_state::unknown &&
+                    mphy->alert_threadjoin_ref >= 0 && mphy->thread_alert_due(src_pan, pi->thread_join)) {
+                thread_join_pan = src_pan;
+                thread_join = pi->thread_join;
+                thread_join_alert = fmt::format("Thread network {}{} on PAN 0x{:04x} is accepting {}: "
+                        "router {} says so in its {}", pi->network_name.empty() ? "(unnamed)" :
+                        "'" + pi->network_name + "'", pi->ext_pan_id.empty() ? "" :
+                        " (extended PAN ID " + pi->ext_pan_id + ")", src_pan,
+                        pi->thread_join == thread_join_state::any ? "any new device" :
+                        "the new devices its commissioner lists", source.mac_to_string(),
+                        pi->beacon ? "beacon" : "Discovery Response");
             }
         }
 
@@ -1439,6 +1691,12 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             source_dev->set_crypt_string("802.15.4 MAC: not checked");
     }
 
+    // Not raised (the rate limit): due again with the next frame that shows it
+    if (!thread_join_alert.empty() &&
+            mphy->alertracker->raise_alert(mphy->alert_threadjoin_ref, in_pack.get(), mac_addr{},
+                source, dest, mac_addr{}, in_pack->common_info.channel, thread_join_alert) != 1)
+        mphy->unmark_thread_alert(thread_join_pan, thread_join);
+
     // Alerts held back by the rate limit first, in order, as far as it lets them through (they
     // are no longer this frame's, so no packet goes with them); then this frame's, which wait in
     // turn when they cannot go now
@@ -1500,6 +1758,81 @@ void kis_802154_phy::learn_ieee(uint32_t pan_short, const mac_addr& ieee) {
 
     ieee_by_short.emplace(pan_short, ieee);
     ieee_by_short_order.push_back(pan_short);
+}
+
+void kis_802154_phy::learn_thread_pan(uint16_t pan, unsigned int channel,
+        const std::string& name, const std::string& ext_pan_id) {
+    kis_lock_guard<kis_mutex> lk(thread_pan_mutex, "802154_learn_thread_pan");
+
+    auto ti = thread_pans.find(pan);
+
+    if (ti == thread_pans.end()) {
+        if (thread_pans.size() >= thread_pan_max) {
+            thread_pans.erase(thread_pan_order.front());
+            thread_pan_order.pop_front();
+        }
+
+        ti = thread_pans.emplace(pan, thread_pan{}).first;
+        thread_pan_order.push_back(pan);
+    }
+
+    if (channel != 0)
+        ti->second.channel = channel;
+    if (!name.empty())
+        ti->second.name = name;
+    if (!ext_pan_id.empty())
+        ti->second.ext_pan_id = ext_pan_id;
+}
+
+bool kis_802154_phy::find_thread_pan(uint16_t pan, unsigned int channel, std::string& name,
+        std::string& ext_pan_id) {
+    kis_lock_guard<kis_mutex> lk(thread_pan_mutex, "802154_find_thread_pan");
+
+    auto ti = thread_pans.find(pan);
+
+    if (ti == thread_pans.end())
+        return false;
+
+    if (channel != 0 && ti->second.channel != 0 && channel != ti->second.channel)
+        return false;
+
+    name = ti->second.name;
+    ext_pan_id = ti->second.ext_pan_id;
+    return true;
+}
+
+bool kis_802154_phy::thread_alert_due(uint16_t pan, thread_join_state state) {
+    kis_lock_guard<kis_mutex> lk(thread_pan_mutex, "802154_thread_alert_due");
+
+    auto ti = thread_pans.find(pan);
+
+    if (ti == thread_pans.end())
+        return false;
+
+    if (state == thread_join_state::closed) {
+        ti->second.alerted = 0;
+        return false;
+    }
+
+    // Once while it's open, and again when it widens from listed devices to any
+    const uint8_t bit = (uint8_t) (1u << static_cast<uint8_t>(state));
+    const uint8_t any_bit = (uint8_t) (1u << static_cast<uint8_t>(thread_join_state::any));
+
+    if ((ti->second.alerted & bit) || (state != thread_join_state::any && ti->second.alerted != 0) ||
+            (ti->second.alerted & any_bit))
+        return false;
+
+    ti->second.alerted |= bit;
+    return true;
+}
+
+void kis_802154_phy::unmark_thread_alert(uint16_t pan, thread_join_state state) {
+    kis_lock_guard<kis_mutex> lk(thread_pan_mutex, "802154_unmark_thread_alert");
+
+    auto ti = thread_pans.find(pan);
+
+    if (ti != thread_pans.end())
+        ti->second.alerted &= (uint8_t) ~(1u << static_cast<uint8_t>(state));
 }
 
 void kis_802154_phy::load_phy_storage(
