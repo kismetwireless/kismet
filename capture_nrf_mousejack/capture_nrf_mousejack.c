@@ -52,6 +52,11 @@ typedef struct {
      * remember the last channel used */
     unsigned int channel;
 
+    /* A channel change waiting for the capture thread, under chan_mutex */
+    pthread_mutex_t chan_mutex;
+    unsigned int pending_channel;
+    int channel_pending;
+
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
@@ -67,6 +72,8 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
     int r;
 
     cmdbuf = (uint8_t *) malloc(len + 1);
+    if (cmdbuf == NULL)
+        return LIBUSB_ERROR_NO_MEM;
     cmdbuf[0] = request;
 
     if (len > 0) 
@@ -117,6 +124,8 @@ int nrf_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t *prefix, size_t 
         return -1;
 
     prefix_buf = (unsigned char *) malloc(prefix_len + 1);
+    if (prefix_buf == NULL)
+        return -1;
     prefix_buf[0] = prefix_len;
 
     if (prefix_len > 0) {
@@ -554,25 +563,47 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     return ret_localchan;
 }
 
+/* The hop thread calls this holding the framework lock.  Waiting here for the USB
+ * lock, which the capture thread holds through each read, can keep the framework
+ * from answering Kismet's pings until the source times out, so the capture thread
+ * makes the change between reads instead. */
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
 
-    int r;
-
     if (privchan == NULL) {
         return 0;
     }
 
-    r = nrf_set_channel(caph, channel->channel);
+    pthread_mutex_lock(&(localnrf->chan_mutex));
+    localnrf->pending_channel = channel->channel;
+    localnrf->channel_pending = 1;
+    pthread_mutex_unlock(&(localnrf->chan_mutex));
 
-    if (r < 0)
+    return 1;
+}
+
+/* Apply a waiting channel change; returns < 0 if the device didn't take it */
+static int apply_pending_channel(kis_capture_handler_t *caph) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    unsigned int channel;
+
+    pthread_mutex_lock(&(localnrf->chan_mutex));
+    if (!localnrf->channel_pending) {
+        pthread_mutex_unlock(&(localnrf->chan_mutex));
+        return 0;
+    }
+    channel = localnrf->pending_channel;
+    localnrf->channel_pending = 0;
+    pthread_mutex_unlock(&(localnrf->chan_mutex));
+
+    if (nrf_set_channel(caph, channel) < 0)
         return -1;
 
-    localnrf->channel = channel->channel;
-   
-    return 1;
+    localnrf->channel = channel;
+
+    return 0;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -595,6 +626,14 @@ void capture_thread(kis_capture_handler_t *caph) {
                 localnrf->nrf_handle = NULL;
             }
 
+            break;
+        }
+
+        if (apply_pending_channel(caph) < 0) {
+            snprintf(errstr, STATUS_MAX, "mousejack NRF interface 'mousejack-%u-%u' channel "
+                    "unable to be set", localnrf->busno, localnrf->devno);
+            cf_send_error(caph, 0, errstr);
+            cf_handler_spindown(caph);
             break;
         }
 
@@ -654,6 +693,7 @@ int main(int argc, char *argv[]) {
     };
 
     pthread_mutex_init(&(localnrf.usb_mutex), NULL);
+    pthread_mutex_init(&(localnrf.chan_mutex), NULL);
 
     kis_capture_handler_t *caph = cf_handler_init("nrfmousejack");
     int r;

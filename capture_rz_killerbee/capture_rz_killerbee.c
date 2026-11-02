@@ -27,6 +27,11 @@ typedef struct {
 	 * remember the last channel used */
 	unsigned int channel;
 
+	/* A channel change waiting for the capture thread, under chan_mutex */
+	pthread_mutex_t chan_mutex;
+	unsigned int pending_channel;
+	int channel_pending;
+
 	/*keep track of our errors so we can reset if needed*/
 	unsigned int error_ctr;
 
@@ -617,28 +622,51 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
 	return ret_localchan;
 }
 
+/* The hop thread calls this holding the framework lock.  Waiting here for the USB
+ * lock, which the capture thread holds through each read, can keep the framework
+ * from answering Kismet's pings until the source times out, so the capture thread
+ * makes the change between reads instead. */
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
 	local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
 	local_channel_t *channel = (local_channel_t *) privchan;
-	int r;
 
 	if (privchan == NULL) {
 		return 0;
 	}
 
+	pthread_mutex_lock(&(localrz_killerbee->chan_mutex));
+	localrz_killerbee->pending_channel = channel->channel;
+	localrz_killerbee->channel_pending = 1;
+	pthread_mutex_unlock(&(localrz_killerbee->chan_mutex));
+
+	return 1;
+}
+
+/* Apply a waiting channel change; returns < 0 if the device didn't take it */
+static int apply_pending_channel(kis_capture_handler_t *caph) {
+	local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
+	unsigned int channel;
+
+	pthread_mutex_lock(&(localrz_killerbee->chan_mutex));
+	if (!localrz_killerbee->channel_pending) {
+		pthread_mutex_unlock(&(localrz_killerbee->chan_mutex));
+		return 0;
+	}
+	channel = localrz_killerbee->pending_channel;
+	localrz_killerbee->channel_pending = 0;
+	pthread_mutex_unlock(&(localrz_killerbee->chan_mutex));
+
 	rz_killerbee_close_stream(caph);
 
-	r = rz_killerbee_set_channel(caph, channel->channel);
-
-	if (r < 0)
+	if (rz_killerbee_set_channel(caph, channel) < 0)
 		return -1;
 
-	localrz_killerbee->channel = channel->channel;
+	localrz_killerbee->channel = channel;
 
 	if (rz_killerbee_open_stream(caph) < 0)
 		return -1;
 
-	return 1;
+	return 0;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -667,6 +695,16 @@ void capture_thread(kis_capture_handler_t *caph) {
 
 			break;
 		}
+
+		if (apply_pending_channel(caph) < 0) {
+			snprintf(errstr, STATUS_MAX,
+					"RZ KILLERBEE interface 'rz_killerbee-%u-%u' channel unable to be set",
+					localrz_killerbee->busno, localrz_killerbee->devno);
+			cf_send_error(caph, 0, errstr);
+			cf_handler_spindown(caph);
+			break;
+		}
+
 		if (localrz_killerbee->ready) {
 			buf_rx_len = rz_killerbee_receive_payload(caph, usb_buf, 256);
 			if (buf_rx_len < 0) {
@@ -725,6 +763,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	pthread_mutex_init(&(localrz_killerbee.usb_mutex), NULL);
+	pthread_mutex_init(&(localrz_killerbee.chan_mutex), NULL);
 
 	kis_capture_handler_t *caph = cf_handler_init("rz_killerbee");
 	int r;
