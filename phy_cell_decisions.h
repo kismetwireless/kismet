@@ -176,6 +176,11 @@ plmn_t plmn_from_numbers(int64_t mcc, int64_t mnc);
  * AT field, and taking the lossless half beats discarding both. */
 plmn_t plmn_from_json(const nlohmann::json& j);
 
+/* True for the RATs written to WiGLE: GSM, WCDMA, LTE and NR, its own type names.
+ * WiGLE keys a CDMA cell SID_NID_BID, which no cell source carries, so CDMA is left
+ * out rather than written under an MCC+MNC key WiGLE would read as a different cell. */
+bool wigle_cell_type(const std::string& rat);
+
 /* True for the MCC blocks that broadcast 3-digit MNCs (North America and a
  * documented handful of others). Exposed for the test and for AT-side callers
  * that need the same rule. */
