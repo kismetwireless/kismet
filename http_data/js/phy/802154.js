@@ -5,6 +5,10 @@ const d = '802154.device';
 
 const hex = (digits) => (v) => `0x${v.toString(16).padStart(digits, '0')}`;
 
+const threadVersions = { 1: 'Thread 1.0', 2: 'Thread 1.1', 3: 'Thread 1.2', 4: 'Thread 1.3', 5: 'Thread 1.4' };
+const threadJoining = { 1: 'No', 2: 'Devices its commissioner lists', 3: 'Any device' };
+const threadDiscovery = { 1: 'Looking for Thread networks', 2: 'Looking for a network to join' };
+
 export function register(kismet) {
     const { ui, icons } = kismet;
     // Search box names for the 802.15.4 details
@@ -15,6 +19,9 @@ export function register(kismet) {
     filterHint('802154_ext_pan_id', ['ext_pan_id'], 'ext_pan_id', { filterEmpty: '' });
     filterHint('802154_network_name', ['network_name'], 'network_name', { filterEmpty: '' });
     filterHint('802154_role', ['role'], 'role', { filterEmpty: '' });
+    filterHint('802154_thread_version', ['thread_version'], 'thread_version', { filterKind: 'number', filterEmpty: 0 });
+    // 1 no, 2 listed devices, 3 any: "joining > 1" finds the open networks
+    filterHint('802154_thread_joining', ['joining', 'thread_joining'], 'thread_joining', { filterKind: 'number', filterEmpty: 0 });
 
     const is802154 = (row) => row[`${base}.phyname`] === '802.15.4';
 
@@ -81,7 +88,7 @@ export function register(kismet) {
         match: (device) => device[`${base}.phyname`] === '802.15.4' && d in device,
         fields: [
             { title: 'Network', field: `${d}/${d}.network_type`, hideEmpty: true, empty: ui.muted('Unknown'),
-                help: 'What the frames carry: a Zigbee network header or beacon, Zigbee Green Power, Thread (its beacon, or MLE over 6LoWPAN), or other 6LoWPAN traffic.' },
+                help: 'What the frames carry: a Zigbee network header or beacon, Zigbee Green Power, Thread (its beacon, MLE over 6LoWPAN, or a PAN that Thread traffic has shown to be a Thread network), or other 6LoWPAN traffic.' },
             { title: 'Role', field: `${d}/${d}.role`, hideEmpty: true, empty: ui.muted('Unknown'),
                 help: 'From its beacons: the PAN coordinator, or a router (Zigbee routers send beacons).' },
             { title: 'PAN ID', field: `${d}/${d}.pan_id`, format: hexOrUnknown(4) },
@@ -95,6 +102,20 @@ export function register(kismet) {
             { title: 'Network name', field: `${d}/${d}.network_name`, hideEmpty: true },
             { title: 'Zigbee stack profile', field: `${d}/${d}.stack_profile`, hideZero: true,
                 format: (v) => ({ 1: 'Zigbee', 2: 'Zigbee PRO' }[v] ?? `Profile ${v}`) },
+            { title: 'Thread version', field: `${d}/${d}.thread_version`, hideZero: true,
+                format: (v) => threadVersions[v] ?? `Version ${v}`,
+                help: 'The Thread version its Discovery Response or beacon gives for its network, or its own in a discovery request.' },
+            { title: 'Accepting new devices', field: `${d}/${d}.thread_joining`, hideZero: true,
+                format: (v) => threadJoining[v] ?? String(v),
+                help: 'Whether its Thread network lets new devices join, from a router\'s Discovery Response or beacon: any device with the network\'s joining credential, only the devices its commissioner lists, or none.  Matter devices usually join through Bluetooth instead, so a Matter network can show "No" while devices are being added.' },
+            { title: 'Native commissioner', field: `${d}/${d}.thread_native`,
+                format: (v) => (v ? 'Allowed' : 'Not allowed'),
+                help: 'Whether its Thread network lets a commissioner on the Thread network itself (rather than through a border router) add devices.' },
+            { title: 'Joiner port', field: `${d}/${d}.thread_joiner_port`, hideZero: true,
+                help: 'The UDP port devices joining its Thread network use to reach this router.' },
+            { title: 'Thread discovery', field: `${d}/${d}.thread_discovery`, hideZero: true,
+                format: (v) => threadDiscovery[v] ?? String(v),
+                help: 'From its Thread discovery requests: a device looking for a network to join, or one looking for networks (a commissioner, border router or phone app).' },
         ],
     });
 }
