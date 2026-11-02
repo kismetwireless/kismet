@@ -206,8 +206,8 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_ignore_random", false);
 
     if (ignore_random)
-        _MSG_INFO("Ignoring BTLE devices with random MAC addresses (except Remote ID and "
-                "location trackers)");
+        _MSG_INFO("Ignoring BTLE devices with rotating random MAC addresses (static random "
+                "addresses, Remote ID and location trackers are kept)");
 
     distance_exponent = btle_distance_exponent();
 
@@ -904,8 +904,10 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
 
     bool is_tracker = frames.any();
 
-    // Drop randoms
+    // Drop rotating random addresses, the flood of short-lived devices.  Static random
+    // addresses last until the device is reset, so fixed devices using them are kept.
     if (decode.is_txaddr_random() && ignore_random &&
+            btle_random_address_rotates(in_pack->common_info.source[0]) &&
             remoteid == nullptr && !is_tracker)
         return false;
 

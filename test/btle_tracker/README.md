@@ -11,7 +11,8 @@ with random addresses: Samsung SmartTags in two states, Apple Find My frames fro
 (separated), AirPods (near owner) and an Apple device that is not a tracker, a Google FMDN tag
 in unwanted tracking protection mode, an Eddystone frame, a tracker that only sends the DULT
 advertisement, an FMDN tag that sends its FMDN and DULT advertisements in turns, an FD5A
-advertisement with another frame id, and a plain advertiser.  `run.sh` replays it through a
+advertisement with another frame id, and a plain advertiser, all with rotating (resolvable)
+addresses, plus a plain advertiser with a static random address.  `run.sh` replays it through a
 Kismet build, once with the default settings and once with `btle_ignore_random=true`, and checks
 the `btle.device.tracker` fields of each device:
 

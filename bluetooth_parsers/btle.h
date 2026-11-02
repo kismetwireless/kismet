@@ -43,6 +43,12 @@ inline constexpr const char *btle_random_address_type(uint8_t msb) {
     }
 }
 
+// Whether a random address changes over time: every kind but static (reserved ones too,
+// since they aren't a valid static address)
+inline constexpr bool btle_random_address_rotates(uint8_t msb) {
+    return (msb >> 6) != 0x03;
+}
+
 class bluetooth_btle {
 public:
     class bluetooth_btle_advdata;
