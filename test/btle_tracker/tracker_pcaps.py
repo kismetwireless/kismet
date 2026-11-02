@@ -14,7 +14,9 @@
 #   42:00:00:b2:fc:01  DULT only, separated, network ID 7, proprietary payload
 #   42:00:00:b2:fc:02  Google FMDN (normal) and DULT (separated, network ID 2) in turns
 #   42:00:00:00:00:99  plain advertiser with a name and no service data
-#   c2:00:00:00:00:98  plain advertiser with a static address, kept with btle_ignore_random
+#   c2:00:00:00:00:98  plain advertiser with a static address, kept with btle_ignore_random,
+#                      with 16-bit service data (FEAF)
+#   c2:00:00:00:00:97  static address, 32-bit and 128-bit service data
 import struct, sys
 
 AA = 0x8E89BED6
@@ -81,7 +83,8 @@ ADVERTISERS = [
     ("42:00:00:b2:fc:01", [FLAGS + dult(0x07, 0x00, bytes.fromhex("01020304"))]),
     ("42:00:00:b2:fc:02", [FLAGS + fmdn(0x40, 20, False), FLAGS + dult(0x02, 0x00, b"")]),
     ("42:00:00:00:00:99", [FLAGS + ad(0x09, b"tracker-test")]),
-    ("c2:00:00:00:00:98", [FLAGS + ad(0x09, b"static-test")]),
+    ("c2:00:00:00:00:98", [FLAGS + ad(0x09, b"static-test") + ad(0x16, b"\xaf\xfe\x01\x02\x03\x04")]),
+    ("c2:00:00:00:00:97", [ad(0x20, b"\x04\x03\x02\x01\xaa") + ad(0x21, bytes(range(16)) + b"\xbb\xcc")]),
 ]
 
 def main():

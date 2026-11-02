@@ -635,6 +635,9 @@ public:
    __Proxy(manuf_company_id, std::string, std::string, std::string, manuf_company_id);
    __Proxy(manuf_data, std::string, std::string, std::string, manuf_data);
 
+   // Service Data by service UUID, the most recent payload of each as hex
+   __ProxyDynamicTrackable(service_data, tracker_element_string_map, service_data, service_data_id);
+
    // Set when btle_link_randomized links this address to others of the same device
    __ProxyDynamic(alias_group, std::string, std::string, std::string, alias_group, alias_group_id);
    __ProxyDynamic(alias_method, std::string, std::string, std::string, alias_method, alias_method_id);
@@ -685,6 +688,9 @@ protected:
         register_field("btle.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
         register_field("btle.device.manuf_company_id", "manufacturer company ID", &manuf_company_id);
         register_field("btle.device.manuf_data", "manufacturer data payload", &manuf_data);
+        service_data_id =
+            register_dynamic_field("btle.device.service_data",
+                    "most recent service data payload of each service UUID, hex", &service_data);
 
         alias_group_id =
             register_dynamic_field("btle.device.alias_group",
@@ -747,6 +753,8 @@ protected:
     std::shared_ptr<tracker_element_vector_string> service_uuid_vec;
     std::shared_ptr<tracker_element_string> manuf_company_id;
     std::shared_ptr<tracker_element_string> manuf_data;
+    std::shared_ptr<tracker_element_string_map> service_data;
+    uint16_t service_data_id;
 
     std::shared_ptr<btle_tracked_tracker> tracker;
     uint16_t tracker_id;
