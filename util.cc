@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <math.h>
+#include <cmath>
 #include <string.h>
 
 #include <algorithm>
@@ -1190,30 +1191,34 @@ bool iequals(const std::string& a, const std::string& b) {
 }
 
 uint64_t human_to_freq_khz(const std::string &s) {
+    // A bare number is kHz; a Hz, kHz, MHz or GHz suffix is scaled to kHz
     auto ds = s;
-    int scale = 1;
+    double scale = 1;
 
-    try {
-        auto unit = s.substr(s.length() - 3, 3);
+    auto has_unit = [&s](const std::string& unit) {
+        return s.length() > unit.length() &&
+            iequals(s.substr(s.length() - unit.length()), unit);
+    };
 
-        if (iequals(unit, "khz")) {
-            ds = s.substr(0, s.length() - 3);
-            scale = 1000;
-        } else if (iequals(unit, "mhz")) {
-            ds = s.substr(0, s.length() - 3);
-            scale = 1000*1000;
-        } else if (iequals(unit, "ghz")) {
-            ds = s.substr(0, s.length() - 3);
-            scale = 1000*1000*1000;
-        } else if (iequals(unit.substr(1, 2), "hz")) {
-            ds = s.substr(0, s.length() - 2);
-            scale = 1;
-        }
-    } catch (...) { }
+    if (has_unit("khz")) {
+        ds = s.substr(0, s.length() - 3);
+    } else if (has_unit("mhz")) {
+        ds = s.substr(0, s.length() - 3);
+        scale = 1000;
+    } else if (has_unit("ghz")) {
+        ds = s.substr(0, s.length() - 3);
+        scale = 1000 * 1000;
+    } else if (has_unit("hz")) {
+        ds = s.substr(0, s.length() - 2);
+        scale = 0.001;
+    }
 
-    auto v = string_to_n<uint64_t>(ds);
+    auto v = string_to_n<double>(ds) * scale;
 
-    return v * scale;
+    if (!std::isfinite(v) || v < 0 || v > 1e12)
+        throw std::runtime_error(fmt::format("invalid frequency '{}'", s));
+
+    return static_cast<uint64_t>(std::llround(v));
 }
 
 bool regex_string_compare(const std::string& restr, const std::string& content) {
