@@ -28,6 +28,23 @@
 #include "packetchain.h"
 #include "base64.h"
 
+// A log title from the API becomes part of the log file name, so only
+// accept plain filename characters, never a leading '.', and a bounded length
+static bool valid_api_log_title(const std::string& title) {
+    constexpr size_t max_title_len = 64;
+
+    if (title.empty() || title.length() > max_title_len || title[0] == '.')
+        return false;
+
+    for (auto c : title) {
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                    (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-'))
+            return false;
+    }
+
+    return true;
+}
+
 log_tracker::log_tracker() :
     tracker_component(),
     lifetime_global() {
@@ -231,7 +248,22 @@ void log_tracker::trigger_deferred_startup() {
                     if (builder == nullptr)
                         throw std::runtime_error("invalid logclass");
 
-                    shared_logfile logf = open_log(builder);
+                    // An optional title names only this log; the session title is unchanged
+                    auto title = get_log_title();
+                    auto title_j = con->json().find("title");
+
+                    if (title_j != con->json().end() && !title_j->is_null()) {
+                        if (!title_j->is_string())
+                            throw std::runtime_error("invalid title");
+
+                        title = title_j->get<std::string>();
+
+                        if (!valid_api_log_title(title))
+                            throw std::runtime_error("invalid title, expected 1-64 characters of "
+                                    "A-Z a-z 0-9 . _ - not starting with '.'");
+                    }
+
+                    shared_logfile logf = open_log(builder, title);
 
                     if (logf == nullptr)
                         throw std::runtime_error("unable to open log");
