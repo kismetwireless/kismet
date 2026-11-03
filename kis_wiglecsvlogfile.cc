@@ -358,15 +358,15 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
         std::string type;
 
-        switch (static_cast<bt_device_type>(bt->get_bt_device_type())) {
-            case bt_device_type::btle:
-                crypt = "Misc [LE]";
-                type = "BLE";
-                break;
-            default:
-                crypt = "Misc [BT]";
-                type = "BT";
-                break;
+        // Scan reports never set the bt device type, so a type string of "BTLE",
+        // "BTLE Tracker" etc marks LE as well; matches kismetdb_to_wiglecsv
+        if (static_cast<bt_device_type>(bt->get_bt_device_type()) == bt_device_type::btle ||
+                dev->get_type_string().rfind("BTLE", 0) == 0) {
+            crypt = "Misc [LE]";
+            type = "BLE";
+        } else {
+            crypt = "Misc [BT]";
+            type = "BT";
         }
 
         // [bd_addr],[device name],[capabilities],[first timestamp seen],[channel],
