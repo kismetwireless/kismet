@@ -296,6 +296,11 @@ public:
     virtual void set_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
 
+    // Send the hop pattern or the fixed channel the source had again.  A capture tool
+    // started by a new open sits on one channel until it's told to hop, so anything that
+    // re-opens a source (the open_source API, a plugin) calls this after a successful open.
+    void reapply_channel_config();
+
     // Override one source-definition option, to take effect on the NEXT open.
     // Public wrapper over the protected update_source_definition()
     // so a web route can reach it.

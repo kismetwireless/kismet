@@ -410,6 +410,22 @@ void kis_datasource::set_channel(std::string in_channel, unsigned int in_transac
     send_configure_channel(in_channel, in_transaction, in_cb);
 }
 
+void kis_datasource::reapply_channel_config() {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource reapply_channel_config");
+
+    if (get_source_hopping()) {
+        // Reset the channel hop if we're hopping
+        set_channel_hop(get_source_hop_rate(),
+                get_source_hop_vec(),
+                get_source_hop_shuffle(),
+                get_source_hop_offset(),
+                0, NULL);
+    } else if (get_source_channel() != "") {
+        // Reset the fixed channel if we have one
+        set_channel(get_source_channel(), 0, NULL);
+    }
+}
+
 void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
         configure_callback_t in_cb) {
@@ -4082,17 +4098,7 @@ void kis_datasource::handle_source_error() {
                                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
                             alertracker->raise_one_shot("SOURCEOPEN", "SYSTEM", kis_alert_severity::info, alrt, -1);
 
-                            if (get_source_hopping()) {
-                                // Reset the channel hop if we're hopping
-                                set_channel_hop(get_source_hop_rate(),
-                                        get_source_hop_vec(),
-                                        get_source_hop_shuffle(),
-                                        get_source_hop_offset(),
-                                        0, NULL);
-                            } else if (get_source_channel() != "") {
-                                // Reset the fixed channel if we have one
-                                set_channel(get_source_channel(), 0, NULL);
-                            }
+                            reapply_channel_config();
 
                         });
 

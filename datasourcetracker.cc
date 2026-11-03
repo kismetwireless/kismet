@@ -937,7 +937,11 @@ void datasource_tracker::trigger_deferred_startup() {
                     ds->clear_source_disabled();
 
                     ds->open_interface(ds->get_source_definition(), 0,
-                            [&set_success, &set_promise](unsigned int, bool success, std::string) mutable {
+                            [ds, &set_success, &set_promise](unsigned int, bool success, std::string) mutable {
+                            // The new capture tool starts on one channel; hop or tune it as before,
+                            // ahead of any restore a source does after this callback
+                            if (success)
+                                ds->reapply_channel_config();
                             set_success = success;
                             set_promise.set_value();
                             });
