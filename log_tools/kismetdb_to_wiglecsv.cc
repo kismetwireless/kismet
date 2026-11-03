@@ -960,7 +960,10 @@ int main(int argc, char *argv[]) {
                     strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
                     ts << tmstr;
 
-                    if (type == "BTLE") {
+                    // Every device of the BTLE phy is LE, whatever its type ("BTLE",
+                    // "BTLE Tracker", or "BTLE Device" in older logs); Bluetooth phy
+                    // devices are LE when their type says so
+                    if (phy == "BTLE" || type.rfind("BTLE", 0) == 0) {
                         crypt = "Misc [LE]";
                         mod_type = "BLE";
                     } else {
