@@ -220,7 +220,8 @@ kismet_ui.AddDeviceRowHighlight({
         'kismet.device.base.type',
     ],
     selector: function(data) {
-        return (data['kismet.device.base.type'] === 'BTLE');
+        // "BTLE", "BTLE Tracker", and the like
+        return String(data['kismet.device.base.type'] || '').startsWith('BTLE');
     }
 });
 

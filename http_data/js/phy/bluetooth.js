@@ -48,7 +48,8 @@ export function register(kismet) {
         description: 'Bluetooth Low Energy devices',
         defaultColor: '#b3d9ff',
         fields: [`${base}.type`],
-        match: (row) => row[`${base}.type`] === 'BTLE',
+        // "BTLE", "BTLE Tracker", and the like
+        match: (row) => String(row[`${base}.type`] ?? '').startsWith('BTLE'),
     });
 
     const b = 'bluetooth.device';
