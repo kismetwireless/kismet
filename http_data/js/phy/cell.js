@@ -315,7 +315,7 @@ export function register(kismet) {
             { title: 'Seen via', field: c('seen_via'), wide: true,
                 show: (v) => v && Object.keys(v).length > 0,
                 format: (v) => el('table', { class: 'ds-census' },
-                    el('tr', {}, ['Source', 'From', 'Observations', 'Last seen', 'Fields'].map((h) => el('th', {}, h))),
+                    el('tr', {}, ['Src', 'From', 'Obsrvd', 'Last seen', 'Fields'].map((h) => el('th', {}, h))),
                     Object.keys(v).sort().map((src) => {
                         const rec = v[src];
                         const last = rec['cellular.prov.last_seen'];

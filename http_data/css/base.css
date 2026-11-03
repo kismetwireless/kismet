@@ -1596,6 +1596,7 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .ds-census { border-collapse: collapse; font-size: 0.88em; font-variant-numeric: tabular-nums; }
 .ds-census th, .ds-census td { text-align: left; padding: 0.1rem 0.7rem 0.1rem 0; }
 .ds-census th { color: var(--muted); font-weight: 500; }
+.ds-census th, .ds-census td:not(:last-child) { white-space: nowrap; }
 .ds-hint { font-size: 0.85em; color: var(--muted); margin-top: 0.2rem; }
 .warn-text { color: var(--warn); }
 .ok-text { color: var(--ok); }
