@@ -1253,10 +1253,10 @@ bool regex_string_compare(const std::string& restr, const std::string& content) 
     }
 
     int ovector[128];
-    rc = pcre_exec(re, study, contente.c_str(), content.length(), 0, 0, ovector, 128);
+    rc = pcre_exec(re, study, content.c_str(), content.length(), 0, 0, ovector, 128);
 
     pcre_free(re);
-    pcre_free(study);
+    pcre_free_study(study);
 
 #elif defined(HAVE_LIBPCRE2)
     PCRE2_SIZE erroroffset;

@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
             if (re != NULL)
                 pcre_free(re);
             if (study != NULL)
-                pcre_free(study);
+                pcre_free_study(study);
         }
 
         bool match(const std::string& target) {
