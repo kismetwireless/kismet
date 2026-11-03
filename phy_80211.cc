@@ -90,6 +90,13 @@
 
 // static std::atomic<int> packetnum {0};
 
+// The crypt set an encryption change alert compares.  WPS isn't encryption, and only scan
+// reports set it (a WPS element in a beacon goes to the WPS record), so a source of each kind
+// for the same network would otherwise alert on every switch between them.
+static uint64_t crypt_set_for_alert(uint64_t in_crypt_set) {
+    return in_crypt_set & ~((uint64_t) dot11_crypt_akm_wps);
+}
+
 // Convert the beacon interval to # of packets per second
 unsigned int Ieee80211Interval2NSecs(int in_interval) {
     double interval_per_sec;
@@ -2717,7 +2724,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         ssid->set_ietag_checksum(ietag_csum);
 
         if (ssid->get_crypt_set() != cryptset) {
-            if (ssid->get_crypt_set() && cryptset == 0 &&
+            if (crypt_set_for_alert(ssid->get_crypt_set()) && crypt_set_for_alert(cryptset) == 0 &&
                     d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
                 in_pack->tag_map["DOT11_BEACON_SSID"] = true;
 
@@ -2731,7 +2738,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                         in_pack->common_info.network, in_pack->common_info.source,
                         in_pack->common_info.dest, in_pack->common_info.transmitter,
                         in_pack->common_info.channel, al);
-            } else if (ssid->get_crypt_set() != cryptset &&
+            } else if (crypt_set_for_alert(ssid->get_crypt_set()) != crypt_set_for_alert(cryptset) &&
                     d11phy->alertracker->potential_alert(d11phy->alert_cryptchange_ref)) {
 
                 auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
@@ -3460,7 +3467,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
     }
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
-        if (ssid->get_crypt_set() && dot11info->cryptset == 0 &&
+        if (crypt_set_for_alert(ssid->get_crypt_set()) && crypt_set_for_alert(dot11info->cryptset) == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
@@ -3473,7 +3480,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
                     dot11info->channel, al);
-        } else if (ssid->get_crypt_set() != dot11info->cryptset &&
+        } else if (crypt_set_for_alert(ssid->get_crypt_set()) != crypt_set_for_alert(dot11info->cryptset) &&
                 alertracker->potential_alert(alert_cryptchange_ref)) {
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
@@ -4332,7 +4339,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     }
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
-        if (ssid->get_crypt_set() && dot11info->cryptset == 0 &&
+        if (crypt_set_for_alert(ssid->get_crypt_set()) && crypt_set_for_alert(dot11info->cryptset) == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
@@ -4345,7 +4352,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
                     dot11info->channel, al);
-        } else if (ssid->get_crypt_set() != dot11info->cryptset &&
+        } else if (crypt_set_for_alert(ssid->get_crypt_set()) != crypt_set_for_alert(dot11info->cryptset) &&
                 alertracker->potential_alert(alert_cryptchange_ref)) {
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
