@@ -246,7 +246,7 @@ public:
         if (ssid_re != NULL)
             pcre_free(ssid_re);
         if (ssid_study != NULL)
-            pcre_free(ssid_study);
+            pcre_free_study(ssid_study);
 #elif defined(HAVE_LIBPCRE2)
         if (ssid_match_data != NULL)
             pcre2_match_data_free(ssid_match_data);

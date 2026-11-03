@@ -68,7 +68,7 @@ tracker_element_regex_worker::pcre_filter::~pcre_filter() {
     if (re != NULL)
         pcre_free(re);
     if (study != NULL)
-        pcre_free(study);
+        pcre_free_study(study);
 }
 
 #elif defined(HAVE_LIBPCRE2)

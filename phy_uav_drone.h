@@ -518,7 +518,7 @@ public:
         if (re != NULL)
             pcre_free(re);
         if (study != NULL)
-            pcre_free(study);
+            pcre_free_study(study);
 #elif defined(HAVE_LIBPCRE2)
         if (match_data != NULL)
             pcre2_match_data_free(match_data);

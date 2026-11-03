@@ -220,7 +220,7 @@ public:
         if (ssid_re_ != NULL)
             pcre_free(ssid_re_);
         if (ssid_study_ != NULL)
-            pcre_free(ssid_study_);
+            pcre_free_study(ssid_study_);
 
         ssid_re_ = NULL;
         ssid_study_ = NULL;

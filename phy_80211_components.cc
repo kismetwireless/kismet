@@ -64,7 +64,7 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
     if (ssid_re)
         pcre_free(ssid_re);
     if (ssid_study)
-        pcre_free(ssid_study);
+        pcre_free_study(ssid_study);
 
     ssid_regex->set(s);
 
