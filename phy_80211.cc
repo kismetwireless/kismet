@@ -2284,6 +2284,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     return 1;
 }
 
+// WPS isn't encryption, and only scan reports carry it in the crypt set, so a scan
+// report and a beacon from the same AP must not look like an encryption change
+static constexpr uint64_t crypt_for_change_alert(uint64_t crypt) {
+    return crypt & ~static_cast<uint64_t>(dot11_crypt_akm_wps);
+}
+
 // Crypt bits for one Android ScanResult capabilities element (without the
 // brackets), such as "WPA2-PSK-CCMP", "RSN-PSK+PSK-SHA256+SAE-CCMP" or
 // "WPA-EAP-TKIP": the protocol, the '+'-joined key management list and the
@@ -2717,7 +2723,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         ssid->set_ietag_checksum(ietag_csum);
 
         if (ssid->get_crypt_set() != cryptset) {
-            if (ssid->get_crypt_set() && cryptset == 0 &&
+            auto old_crypt = crypt_for_change_alert(ssid->get_crypt_set());
+            auto new_crypt = crypt_for_change_alert(cryptset);
+
+            if (old_crypt && new_crypt == 0 &&
                     d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
                 in_pack->tag_map["DOT11_BEACON_SSID"] = true;
 
@@ -2731,7 +2740,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                         in_pack->common_info.network, in_pack->common_info.source,
                         in_pack->common_info.dest, in_pack->common_info.transmitter,
                         in_pack->common_info.channel, al);
-            } else if (ssid->get_crypt_set() != cryptset &&
+            } else if (old_crypt != new_crypt &&
                     d11phy->alertracker->potential_alert(d11phy->alert_cryptchange_ref)) {
 
                 auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
@@ -3460,7 +3469,10 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
     }
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
-        if (ssid->get_crypt_set() && dot11info->cryptset == 0 &&
+        auto old_crypt = crypt_for_change_alert(ssid->get_crypt_set());
+        auto new_crypt = crypt_for_change_alert(dot11info->cryptset);
+
+        if (old_crypt && new_crypt == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
@@ -3473,7 +3485,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
                     dot11info->channel, al);
-        } else if (ssid->get_crypt_set() != dot11info->cryptset &&
+        } else if (old_crypt != new_crypt &&
                 alertracker->potential_alert(alert_cryptchange_ref)) {
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
@@ -4332,7 +4344,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     }
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
-        if (ssid->get_crypt_set() && dot11info->cryptset == 0 &&
+        auto old_crypt = crypt_for_change_alert(ssid->get_crypt_set());
+        auto new_crypt = crypt_for_change_alert(dot11info->cryptset);
+
+        if (old_crypt && new_crypt == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
@@ -4345,7 +4360,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
                     dot11info->channel, al);
-        } else if (ssid->get_crypt_set() != dot11info->cryptset &&
+        } else if (old_crypt != new_crypt &&
                 alertracker->potential_alert(alert_cryptchange_ref)) {
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
