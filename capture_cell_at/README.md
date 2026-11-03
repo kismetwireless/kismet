@@ -442,9 +442,9 @@ manufacturer and firmware, and list them:
 
 ```
 cellat supported data sources:
-    cellat-123456789012345 (Quectel RM500Q IMEI:123456789012345)
-    cellat-123456789012346 (Quectel EG25 IMEI:123456789012346)
-    cellat-123456789012348 (Telit LM960A18 IMEI:123456789012348)
+    cellat-123456789012345 (Quectel RM500Q IMEI:123456789012345 USB:2-1)
+    cellat-123456789012346 (Quectel EG25 IMEI:123456789012346 USB:1-5.1)
+    cellat-123456789012348 (Telit LM960A18 IMEI:123456789012348 USB:3-2)
 ```
 
 Use the interface name (e.g., `cellat-123456789012345`) as the source
@@ -452,6 +452,17 @@ definition. Sources are addressed by **IMEI**, never by tty path — the port a
 modem lands on shifts between reboots and replugs, the IMEI does not. A modem
 that does not report an IMEI is skipped by `--list` because it cannot be
 addressed.
+
+Two shorter names need no IMEI:
+
+| name | the modem |
+|---|---|
+| `cellat` | the one attached modem. With more than one, the open fails and lists their `cellat-<imei>` names |
+| `cellat-usb<bus-port>` | the modem on that physical USB port, the `USB:` value `--list` shows (`cellat-usb1-5.1`). The scan opens only that USB device's ports, so no other modem is written to. The name follows the socket, not the modem: a different modem plugged in there is used instead |
+
+Both are resolved to the modem's IMEI when the source opens, and the open says
+which (`cellat-usb1-5.1 is the modem with IMEI … on /dev/ttyUSB3`). The source's
+UUID comes from the name, so it stays the same across restarts.
 
 **Manual method — check `dmesg` after plugging in the modem:**
 
@@ -503,7 +514,7 @@ Append options to the source definition after a colon:
 
 | Option | Values | Default | Description |
 |--------|--------|---------|-------------|
-| `atport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(auto-detect by IMEI)* | Open this port instead of scanning. The IMEI is still verified — a mismatch is a hard open error, never a silent survey of the wrong modem. |
+| `atport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(auto-detect by IMEI)* | Open this port instead of scanning. The IMEI is still verified — a mismatch is a hard open error, never a silent survey of the wrong modem. With `cellat` the port's IMEI is used; with `cellat-usb<port>` the port must be on that USB device. A port another program has open or locked is refused; ModemManager's claim is not checked, so naming the port is how to use a ModemManager-managed modem. |
 | `strategy` | `driving` (alias `wardrive`), `walking`, `stationary`, `serving_only` | `driving` | Scan profile (see below). An unknown value **refuses the open** and names the valid ones. |
 | `debug` | `true`, `false` | `false` | Debug mode: extra per-poll messages, the IMSI and ICCID read and logged at debug level, and the [debug log](#4f-session-and-debug-log-celllog). `KISMET_CELLAT_DEBUG=1` in the environment turns it on for every source; `debug=` in the definition overrides that. |
 | `bandlock` | `true`, `false` | `false` | Offer the band/RAT lock channels. A lock is written to the modem's saved configuration, so it is off unless asked for. A lock left by a crashed session is undone either way. See [Band/RAT lock](#4d-bandrat-lock-the-sources-channels) below. |
@@ -522,8 +533,8 @@ never reads, and failing on those would break on a Kismet upgrade).
 Examples:
 
 ```bash
-kismet -c cellat-ttyUSB3:strategy=stationary
-kismet -c cellat-ttyUSB3:strategy=walking,debug=true
+kismet -c cellat:strategy=stationary
+kismet -c cellat-usb1-5.1:strategy=walking,debug=true
 
 # Pin a source to a port when auto-detect picks wrong. Useful on hosts with two
 # EG25-Gs: that model exposes no USB serial string, so /dev/serial/by-id has no
@@ -782,8 +793,11 @@ capture process. If two modems see the same cell tower, Kismet automatically
 merges the observations into a single tracked device.
 
 ```bash
-kismet -c cellat-ttyUSB3 -c cellat-ttyUSB7 -c cellat-ttyUSB16
+kismet -c cellat-123456789012345 -c cellat-123456789012346 -c cellat-usb3-2
 ```
+
+A bare `cellat` cannot pick between them: its open fails and names each modem's
+`cellat-<imei>` and `cellat-usb<port>`.
 
 ### 6. What You'll See
 
@@ -949,14 +963,62 @@ escape hatch is naming the port: `CELLAT_EXTRA_PORTS` (adds), `CELLAT_SCAN_PORTS
 naming it is the decision. celldiag's hatch is `CELLDIAG_SCAN_PORTS` or `atport=`.
 A modem-maker's cdc_acm vendor id missing from the table takes the same hatch.
 
+**It leaves other programs' ports alone.** `flock` only stops programs that take
+one, so before opening a port the scan also checks, from `/run/lock`, `/proc` and
+the udev database (`capture_cell_diag/cell_discover.c`):
+
+| the port | verdict |
+|---|---|
+| has a UUCP lock file (`/run/lock/LCK..ttyUSB2`) whose process is alive: minicom, picocom, cu, pppd | **not opened** |
+| is open in another process that takes no lock: screen, a script, gpsd. Only processes of the same user are visible unless the source runs as root | **not opened** |
+| belongs to a modem ModemManager is running for: ModemManager is running, and neither the port nor its USB device has `ID_MM_DEVICE_IGNORE=1` or `ID_MM_PORT_IGNORE=1` | **not opened** |
+| a stale lock file (its process is gone) | probed |
+| held by another Kismet cell source | left to `flock`, as before (§11) |
+
+```
+cellat: skip /dev/ttyUSB3: open in screen (pid 4242)
+cellat: skip /dev/ttyUSB2: locked by minicom (pid 1185), lock file /run/lock/LCK..ttyUSB2
+cellat: skip /dev/ttyUSB2: managed by ModemManager (pid 612); stop ModemManager, set ID_MM_DEVICE_IGNORE=1 on the modem in a udev rule, or name the port with atport= to use it anyway
+cellat AT scan: not probed, in use by another program: ttyUSB3(open in screen (pid 4242))
+```
+
+To keep ModemManager and give Kismet one modem, mark that modem in a udev rule
+and replug it (or `udevadm trigger`):
+
+```
+# /etc/udev/rules.d/90-kismet-cell.rules
+ACTION=="add|change", SUBSYSTEM=="usb", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="0125", ENV{ID_MM_DEVICE_IGNORE}="1"
+```
+
+To share one modem with NetworkManager's WWAN connection, ignore only the ports
+Kismet uses instead. ModemManager keeps the control AT port and the data path
+(QMI or MBIM on `/dev/cdc-wdm*`, the `wwan`/`wwp…` interface), and the scan
+admits only the ignored ports. On an EG25 that gives Kismet the second AT port
+(if03, `ttyUSB3`) and DIAG (if00, `ttyUSB0`), and leaves ModemManager `ttyUSB2`:
+
+```
+# /etc/udev/rules.d/90-kismet-cell.rules
+ACTION=="add|change", SUBSYSTEM=="tty", ATTRS{idVendor}=="2c7c", ATTRS{idProduct}=="0125", \
+    ATTRS{bInterfaceNumber}=="00|03", ENV{ID_MM_PORT_IGNORE}="1"
+```
+
+While the modem carries data, use `strategy=driving` or `serving_only`: the full
+band scan of `walking` and `stationary` (AT+QSCAN, up to 2 minutes) and a
+band/RAT lock can stall or drop the connection. `gps=` turns the modem's GNSS
+on, which ModemManager's location support may also be using.
+
+A port named in `atport=`, `CELLAT_EXTRA_PORTS` or `CELLAT_SCAN_PORTS` still has
+the lock and open checks, but not the ModemManager one. PTY slaves (a socat
+shim, a test's fake modem) skip the open check, since their holder is the
+program on the other end.
+
 **It puts back what it changed.** A probe records the port's termios as it found
 it and restores it (`TCSANOW`) before it closes, whether or not the port answered.
 That covers the ports the rules admit but which are not this source's target:
 the DIAG or NMEA tty of a modem the table does not list, or a port someone
 named. What it cannot undo is
-the flush and the `AT\r\n` it wrote. A reader of an admitted port that does not
-`flock` still loses about one exchange of bytes, so take the claim (`flock`) on
-any port you read beside a Kismet drive.
+the flush and the `AT\r\n` it wrote, which the checks above keep off any port
+another program is using.
 
 ## Scan Strategies
 

@@ -121,6 +121,7 @@
 #include "../capture_cell_diag/cell_safefile.h"
 #include "../capture_cell_diag/cell_usbport.h"
 #include "../capture_cell_diag/diag_portadmit.h"
+#include "../capture_cell_diag/cell_discover.h"
 #include <sys/wait.h>
 
 /* Maximum AT response size (128 KB should handle even AT+COPS=? floods) */
@@ -793,6 +794,10 @@ static int g_probe_open_timed_out;
  * try. Such a modem can never open as a cellat source, so --list leaves it
  * out rather than offer it. */
 static int g_probe_no_survey;
+
+/* A cellat-usb<port> source's scan probes only that USB device's ports, so
+ * naming one modem never writes to another. "" = every modem. */
+static char g_scan_usbdev[CELL_NAME_USB_MAX];
 
 static long scan_elapsed_ms(const struct timespec *t0) {
     struct timespec t1;
@@ -2232,17 +2237,11 @@ static int find_modem_ports(char ports[][CELLAT_PORT_PATH_MAX], int max_ports) {
 }
 
 /*
- * Get the USB device path for a ttyUSB/ttyACM port via sysfs.
- * For /dev/ttyUSB0 whose sysfs device link resolves to e.g.
- *   /sys/devices/.../usb2/2-1/2-1:1.0/ttyUSB0
- * the USB device path is the grandparent: "2-1".
+ * Get the USB device ("2-1") for a ttyUSB/ttyACM port via sysfs, or
+ * "usb:BUS-ADDR" for a libusb port.
  * Returns 1 on success (usb_dev filled), 0 on failure.
  */
 static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_dev_sz) {
-    char sysfs_path[512];
-    char resolved[512];
-    const char *port_name;
-
     /* usb:BUS-ADDR:IF -> usb:BUS-ADDR */
     if (cell_usbport_is_spec(port_path)) {
         const char *colon = strrchr(port_path, ':');
@@ -2254,79 +2253,23 @@ static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_de
         return 1;
     }
 
-    /* Extract port name: /dev/ttyUSB0 → ttyUSB0 */
-    port_name = strrchr(port_path, '/');
-    if (port_name)
-        port_name++;
-    else
-        port_name = port_path;
-
-    snprintf(sysfs_path, sizeof(sysfs_path), "/sys/class/tty/%s/device", port_name);
-
-    if (realpath(sysfs_path, resolved) == NULL)
-        return 0;
-
-    /* resolved is e.g. /sys/.../2-1/2-1:1.0/ttyUSB0
-     * We want the component two levels up: the USB device (e.g. "2-1").
-     * Walk up: strip ttyUSB0, strip 2-1:1.0, take basename. */
-    char *slash1 = strrchr(resolved, '/');  /* → /ttyUSB0 */
-    if (!slash1) return 0;
-    *slash1 = '\0';
-
-    char *slash2 = strrchr(resolved, '/');  /* → /2-1:1.0 */
-    if (!slash2) return 0;
-    *slash2 = '\0';
-
-    char *dev_name = strrchr(resolved, '/');  /* → /2-1 */
-    if (!dev_name) return 0;
-    dev_name++;
-
-    strncpy(usb_dev, dev_name, usb_dev_sz - 1);
-    usb_dev[usb_dev_sz - 1] = '\0';
-    return 1;
+    return cell_tty_usb_location(port_path, usb_dev, usb_dev_sz, NULL);
 }
 
 /*
- * Get the USB interface number for a ttyUSB port via sysfs.
+ * Get the USB interface number for a ttyUSB/ttyACM port via sysfs.
  * For a sysfs config:interface like "2-1:1.4", returns 4.
  * Returns -1 on failure.
  */
 static int get_usb_interface_num(const char *port_path) {
-    char sysfs_path[512];
-    char resolved[512];
-    const char *port_name;
-
     if (cell_usbport_is_spec(port_path)) {
         int ifnum;
         return cell_usbport_parse(port_path, NULL, NULL, &ifnum) == 0 ? ifnum : -1;
     }
 
-    port_name = strrchr(port_path, '/');
-    if (port_name)
-        port_name++;
-    else
-        port_name = port_path;
-
-    snprintf(sysfs_path, sizeof(sysfs_path), "/sys/class/tty/%s/device", port_name);
-
-    if (realpath(sysfs_path, resolved) == NULL)
-        return -1;
-
-    /* resolved: /sys/.../2-1/2-1:1.4/ttyUSB2
-     * Parent dir (2-1:1.4) contains the interface number after the dot */
-    char *slash = strrchr(resolved, '/');
-    if (!slash) return -1;
-    *slash = '\0';
-
-    char *iface_dir = strrchr(resolved, '/');
-    if (!iface_dir) return -1;
-    iface_dir++;
-
-    /* Find the dot in "2-1:1.4" */
-    char *dot = strrchr(iface_dir, '.');
-    if (!dot) return -1;
-
-    return atoi(dot + 1);
+    char usb_dev[64];
+    int ifnum;
+    return cell_tty_usb_location(port_path, usb_dev, sizeof(usb_dev), &ifnum) ? ifnum : -1;
 }
 
 /*
@@ -2396,6 +2339,9 @@ static int scan_modems(modem_scan_cb cb, void *ctx, int want_ident) {
     int n_busy = 0;
 
     for (int i = 0; i < n_all; i++) {
+        if (g_scan_usbdev[0] && !cell_usb_matches(usb_devs[i], g_scan_usbdev))
+            continue;
+
         /* If this port's USB device was already identified, skip it */
         if (usb_devs[i][0]) {
             int skip = 0;
@@ -2547,6 +2493,28 @@ static int find_port_by_imei(const char *imei, char *path_out, size_t path_sz,
     return path_out[0] != '\0' ? 1 : 0;
 }
 
+static int pick_modem_cb(const char *port, const char *fw,
+                         const char *imei, const modemident_t *id, void *ctx) {
+    (void)id;
+    char usb_dev[64];
+    if (!modemident_imei_ok(imei))
+        return 0;   /* not addressable, as in --list */
+    if (!get_usb_device_id(port, usb_dev, sizeof(usb_dev)))
+        usb_dev[0] = '\0';
+    cell_pick_add((cell_pick_t *)ctx, port, fw, imei, usb_dev);
+    return 0;
+}
+
+/* Every modem a bare cellat, or a cellat-usb<port>, could mean. */
+static int pick_modems(cell_name_kind_t kind, const char *usbdev, cell_pick_t *pick) {
+    cell_pick_reset(pick);
+    snprintf(g_scan_usbdev, sizeof(g_scan_usbdev), "%s",
+             kind == CELL_NAME_USB ? usbdev : "");
+    scan_modems(pick_modem_cb, pick, 0);
+    g_scan_usbdev[0] = '\0';
+    return pick->total;
+}
+
 /* -----------------------------------------------------------------------
  * Capture framework callbacks
  * ----------------------------------------------------------------------- */
@@ -2557,6 +2525,8 @@ typedef struct {
     int n_found;
 } list_ctx_t;
 
+#define CELLAT_LIST_MAX 32
+
 static int list_modem_cb(const char *port, const char *fw,
                          const char *imei, const modemident_t *id, void *ctx) {
     list_ctx_t *c = (list_ctx_t *)ctx;
@@ -2564,6 +2534,8 @@ static int list_modem_cb(const char *port, const char *fw,
     /* Skip modems that don't report an IMEI — they can't be addressed */
     if (!imei[0])
         return 0;
+    if (c->n_found >= CELLAT_LIST_MAX)
+        return 1;
 
     /* A modem the open would refuse is not offered as a source: offering it
      * leaves a source that fails every open and is re-opened forever. */
@@ -2579,22 +2551,30 @@ static int list_modem_cb(const char *port, const char *fw,
         return 0;
     }
 
-    c->interfaces[c->n_found] = (cf_params_list_interface_t *)
-        malloc(sizeof(cf_params_list_interface_t));
-    memset(c->interfaces[c->n_found], 0, sizeof(cf_params_list_interface_t));
+    cf_params_list_interface_t *li = (cf_params_list_interface_t *)
+        calloc(1, sizeof(cf_params_list_interface_t));
+    if (li == NULL)
+        return 1;
+    c->interfaces[c->n_found] = li;
 
     char iface_name[512];
     snprintf(iface_name, sizeof(iface_name), "cellat-%s", imei);
-    c->interfaces[c->n_found]->interface = strdup(iface_name);
+    li->interface = strdup(iface_name);
 
     /* The modem's make/model/firmware -- what the web UI's Sources
-     * panel shows for a source that is not open yet. */
-    char hw_desc[512];
+     * panel shows for a source that is not open yet -- and the USB port, which
+     * names it as cellat-usb<port> too. */
+    char hw_desc[512], label[400], usb_dev[64];
     if (id != NULL)
-        modemident_label(id, NULL, hw_desc, sizeof(hw_desc));
+        modemident_label(id, NULL, label, sizeof(label));
     else
-        snprintf(hw_desc, sizeof(hw_desc), "%s IMEI:%s", fw, imei);
-    c->interfaces[c->n_found]->hardware = strdup(hw_desc);
+        snprintf(label, sizeof(label), "%s IMEI:%s", fw, imei);
+    if (get_usb_device_id(port, usb_dev, sizeof(usb_dev)) &&
+        cell_name_usbdev_ok(usb_dev))
+        snprintf(hw_desc, sizeof(hw_desc), "%s USB:%s", label, usb_dev);
+    else
+        snprintf(hw_desc, sizeof(hw_desc), "%s", label);
+    li->hardware = strdup(hw_desc);
 
     c->n_found++;
     return 0;  /* Keep scanning */
@@ -2602,9 +2582,10 @@ static int list_modem_cb(const char *port, const char *fw,
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
                   cf_params_list_interface_t ***interfaces) {
-    /* Allocate worst-case — 32 modems max */
     *interfaces = (cf_params_list_interface_t **)
-        malloc(sizeof(cf_params_list_interface_t *) * 32);
+        calloc(CELLAT_LIST_MAX, sizeof(cf_params_list_interface_t *));
+    if (*interfaces == NULL)
+        return 0;
 
     list_ctx_t ctx = { .interfaces = *interfaces, .n_found = 0 };
     g_scan_list_wait = 1;          /* wait out a sibling lister */
@@ -2620,6 +2601,20 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
  * all ports can take 60+ seconds with many USB devices, which exceeds Kismet's
  * 10-second probe timeout.  We only validate the format and generate a UUID.
  */
+static void cellat_compose_uuid(const char *key, char *definition, char **uuid);
+
+/* What a name's UUID is made from: the IMEI, as it always was, "usb<port>" for
+ * a USB name and "" for the bare name. */
+static void cellat_name_key(cell_name_kind_t kind, const char *val, char *key,
+                            size_t keysz) {
+    if (kind == CELL_NAME_USB)
+        snprintf(key, keysz, "usb%s", val);
+    else if (kind == CELL_NAME_IMEI)
+        snprintf(key, keysz, "%s", val);
+    else
+        snprintf(key, keysz, "%s", "");
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                    char *msg, char **uuid,
                    cf_params_interface_t **ret_interface,
@@ -2627,7 +2622,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
-    char buf[STATUS_MAX];
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
@@ -2638,22 +2632,23 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL)
+        return 0;
 
-    /* Extract IMEI from cellat-<IMEI> */
-    const char *imei = NULL;
-    if (strncmp(interface, "cellat-", 7) == 0)
-        imei = interface + 7;
+    char name_val[CELL_NAME_USB_MAX];
+    cell_name_kind_t kind = cell_name_parse(interface, "cellat", name_val,
+                                            sizeof(name_val));
 
     /* Same rule as celldiag's probe: mute for a foreign definition,
      * because Kismet probes every binary against every source and declining
      * is the normal case; loud for a near-miss on our own prefix ("you aimed
      * this at me and got it wrong"). */
-    if (imei == NULL) {
+    if (kind == CELL_NAME_BAD) {
         if (strncmp(interface, "cellat", 6) == 0) {
             snprintf(msg, STATUS_MAX,
-                     "'%s' is not a cellat interface - expected "
-                     "cellat-<15-digit IMEI> (the IMEI selects WHICH modem; "
-                     "a bare 'cellat' cannot). Run "
+                     "'%s' is not a cellat interface - expected cellat (the "
+                     "one attached modem), cellat-<15-digit IMEI>, or "
+                     "cellat-usb<bus-port> such as cellat-usb1-5.1. Run "
                      "'kismet_cap_cell_at --list' for the attached modems.",
                      interface);
         }
@@ -2661,43 +2656,20 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    if (strlen(imei) != 15) {
-        snprintf(msg, STATUS_MAX,
-                 "Invalid cellat definition '%s' - expected "
-                 "cellat-<15-digit IMEI>, but '%s' is %zu digits",
-                 interface, imei, strlen(imei));
-        free(interface);
-        return 0;
-    }
-
-    /* Verify all digits */
-    for (int i = 0; i < 15; i++) {
-        if (!isdigit(imei[i])) {
-            snprintf(msg, STATUS_MAX,
-                     "Invalid IMEI in '%s' - must be 15 digits", interface);
-            free(interface);
-            return 0;
-        }
-    }
-
-    /* Hardware description is unknown until open — just report the IMEI */
+    /* Hardware description is unknown until open */
     char hw_desc[512];
-    snprintf(hw_desc, sizeof(hw_desc), "Cell modem IMEI:%s", imei);
+    if (kind == CELL_NAME_IMEI)
+        snprintf(hw_desc, sizeof(hw_desc), "Cell modem IMEI:%s", name_val);
+    else if (kind == CELL_NAME_USB)
+        snprintf(hw_desc, sizeof(hw_desc), "Cell modem USB:%s", name_val);
+    else
+        snprintf(hw_desc, sizeof(hw_desc), "Cell modem");
     (*ret_interface)->hardware = strdup(hw_desc);
 
-    /* UUID — stable across port renumbering, based on IMEI only */
-    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strndup(placeholder, placeholder_len);
-    } else {
-        uint32_t hash;
-        snprintf(buf, STATUS_MAX, "cellat%s", imei);
-        hash = adler32_csum((unsigned char *)buf, strlen(buf));
-        snprintf(buf, STATUS_MAX, "%08X-0000-0000-0000-0000%08X",
-                 adler32_csum((unsigned char *)"kismet_cap_cell_at",
-                              strlen("kismet_cap_cell_at")) & 0xFFFFFFFF,
-                 hash & 0xFFFFFFFF);
-        *uuid = strdup(buf);
-    }
+    /* UUID from the name, so the same source keeps it across port renumbering */
+    char key[CELL_NAME_USB_MAX + 4];
+    cellat_name_key(kind, name_val, key, sizeof(key));
+    cellat_compose_uuid(key, definition, uuid);
 
     free(interface);
     return 1;
@@ -2726,14 +2698,14 @@ static void warn_unknown_options(kis_capture_handler_t *caph,
 }
 
 /* The source's UUID: an explicit uuid= if given, else the deterministic hash of
- * "cellat<imei>". Mirrors celldiag's compose_diag_uuid.
+ * "cellat<key>" (cellat_name_key). Mirrors celldiag's compose_diag_uuid.
  *
  * One function, both callers: the enabled=false path returns long before the
  * tail of open_callback, and a second copy would be free to drift. A drifted
  * copy is not cosmetic: Kismet keys a source on its UUID, so a disabled source
  * minting a different uuid than the same source enabled makes
  * disable-then-re-enable look like two sources rather than one lifecycle. */
-static void cellat_compose_uuid(const char *imei, char *definition, char **uuid) {
+static void cellat_compose_uuid(const char *key, char *definition, char **uuid) {
     char *placeholder = NULL;
     int placeholder_len;
     char buf[STATUS_MAX];
@@ -2743,7 +2715,7 @@ static void cellat_compose_uuid(const char *imei, char *definition, char **uuid)
         return;
     }
 
-    snprintf(buf, sizeof(buf), "cellat%s", imei);
+    snprintf(buf, sizeof(buf), "cellat%s", key);
     uint32_t hash = adler32_csum((unsigned char *)buf, strlen(buf));
     snprintf(buf, sizeof(buf), "%08X-0000-0000-0000-0000%08X",
              adler32_csum((unsigned char *)"kismet_cap_cell_at",
@@ -2988,6 +2960,51 @@ static void cellat_lock_apply(local_cell_t *local, kis_capture_handler_t *caph,
     cf_send_message(caph, buf, MSGFLAG_INFO);
 }
 
+/* The first pass's scan detail, for the open's messages. */
+static void report_scan_detail(kis_capture_handler_t *caph) {
+    char buf[STATUS_MAX];
+
+    /* The ttys the scan did not open at all: not suspected cell modems by
+     * their sysfs driver / vendor id, or a modem's known DIAG /
+     * NMEA interface (labelled e.g. "if01 NMEA"). Named with the evidence
+     * and the escape hatch, so a modem behind a USB-UART bridge -- refused
+     * as the bridge it enumerates as -- is findable from this message. */
+    if (cellat_scan_refusals()[0]) {
+        snprintf(buf, STATUS_MAX, "cellat AT scan: not probed (not suspected "
+                 "cell modems, or a modem's known non-AT port): %s (name one "
+                 "in CELLAT_EXTRA_PORTS to probe it)", cellat_scan_refusals());
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
+    /* Ports another program is using: never opened, so a terminal session,
+     * gpsd or ModemManager is not written over. */
+    if (cellat_scan_inuse()[0]) {
+        snprintf(buf, STATUS_MAX, "cellat AT scan: not probed, in use by "
+                 "another program: %s", cellat_scan_inuse());
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
+    /* Name any port that never took its probe. Its release costs ~150 ms
+     * instead of 30 s, which is exactly why nothing else would ever
+     * mention it. */
+    if (g_scan_stuck[0]) {
+        snprintf(buf, STATUS_MAX, "cellat AT scan: port(s) never took the "
+                 "probe, closed without waiting out closing_wait: %s",
+                 g_scan_stuck);
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
+    if (g_scan_slow[0]) {
+        snprintf(buf, STATUS_MAX, "cellat AT scan slow ports: %s", g_scan_slow);
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
+    /* A port still closing after a sibling's probe: its open() gave
+     * up at the deadline instead of blocking ~30 s. */
+    if (g_scan_openstuck[0]) {
+        snprintf(buf, STATUS_MAX, "cellat AT scan: port(s) still closing "
+                 "after another probe, open() gave up at %d ms and skipped "
+                 "them: %s", DIAG_PROBE_OPEN_DEADLINE_MS, g_scan_openstuck);
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
+}
+
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                   char *msg, uint32_t *dlt, char **uuid,
                   cf_params_interface_t **ret_interface,
@@ -3019,32 +3036,35 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory parsing the definition");
+        return -1;
+    }
 
-    /* Extract IMEI from cellat-<IMEI> */
-    const char *imei = NULL;
-    if (strncmp(interface, "cellat-", 7) == 0)
-        imei = interface + 7;
-
-    if (imei == NULL || strlen(imei) != 15) {
-        snprintf(msg, STATUS_MAX, "Invalid cell modem definition '%s' — expected cellat-<15-digit IMEI>",
+    /* cellat-<IMEI>, or a simple name resolved to one below: the bare
+     * cellat (the one attached modem) or cellat-usb<port>. */
+    char name_val[CELL_NAME_USB_MAX];
+    cell_name_kind_t name_kind = cell_name_parse(interface, "cellat", name_val,
+                                                 sizeof(name_val));
+    if (name_kind == CELL_NAME_BAD) {
+        snprintf(msg, STATUS_MAX, "Invalid cell modem definition '%s' — expected "
+                 "cellat, cellat-<15-digit IMEI> or cellat-usb<bus-port>",
                  interface);
         free(interface);
         return -1;
     }
 
-    /* Verify all digits */
-    for (int i = 0; i < 15; i++) {
-        if (!isdigit(imei[i])) {
-            snprintf(msg, STATUS_MAX, "Invalid IMEI in '%s' — must be 15 digits", interface);
-            free(interface);
-            return -1;
-        }
-    }
+    /* The name, for messages; the parse bounds its length */
+    char src_name[64];
+    snprintf(src_name, sizeof(src_name), "%s", interface);
 
-    /* Save IMEI before freeing interface string */
-    char imei_def[16];
-    strncpy(imei_def, imei, 15);
-    imei_def[15] = '\0';
+    char uuid_key[CELL_NAME_USB_MAX + 4];
+    cellat_name_key(name_kind, name_val, uuid_key, sizeof(uuid_key));
+
+    /* The modem's IMEI: from the name, or from the scan for a simple name */
+    char imei_def[16] = "";
+    if (name_kind == CELL_NAME_IMEI)
+        snprintf(imei_def, sizeof(imei_def), "%s", name_val);
 
     /* strategy=. Resolved here, before enabled= and before any port
      * is touched, because an unknown profile is a malformed definition and the
@@ -3065,7 +3085,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char why[STATUS_MAX];
         if (!cellat_strategy_parse(strat ? strat : "", &local->strategy,
                                    why, sizeof(why))) {
-            snprintf(msg, STATUS_MAX, "cellat-%s: %s", imei_def, why);
+            snprintf(msg, STATUS_MAX, "%s: %s", src_name, why);
             free(strat);
             free(interface);
             return -1;
@@ -3110,18 +3130,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local->modem_firmware = strdup("disabled");
         local->modem_model = strdup("AT disabled");
 
-        snprintf(hw_desc, sizeof(hw_desc), "%s IMEI:%s",
-                 local->modem_model, imei_def);
+        if (imei_def[0])
+            snprintf(hw_desc, sizeof(hw_desc), "%s IMEI:%s",
+                     local->modem_model, imei_def);
+        else
+            snprintf(hw_desc, sizeof(hw_desc), "%s %s",
+                     local->modem_model, src_name);
         local->name = strdup(hw_desc);
         (*ret_interface)->capif = strdup("");
         (*ret_interface)->hardware = strdup(hw_desc);
 
-        cellat_compose_uuid(imei_def, definition, uuid);
+        cellat_compose_uuid(uuid_key, definition, uuid);
 
         snprintf(msg, STATUS_MAX,
-                 "Cell AT source cellat-%s registered but DISABLED "
+                 "Cell AT source %s registered but DISABLED "
                  "(enabled=false) - no serial port opened, no AT sent; "
-                 "re-enable to start capture", imei_def);
+                 "re-enable to start capture", src_name);
         cf_send_message(caph, msg, MSGFLAG_INFO);
 
         free(interface);
@@ -3164,6 +3188,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if (atport_override[0]) {
+        /* Named, so ModemManager's claim is the operator's call; a lock or
+         * another reader still is not ours to write over. */
+        cell_busy_t busy;
+        if (cell_port_busy(atport_override, 0, &busy)) {
+            char label[384];
+            cell_busy_label(&busy, label, sizeof(label));
+            snprintf(msg, STATUS_MAX, "atport=%s is in use: %s", atport_override,
+                     label);
+            free(interface);
+            return -1;
+        }
         if (!identify_modem(atport_override, fw_buf, sizeof(fw_buf),
                             imei_buf, sizeof(imei_buf), NULL)) {
             snprintf(msg, STATUS_MAX,
@@ -3173,7 +3208,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             free(interface);
             return -1;
         }
-        if (strcmp(imei_buf, imei_def) != 0) {
+        if (name_kind == CELL_NAME_IMEI && strcmp(imei_buf, imei_def) != 0) {
             snprintf(msg, STATUS_MAX,
                      "atport=%s is a modem with IMEI %s, but this source asked "
                      "for IMEI %s — refusing to survey the wrong modem. Drop "
@@ -3182,47 +3217,76 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             free(interface);
             return -1;
         }
+        if (name_kind != CELL_NAME_IMEI && !modemident_imei_ok(imei_buf)) {
+            snprintf(msg, STATUS_MAX, "atport=%s answered AT but reported no "
+                     "IMEI, which %s needs to name the modem", atport_override,
+                     src_name);
+            free(interface);
+            return -1;
+        }
+        if (name_kind == CELL_NAME_USB) {
+            char usb_dev[64];
+            if (!get_usb_device_id(atport_override, usb_dev, sizeof(usb_dev)) ||
+                !cell_usb_matches(usb_dev, name_val)) {
+                snprintf(msg, STATUS_MAX, "atport=%s is not on USB port %s — "
+                         "refusing to survey the wrong modem", atport_override,
+                         name_val);
+                free(interface);
+                return -1;
+            }
+        }
+        snprintf(imei_def, sizeof(imei_def), "%s", imei_buf);
         snprintf(device_path, sizeof(device_path), "%s", atport_override);
         snprintf(buf, STATUS_MAX, "cellat using explicit atport=%s (IMEI %s "
                  "verified); auto-detect skipped", device_path, imei_buf);
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    } else if (name_kind != CELL_NAME_IMEI) {
+        /* A simple name: the one modem it can mean. Every candidate is
+         * identified, since "the only modem" needs all of them seen; a USB
+         * name's scan touches only that USB device. */
+        cell_pick_t pick;
+        pick_modems(name_kind, name_val, &pick);
+        report_scan_detail(caph);
+        if (pick.total == 0 && g_scan_busy > 0) {
+            int skipped = g_scan_busy;
+            usleep((useconds_t)(250 + (getpid() % 8) * 75) * 1000);
+            pick_modems(name_kind, name_val, &pick);
+            snprintf(buf, STATUS_MAX, "cellat AT scan: no modem found while %d "
+                     "port(s) were held by another process; rescanned: %s",
+                     skipped, pick.total ? "found" : "still not found");
+            cf_send_message(caph, buf, MSGFLAG_INFO);
+        }
+        if (pick.total == 0) {
+            if (name_kind == CELL_NAME_USB)
+                snprintf(msg, STATUS_MAX, "%s: no cell modem answered on USB "
+                         "port %s", src_name, name_val);
+            else
+                snprintf(msg, STATUS_MAX, "%s: no cell modem found on any "
+                         "serial port", src_name);
+            free(interface);
+            return -1;
+        }
+        if (pick.total > 1) {
+            char choices[STATUS_MAX];
+            cell_pick_choices(&pick, "cellat", choices, sizeof(choices));
+            snprintf(msg, STATUS_MAX, "%s: %d cell modems are attached, so name "
+                     "the one to use: %s", src_name, pick.total, choices);
+            free(interface);
+            return -1;
+        }
+        snprintf(device_path, sizeof(device_path), "%s", pick.m[0].port);
+        snprintf(fw_buf, sizeof(fw_buf), "%s", pick.m[0].fw);
+        snprintf(imei_buf, sizeof(imei_buf), "%s", pick.m[0].imei);
+        snprintf(imei_def, sizeof(imei_def), "%s", pick.m[0].imei);
+        snprintf(buf, STATUS_MAX, "%s is the modem with IMEI %s on %s", src_name,
+                 imei_def, device_path);
         cf_send_message(caph, buf, MSGFLAG_INFO);
     } else {
         /* Resolve IMEI to serial port — also retrieves fw/imei in one pass */
         int found_port = find_port_by_imei(imei_def, device_path, sizeof(device_path),
                                            fw_buf, sizeof(fw_buf),
                                            imei_buf, sizeof(imei_buf));
-        /* The ttys the scan did not open at all: not suspected cell modems by
-         * their sysfs driver / vendor id, or a modem's known DIAG /
-         * NMEA interface (labelled e.g. "if01 NMEA"). Named with the evidence
-         * and the escape hatch, so a modem behind a USB-UART bridge -- refused
-         * as the bridge it enumerates as -- is findable from this message. */
-        if (cellat_scan_refusals()[0]) {
-            snprintf(buf, STATUS_MAX, "cellat AT scan: not probed (not suspected "
-                     "cell modems, or a modem's known non-AT port): %s (name one "
-                     "in CELLAT_EXTRA_PORTS to probe it)", cellat_scan_refusals());
-            cf_send_message(caph, buf, MSGFLAG_INFO);
-        }
-        /* Name any port that never took its probe. Its release costs ~150 ms
-         * instead of 30 s, which is exactly why nothing else would ever
-         * mention it. */
-        if (g_scan_stuck[0]) {
-            snprintf(buf, STATUS_MAX, "cellat AT scan: port(s) never took the "
-                     "probe, closed without waiting out closing_wait: %s",
-                     g_scan_stuck);
-            cf_send_message(caph, buf, MSGFLAG_INFO);
-        }
-        if (g_scan_slow[0]) {
-            snprintf(buf, STATUS_MAX, "cellat AT scan slow ports: %s", g_scan_slow);
-            cf_send_message(caph, buf, MSGFLAG_INFO);
-        }
-        /* A port still closing after a sibling's probe: its open() gave
-         * up at the deadline instead of blocking ~30 s. */
-        if (g_scan_openstuck[0]) {
-            snprintf(buf, STATUS_MAX, "cellat AT scan: port(s) still closing "
-                     "after another probe, open() gave up at %d ms and skipped "
-                     "them: %s", DIAG_PROBE_OPEN_DEADLINE_MS, g_scan_openstuck);
-            cf_send_message(caph, buf, MSGFLAG_INFO);
-        }
+        report_scan_detail(caph);
         /* A concurrent multi-source open scans the same ports at the same time,
          * and a port a sibling's scan is probing is skipped -- its claim is
          * taken, and sharing it would split the reply bytes. A USB modem
@@ -3697,7 +3761,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     /* UUID -- same function the enabled=false path uses, so the two agree. */
-    cellat_compose_uuid(imei_def, definition, uuid);
+    cellat_compose_uuid(uuid_key, definition, uuid);
     /* Keep a copy for the capture thread: the ClockAnchor source_name is this
      * datasource's uuid, and capture_thread only has `local`. */
     local->source_uuid = (*uuid != NULL) ? strdup(*uuid) : NULL;
@@ -4981,6 +5045,9 @@ int main(int argc, char *argv[]) {
 
     /* Support remote capture */
     cf_handler_remote_capture(caph);
+
+    /* While still privileged: which ports other programs hold */
+    cell_discover_baseline();
 
     /* Jail filesystem; serial devices stay reachable, and the band lock state
      * is saved under ~/.kismet */

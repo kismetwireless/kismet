@@ -17,6 +17,8 @@ CELL_SELFTEST = @CELL_SELFTEST@
 # diag_identvouch.c.o too: cellat writes the vouch for the AT port it
 # holds, celldiag reads it, so the record has one reader and one writer module.
 # cell_log.c.o too: one CellLog record format for both sources.
+# cell_discover.c.o too: one source-name grammar and one rule for which ports
+# another program is using.
 MONITOR_OBJS = \
 	capture_cell_at.c.o \
 	cellat_options.c.o \
@@ -32,7 +34,8 @@ MONITOR_OBJS = \
 	diag_modemident.c.o \
 	diag_portadmit.c.o \
 	diag_identvouch.c.o \
-	cell_log.c.o
+	cell_log.c.o \
+	cell_discover.c.o
 MONITOR_BIN = kismet_cap_cell_at
 
 CELL_USBSERIAL = @CELL_USBSERIAL@
@@ -170,6 +173,13 @@ diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
+cell_discover.c.o:	../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_discover.c -o $@ -MMD -MP -MF $(@:.o=.d)
+
+cell_discover.c.d:	../capture_cell_diag/cell_discover.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_discover.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
 cell_log.c.o:	../capture_cell_diag/cell_log.c ../capture_cell_diag/cell_log.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_log.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
@@ -294,10 +304,12 @@ $(TEST_OPTIONS_BIN):	test_cellat_options.c cellat_options.c cellat_options.h
 
 $(TEST_PORTSCAN_BIN):	cellat_portscan.c cellat_portscan.h \
 		    ../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h \
-		    ../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
+		    ../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h \
+		    ../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DCELLAT_PORTSCAN_SELFTEST \
 		    -o $(TEST_PORTSCAN_BIN) cellat_portscan.c \
-		    ../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_portadmit.c
+		    ../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_portadmit.c \
+		    ../capture_cell_diag/cell_discover.c
 
 $(TEST_PORTADMIT_BIN):	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_PORTADMIT_SELFTEST \

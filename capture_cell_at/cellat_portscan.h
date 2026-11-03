@@ -129,6 +129,11 @@ void cellat_scan_set_refusal_log(FILE *f);
 void cellat_scan_refusals_reset(void);
 const char *cellat_scan_refusals(void);
 
+/* The candidates skipped since the last reset because another program is
+ * using them (cell_discover.h), as "ttyUSB3(open in screen (pid 42))".
+ * Reset with the refusals. */
+const char *cellat_scan_inuse(void);
+
 /* Append `path` to `ports[]` if cellat_scan_add's rules allow it.
  *
  * Returns 1 if appended, 0 otherwise. `*count` is advanced on append.

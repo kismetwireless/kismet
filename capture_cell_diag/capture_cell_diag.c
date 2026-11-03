@@ -219,6 +219,7 @@
 #include "diag_modemident.h"
 #include "cell_log.h"
 #include "diag_identvouch.h"
+#include "cell_discover.h"
 #include "diag_logstream.h"
 #include "diag_native_decode.h"
 #include "diag_inventory.h"
@@ -258,7 +259,11 @@
 typedef struct {
     char *diag_path;        /* DIAG /dev/tty node (NULL in replay mode) */
     char *replay_path;      /* replay= file, or NULL for a live modem */
-    char *modem_imei;      /* 15-digit IMEI, stamped into prov.imei */
+    char *modem_imei;      /* 15-digit IMEI, stamped into prov.imei; NULL until
+                              a simple name's bring-up resolves it */
+    cell_name_kind_t name_kind;  /* the source name's form (cell_discover.h) */
+    char name_val[CELL_NAME_USB_MAX];   /* a USB name's device, "1-5.1" */
+    char src_name[64];      /* the source name, for messages */
     char *modem_firmware;
     char *modem_model;
     char *name;             /* human label for message-bus lines */
@@ -1054,6 +1059,13 @@ static void probe_release(int fd, const char *path) {
  * long each source holds each shared tty, which otherwise causes EBUSY storms
  * with many sources. want_imei==NULL keeps the list/enumerate behavior
  * (firmware required, IMEI best-effort). */
+/* want_imei "" (a simple name's scan) takes any well-formed IMEI. */
+static int imei_wanted(const char *want_imei, const char *imei) {
+    if (want_imei[0] == '\0')
+        return modemident_imei_ok(imei);
+    return strcmp(imei, want_imei) == 0;
+}
+
 static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
                           char *imei_buf, size_t imei_sz,
                           const char *want_imei, int *imei_mismatch,
@@ -1083,7 +1095,7 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
             pid_t vpid = 0;
             if (identvouch_lookup(path, id, &vpid)) {
                 snprintf(imei_buf, imei_sz, "%s", id->imei);
-                if (strcmp(id->imei, want_imei) != 0) {
+                if (!imei_wanted(want_imei, id->imei)) {
                     if (imei_mismatch)
                         *imei_mismatch = 1;
                     modemident_clear(id);
@@ -1144,7 +1156,7 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
         }
     }
 
-    if (want_imei && (!imei_buf[0] || strcmp(imei_buf, want_imei) != 0)) {
+    if (want_imei && (!imei_buf[0] || !imei_wanted(want_imei, imei_buf))) {
         /* A confident mismatch: this port answered AT and returned a
          * well-formed IMEI that is not the one we want, so the whole USB
          * device is known not to be our modem. Distinguish it from "this port
@@ -1262,6 +1274,31 @@ static int scan_ports_from_env(const char *list, char ports[][256],
     return count;
 }
 
+/* The candidates skipped because another program is using them
+ * (cell_discover.h), as "ttyUSB3(open in screen (pid 42))". Reset with
+ * g_scan_refused. */
+static char g_scan_inuse[512];
+
+/* 1 if no other program is using `path`; else noted and logged once. A port
+ * the operator named skips only the ModemManager check. */
+static int scan_port_free(const char *path, int check_mm) {
+    cell_busy_t b;
+    if (!cell_port_busy(path, check_mm, &b))
+        return 1;
+
+    char label[384];
+    cell_busy_label(&b, label, sizeof(label));
+    size_t off = strnlen(g_scan_inuse, sizeof(g_scan_inuse));
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    int n = snprintf(g_scan_inuse + off, sizeof(g_scan_inuse) - off, "%s%s(%s)",
+                     off ? "," : "", base, label);
+    if (n < 0 || off + (size_t)n >= sizeof(g_scan_inuse))
+        g_scan_inuse[off] = '\0';
+    cell_busy_log_once(stderr, "celldiag", path, &b);
+    return 0;
+}
+
 /* Which ports an IMEI scan walks.
  *
  * SCAN_ALL_PORTS is the ttyUSB/ttyACM set. SCAN_NONUSB_AT is the non-USB AT
@@ -1294,7 +1331,8 @@ static int add_nonusb_at_ports(char ports[][256], int count, int max_ports) {
         if (glob(patterns[s], 0, NULL, &g) != 0)
             continue;
         for (size_t i = 0; i < g.gl_pathc && count < max_ports; i++) {
-            if (!diag_wwan_is_at(g.gl_pathv[i]) || strlen(g.gl_pathv[i]) > 255)
+            if (!diag_wwan_is_at(g.gl_pathv[i]) || strlen(g.gl_pathv[i]) > 255 ||
+                !scan_port_free(g.gl_pathv[i], 1))
                 continue;
             strcpy(ports[count], g.gl_pathv[i]);
             count++;
@@ -1332,6 +1370,8 @@ static int add_suspected_modem_ports(const char *pattern, char ports[][256],
                                         "atport=, to probe it");
                 continue;
             }
+            if (!scan_port_free(g.gl_pathv[i], 1))
+                continue;
             strcpy(ports[count], g.gl_pathv[i]);
             count++;
         }
@@ -1342,6 +1382,8 @@ static int add_suspected_modem_ports(const char *pattern, char ports[][256],
 
 static int find_modem_ports(char ports[][256], int max_ports, scan_scope_t scope) {
     int count = 0;
+
+    g_scan_inuse[0] = '\0';
 
     const char *only = cell_getenv("CELLDIAG_SCAN_PORTS");
     if (only && *only) {
@@ -1356,6 +1398,8 @@ static int find_modem_ports(char ports[][256], int max_ports, scan_scope_t scope
         for (int i = 0; i < count; i++) {
             int nonusb = diag_wwan_classify(ports[i], NULL) != DIAG_WWAN_NONE;
             if (scope == SCAN_NONUSB_AT ? !diag_wwan_is_at(ports[i]) : nonusb)
+                continue;
+            if (!scan_port_free(ports[i], 0))
                 continue;
             if (kept != i)
                 memcpy(ports[kept], ports[i], 256);
@@ -1393,10 +1437,6 @@ static int find_modem_ports(char ports[][256], int max_ports, scan_scope_t scope
 /* Map a tty node to its parent USB device id ("2-1") via sysfs, or a libusb
  * port to its modem ("usb:1-4"). 1 on success. */
 static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_dev_sz) {
-    char sysfs_path[512];
-    char resolved[512];
-    const char *port_name;
-
     if (cell_usbport_is_spec(port_path)) {
         const char *colon = strrchr(port_path, ':');
         size_t n = colon ? (size_t)(colon - port_path) : 0;
@@ -1407,73 +1447,24 @@ static int get_usb_device_id(const char *port_path, char *usb_dev, size_t usb_de
         return 1;
     }
 
-    /* An operator's atport=/diagport= may be a /dev/serial/by-id link, whose
-     * basename is no /sys/class/tty entry: use the kernel's node name. */
-    char node_name[256];
-    if (diag_tty_node_name(port_path, node_name, sizeof(node_name)) < 0)
-        return 0;
-    port_name = node_name;
-
-    snprintf(sysfs_path, sizeof(sysfs_path), "/sys/class/tty/%s/device", port_name);
-    if (realpath(sysfs_path, resolved) == NULL)
-        return 0;
-
-    char *slash1 = strrchr(resolved, '/');
-    if (!slash1) return 0;
-    *slash1 = '\0';
-    char *slash2 = strrchr(resolved, '/');
-    if (!slash2) return 0;
-    *slash2 = '\0';
-    char *dev_name = strrchr(resolved, '/');
-    if (!dev_name) return 0;
-    dev_name++;
-
-    strncpy(usb_dev, dev_name, usb_dev_sz - 1);
-    usb_dev[usb_dev_sz - 1] = '\0';
-    return 1;
+    /* An operator's atport=/diagport= may be a /dev/serial/by-id link; the
+     * lookup follows it to the kernel's node. */
+    return cell_tty_usb_location(port_path, usb_dev, usb_dev_sz, NULL);
 }
 
 /* USB interface number for a tty node ("2-1:1.4" -> 4). -1 on failure. */
 static int get_usb_interface_num(const char *port_path) {
-    char sysfs_path[512];
-    char resolved[512];
-    const char *port_name;
-
     if (cell_usbport_is_spec(port_path)) {
         int ifnum;
         return cell_usbport_parse(port_path, NULL, NULL, &ifnum) == 0 ? ifnum : -1;
     }
 
-    /* An operator's atport=/diagport= may be a /dev/serial/by-id link, whose
-     * basename is no /sys/class/tty entry: use the kernel's node name. */
-    char node_name[256];
-    if (diag_tty_node_name(port_path, node_name, sizeof(node_name)) < 0)
-        return -1;
-    port_name = node_name;
-
-    snprintf(sysfs_path, sizeof(sysfs_path), "/sys/class/tty/%s/device", port_name);
-    if (realpath(sysfs_path, resolved) == NULL)
-        return -1;
-
-    char *slash = strrchr(resolved, '/');
-    if (!slash) return -1;
-    *slash = '\0';
-    char *iface_dir = strrchr(resolved, '/');
-    if (!iface_dir) return -1;
-    iface_dir++;
-    char *dot = strrchr(iface_dir, '.');
-    if (!dot) return -1;
-    /* Strict parse: the interface number is the decimal suffix after the last
-     * '.' of the sysfs interface dir (e.g. "1-1:1.0" -> 0). atoi() would map a
-     * malformed suffix to 0 - indistinguishable from a real if00, which the
-     * profiles select by exact match (diag.port_detect interface:0). A
-     * garbage suffix must be rejected (-1, excluded), not silently matched as
-     * interface 0 nor treated as the lowest interface. */
-    char *endp = NULL;
-    long ifn = strtol(dot + 1, &endp, 10);
-    if (endp == dot + 1 || *endp != '\0' || ifn < 0 || ifn > 255)
-        return -1;
-    return (int)ifn;
+    /* Strict: the decimal after the interface dir's last '.', 0-255. A
+     * malformed suffix must not read as if00, which the profiles select by
+     * exact match (diag.port_detect interface:0). */
+    char usb_dev[64];
+    int ifnum;
+    return cell_tty_usb_location(port_path, usb_dev, sizeof(usb_dev), &ifnum) ? ifnum : -1;
 }
 
 /* Read one hex-valued sysfs attribute of a tty's USB interface (e.g.
@@ -1637,6 +1628,13 @@ static void scan_report_ports(kis_capture_handler_t *caph, const char *who,
                  "CELLDIAG_SCAN_PORTS to probe it)", who, what, g_scan_refused);
         cf_send_message(caph, buf, MSGFLAG_INFO);
     }
+    /* Ports another program is using: never opened, so a terminal session,
+     * gpsd or ModemManager is not written over. */
+    if (g_scan_inuse[0]) {
+        snprintf(buf, sizeof(buf), "%s %s: not probed, in use by another "
+                 "program: %s", who, what, g_scan_inuse);
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
 }
 
 static void scan_slow_note(const char *port, long ms) {
@@ -1648,6 +1646,10 @@ static void scan_slow_note(const char *port, long ms) {
     snprintf(g_scan_slow + off, sizeof(g_scan_slow) - off, "%s%s:%ldms",
              off ? "," : "", base, ms);
 }
+
+/* A celldiag-usb<port> source's scan probes only that USB device's ports,
+ * so naming one modem never writes to another. "" = every modem. */
+static char g_scan_usbdev[CELL_NAME_USB_MAX];
 
 static int scan_modems(modem_scan_cb cb, void *ctx, const char *want_imei,
                        scan_scope_t scope) {
@@ -1739,6 +1741,9 @@ static int scan_modems(modem_scan_cb cb, void *ctx, const char *want_imei,
     int n_busy = 0;
 
     for (int i = 0; i < n_all; i++) {
+        if (g_scan_usbdev[0] && !cell_usb_matches(usb_devs[i], g_scan_usbdev))
+            continue;
+
         if (usb_devs[i][0]) {
             int skip = 0;
             for (int j = 0; j < n_done; j++) {
@@ -1896,6 +1901,28 @@ static int find_port_by_imei(const char *imei, char *path_out, size_t path_sz,
     path_out[0] = '\0';
     scan_modems(find_imei_cb, &ctx, imei, scope);
     return path_out[0] != '\0' ? 1 : 0;
+}
+
+static int pick_modem_cb(const char *port, const char *fw,
+                         const char *imei, const modemident_t *id, void *ctx) {
+    (void)id;
+    char usb_dev[64];
+    if (!get_usb_device_id(port, usb_dev, sizeof(usb_dev)))
+        usb_dev[0] = '\0';
+    cell_pick_add((cell_pick_t *)ctx, port, fw, imei, usb_dev);
+    return 0;
+}
+
+/* Every modem a bare celldiag, or a celldiag-usb<port>, could mean, in
+ * `scope`. A held port is settled by its holder's vouch, as for an IMEI. */
+static int pick_modems(const local_diag_t *local, scan_scope_t scope,
+                       cell_pick_t *pick) {
+    cell_pick_reset(pick);
+    snprintf(g_scan_usbdev, sizeof(g_scan_usbdev), "%s",
+             local->name_kind == CELL_NAME_USB ? local->name_val : "");
+    scan_modems(pick_modem_cb, pick, "", scope);
+    g_scan_usbdev[0] = '\0';
+    return pick->total;
 }
 
 /* Locate the DIAG interface on the same USB device as `sibling_port`.
@@ -3626,7 +3653,6 @@ typedef struct {
 
 static int list_modem_cb(const char *port, const char *fw,
                          const char *imei, const modemident_t *id, void *ctx) {
-    (void)port;
     list_ctx_t *c = (list_ctx_t *)ctx;
 
     if (!imei[0])
@@ -3634,23 +3660,31 @@ static int list_modem_cb(const char *port, const char *fw,
     if (c->n_found >= LIST_MAX_INTERFACES)
         return 1;   /* full: stop the scan rather than write past the array */
 
-    c->interfaces[c->n_found] = (cf_params_list_interface_t *)
-        malloc(sizeof(cf_params_list_interface_t));
-    memset(c->interfaces[c->n_found], 0, sizeof(cf_params_list_interface_t));
+    cf_params_list_interface_t *li = (cf_params_list_interface_t *)
+        calloc(1, sizeof(cf_params_list_interface_t));
+    if (li == NULL)
+        return 1;
+    c->interfaces[c->n_found] = li;
 
     char iface_name[512];
     snprintf(iface_name, sizeof(iface_name), "celldiag-%s", imei);
-    c->interfaces[c->n_found]->interface = strdup(iface_name);
+    li->interface = strdup(iface_name);
 
     /* The modem's own make/model/firmware, not the firmware alone --
      * this string is what the web UI's Sources panel shows for a source that
-     * is not open yet, and the operator is choosing between modems. */
-    char hw_desc[512];
+     * is not open yet, and the operator is choosing between modems -- and the
+     * USB port, which names it as celldiag-usb<port> too. */
+    char hw_desc[512], label[400], usb_dev[64];
     if (id != NULL)
-        modemident_label(id, " DIAG", hw_desc, sizeof(hw_desc));
+        modemident_label(id, " DIAG", label, sizeof(label));
     else
-        snprintf(hw_desc, sizeof(hw_desc), "%s IMEI:%s DIAG", fw, imei);
-    c->interfaces[c->n_found]->hardware = strdup(hw_desc);
+        snprintf(label, sizeof(label), "%s IMEI:%s DIAG", fw, imei);
+    if (get_usb_device_id(port, usb_dev, sizeof(usb_dev)) &&
+        cell_name_usbdev_ok(usb_dev))
+        snprintf(hw_desc, sizeof(hw_desc), "%s USB:%s", label, usb_dev);
+    else
+        snprintf(hw_desc, sizeof(hw_desc), "%s", label);
+    li->hardware = strdup(hw_desc);
 
     c->n_found++;
     return 0;
@@ -3723,7 +3757,9 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
                   cf_params_list_interface_t ***interfaces) {
     (void)caph; (void)seqno; (void)msg;
     *interfaces = (cf_params_list_interface_t **)
-        malloc(sizeof(cf_params_list_interface_t *) * LIST_MAX_INTERFACES);
+        calloc(LIST_MAX_INTERFACES, sizeof(cf_params_list_interface_t *));
+    if (*interfaces == NULL)
+        return 0;
 
     list_ctx_t ctx = { .interfaces = *interfaces, .n_found = 0 };
     g_scan_list_wait = 1;          /* wait out a sibling lister */
@@ -3740,7 +3776,19 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
  * and open_callback register the same non-zero UUID -- Kismet's datasource
  * uniqueness check runs at probe/registration time, so a probe that leaves *uuid
  * as all-zeros makes every celldiag source collide on 00000000-... */
-static void compose_diag_uuid(const char *imei, char *definition, char **uuid) {
+/* What a name's UUID is made from: the IMEI, as it always was, "usb<port>" for
+ * a USB name and "" for the bare name. */
+static void diag_name_key(cell_name_kind_t kind, const char *val, char *key,
+                          size_t keysz) {
+    if (kind == CELL_NAME_USB)
+        snprintf(key, keysz, "usb%s", val);
+    else if (kind == CELL_NAME_IMEI)
+        snprintf(key, keysz, "%s", val);
+    else
+        snprintf(key, keysz, "%s", "");
+}
+
+static void compose_diag_uuid(const char *key, char *definition, char **uuid) {
     char *placeholder = NULL;
     int placeholder_len;
     char buf[STATUS_MAX];
@@ -3750,7 +3798,7 @@ static void compose_diag_uuid(const char *imei, char *definition, char **uuid) {
         return;
     }
 
-    snprintf(buf, sizeof(buf), "celldiag%s", imei);
+    snprintf(buf, sizeof(buf), "celldiag%s", key);
     uint32_t hash = adler32_csum((unsigned char *)buf, strlen(buf));
     snprintf(buf, sizeof(buf), "%08X-0000-0000-0000-0000%08X",
              adler32_csum((unsigned char *)"kismet_cap_cell_diag",
@@ -3779,8 +3827,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL)
+        return 0;
 
-    if (strncmp(interface, "celldiag-", 9) != 0) {
+    char name_val[CELL_NAME_USB_MAX];
+    cell_name_kind_t kind = cell_name_parse(interface, "celldiag", name_val,
+                                            sizeof(name_val));
+    if (kind == CELL_NAME_BAD) {
         /* Say why -- but only for a definition that is plausibly ours.
          *
          * Kismet probes every definition against every capture binary, so a
@@ -3801,9 +3854,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
          */
         if (strncmp(interface, "celldiag", 8) == 0) {
             snprintf(msg, STATUS_MAX,
-                     "'%s' is not a celldiag interface - expected "
-                     "celldiag-<15-digit IMEI> (the IMEI selects WHICH modem; "
-                     "a bare 'celldiag' cannot). Run "
+                     "'%s' is not a celldiag interface - expected celldiag (the "
+                     "one attached modem), celldiag-<15-digit IMEI>, or "
+                     "celldiag-usb<bus-port> such as celldiag-usb1-5.1. Run "
                      "'kismet_cap_cell_diag --list' for the attached modems.",
                      interface);
         }
@@ -3811,26 +3864,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    const char *imei = interface + 9;
-    if (strlen(imei) != 15) {
-        snprintf(msg, STATUS_MAX,
-                 "Invalid celldiag definition '%s' - expected celldiag-<15-digit IMEI>",
-                 interface);
-        free(interface);
-        return 0;
-    }
-    for (int i = 0; i < 15; i++) {
-        if (!isdigit(imei[i])) {
-            snprintf(msg, STATUS_MAX, "Invalid IMEI in '%s' - must be 15 digits",
-                     interface);
-            free(interface);
-            return 0;
-        }
-    }
-
     /* Register the same deterministic UUID the open path will use, so the
      * probe-time uniqueness check sees a unique id per source. */
-    compose_diag_uuid(imei, definition, uuid);
+    char key[CELL_NAME_USB_MAX + 4];
+    diag_name_key(kind, name_val, key, sizeof(key));
+    compose_diag_uuid(key, definition, uuid);
 
     free(interface);
     return 1;
@@ -4010,9 +4048,90 @@ static void diag_fd_release(local_diag_t *local) {
 static void celldiag_trace(void *ctx, const char *dir, const uint8_t *frame,
                            size_t len, unsigned skipped);
 
+/* A simple name's IMEI: the one modem it can mean, from atport= or a scan.
+ * 0 with msg filled when there is none, or more than one. The IMEI scan
+ * that follows re-identifies it, so the rest of the bring-up is unchanged. */
+static int diag_resolve_name(kis_capture_handler_t *caph, local_diag_t *local,
+                             char *msg, size_t msg_sz) {
+    char buf[STATUS_MAX];
+    const char *atport = local->bringup.atport_override;
+    const char *diagport = local->bringup.diagport_override;
+    char imei[64] = "";
+
+    if (atport[0]) {
+        char fw[256];
+        modemident_t id;
+        if (!identify_modem(atport, fw, sizeof(fw), imei, sizeof(imei), "",
+                            NULL, &id)) {
+            snprintf(msg, msg_sz, "atport=%s did not AT-identify with an IMEI, "
+                     "which %s needs to name the modem", atport, local->src_name);
+            return 0;
+        }
+        if (local->name_kind == CELL_NAME_USB) {
+            char usb_dev[64];
+            if (!get_usb_device_id(atport, usb_dev, sizeof(usb_dev)) ||
+                !cell_usb_matches(usb_dev, local->name_val)) {
+                snprintf(msg, msg_sz, "atport=%s is not on USB port %s",
+                         atport, local->name_val);
+                return 0;
+            }
+        }
+    } else {
+        cell_pick_t pick;
+        /* An MHI diagport= is a PCIe modem: only the non-USB AT nodes. A
+         * bare name with no USB modem falls back to them, as an IMEI does. */
+        int mhi = diagport[0] && diag_wwan_classify(diagport, NULL) != DIAG_WWAN_NONE;
+        pick_modems(local, mhi ? SCAN_NONUSB_AT : SCAN_ALL_PORTS, &pick);
+        scan_report_ports(caph, local->src_name, "modem scan");
+        if (pick.total == 0 && g_scan_busy > 0) {
+            usleep((useconds_t)(250 + (getpid() % 8) * 75) * 1000);
+            pick_modems(local, mhi ? SCAN_NONUSB_AT : SCAN_ALL_PORTS, &pick);
+        }
+        if (pick.total == 0 && !mhi && local->name_kind == CELL_NAME_ANY)
+            pick_modems(local, SCAN_NONUSB_AT, &pick);
+        if (pick.total == 0) {
+            if (local->name_kind == CELL_NAME_USB)
+                snprintf(msg, msg_sz, "%s: no cell modem answered on USB port %s",
+                         local->src_name, local->name_val);
+            else
+                snprintf(msg, msg_sz, "%s: no cell modem found on any serial "
+                         "port or non-USB AT node", local->src_name);
+            return 0;
+        }
+        if (pick.total > 1) {
+            char choices[STATUS_MAX];
+            cell_pick_choices(&pick, "celldiag", choices, sizeof(choices));
+            snprintf(msg, msg_sz, "%s: %d cell modems are attached, so name the "
+                     "one to use: %s", local->src_name, pick.total, choices);
+            return 0;
+        }
+        snprintf(imei, sizeof(imei), "%s", pick.m[0].imei);
+    }
+
+    char *dup = strdup(imei);
+    if (dup == NULL) {
+        snprintf(msg, msg_sz, "%s: out of memory", local->src_name);
+        return 0;
+    }
+    free(local->modem_imei);
+    local->modem_imei = dup;
+
+    snprintf(buf, sizeof(buf), "%s is the modem with IMEI %s", local->src_name,
+             imei);
+    cf_send_message(caph, buf, MSGFLAG_INFO);
+    return 1;
+}
+
 static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
                             char *msg, size_t msg_sz) {
     char buf[STATUS_MAX];
+    if (local->name_kind != CELL_NAME_IMEI && local->modem_imei == NULL &&
+        !diag_resolve_name(caph, local, msg, msg_sz)) {
+        free(local->bringup.profiles_dir);
+        local->bringup.profiles_dir = NULL;
+        local->bringup.pending = 0;
+        return -1;
+    }
     const char *imei_def = local->modem_imei;
     char *profiles_dir = local->bringup.profiles_dir;
     struct timespec t_start;
@@ -4358,6 +4477,17 @@ f3_default_done:
      * capture framework's "Remote side closed read pipe" path. 5 attempts x
      * 200 ms (~1 s max) absorbs the grab; a genuinely-wrong path (ENOENT)
      * still fails fast on the first attempt (see diag_open_errno_is_transient). */
+    /* Not a node another program reads or has locked: opening it would
+     * share or steal that session's DIAG stream. */
+    {
+        cell_busy_t busy;
+        if (cell_port_busy(diag_port, 0, &busy)) {
+            char label[384];
+            cell_busy_label(&busy, label, sizeof(label));
+            snprintf(msg, msg_sz, "DIAG port %s is in use: %s", diag_port, label);
+            goto fail;
+        }
+    }
     local->diag_fd = diag_port_open_retry(diag_port, 5, 200);
     if (local->diag_fd < 0) {
         if (errno == EBUSY && cell_usbport_is_spec(diag_port))
@@ -4567,34 +4697,36 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory parsing the definition");
+        return -1;
+    }
 
-    if (strncmp(interface, "celldiag-", 9) != 0) {
+    /* celldiag-<IMEI>, or a simple name the bring-up resolves to one: the
+     * bare celldiag (the one attached modem) or celldiag-usb<port>. */
+    char name_val[CELL_NAME_USB_MAX];
+    cell_name_kind_t name_kind = cell_name_parse(interface, "celldiag", name_val,
+                                                 sizeof(name_val));
+    if (name_kind == CELL_NAME_BAD) {
         snprintf(msg, STATUS_MAX,
-                 "Invalid celldiag definition '%s' - expected celldiag-<IMEI>",
-                 interface);
+                 "Invalid celldiag definition '%s' - expected celldiag, "
+                 "celldiag-<15-digit IMEI> or celldiag-usb<bus-port>", interface);
         free(interface);
         return -1;
     }
-    const char *imei = interface + 9;
-    if (strlen(imei) != 15) {
-        snprintf(msg, STATUS_MAX,
-                 "Invalid celldiag definition '%s' - expected celldiag-<15-digit IMEI>",
-                 interface);
-        free(interface);
-        return -1;
-    }
-    for (int i = 0; i < 15; i++) {
-        if (!isdigit(imei[i])) {
-            snprintf(msg, STATUS_MAX, "Invalid IMEI in '%s' - must be 15 digits",
-                     interface);
-            free(interface);
-            return -1;
-        }
-    }
-    char imei_def[16];
-    strncpy(imei_def, imei, 15);
-    imei_def[15] = '\0';
+    local->name_kind = name_kind;
+    snprintf(local->name_val, sizeof(local->name_val), "%s",
+             name_kind == CELL_NAME_USB ? name_val : "");
+    snprintf(local->src_name, sizeof(local->src_name), "%s", interface);
     free(interface);
+
+    char uuid_key[CELL_NAME_USB_MAX + 4];
+    diag_name_key(name_kind, name_val, uuid_key, sizeof(uuid_key));
+
+    /* The IMEI from the name; "" until the bring-up resolves a simple one */
+    char imei_def[16] = "";
+    if (name_kind == CELL_NAME_IMEI)
+        snprintf(imei_def, sizeof(imei_def), "%s", name_val);
 
     /* --- source options --- */
     /* helper= is refused, not ignored. It used to select an external
@@ -5009,7 +5141,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    local->modem_imei = strdup(imei_def);
+    local->modem_imei = imei_def[0] ? strdup(imei_def) : NULL;
+
+    /* A replay has no modem to resolve a simple name against */
+    if (name_kind != CELL_NAME_IMEI && local->replay_path && !local->disabled) {
+        snprintf(msg, STATUS_MAX, "%s: replay= needs a celldiag-<IMEI> name",
+                 local->src_name);
+        return -1;
+    }
 
     /* --- resolve the DIAG source --- */
     if (local->disabled) {
@@ -5064,8 +5203,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* --- interface info --- */
     char hw_desc[512];
-    snprintf(hw_desc, sizeof(hw_desc), "%s IMEI:%s DIAG",
-             local->modem_model, imei_def);
+    if (imei_def[0])
+        snprintf(hw_desc, sizeof(hw_desc), "%s IMEI:%s DIAG",
+                 local->modem_model, imei_def);
+    else
+        snprintf(hw_desc, sizeof(hw_desc), "%s %s", local->modem_model,
+                 local->src_name);
     local->name = strdup(hw_desc);
 
     /* --- run the bring-up inline when the operator opted out of deferral --- */
@@ -5100,7 +5243,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->hardware = strdup(hw_desc);
 
     /* Same deterministic UUID the probe path registered. */
-    compose_diag_uuid(imei_def, definition, uuid);
+    compose_diag_uuid(uuid_key, definition, uuid);
     /* The ClockAnchor source_name is this datasource's uuid, and capture_thread
      * only has `local` (cellat keeps the same copy). */
     free(local->source_uuid);
@@ -5114,8 +5257,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* The open command is answered now, well inside Kismet's
          * deadline; the modem bring-up runs next in the capture thread and
          * reports its own success/failure on the message bus. */
-        snprintf(buf, STATUS_MAX, "Cell DIAG source celldiag-%s accepted; "
-                 "opening modem in the background (deferred bring-up)", imei_def);
+        snprintf(buf, STATUS_MAX, "Cell DIAG source %s accepted; "
+                 "opening modem in the background (deferred bring-up)",
+                 local->src_name);
     else
         snprintf(buf, STATUS_MAX, "Cell DIAG source %s opened (%s%s)",
                  local->name,
@@ -5509,8 +5653,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
         g_bringup_caph = NULL;
         if (brc != 0) {
             snprintf(errstr, ERRBUF_MAX,
-                     "celldiag-%s bring-up failed after %ld ms: %s",
-                     local->modem_imei ? local->modem_imei : "?",
+                     "%s bring-up failed after %ld ms: %s",
+                     local->src_name,
                      local->bringup.elapsed_ms,
                      berr[0] ? berr : "unknown error");
             /* The reason as fields, before the helper exits -- the
@@ -6033,6 +6177,7 @@ int main(int argc, char *argv[]) {
     }
 
     cf_handler_remote_capture(caph);
+    cell_discover_baseline();
     cf_jail_filesystem(caph);
     cf_drop_most_caps(caph);
 

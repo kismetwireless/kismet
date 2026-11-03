@@ -10,6 +10,15 @@ Source spec: `celldiag-<15-digit IMEI>` (e.g. `-c celldiag-123456789012345`).
 The IMEI is resolved to a modem by an AT probe on a sibling serial port, then
 that modem's DIAG interface is opened for the tap.
 
+Without the IMEI: `celldiag` is the one attached modem (with more, the bring-up
+fails and lists their names), and `celldiag-usb<bus-port>` is the modem on that
+USB port, the `USB:` value `--list` shows (`celldiag-usb1-5.1`). A simple name
+is resolved to the IMEI at the start of the bring-up. The scan skips ports
+another program has open, has locked (`LCK..`) or that ModemManager manages, and
+the DIAG node is refused if another program has it open or locked; see cellat's
+README, §12, which also has the udev rule for sharing a modem with
+NetworkManager's WWAN connection.
+
 ## Build and run
 
 ```sh

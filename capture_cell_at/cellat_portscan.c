@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "cellat_portscan.h"
+#include "../capture_cell_diag/cell_discover.h"
 #include "../capture_cell_diag/diag_portadmit.h"
 #include "../capture_cell_diag/diag_wwanport.h"
 
@@ -51,9 +52,12 @@ static const char *g_sysfs_root = DIAG_PORTADMIT_SYSFS;
 static FILE *g_refusal_log;
 static int g_refusal_log_set;
 static char g_refused[512];
+static char g_inuse[512];
 
 void cellat_scan_set_sysfs_root(const char *root) {
     g_sysfs_root = (root && *root) ? root : DIAG_PORTADMIT_SYSFS;
+    /* The busy check reads /proc and /run under the same fake root */
+    cell_discover_set_root(root && *root ? root : "");
 }
 
 const char *cellat_scan_sysfs_root(void) {
@@ -67,10 +71,36 @@ void cellat_scan_set_refusal_log(FILE *f) {
 
 void cellat_scan_refusals_reset(void) {
     g_refused[0] = '\0';
+    g_inuse[0] = '\0';
 }
 
 const char *cellat_scan_refusals(void) {
     return g_refused;
+}
+
+const char *cellat_scan_inuse(void) {
+    return g_inuse;
+}
+
+/* Another program's port is not probed: a lock file, an open fd, or a
+ * ModemManager port. An operator-named port skips only the last. */
+static int scan_port_free(const char *path, int check_mm) {
+    cell_busy_t b;
+    if (!cell_port_busy(path, check_mm, &b))
+        return 1;
+
+    char label[384];
+    cell_busy_label(&b, label, sizeof(label));
+    size_t off = strnlen(g_inuse, sizeof(g_inuse));
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    int n = snprintf(g_inuse + off, sizeof(g_inuse) - off, "%s%s(%s)",
+                     off ? "," : "", base, label);
+    if (n < 0 || off + (size_t) n >= sizeof(g_inuse))
+        g_inuse[off] = '\0';
+    cell_busy_log_once(g_refusal_log_set ? g_refusal_log : stderr, "cellat",
+                       path, &b);
+    return 0;
 }
 
 int cellat_scan_admit(cellat_scan_filter_t filter, const char *path) {
@@ -83,12 +113,12 @@ int cellat_scan_admit(cellat_scan_filter_t filter, const char *path) {
         return 0;
 
     if (filter == CELLAT_SCAN_CLASSIFIED)
-        return diag_wwan_is_at(path) ? 1 : 0;
+        return diag_wwan_is_at(path) && scan_port_free(path, 1) ? 1 : 0;
 
     if (filter == CELLAT_SCAN_SUSPECTED) {
         diag_portadmit_t v;
         if (diag_port_admit(g_sysfs_root, path, &v))
-            return 1;
+            return scan_port_free(path, 1);
         diag_portadmit_note(g_refused, sizeof(g_refused), path, &v);
         diag_portadmit_log_once(g_refusal_log_set ? g_refusal_log : stderr,
                                 "cellat", path, &v,
@@ -97,7 +127,7 @@ int cellat_scan_admit(cellat_scan_filter_t filter, const char *path) {
         return 0;
     }
 
-    return 1;
+    return scan_port_free(path, 0);
 }
 
 /* The bound, duplicate and append half shared by both add paths. `path` has
@@ -548,6 +578,7 @@ static void test_suspected_from_sysfs(void) {
 
     /* Production reads the real sysfs. */
     cellat_scan_set_sysfs_root(NULL);
+    cell_discover_set_root("/nonexistent-cellat-portscan-test");
     check(strcmp(cellat_scan_sysfs_root(), "/sys") == 0,
           "cellat_scan_set_sysfs_root(NULL) restores /sys");
 
@@ -559,6 +590,8 @@ static void test_suspected_from_sysfs(void) {
 
 int main(void) {
     printf("cellat_portscan selftest (the glob wiring + admission)\n\n");
+    /* Nothing on this host holds a port as far as these tests know */
+    cell_discover_set_root("/nonexistent-cellat-portscan-test");
     test_scan_sources();
     test_admit_at_nodes();
     test_refuse_dangerous_nodes();

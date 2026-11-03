@@ -24,6 +24,7 @@ MONITOR_OBJS = \
 	diag_modemident.c.o \
 	cell_log.c.o \
 	diag_portadmit.c.o \
+	cell_discover.c.o \
 	diag_identvouch.c.o \
 	diag_inventory.c.o \
 	diag_gpsfix.c.o \
@@ -254,6 +255,9 @@ TEST_CELL_LOG_BIN = test_cell_log
 # a scan may probe at all. Pure libc; its selftest is in-file behind
 # -DDIAG_PORTADMIT_SELFTEST and builds a fake sysfs tree, so it needs no device.
 TEST_PORTADMIT_BIN = test_diag_portadmit
+# cell_discover: source names and which ports another program is using, on a
+# fake /proc, lock directory and udev database (-DCELL_DISCOVER_SELFTEST).
+TEST_DISCOVER_BIN = test_cell_discover
 # The holder's identity vouch: publish/lookup/withdraw, and every rule a
 # lookup enforces (same node instance, live writer, safe directory). Pure libc.
 TEST_IDENTVOUCH_BIN = test_diag_identvouch
@@ -301,6 +305,7 @@ SELFTEST_BINS = $(TEST_HDLC_BIN) \
 	$(TEST_MODEMIDENT_BIN) \
 	$(TEST_CELL_LOG_BIN) \
 	$(TEST_PORTADMIT_BIN) \
+	$(TEST_DISCOVER_BIN) \
 	$(TEST_IDENTVOUCH_BIN) \
 	$(TEST_LOGSTREAM_BIN) \
 	$(TEST_NATIVE_BIN) \
@@ -406,6 +411,10 @@ $(TEST_PORTADMIT_BIN):	diag_portadmit.c diag_portadmit.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_PORTADMIT_SELFTEST \
 		    -o $(TEST_PORTADMIT_BIN) diag_portadmit.c
 
+$(TEST_DISCOVER_BIN):	cell_discover.c cell_discover.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DCELL_DISCOVER_SELFTEST \
+		    -o $(TEST_DISCOVER_BIN) cell_discover.c
+
 $(TEST_LOGSTREAM_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_SELFTEST \
 		    -o $(TEST_LOGSTREAM_BIN) diag_logstream.c diag_hdlc.c
@@ -430,6 +439,7 @@ clean:
 	@-rm -f $(TEST_IFCLASS_BIN)
 	@-rm -f $(TEST_PROBECLOSE_BIN)
 	@-rm -f $(TEST_PORTADMIT_BIN)
+	@-rm -f $(TEST_DISCOVER_BIN)
 	@-rm -f $(TEST_IDENTVOUCH_BIN)
 	@-rm -f $(TEST_HDLC_BIN)
 	@-rm -f $(TEST_CONFIG_BIN)
