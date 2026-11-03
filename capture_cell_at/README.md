@@ -675,7 +675,8 @@ On a Quectel the open reports these **channels**:
   the whole dwell (an EM9291 stays there for at least 180 s), so an `NR5G` hop
   leg there is dead air that yields no observations.
 - The source is **never hopped automatically**. It opens with
-  `channel_hop=false` unless you set `channel_hop=` yourself; a global
+  `channel_hop=false` unless you set `channel_hop=` yourself, as a local
+  source or a remote one (`--source cellat-usb1-5.1`); a global
   `channel_hop=true` at several hops a second would re-lock the modem
   continuously.
 - `stats`: `lock_channel` is the lock **in force**, as written — not what was

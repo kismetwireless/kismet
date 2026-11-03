@@ -452,6 +452,24 @@ static std::string cellat_uuid_for_imei(const std::string& imei) {
     return std::string(out);
 }
 
+// Never auto-hop a cell modem (see the builder). An operator
+// who asks for channel_hop= gets what they asked for.
+static void cellat_default_no_hop(std::string& in_definition) {
+    for (size_t p = in_definition.find("channel_hop="); p != std::string::npos;
+            p = in_definition.find("channel_hop=", p + 1)) {
+        if (p > 0 && (in_definition[p - 1] == ':' || in_definition[p - 1] == ','))
+            return;
+    }
+    in_definition += (in_definition.find(':') == std::string::npos ? ":" : ",");
+    in_definition += "channel_hop=false";
+}
+
+void kis_datasource_cell_at::connect_remote(std::string in_definition, kis_datasource* in_remote,
+        const uuid& in_uuid, bool in_tcp, configure_callback_t in_cb) {
+    cellat_default_no_hop(in_definition);
+    kis_datasource::connect_remote(in_definition, in_remote, in_uuid, in_tcp, in_cb);
+}
+
 void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
     // Set a unique, port-stable UUID BEFORE the IPC open (see the detailed
@@ -478,21 +496,7 @@ void kis_datasource_cell_at::open_interface(std::string in_definition, unsigned 
         }
     }
 
-    // Never auto-hop a cell modem (see the builder). An operator
-    // who asks for channel_hop= gets what they asked for.
-    {
-        bool has_hop = false;
-        for (size_t p = in_definition.find("channel_hop="); p != std::string::npos;
-                p = in_definition.find("channel_hop=", p + 1)) {
-            if (p > 0 && (in_definition[p - 1] == ':' || in_definition[p - 1] == ','))
-                has_hop = true;
-        }
-        if (!has_hop) {
-            in_definition +=
-                (in_definition.find(':') == std::string::npos ? ":" : ",");
-            in_definition += "channel_hop=false";
-        }
-    }
+    cellat_default_no_hop(in_definition);
 
     // Re-apply the operator's runtime choices after a reopen.
     //   - profile: after every successful open of an enabled

@@ -2132,6 +2132,11 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
         return;
     }
 
+    // Nothing to hop between
+    auto hop_vec = in_ds->get_source_hop_vec();
+    if (hop_vec == nullptr || hop_vec->size() == 0)
+        return;
+
     // Turn on channel hopping if we do that
     if (config_defaults->get_hop() && in_ds->get_source_builder()->get_tune_capable() &&
             in_ds->get_source_builder()->get_hop_capable()) {
