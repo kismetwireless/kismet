@@ -435,12 +435,9 @@ void kis_datasource_mqtt::open_interface(std::string in_definition, unsigned int
             }
 
             if (freq_khz != 0 || channel.length() != 0) {
-                auto l1 = ds->packetchain->new_packet_component<kis_layer1_packinfo>();
-
-                l1->freq_khz = freq_khz;
-                l1->channel = channel;
-
-                packet->insert(ds->pack_comp_l1_agg, l1);
+                packet->signal_info.data_ok = true;
+                packet->signal_info.freq_khz = freq_khz;
+                packet->signal_info.channel = channel;
             }
 
             auto jsoninfo = ds->packetchain->new_packet_component<kis_json_packinfo>();
