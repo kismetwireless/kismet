@@ -945,6 +945,8 @@ void datasource_tracker::trigger_deferred_startup() {
                     set_ft.wait();
 
                     if (set_success) {
+                        // The new capture tool starts on one channel; hop or tune it as before
+                        ds->reapply_channel_config();
                         return ds;
                     } else {
                         con->set_status(500);
