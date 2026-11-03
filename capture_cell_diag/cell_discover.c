@@ -32,7 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/sysmacros.h>
+#ifdef __linux__
+#include <sys/sysmacros.h>   /* major(), minor(); <sys/types.h> on macOS */
+#endif
 #include <time.h>
 #include <unistd.h>
 
