@@ -154,7 +154,7 @@ void dot11_tracked_ssid_alert_v2::set_ssid_regex(const std::string& regex) {
     ssid_re_ = pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
 
     if (ssid_re_ == NULL) {
-        throw std::runtime(fmt::format("Could not parse PCRE: {} at {}",
+        throw std::runtime_error(fmt::format("Could not parse PCRE: {} at {}",
                     compile_error, erroroffset));
     }
 

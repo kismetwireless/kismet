@@ -12830,7 +12830,7 @@ printf '%s\n' "#define HAVE_LIBPCRE2 1" >>confdefs.h
             LIBS="$LIBS -lpcre2-8"
         elif test "$pcre1" = "yes"; then
 
-printf '%s\n' "#define HAVE_LIBPCRE 1" >>confdefs.h
+printf '%s\n' "#define HAVE_LIBPCRE1 1" >>confdefs.h
 
             LIBS="$LIBS -lpcre"
         else

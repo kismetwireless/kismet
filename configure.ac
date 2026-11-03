@@ -1083,7 +1083,7 @@ if test "$caponly"x = "no"x; then
             AC_DEFINE(HAVE_LIBPCRE2, 1, libpcre2 regex support)
             LIBS="$LIBS -lpcre2-8"
         elif test "$pcre1" = "yes"; then
-            AC_DEFINE(HAVE_LIBPCRE, 1, libpcre1 regex support)
+            AC_DEFINE(HAVE_LIBPCRE1, 1, libpcre1 regex support)
             LIBS="$LIBS -lpcre"
         else
             AC_MSG_WARN([Failed to find libpcre or libpcre2 library and headers, make sure that pcre2-dev is installed])

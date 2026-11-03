@@ -121,7 +121,7 @@
 #undef HAVE_LIBPCAP
 
 /* libpcre1 regex support */
-#undef HAVE_LIBPCRE
+#undef HAVE_LIBPCRE1
 
 /* libpcre2 regex support */
 #undef HAVE_LIBPCRE2
