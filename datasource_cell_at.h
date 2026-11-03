@@ -45,6 +45,10 @@ protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb) override;
 
+    // A remote source gets the same no-auto-hop default as a local one
+    virtual void connect_remote(std::string in_definition, kis_datasource* in_remote,
+            const uuid& in_uuid, bool in_tcp, configure_callback_t in_cb) override;
+
     // Intercept the helper's "cellat_stats" control line and SET the
     // registered fields from it; everything else (CellModem observations,
     // RawAT, ClockAnchor) goes to the base handler unchanged. Mirrors

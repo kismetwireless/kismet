@@ -473,6 +473,14 @@ void kis_datasource::set_channel_hop(double in_rate,
         return;
     }
 
+    // The capture tools refuse an empty hop list as a malformed request and exit
+    if (in_chans == nullptr || in_chans->size() == 0) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "No channels to hop");
+        }
+        return;
+    }
+
     auto max_rate = get_source_builder()->get_max_hop_rate();
 
     if (max_rate > 0 && in_rate > max_rate) {
