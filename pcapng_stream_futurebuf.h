@@ -380,35 +380,48 @@ protected:
         kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
         auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
-        auto metablob = in_packet->fetch<packet_metablob>(pack_comp_meta);
+        auto jsoninfo = in_packet->fetch<kis_json_packinfo>(pack_comp_meta);
 
         if (datasrcinfo == nullptr) {
             return 0;
         }
 
-        int ng_interface_id;
-
-        if (in_data != nullptr) {
-            ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, in_data->dlt);
-        } else {
-            ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, 0);
-        }
-
         // Bundle the json info into a single keyed entry including the type; do this with 
         // basic strings because we don't want to waste time re-parsing the JSON data
         std::string formatted_json;
-        if (metablob != nullptr) {
-            formatted_json = fmt::format("\"{}\": {}", metablob->meta_type, metablob->meta_data);
+        if (jsoninfo != nullptr) {
+            formatted_json = fmt::format("\"{}\": {}", jsoninfo->type, jsoninfo->json_string);
         }
+
+        // A record without a frame, such as a scan report, has nothing a link type could
+        // describe; write it as an exported PDU for Wireshark's json dissector instead of an
+        // empty frame of link type 0, which Wireshark shows as a malformed NULL frame
+        const char *frame_data = nullptr;
+        size_t frame_len = 0;
+        unsigned int frame_dlt = 0;
+        std::string upper_pdu;
+
+        if (in_data != nullptr) {
+            frame_data = in_data->data();
+            frame_len = in_data->length();
+            frame_dlt = in_data->dlt;
+        }
+
+        if (frame_len == 0 && formatted_json.length() > 0) {
+            upper_pdu = make_json_upper_pdu(formatted_json);
+            frame_data = upper_pdu.data();
+            frame_len = upper_pdu.length();
+            frame_dlt = KDLT_WIRESHARK_UPPER_PDU;
+        }
+
+        int ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, frame_dlt);
 
         std::shared_ptr<char> buf;
 
         // Total buffer size starts header + data + options + end of option
         size_t buf_sz = sizeof(pcapng_epb_t) + sizeof(pcapng_option_t);
 
-        if (in_data != nullptr) {
-            buf_sz += PAD_TO_32BIT(in_data->length());
-        }
+        buf_sz += PAD_TO_32BIT(frame_len);
 
         // Optionally we add the GPS option into the total length
         size_t gps_len = 0;
@@ -472,16 +485,20 @@ protected:
 
         size_t opt_offt = sizeof(pcapng_epb_t);
 
-        if (in_data != nullptr) {
-            epb->captured_length = in_data->length();
-            epb->original_length = in_packet->original_len;
+        if (frame_len > 0) {
+            epb->captured_length = frame_len;
+
+            if (upper_pdu.length() > 0)
+                epb->original_length = frame_len;
+            else
+                epb->original_length = in_packet->original_len;
             // epb->original_length = in_data->length();
 
             // Copy the data after the epb header
-            memcpy(buf.get() + sizeof(pcapng_epb_t), in_data->data(), in_data->length());
+            memcpy(buf.get() + sizeof(pcapng_epb_t), frame_data, frame_len);
 
             // Offset to the end of the epb header + data + pad
-            opt_offt += PAD_TO_32BIT(in_data->length());
+            opt_offt += PAD_TO_32BIT(frame_len);
         } else {
             epb->captured_length = 0;
             epb->original_length = 0;
@@ -677,6 +694,21 @@ protected:
         if (check_over_size() || check_over_packets()) {
             chainbuf->cancel();
         }
+    }
+
+    // LINKTYPE_WIRESHARK_UPPER_PDU: big-endian tags naming the dissector, then the payload,
+    // here the JSON record as one object
+    static constexpr unsigned int KDLT_WIRESHARK_UPPER_PDU = 252;
+
+    static std::string make_json_upper_pdu(const std::string& formatted_json) {
+        // EXP_PDU_TAG_DISSECTOR_NAME (12), length 4, "json"; then EXP_PDU_TAG_END_OF_OPT (0)
+        static const char tags[] = { 0x00, 0x0c, 0x00, 0x04, 'j', 's', 'o', 'n', 0x00, 0x00, 0x00, 0x00 };
+
+        std::string pdu(tags, sizeof(tags));
+        pdu += "{";
+        pdu += formatted_json;
+        pdu += "}";
+        return pdu;
     }
 
     static size_t PAD_TO_32BIT(size_t in) {
