@@ -43,6 +43,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "cellat_selftest_json.h"
 #include <sys/time.h>
 
 /* cellat_qeng.inc / cellat_qscan.inc expect the includer to have defined this,
@@ -73,7 +75,7 @@ static void check(int cond, const char *what) {
 /* Return the first emitted observation JSON that contains `needle`, or NULL. */
 static const char *obs_with(char json[][JSON_BUF_MAX], int n, const char *needle) {
     for (int i = 0; i < n; i++)
-        if (strstr(json[i], needle))
+        if (json_has(json[i], needle))
             return json[i];
     return NULL;
 }
@@ -98,6 +100,19 @@ static const char *QSCAN_GATE =
 int main(void) {
     char json[MAX_OBS][JSON_BUF_MAX];
 
+    /* The matcher every value check below relies on, with a positive and a
+     * negative control for each rule it adds to strstr(). */
+    printf("== json_has: the fragment matcher itself ==\n");
+    check(json_has("{\"band\":4,\"x\":1}", "\"band\":4"),    "band 4 followed by ',' matches");
+    check(json_has("{\"band\":4}", "\"band\":4"),             "band 4 followed by '}' matches");
+    check(!json_has("{\"band\":41}", "\"band\":4"),           "band 41 is not band 4");
+    check(!json_has("{\"rsrp\":-98}", "\"rsrp\":-9"),         "rsrp -98 is not rsrp -9");
+    check(!json_has("{\"lat\":1.5}", "\"lat\":1"),            "1.5 is not 1");
+    check(json_has("{\"band\":41,\"b\":{\"band\":4}}", "\"band\":4"),
+          "a later exact occurrence still matches after a longer one");
+    check(json_has("{\"rat\":\"LTE5\"}", "\"rat\":\"LTE"),  "a non-numeric fragment stays a substring match");
+    check(!json_has(NULL, "\"band\":4"),                           "NULL json never matches");
+
     printf("== parse_qscan: verbatim corpus response ==\n");
     int n = parse_qscan(QSCAN_CORPUS, json, MAX_OBS);
     check(n == 7, "seven +QSCAN rows decode to seven observations");
@@ -106,30 +121,30 @@ int main(void) {
     check(lte4 != NULL, "LTE B4 EARFCN 66786 row is present");
     if (lte4) {
         check(strstr(lte4, "\"rat\":\"LTE\"") != NULL, "  66786 rat=LTE");
-        check(strstr(lte4, "\"pci\":471") != NULL,     "  66786 pci=471");
-        check(strstr(lte4, "\"band\":4") != NULL,       "  66786 band=4");
-        check(strstr(lte4, "\"bandwidth\":20") != NULL, "  66786 RB 100 -> bandwidth=20 MHz");
-        check(strstr(lte4, "\"rsrp\":-106") != NULL,    "  66786 rsrp=-106");
+        check(json_has(lte4, "\"pci\":471"),     "  66786 pci=471");
+        check(json_has(lte4, "\"band\":4"),       "  66786 band=4");
+        check(json_has(lte4, "\"bandwidth\":20"), "  66786 RB 100 -> bandwidth=20 MHz");
+        check(json_has(lte4, "\"rsrp\":-106"),    "  66786 rsrp=-106");
     }
 
     const char *lte900 = obs_with(json, n, "\"earfcn\":900");
-    check(lte900 && strstr(lte900, "\"bandwidth\":10"), "LTE 900 RB 50 -> bandwidth=10 MHz");
-    check(lte900 && strstr(lte900, "\"band\":2"),        "LTE 900 band=2");
+    check(lte900 && json_has(lte900, "\"bandwidth\":10"), "LTE 900 RB 50 -> bandwidth=10 MHz");
+    check(lte900 && json_has(lte900, "\"band\":2"),        "LTE 900 band=2");
 
     const char *lte5035 = obs_with(json, n, "\"earfcn\":5035");
-    check(lte5035 && strstr(lte5035, "\"bandwidth\":5"), "LTE 5035 RB 25 -> bandwidth=5 MHz");
-    check(lte5035 && strstr(lte5035, "\"band\":12"),      "LTE 5035 band=12");
+    check(lte5035 && json_has(lte5035, "\"bandwidth\":5"), "LTE 5035 RB 25 -> bandwidth=5 MHz");
+    check(lte5035 && json_has(lte5035, "\"band\":12"),      "LTE 5035 band=12");
 
     const char *nr41 = obs_with(json, n, "\"earfcn\":521310");
     check(nr41 != NULL, "NR5G n41 ARFCN 521310 row is present");
     if (nr41) {
         check(strstr(nr41, "\"rat\":\"NR\"") != NULL,   "  521310 rat=NR (normalize_rat folds NR5G -> NR)");
-        check(strstr(nr41, "\"band\":41") != NULL,       "  521310 band=41 (field[12], not field[11])");
+        check(json_has(nr41, "\"band\":41"),       "  521310 band=41 (field[12], not field[11])");
         check(strstr(nr41, "\"bandwidth\"") == NULL,     "  521310 emits NO bandwidth key (NR5G value unmapped)");
     }
 
     const char *nr77 = obs_with(json, n, "\"earfcn\":647328");
-    check(nr77 && strstr(nr77, "\"band\":77"),       "NR5G 647328 band=77");
+    check(nr77 && json_has(nr77, "\"band\":77"),       "NR5G 647328 band=77");
     check(nr77 && strstr(nr77, "\"bandwidth\"") == NULL, "NR5G 647328 emits no bandwidth key");
 
     printf("== parse_qscan: LTE-only gate isolation (free oracle) ==\n");
@@ -137,11 +152,11 @@ int main(void) {
     check(g == 2, "gate response decodes to two observations");
     const char *g_lte = obs_with(json, g, "\"rat\":\"LTE\"");
     const char *g_nr  = obs_with(json, g, "\"rat\":\"NR\"");
-    check(g_lte && strstr(g_lte, "\"bandwidth\":20"),
+    check(g_lte && json_has(g_lte, "\"bandwidth\":20"),
           "field[11]=100 on an LTE row -> bandwidth=20 (gate lets it through)");
     check(g_nr && strstr(g_nr, "\"bandwidth\"") == NULL,
           "field[11]=100 on an NR5G row -> NO bandwidth (gate blocks it)");
-    check(g_nr && strstr(g_nr, "\"band\":41"),
+    check(g_nr && json_has(g_nr, "\"band\":41"),
           "NR5G row still reads band=41 from field[12] regardless of the gate");
 
     /* The capability is PROBED with the test form, not asserted from a

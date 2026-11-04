@@ -270,16 +270,16 @@ $(TEST_OPTSET_BIN):	test_cellat_optset.c cellat_optset.c cellat_optset.h \
 $(TEST_TACFIX_BIN):	test_cellat_tacfix.c cellat_tacfix.inc
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_TACFIX_BIN) test_cellat_tacfix.c
 
-$(TEST_QENG_BIN):	test_cellat_qeng.c cellat_qeng.inc
+$(TEST_QENG_BIN):	test_cellat_qeng.c cellat_qeng.inc cellat_selftest_json.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QENG_BIN) test_cellat_qeng.c
 
-$(TEST_CPSI_BIN):	test_cellat_cpsi.c cellat_cpsi.inc cellat_qeng.inc
+$(TEST_CPSI_BIN):	test_cellat_cpsi.c cellat_cpsi.inc cellat_qeng.inc cellat_selftest_json.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_CPSI_BIN) test_cellat_cpsi.c
 
-$(TEST_RFSTS_BIN):	test_cellat_rfsts.c cellat_rfsts.inc cellat_qeng.inc
+$(TEST_RFSTS_BIN):	test_cellat_rfsts.c cellat_rfsts.inc cellat_qeng.inc cellat_selftest_json.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_RFSTS_BIN) test_cellat_rfsts.c
 
-$(TEST_QSCAN_BIN):	test_cellat_qscan.c cellat_qscan.inc cellat_qeng.inc
+$(TEST_QSCAN_BIN):	test_cellat_qscan.c cellat_qscan.inc cellat_qeng.inc cellat_selftest_json.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_QSCAN_BIN) test_cellat_qscan.c
 
 $(TEST_WWANPORT_BIN):	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
@@ -323,7 +323,7 @@ $(TEST_IDENTVOUCH_BIN):	../capture_cell_diag/test_diag_identvouch.c ../capture_c
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_IDENTVOUCH_BIN) \
 		    ../capture_cell_diag/test_diag_identvouch.c ../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_modemident.c
 
-$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_qeng.inc
+$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_qeng.inc cellat_selftest_json.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STD3GPP_BIN) test_cellat_std3gpp.c
 endif
 
