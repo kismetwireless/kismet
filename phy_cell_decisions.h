@@ -228,6 +228,20 @@ bool have_usable_rsrp(bool rsrp_is_number, int rsrp);
  * Returns 0 when the EARFCN is in no known band. */
 int earfcn_to_band(uint32_t earfcn);
 
+/* The band a cell's name and channel show, given the band shown so far
+ * (`current`, 0 for none) and an observation's band (`incoming`, 0 for none)
+ * at downlink `freq_khz`.
+ *
+ * Modems disagree on the band of one carrier: a 2145 MHz LTE carrier is B4
+ * (EARFCN 2300) to one and B66 (EARFCN 66786) to another, and the cell key
+ * fuses both into one device. Taking the newest report made the label
+ * depend on which observer spoke last. When both bands hold the carrier's
+ * frequency, the one with the wider downlink wins, then the higher number,
+ * so the label depends only on which bands were seen. Otherwise, and for
+ * non-LTE RATs, `incoming` wins as before. */
+int label_band(const std::string& rat, int current, int incoming,
+        uint64_t freq_khz);
+
 /* ARFCN -> DL centre frequency in kHz (LTE TS 36.101, NR TS 38.104).
  * Returns 0 when the ARFCN cannot be converted. */
 uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn);
