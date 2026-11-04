@@ -26,6 +26,10 @@
 
 #include <pwd.h>
 
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
+
 #ifdef HAVE_SENSORS_SENSORS_H
 #include <sensors/sensors.h>
 #endif
@@ -95,6 +99,38 @@ Systemmonitor::Systemmonitor() :
     status->set_server_git(VERSION_GIT_COMMIT);
     status->set_build_time(VERSION_BUILD_TIME);
 
+    memstatus = std::make_shared<tracked_memory_status>();
+    heap_read_time = 0;
+
+    // Shared with the status, so both report the same values
+    memstatus->insert(status->get_tracker_memory());
+    memstatus->insert(status->get_tracker_memory_rrd());
+    memstatus->insert(status->get_tracker_devices());
+    memstatus->insert(status->get_tracker_devices_rrd());
+    memstatus->insert(status->get_tracker_num_fields());
+    memstatus->insert(status->get_tracker_num_components());
+    memstatus->insert(status->get_tracker_num_http_connections());
+    memstatus->insert(status->get_tracker_string_cache_sz());
+
+    // The device tracker settings which change how much memory devices use
+    auto memsettings = memstatus->get_settings();
+    memsettings->insert("tracker_device_timeout",
+            std::make_shared<tracker_element_int64>(0, devicetracker->get_device_idle_expiration()));
+    memsettings->insert("tracker_device_packets",
+            std::make_shared<tracker_element_uint64>(0, devicetracker->get_device_idle_min_packets()));
+    memsettings->insert("tracker_max_devices",
+            std::make_shared<tracker_element_uint64>(0, devicetracker->get_max_num_devices()));
+    memsettings->insert("track_device_rrds",
+            std::make_shared<tracker_element_uint8>(0, !devicetracker->get_ram_no_rrd()));
+    memsettings->insert("track_device_seenby_views",
+            std::make_shared<tracker_element_uint8>(0, devicetracker->get_map_seenby_views()));
+    memsettings->insert("track_device_phy_views",
+            std::make_shared<tracker_element_uint8>(0, devicetracker->get_map_phy_views()));
+    memsettings->insert("keep_per_datasource_stats",
+            std::make_shared<tracker_element_uint8>(0, devicetracker->get_track_persource_history()));
+    memsettings->insert("keep_location_cloud_history",
+            std::make_shared<tracker_element_uint8>(0, devicetracker->get_track_history_cloud()));
+
     status->set_server_name(Globalreg::globalreg->kismet_config->fetch_opt("server_name"));
     status->set_server_description(Globalreg::globalreg->kismet_config->fetch_opt("server_description"));
     status->set_server_location(Globalreg::globalreg->kismet_config->fetch_opt("server_location"));
@@ -116,6 +152,13 @@ Systemmonitor::Systemmonitor() :
                 return use;
                 }, monitor_mutex);
     httpd->register_unauth_route("/system/user_status", {"GET", "POST"}, {}, user_monitor_endp);
+
+    memory_endp = std::make_shared<kis_net_web_tracked_endpoint>(
+            [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
+                update_heap_memory();
+                return memstatus;
+            }, monitor_mutex);
+    httpd->register_route("/system/memory", {"GET", "POST"}, httpd->RO_ROLE, {}, memory_endp);
 
     timestamp_endp = 
         std::make_shared<kis_net_web_tracked_endpoint>(
@@ -252,6 +295,109 @@ Systemmonitor::~Systemmonitor() {
     eventbus->remove_listener(logopen_evt_id);
 }
 
+void tracked_memory_status::register_fields() {
+    register_field("kismet.system.memory.peak_rss", "peak memory RSS in kbytes", &peak_rss);
+    register_field("kismet.system.memory.virtual", "virtual memory size in kbytes", &virtual_size);
+    register_field("kismet.system.memory.rss_anon", "anonymous (heap and stack) RSS in kbytes", &rss_anon);
+    register_field("kismet.system.memory.rss_file", "file-backed RSS (program and libraries) in kbytes", &rss_file);
+    register_field("kismet.system.memory.rss_shmem", "shared memory RSS in kbytes", &rss_shmem);
+    register_field("kismet.system.memory.swap", "memory swapped out in kbytes", &swap);
+    register_field("kismet.system.memory.threads", "number of threads", &threads);
+
+    register_field("kismet.system.memory.system_total", "system memory in kbytes", &system_total);
+    register_field("kismet.system.memory.system_available",
+            "system memory available in kbytes", &system_available);
+    register_field("kismet.system.memory.system_used_rrd", "system memory used RRD", &system_used_rrd);
+
+    register_field("kismet.system.memory.heap_known", "heap stats are available", &heap_known);
+    register_field("kismet.system.memory.heap_used", "heap in use in kbytes", &heap_used);
+    register_field("kismet.system.memory.heap_free", "heap held free by the allocator in kbytes", &heap_free);
+    register_field("kismet.system.memory.heap_mmap", "large allocations mapped separately in kbytes", &heap_mmap);
+
+    register_field("kismet.system.num_fields_rrd", "tracked element fields RRD", &num_fields_rrd);
+
+    register_field("kismet.system.memory.settings", "device tracker settings affecting memory", &settings);
+}
+
+void Systemmonitor::update_proc_memory() {
+#ifdef SYS_LINUX
+    // VmHWM etc are in kB; missing lines (older kernels) stay 0
+    std::ifstream sf("/proc/self/status");
+    std::string line;
+
+    static constexpr const char *keys[] = {
+        "VmHWM:", "VmSize:", "RssAnon:", "RssFile:", "RssShmem:", "VmSwap:", "Threads:"
+    };
+    constexpr size_t nkeys = sizeof(keys) / sizeof(keys[0]);
+
+    while (std::getline(sf, line)) {
+        size_t k;
+        uint64_t v;
+
+        for (k = 0; k < nkeys; k++)
+            if (line.compare(0, strlen(keys[k]), keys[k]) == 0)
+                break;
+
+        if (k >= nkeys || sscanf(line.c_str() + strlen(keys[k]), "%" SCNu64, &v) != 1)
+            continue;
+
+        switch (k) {
+            case 0: memstatus->set_peak_rss(v); break;
+            case 1: memstatus->set_virtual_size(v); break;
+            case 2: memstatus->set_rss_anon(v); break;
+            case 3: memstatus->set_rss_file(v); break;
+            case 4: memstatus->set_rss_shmem(v); break;
+            case 5: memstatus->set_swap(v); break;
+            case 6: memstatus->set_threads(v); break;
+        }
+    }
+
+    std::ifstream mf("/proc/meminfo");
+    uint64_t total = 0, avail = 0;
+
+    while (std::getline(mf, line) && (total == 0 || avail == 0)) {
+        uint64_t v;
+
+        if (sscanf(line.c_str(), "MemTotal: %" SCNu64, &v) == 1)
+            total = v;
+        else if (sscanf(line.c_str(), "MemAvailable: %" SCNu64, &v) == 1)
+            avail = v;
+    }
+
+    memstatus->set_system_total(total);
+    memstatus->set_system_available(avail);
+
+    if (total > 0 && avail > 0 && avail <= total)
+        memstatus->get_system_used_rrd()->add_sample(total - avail, Globalreg::globalreg->last_tv_sec);
+#endif
+
+    memstatus->get_num_fields_rrd()->add_sample(Globalreg::n_tracked_fields.load(std::memory_order_acquire),
+            Globalreg::globalreg->last_tv_sec);
+}
+
+// __GLIBC_PREREQ only exists on glibc, so it can't share an #if with the test for it
+#if defined(__GLIBC__)
+#if __GLIBC_PREREQ(2, 33)
+#define KIS_HAVE_MALLINFO2 1
+#endif
+#endif
+
+void Systemmonitor::update_heap_memory() {
+#ifdef KIS_HAVE_MALLINFO2
+    if (heap_read_time != 0 && Globalreg::globalreg->last_tv_sec - heap_read_time < 5)
+        return;
+
+    heap_read_time = Globalreg::globalreg->last_tv_sec;
+
+    auto mi = mallinfo2();
+
+    memstatus->set_heap_known(true);
+    memstatus->set_heap_used(mi.uordblks / 1024);
+    memstatus->set_heap_free(mi.fordblks / 1024);
+    memstatus->set_heap_mmap(mi.hblkhd / 1024);
+#endif
+}
+
 void tracked_system_status::register_fields() {
     register_field("kismet.system.battery.percentage", "remaining battery percentage", &battery_perc);
     register_field("kismet.system.battery.charging", "battery charging state", &battery_charging);
@@ -293,6 +439,8 @@ int Systemmonitor::timetracker_event(int eventid) {
     // Grab the devices
     status->set_devices(num_devices);
     status->get_devices_rrd()->add_sample(num_devices, Globalreg::globalreg->last_tv_sec);
+
+    update_proc_memory();
 
 #ifdef SYS_LINUX
     // Grab the memory from /proc

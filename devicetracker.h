@@ -109,6 +109,16 @@ public:
 	int fetch_num_devices();
 	int fetch_num_packets();
 
+    // Memory settings, fixed at startup
+    int get_device_idle_expiration() const { return device_idle_expiration; }
+    unsigned int get_device_idle_min_packets() const { return device_idle_min_packets; }
+    unsigned int get_max_num_devices() const { return max_num_devices; }
+    bool get_ram_no_rrd() const { return ram_no_rrd; }
+    bool get_map_seenby_views() const { return map_seenby_views; }
+    bool get_map_phy_views() const { return map_phy_views; }
+    bool get_track_persource_history() const { return track_persource_history; }
+    bool get_track_history_cloud() const { return track_history_cloud; }
+
 	int add_filter(std::string in_filter);
 	int add_net_cli_filter(std::string in_filter);
 
@@ -329,7 +339,7 @@ protected:
 
     // Minimum number of packets a device may have to be eligible for
     // being timed out
-    unsigned int device_idle_min_packets;
+    unsigned int device_idle_min_packets = 0;
 
     // Maximum number of devices
     unsigned int max_num_devices;
