@@ -1150,7 +1150,7 @@ static int parse_servinfo(const char *response, char json_out[][JSON_BUF_MAX],
  * Returns 1 on success.
  */
 static int extract_kv_int(const char *str, const char *key, long *out) {
-    char *p = strstr(str, key);
+    const char *p = strstr(str, key);
     if (!p) return 0;
     p += strlen(key);
     /* Copy value to a NUL-terminated buffer */
@@ -1165,7 +1165,7 @@ static int extract_kv_int(const char *str, const char *key, long *out) {
 }
 
 static int extract_kv_hex(const char *str, const char *key, unsigned long *out) {
-    char *p = strstr(str, key);
+    const char *p = strstr(str, key);
     if (!p) return 0;
     p += strlen(key);
     char val[32];
@@ -1182,7 +1182,7 @@ static int extract_kv_hex(const char *str, const char *key, unsigned long *out) 
  * truncated to out_sz). Returns 1 iff the key was present. Used for PLMN
  * components whose broadcast digit count must be preserved. */
 static int extract_kv_str(const char *str, const char *key, char *out, size_t out_sz) {
-    char *p = strstr(str, key);
+    const char *p = strstr(str, key);
     if (!p) return 0;
     p += strlen(key);
     size_t i = 0;
@@ -1451,7 +1451,7 @@ static int parse_csurvc(const char *response, char json_out[][JSON_BUF_MAX],
  */
 static const char *extract_gstatus_field(const char *response, const char *label) {
     static char field_buf[64];
-    char *p = strstr(response, label);
+    const char *p = strstr(response, label);
     if (!p) return NULL;
     p += strlen(label);
     while (*p == ' ' || *p == '\t') p++;
@@ -1486,7 +1486,7 @@ static int parse_gstatus(const char *response, int serial_fd,
     int h_tac = 0, h_cell_id = 0, h_earfcn = 0, h_pci = 0;
     int h_bandwidth = 0, h_sinr = 0;
     long sinr = 0;
-    char *p;
+    const char *p;
 
     /* Parse MCC-MNC (format: "310-260") — same label prefix for both RATs */
     const char *mcc_mnc_label = (strcmp(rat, "NR") == 0) ? "NR5G MCC-MNC:" : "MCC-MNC:";
@@ -1505,7 +1505,7 @@ static int parse_gstatus(const char *response, int serial_fd,
 
     /* Cell ID: "... Cell ID:    1A2B9D138 (7025054008)" — use decimal in parens */
     if ((p = strstr(response, "Cell ID:")) != NULL) {
-        char *paren = strchr(p, '(');
+        const char *paren = strchr(p, '(');
         if (paren) {
             paren++;
             char cid_buf[32];
