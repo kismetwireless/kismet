@@ -962,6 +962,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (globalregistry->fatal_condition) 
         SpindownKismet();
 
+    kis_webhooks::create_webhooks();
     device_rules::create_device_rules();
     range_tracker::create_range_tracker();
 

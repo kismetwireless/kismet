@@ -11,7 +11,42 @@
 #                               takes the rule's description when it has none of its own
 #       alert                   raise a DEVICERULE alert when a device starts matching
 #       live                    check on every packet as well as on the timer
+#       webhook "<endpoint>"    send matching devices to a webhook endpoint from
+#                               kismet_webhooks.conf, optionally with { terms } below
 #   }
+#
+# A webhook sends when a device starts matching, unless its terms say otherwise:
+#
+#   webhook "<endpoint>" {
+#       trigger match           when a device starts matching (the default); again only
+#                               after it stops matching and matches again
+#       trigger new             when a device first seen after the rule loaded starts
+#                               matching, once per device
+#       trigger once            the first device to match, once until the rules reload
+#       trigger every <time>    while a device matches, each time it's updated, at most
+#                               once per <time> (10s or more)
+#       trigger change <field>, <field> ... limit <time>
+#                               when the fields change while a device matches, at most
+#                               once per <time> per device (1s or more).  Changes inside
+#                               the limit are sent together when it's up, with the old
+#                               and new values.  A limit is required.
+#       for <time>              a device must keep matching this long before it's sent
+#       stop                    also send when a device stops matching
+#       rate <n>/<period> [burst <n>]
+#                               most events from this webhook per period, such as 10/1m
+#                               or 100/1h (default 10/1m)
+#       batch <time> [max <n>]  hold events to send together: the first event opens a
+#                               window, sent when <time> is up or <n> events are in it
+#                               (default 100)
+#       fields <field>, ...     the device fields to send, as in the REST api's fields
+#                               (default: key, mac, name, phy, type, manuf, channel,
+#                               frequency, first and last time, and signal)
+#       fire_existing           also send for devices that already match when the rule
+#                               loads; without it they're recorded and not sent
+#   }
+#
+# The endpoint's own rate, queue and retry limits apply on top of these, along with
+# webhook_global_rate; /webhooks/status.json shows what each webhook sent and held back.
 #
 # Conditions compare device fields to values:
 #
@@ -99,6 +134,24 @@
 #
 # sort by-rule {
 #     by rule, last_time desc
+# }
+#
+# rule new-public-btle {
+#     description "New BTLE devices with public addresses"
+#     when phy == "BTLE" and not exists(btle.device.random_address_type)
+#     webhook "ha" {
+#         trigger new
+#         batch 30s max 100
+#         fields mac, name, signal
+#     }
+# }
+#
+# rule watchlist-signal {
+#     when mac in [00:11:22:33:44:55]
+#     webhook "ha" {
+#         trigger change signal limit 30s
+#         stop
+#     }
 # }
 #
 # rule gone-quiet {

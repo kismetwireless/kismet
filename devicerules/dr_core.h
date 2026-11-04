@@ -207,6 +207,56 @@ struct node {
     std::vector<std::unique_ptr<node>> set;
 };
 
+// When a rule's webhook sends for a device
+enum class hook_trigger : uint8_t {
+    // The device starts matching
+    match,
+    // A device first seen after the rule loaded starts matching, once per device
+    new_device,
+    // The first device to match, once per rule
+    once,
+    // While the device matches and is updated, at most once per interval
+    every,
+    // Listed fields change while the device matches, at most once per limit
+    change,
+};
+
+const char *hook_trigger_name(hook_trigger t);
+
+// Limits on webhook terms; repeating triggers can't be set below these
+constexpr int64_t hook_min_every = 10;
+constexpr int64_t hook_min_limit = 1;
+constexpr int64_t hook_max_duration = 86400;
+constexpr uint32_t hook_max_rate = 10000;
+constexpr int64_t hook_max_batch = 600;
+constexpr uint32_t hook_max_batch_events = 1000;
+constexpr size_t hook_max_fields = 32;
+constexpr size_t hook_max_change_fields = 8;
+constexpr size_t hook_max_per_rule = 4;
+
+struct webhook_def {
+    std::string endpoint;
+    hook_trigger trigger = hook_trigger::match;
+    // Seconds: 'every' interval, or the 'change' limit
+    int64_t interval = 0;
+    std::vector<std::string> change_fields;
+    std::vector<std::string> fields;
+    // Also send when a device stops matching
+    bool stop = false;
+    // Seconds a device must keep matching before it's sent ('for')
+    int64_t hold = 0;
+    // Events per period, with a burst; burst 0 is the rate
+    uint32_t rate = 10;
+    int64_t rate_period = 60;
+    uint32_t burst = 0;
+    // Seconds to hold events to send together, and the most in one call
+    int64_t batch = 0;
+    uint32_t batch_max = 100;
+    // Send for devices that already match when the rule loads
+    bool fire_existing = false;
+    size_t line = 0, col = 0;
+};
+
 struct rule_def {
     std::string name;
     std::string source;
@@ -222,7 +272,11 @@ struct rule_def {
     bool alert;
     bool live;
     bool uses_now;
+    std::vector<webhook_def> webhooks;
 };
+
+// The field path of a short name such as 'signal', or null
+const char *field_alias(const std::string& name);
 
 struct compiled_rule {
     size_t entry;

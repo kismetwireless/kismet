@@ -542,7 +542,7 @@ public:
                 error("rule '" + r->name + "' is missing '}'");
 
             if (cur.t != tok::ident)
-                error("expected when, description, tag, color, view, alert or live");
+                error("expected when, description, tag, color, view, alert, live or webhook");
 
             auto w = cur.text;
 
@@ -589,6 +589,10 @@ public:
             } else if (w == "live") {
                 advance();
                 r->live = true;
+            } else if (w == "webhook") {
+                if (r->webhooks.size() >= hook_max_per_rule)
+                    error("too many webhooks on one rule");
+                r->webhooks.push_back(parse_webhook());
             } else {
                 error("unknown rule statement '" + w + "'");
             }
@@ -748,6 +752,173 @@ private:
 
     bool is_word(const char *w) const {
         return cur.t == tok::ident && cur.text == w;
+    }
+
+    // A duration in seconds, between lo and hi
+    int64_t duration(const char *what, int64_t lo, int64_t hi) {
+        if (cur.t != tok::integer)
+            error(std::string("expected a duration after '") + what + "', such as 30s or 5m");
+        auto v = cur.i;
+        if (v < lo || v > hi)
+            error(fmt_range(what, lo, hi));
+        advance();
+        return v;
+    }
+
+    static std::string fmt_range(const char *what, int64_t lo, int64_t hi) {
+        return std::string("'") + what + "' must be from " + std::to_string(lo) + "s to " +
+            std::to_string(hi) + "s";
+    }
+
+    uint32_t count_of(const char *what, uint32_t lo, uint32_t hi) {
+        if (cur.t != tok::integer || cur.i < lo || cur.i > hi)
+            error(std::string("expected a count from ") + std::to_string(lo) + " to " +
+                    std::to_string(hi) + " after '" + what + "'");
+        auto v = static_cast<uint32_t>(cur.i);
+        advance();
+        return v;
+    }
+
+    // Field names separated by commas
+    void field_list(std::vector<std::string>& out, size_t max, const char *what) {
+        while (true) {
+            if (cur.t != tok::ident || is_keyword(cur.text))
+                error(std::string("expected a field name after '") + what + "'");
+            if (out.size() >= max)
+                error(std::string("too many fields after '") + what + "'");
+            out.push_back(cur.text);
+            advance();
+            if (cur.t != tok::comma)
+                break;
+            advance();
+        }
+    }
+
+    // webhook "<endpoint>" [ { terms } ]
+    webhook_def parse_webhook() {
+        webhook_def h;
+        h.line = cur.line;
+        h.col = cur.col;
+        advance();
+
+        if (cur.t != tok::string || cur.text.empty())
+            error("expected a webhook endpoint name string");
+        h.endpoint = cur.text;
+        advance();
+
+        if (cur.t != tok::lbrace)
+            return h;
+        advance();
+
+        bool have_trigger = false, have_rate = false, have_batch = false, have_fields = false;
+        bool have_hold = false;
+
+        while (cur.t != tok::rbrace) {
+            if (cur.t == tok::end)
+                error("webhook is missing '}'");
+            if (cur.t != tok::ident)
+                error("expected trigger, for, stop, rate, batch, fields or fire_existing");
+
+            auto w = cur.text;
+
+            if (w == "trigger") {
+                if (have_trigger)
+                    error("webhook has more than one 'trigger'");
+                have_trigger = true;
+                advance();
+
+                if (is_word("match")) {
+                    h.trigger = hook_trigger::match;
+                    advance();
+                } else if (is_word("new")) {
+                    h.trigger = hook_trigger::new_device;
+                    advance();
+                } else if (is_word("once")) {
+                    h.trigger = hook_trigger::once;
+                    advance();
+                } else if (is_word("every")) {
+                    h.trigger = hook_trigger::every;
+                    advance();
+                    h.interval = duration("every", hook_min_every, hook_max_duration);
+                } else if (is_word("change")) {
+                    h.trigger = hook_trigger::change;
+                    advance();
+                    field_list(h.change_fields, hook_max_change_fields, "change");
+                    // Every change trigger is rate limited per device
+                    if (!is_word("limit"))
+                        error("'change' needs a 'limit', such as: change signal limit 30s");
+                    advance();
+                    h.interval = duration("limit", hook_min_limit, hook_max_duration);
+                } else {
+                    error("expected match, new, once, every or change after 'trigger'");
+                }
+            } else if (w == "for") {
+                if (have_hold)
+                    error("webhook has more than one 'for'");
+                have_hold = true;
+                advance();
+                h.hold = duration("for", 1, hook_max_duration);
+            } else if (w == "stop") {
+                advance();
+                h.stop = true;
+            } else if (w == "rate") {
+                if (have_rate)
+                    error("webhook has more than one 'rate'");
+                have_rate = true;
+                advance();
+                h.rate = count_of("rate", 1, hook_max_rate);
+                if (cur.t != tok::slash)
+                    error("expected a rate such as 10/1m");
+                advance();
+                if (cur.t == tok::ident) {
+                    if (cur.text == "s" || cur.text == "sec")
+                        h.rate_period = 1;
+                    else if (cur.text == "min")
+                        h.rate_period = 60;
+                    else if (cur.text == "h" || cur.text == "hour")
+                        h.rate_period = 3600;
+                    else if (cur.text == "d" || cur.text == "day")
+                        h.rate_period = 86400;
+                    else
+                        error("expected a period such as 1m, min or hour");
+                    advance();
+                } else {
+                    h.rate_period = duration("rate", 1, hook_max_duration);
+                }
+                if (is_word("burst")) {
+                    advance();
+                    h.burst = count_of("burst", 1, hook_max_rate);
+                }
+            } else if (w == "batch") {
+                if (have_batch)
+                    error("webhook has more than one 'batch'");
+                have_batch = true;
+                advance();
+                h.batch = duration("batch", 1, hook_max_batch);
+                if (is_word("max")) {
+                    advance();
+                    h.batch_max = count_of("max", 1, hook_max_batch_events);
+                }
+            } else if (w == "fields") {
+                if (have_fields)
+                    error("webhook has more than one 'fields'");
+                have_fields = true;
+                advance();
+                field_list(h.fields, hook_max_fields, "fields");
+            } else if (w == "fire_existing") {
+                advance();
+                h.fire_existing = true;
+            } else {
+                error("unknown webhook statement '" + w + "'");
+            }
+        }
+
+        advance();
+
+        if (h.stop && (h.trigger == hook_trigger::once))
+            throw parse_error("'stop' can't be used with 'trigger once'", h.line, h.col);
+
+        return h;
     }
 
     static bool valid_color(const std::string& c) {
@@ -1117,7 +1288,7 @@ private:
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "text", "when", "tag", "color", "view", "alert", "live", "rule",
+            "count", "age", "text", "when", "tag", "color", "view", "alert", "live", "webhook", "rule",
             "sort", "by", "asc", "desc", "include" };
 
         for (auto k : kw)
@@ -1249,6 +1420,17 @@ bool ruleset::remove_sort(const std::string& name) {
             return true;
         }
     return false;
+}
+
+const char *hook_trigger_name(hook_trigger t) {
+    switch (t) {
+        case hook_trigger::match: return "match";
+        case hook_trigger::new_device: return "new";
+        case hook_trigger::once: return "once";
+        case hook_trigger::every: return "every";
+        case hook_trigger::change: return "change";
+    }
+    return "?";
 }
 
 const char *vtype_name(vtype t) {
