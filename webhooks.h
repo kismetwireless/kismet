@@ -26,6 +26,7 @@
 #include <condition_variable>
 #include <deque>
 #include <map>
+#include <set>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -57,6 +58,8 @@ struct webhook_bucket {
 
     void init(uint32_t rate, int64_t period, uint32_t burst);
     bool take(webhook_clock::time_point now);
+    // A token is there to take
+    bool available(webhook_clock::time_point now);
     // When the next token is due
     webhook_clock::time_point ready(webhook_clock::time_point now);
 
@@ -103,6 +106,9 @@ public:
 
     void start();
     void stop();
+    // stop() in two halves, so many endpoints can stop at once
+    void request_stop();
+    void join();
 
     // Queue an event's JSON; events go out in seq order, and wait in the queue
     // until not_before.  group ties the events of one batch window together.
@@ -125,6 +131,9 @@ protected:
         std::string json;
     };
 
+    // A name lookup on a thread of its own, since getaddrinfo can't be cancelled
+    struct resolve_job;
+
     struct result {
         int status = 0;
         std::string error;
@@ -136,6 +145,9 @@ protected:
     std::deque<event> queue;
     size_t queue_bytes = 0;
     bool stopping = false;
+    std::atomic<bool> halt{false};
+    // The lookup still running, if any; one at a time
+    std::shared_ptr<resolve_job> resolving;
     std::thread worker;
     // The io_context of the request in flight, so stop() can end it
     void *cur_ioc = nullptr;
@@ -161,6 +173,53 @@ protected:
     std::string envelope(const std::vector<event>& batch, uint64_t dropped, uint64_t suppressed);
 };
 
+struct webhook_dev_state {
+    // 0 when not matching
+    time_t match_since = 0;
+    time_t last_sent = 0;
+    // When the change fields were last read
+    time_t checked = 0;
+    time_t touched = 0;
+    // Its time in the hook's due queue, or 0
+    time_t due = 0;
+    // This run of matching has been handled: sent, primed or not eligible
+    bool handled = false;
+    // A match was sent, so a stop goes too
+    bool notified = false;
+    bool new_done = false;
+    // A change waits for the limit to pass
+    bool trailing = false;
+    std::vector<std::string> values;
+};
+
+struct webhook_binding;
+
+// One rule webhook's state, kept across reloads while its trigger stays the same.
+// Its mutex is taken after the device lock.
+struct webhook_hook_state {
+    std::mutex m;
+    std::shared_ptr<webhook_binding> b;
+    time_t installed = 0;
+    bool priming = true;
+    uint32_t prime_gen = 0;
+    bool once_fired = false;
+    bool warned_full = false;
+    webhook_bucket rate;
+    // The open batch window
+    uint64_t batch_group = 0;
+    webhook_clock::time_point batch_until;
+    uint32_t batch_count = 0;
+    uint64_t fired = 0, suppressed = 0, primed_devices = 0, untracked = 0;
+    // Devices matching now, or with state still to finish
+    std::unordered_map<device_key, webhook_dev_state> devs;
+    // Devices 'new' already sent for that aren't matching now
+    std::unordered_set<device_key> new_sent;
+    // Devices waiting on the clock for a 'for' or a change limit, by time due
+    std::set<std::pair<time_t, device_key>> due_q;
+    // Where the purge left off
+    size_t purge_bucket = 0, purge_new_bucket = 0;
+};
+
 // A rule's webhook, ready to use; built for each rule set
 struct webhook_binding {
     // Rule name and webhook index, which state carries over reloads by
@@ -173,6 +232,9 @@ struct webhook_binding {
     std::vector<std::shared_ptr<tracker_element_summary>> fields;
     std::vector<std::vector<int>> change_paths;
     std::vector<std::string> change_names;
+
+    // Set when the rule set is installed
+    std::shared_ptr<webhook_hook_state> state;
 
     // Needs to see devices that keep matching, not just the changes
     bool repeats() const {
@@ -222,6 +284,8 @@ public:
         start,
         cont,
         stop,
+        // From the webhooks timer: a 'for' or a change limit is up
+        due,
     };
 
     // From a rule evaluation, with the device locked
@@ -229,37 +293,8 @@ public:
             const std::shared_ptr<kis_tracked_device_base>& dev);
 
 protected:
-    struct dev_state {
-        // 0 when not matching
-        time_t match_since = 0;
-        time_t last_sent = 0;
-        time_t touched = 0;
-        // This run of matching has been handled: sent, primed or not eligible
-        bool handled = false;
-        // A match was sent, so a stop goes too
-        bool notified = false;
-        bool new_done = false;
-        // A change waits for the limit to pass
-        bool trailing = false;
-        std::vector<std::string> values;
-    };
-
-    struct hook_state {
-        std::shared_ptr<webhook_binding> b;
-        time_t installed = 0;
-        bool priming = true;
-        uint32_t prime_gen = 0;
-        bool once_fired = false;
-        webhook_bucket rate;
-        // The open batch window
-        uint64_t batch_group = 0;
-        webhook_clock::time_point batch_until;
-        uint32_t batch_count = 0;
-        uint64_t fired = 0, suppressed = 0, primed_devices = 0, untracked = 0;
-        std::unordered_map<device_key, dev_state> devs;
-        // Devices with a 'for' or a trailing change waiting on the clock
-        std::unordered_set<device_key> pending;
-    };
+    using dev_state = webhook_dev_state;
+    using hook_state = webhook_hook_state;
 
     // A send decided under the mutex, made after it's released
     struct fire {
@@ -273,16 +308,18 @@ protected:
         std::vector<std::string> changed_new;
     };
 
+    // Guards hooks; device events only take their hook's own mutex
     kis_mutex mutex;
 
     std::map<std::string, std::shared_ptr<webhook_endpoint>> endpoints;
-    std::map<std::string, hook_state> hooks;
+    std::map<std::string, std::shared_ptr<hook_state>> hooks;
 
+    // Taken after a hook's mutex
+    std::mutex global_m;
     webhook_bucket global_rate;
     size_t max_tracked;
-    uint64_t seq;
-    uint64_t group_seq;
-    time_t last_purge;
+    std::atomic<uint64_t> seq;
+    std::atomic<uint64_t> group_seq;
 
     std::shared_ptr<device_tracker> devicetracker;
     int timer_id;
@@ -294,7 +331,10 @@ protected:
     // Rate limits for a send; false and counted when either is out of tokens
     bool allow(hook_state& hs);
 
+    std::shared_ptr<hook_state> new_state(const std::shared_ptr<webhook_binding>& b, uint32_t gen, time_t now);
+
     void tick();
+    void tick_hook(const std::shared_ptr<hook_state>& hs, time_t now);
 
     void send(fire& f, const std::shared_ptr<kis_tracked_device_base>& dev, time_t now);
 

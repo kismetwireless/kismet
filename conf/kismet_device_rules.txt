@@ -22,12 +22,14 @@
 #                               after it stops matching and matches again
 #       trigger new             when a device first seen after the rule loaded starts
 #                               matching, once per device
-#       trigger once            the first device to match, once until the rules reload
+#       trigger once            the first device to match, once; a reload keeps that
+#                               unless the webhook's trigger changes
 #       trigger every <time>    while a device matches, each time it's updated, at most
 #                               once per <time> (10s or more)
 #       trigger change <field>, <field> ... limit <time>
 #                               when the fields change while a device matches, at most
-#                               once per <time> per device (1s or more).  Changes inside
+#                               once per <time> per device (1s or more).  Fields are
+#                               single values, such as signal or name.  Changes inside
 #                               the limit are sent together when it's up, with the old
 #                               and new values.  A limit is required.
 #       for <time>              a device must keep matching this long before it's sent
