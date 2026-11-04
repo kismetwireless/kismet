@@ -17,7 +17,10 @@
 //
 // A line graph can also draw several lines, with a legend: pass
 // [{ label, color, values }, ...] instead of values.  Colors are CSS values,
-// such as charts.series(i).
+// such as charts.series(i).  A line with axis: 'right' is scaled on its own,
+// against an axis on the right (labelled with its unit), for two measures
+// with different units on one graph; fmt on a line formats its readout, and
+// fill on a line overrides the graph's.
 //
 // type: 'mirror' draws two bar series back to back, the first above the
 // axis and the second below it, such as packets sent and received:
@@ -90,8 +93,10 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         values = newValues;
         showLegend();
         const mirror = type === 'mirror' && lines;
+        const isRight = (l) => type === 'line' && l.axis === 'right';
+        const rightLines = lines ? lines.filter(isRight) : [];
         const all = mirror ? [...lines[0].values, ...(lines[1]?.values ?? []).map((v) => -v)] :
-            lines ? lines.flatMap((l) => l.values) : values;
+            lines ? lines.filter((l) => !isRight(l)).flatMap((l) => l.values) : values;
         const count = lines ? Math.max(...lines.map((l) => l.values.length)) : values.length;
 
         const { w, h, ratio } = fitCanvas(canvas);
@@ -111,7 +116,8 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         // Line graphs (signal levels) are scaled between their own min and
         // max; bars start from zero
         const finite = all.filter((v) => Number.isFinite(v));
-        if (!finite.length) {
+        const rightFinite = rightLines.flatMap((l) => l.values).filter((v) => Number.isFinite(v));
+        if (!finite.length && !rightFinite.length) {
             ctx.fillStyle = themeColor('--muted') || '#888';
             ctx.font = `${12 * (window.devicePixelRatio || 1)}px system-ui, sans-serif`;
             ctx.textAlign = 'center';
@@ -119,40 +125,58 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             ctx.fillText('Nothing in this period', w / 2, h / 2);
             return;
         }
-        // A mirror is scaled the same both ways, so the halves compare at a glance
-        const reach = Math.max(1, ...finite.map(Math.abs));
-        let top = type === 'mirror' ? reach : Math.max(...finite, type === 'bar' ? 1 : -Infinity);
-        let bottom = type === 'bar' ? 0 : type === 'mirror' ? -reach : Math.min(...finite);
-        if (min !== null)
-            bottom = Math.min(bottom, min);
-        if (top === bottom) {
-            top += 1;
-            // A flat line sits in the middle, unless it's at the lowest it can be
-            if (type !== 'bar' && bottom > (min ?? -Infinity))
-                bottom -= 1;
-        }
+        const range = (vals) => {
+            // A mirror is scaled the same both ways, so the halves compare at a glance
+            const reach = Math.max(1, ...vals.map(Math.abs));
+            let hi = type === 'mirror' ? reach : Math.max(...vals, type === 'bar' ? 1 : -Infinity);
+            let lo = type === 'bar' ? 0 : type === 'mirror' ? -reach : Math.min(...vals);
+            if (min !== null)
+                lo = Math.min(lo, min);
+            if (hi === lo) {
+                hi += 1;
+                // A flat line sits in the middle, unless it's at the lowest it can be
+                if (type !== 'bar' && lo > (min ?? -Infinity))
+                    lo -= 1;
+            }
+            return [hi, lo];
+        };
+        const [top, bottom] = range(finite.length ? finite : rightFinite);
+        const [rTop, rBottom] = rightFinite.length ? range(rightFinite) : [top, bottom];
 
         // A mirror's lower half counts down from the axis; label it as a count
         const axisText = (v) => `${Math.round(type === 'mirror' ? Math.abs(v) : v)}${unit ? ' ' + unit : ''}`;
+        const rightUnit = rightLines.find((l) => l.unit)?.unit ?? '';
+        const rightText = (v) => `${Math.round(v)}${rightUnit ? ' ' + rightUnit : ''}`;
         const left = Math.max(ctx.measureText(axisText(top)).width, ctx.measureText(axisText(bottom)).width) + 8 * ratio;
+        const right = rightLines.length ?
+            Math.max(ctx.measureText(rightText(rTop)).width, ctx.measureText(rightText(rBottom)).width) + 8 * ratio : 4 * ratio;
         const bottomPad = labels.length ? font + 6 * ratio : 2 * ratio;
-        const plotW = w - left - 4 * ratio;
+        const plotW = w - left - right;
         const plotH = h - bottomPad - font / 2;
-        const y = (v) => font / 2 + plotH - ((v - bottom) / (top - bottom)) * plotH;
+        const scaleY = (hi, lo) => (v) => font / 2 + plotH - ((v - lo) / (hi - lo)) * plotH;
+        const y = scaleY(top, bottom);
+        const yRight = scaleY(rTop, rBottom);
+        const yOf = (l) => (isRight(l) ? yRight : y);
 
-        // Axis labels and lines at the top and bottom of the range
+        // Axis labels and lines at the top and bottom of the range; a right
+        // axis shares the lines
         ctx.fillStyle = text;
         ctx.strokeStyle = grid;
         ctx.lineWidth = ratio;
-        ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         for (const v of type === 'mirror' ? [top, 0, bottom] : [top, bottom]) {
-            if (v !== 0)
+            ctx.textAlign = 'right';
+            if (v !== 0 && finite.length)
                 ctx.fillText(axisText(v), left - 4 * ratio, y(v));
             ctx.beginPath();
             ctx.moveTo(left, Math.round(y(v)) + 0.5);
-            ctx.lineTo(w, Math.round(y(v)) + 0.5);
+            ctx.lineTo(rightLines.length ? w - right : w, Math.round(y(v)) + 0.5);
             ctx.stroke();
+        }
+        if (rightLines.length) {
+            ctx.textAlign = 'left';
+            for (const v of [rTop, rBottom])
+                ctx.fillText(rightText(v), w - right + 4 * ratio, yRight(v));
         }
 
         const step = plotW / count;
@@ -199,7 +223,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         } else {
             // The line's pieces: one between readings with joinGaps, else one per
             // run of neighbouring readings
-            const segments = (vals) => {
+            const segments = (vals, y) => {
                 const out = [];
                 let cur = null;
                 vals.forEach((v, i) => {
@@ -215,9 +239,9 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
                 return out;
             };
 
-            const drawLine = (vals) => {
-                const segs = segments(vals);
-                if (fill) {
+            const drawLine = (vals, y, shade = fill) => {
+                const segs = segments(vals, y);
+                if (shade) {
                     const floor = y(bottom);
                     ctx.globalAlpha = 0.2;
                     for (const seg of segs.filter((g) => g.length > 1)) {
@@ -251,10 +275,10 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
                     const c = resolve(l.color) || color;
                     ctx.strokeStyle = c;
                     ctx.fillStyle = c;
-                    drawLine(l.values);
+                    drawLine(l.values, yOf(l), l.fill ?? fill);
                 }
             } else {
-                drawLine(values);
+                drawLine(values, y);
             }
         }
 
@@ -299,7 +323,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
                         continue;
                     ctx.fillStyle = resolve(l.color) || color;
                     ctx.beginPath();
-                    ctx.arc(x, y(v), 3 * ratio, 0, Math.PI * 2);
+                    ctx.arc(x, yOf(l)(v), 3 * ratio, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
@@ -334,7 +358,7 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
     function showTip(i, x) {
         const rows = (lines ?? [{ label: unit || 'Value', color: 'var(--accent)', values }]).map((l) =>
             el('div', { class: 'graph-tip-row' }, el('span', { class: 'graph-swatch', style: { background: l.color } }),
-                el('span', {}, l.label), el('b', {}, show(l.values[i]))));
+                el('span', {}, l.label), el('b', {}, (l.fmt ?? show)(l.values[i]))));
         const here = [...bands.filter((b) => i >= b.from && i < b.to), ...marks.filter((m) => m.pos >= i && m.pos < i + 1)].map((m) =>
             el('div', { class: 'graph-tip-mark' }, el('span', { class: 'graph-swatch', style: { background: m.color } }), m.label));
         tip.replaceChildren(el('div', { class: 'graph-tip-head' }, pointLabel(i)), ...rows, ...here);

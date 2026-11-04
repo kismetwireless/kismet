@@ -1401,6 +1401,34 @@ tr.highlighted .bar-graph { fill: currentColor; }
     .pk-src-driver { display: none; }
 }
 
+/* Memory window (js/widgets/memory.js) */
+.mem-window { display: flex; flex-direction: column; gap: 1rem; }
+.mem-window h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.mem-window section + section, .mem-detail > section { border-top: 1px solid var(--border); padding-top: 0.8rem; }
+.mem-detail { display: flex; flex-direction: column; gap: 1rem; }
+.mem-stats { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+.mem-stat { display: flex; flex-direction: column; min-width: 5rem; }
+.mem-stat-label { font-size: 0.8rem; color: var(--muted); }
+.mem-stat-value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mem-insights { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.mem-insight {
+    display: flex; flex-direction: column; gap: 0.1rem; padding: 0.35rem 0.6rem;
+    border-left: 4px solid var(--accent); background: var(--surface-2); border-radius: 4px; font-size: 0.9rem;
+}
+.mem-insight.mem-ok { border-left-color: var(--ok); }
+.mem-insight.mem-warn { border-left-color: var(--warn); }
+.mem-insight.mem-error { border-left-color: var(--error); }
+.mem-rows { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
+.mem-row { display: grid; grid-template-columns: minmax(9rem, 1.2fr) minmax(5rem, 0.8fr) minmax(0, 2fr); gap: 0.6rem; align-items: baseline; }
+.mem-row-value { font-variant-numeric: tabular-nums; text-align: right; }
+.mem-row-note { font-size: 0.85rem; }
+.mem-row code { overflow-wrap: anywhere; }
+.mem-note { margin: 0.4rem 0 0; font-size: 0.85rem; }
+@media (max-width: 640px) {
+    .mem-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .mem-row-note { grid-column: 1 / -1; margin-top: -0.2rem; }
+}
+
 /* GPS window (js/widgets/gps.js) */
 .gps-window { display: flex; flex-direction: column; gap: 1.2rem; }
 .gps-section h3 { margin: 0 0 0.5rem; font-size: 1rem; }
