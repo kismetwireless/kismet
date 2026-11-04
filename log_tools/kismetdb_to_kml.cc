@@ -74,6 +74,53 @@ std::string MungeForXML(const std::string& in_data) {
 	return ret;
 }
 
+// A cell's summary line for its description: the fields a Cellular device
+// keeps under cellular.device. Empty for any other phy.
+std::string CellDescription(const nlohmann::json& dev, const std::string& sep) {
+    auto c = dev.find("cellular.device");
+    if (c == dev.end() || !c->is_object())
+        return "";
+
+    auto str = [&](const char *k) -> std::string {
+        auto i = c->find(k);
+        if (i == c->end())
+            return "";
+        if (i->is_string())
+            return i->get<std::string>();
+        if (i->is_number())
+            return i->dump();
+        return "";
+    };
+
+    std::string ret;
+    auto key = str("cellular.cell.key");
+    if (key.length() > 0)
+        ret += sep + "Cell:" + MungeForXML(key);
+
+    auto op = str("cellular.cell.operator");
+    if (op.length() == 0)
+        op = str("cellular.cell.resolved_operator");
+    if (op.length() == 0)
+        op = str("cellular.cell.plmn");
+    if (op.length() > 0)
+        ret += sep + "Operator:" + MungeForXML(op);
+
+    // 0 is "never measured": a real RSRP is -44 to -140 dBm
+    auto rsrp = c->find("cellular.cell.rsrp");
+    if (rsrp != c->end() && rsrp->is_number() && rsrp->get<double>() != 0)
+        ret += sep + fmt::format("RSRP:{} dBm", rsrp->get<double>());
+
+    auto ident = str("cellular.cell.identity_level");
+    if (ident.length() > 0)
+        ret += sep + "Identity:" + MungeForXML(ident);
+
+    auto obs = str("cellular.cell.observation_count");
+    if (obs.length() > 0)
+        ret += sep + "Observations:" + obs;
+
+    return ret;
+}
+
 // Some conversion functions from Kismet for Wi-Fi channels
 int FrequencyToWifiChannel(double in_freq) {
     if (in_freq == 0)
@@ -184,6 +231,9 @@ public:
     std::string description;
     std::string channel;
     std::string crypt;
+
+    // Phy-specific description lines, already escaped
+    std::string extra;
 };
 
 void print_help(char *argv) {
@@ -227,6 +277,8 @@ void add_placemarks_from_vec(FILE* ofile, std::vector<kml_placemark>& placemark_
 
         if (pl.crypt.length() > 0)
             pl.description += "\nCrypt:" + pl.crypt;
+
+        pl.description += pl.extra;
 
         fmt::print(ofile, "<description>{}</description>", pl.description);
 
@@ -484,6 +536,7 @@ int main(int argc, char *argv[]) {
     std::vector<kml_placemark> other_placemark_vec;
     std::vector<kml_placemark> zigbee_placemark_vec;
     std::vector<kml_placemark> bluetooth_placemark_vec;
+    std::vector<kml_placemark> cell_placemark_vec;
 
     if (basiclocation) {
         // Since version 11, devices that report their own position (ADS-B,
@@ -550,12 +603,15 @@ int main(int argc, char *argv[]) {
                 pl.phy_layer = json["kismet.device.base.phyname"].get<std::string>();
                 pl.channel = json["kismet.device.base.channel"].get<std::string>();
                 pl.crypt = json["kismet.device.base.crypt"].get<std::string>();
+                pl.extra = CellDescription(json, "\n");
                 pl.point_vec.push_back(p);
 
                 if (group_in_folder) {
                     // style based on phy layer
                     if (pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
                         bluetooth_placemark_vec.push_back(pl);
+                    } else if (pl.phy_layer == "Cellular") {
+                        cell_placemark_vec.push_back(pl);
                     } else if (pl.phy_layer == "802.15.4") {
                         zigbee_placemark_vec.push_back(pl);
                     } else {
@@ -586,7 +642,7 @@ int main(int argc, char *argv[]) {
         }
     } else {
         auto basic_q = 
-            _SELECT(db, "devices", {"phyname", "devmac", "device"});
+            _SELECT(db, "devices", {"phyname", "devmac", "device", "avg_lat", "avg_lon"});
 
         for (auto d : basic_q) {
             // Prep the packet list for different kismetdb versions
@@ -616,6 +672,7 @@ int main(int argc, char *argv[]) {
                 pl.phy_layer = json["kismet.device.base.phyname"].get<std::string>();
                 pl.channel = json["kismet.device.base.channel"].get<std::string>();
                 pl.crypt = json["kismet.device.base.crypt"].get<std::string>();
+                pl.extra = CellDescription(json, "\n");
             } catch (const std::exception& e) {
                 fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json.dump());
                 continue;
@@ -714,6 +771,34 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+            // A cell never sends a packet or data record of its own: each
+            // cell observation is logged under the modem that heard it, so
+            // the per-mac average above finds nothing for a cell.  Fall back
+            // to the location the tracker averaged from those observations.
+            if (pl.avg_2d_num == 0 && phyname == "Cellular") {
+                double avg_lat = sqlite3_column_as<double>(d, 3);
+                double avg_lon = sqlite3_column_as<double>(d, 4);
+
+                if (db_version < 5) {
+                    avg_lat = avg_lat / 100000;
+                    avg_lon = avg_lon / 100000;
+                }
+
+                bool violates_exclusion = false;
+                for (auto ez : exclusion_zones) {
+                    if (distance_meters(avg_lat, avg_lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                        violates_exclusion = true;
+                        break;
+                    }
+                }
+
+                if (avg_lat != 0 && avg_lon != 0 && !violates_exclusion) {
+                    pl.avg_lat = avg_lat;
+                    pl.avg_lon = avg_lon;
+                    pl.avg_2d_num = 1;
+                }
+            }
+
             if (pl.avg_2d_num == 0) {
                 fmt::print(stderr, "WARNING:  No packets with GPS info for '{}', skipping\n", pl.name);
                 continue;
@@ -732,6 +817,9 @@ int main(int argc, char *argv[]) {
                 // style based on phy layer
                 if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
                     bluetooth_placemark_vec.push_back(pl);
+                }
+                else if(pl.phy_layer == "Cellular") {
+                    cell_placemark_vec.push_back(pl);
                 }
                 else if(pl.phy_layer == "802.15.4") {
                     zigbee_placemark_vec.push_back(pl);
@@ -773,6 +861,7 @@ int main(int argc, char *argv[]) {
             "<Style id=\"wifi-ap-wpa\"><LabelStyle><color>#ff0000FF</color></LabelStyle><IconStyle><color>#ff0000FF</color></IconStyle></Style>\n"
             "<Style id=\"wifi-client\"><LabelStyle><color>#ff00FFFF</color></LabelStyle><IconStyle><color>#ff00FFFF</color></IconStyle></Style>\n"
             "<Style id=\"other\"><LabelStyle><color>#ff00AAFF</color></LabelStyle><IconStyle><color>#ff00AAFF</color></IconStyle></Style>\n"
+            "<Style id=\"cell\"><LabelStyle><color>#ffFFFF00</color></LabelStyle><IconStyle><color>#ffFFFF00</color></IconStyle></Style>\n"
             "<name>Kismet</name>\n"
             "<open>1</open>");
 
@@ -783,6 +872,10 @@ int main(int argc, char *argv[]) {
 
         if (!zigbee_placemark_vec.empty()) {
             add_placemarks_from_vec(ofile, zigbee_placemark_vec, "802.15.4(Zigbee)", "zigbee", point_num, place_num);
+        }
+
+        if (!cell_placemark_vec.empty()) {
+            add_placemarks_from_vec(ofile, cell_placemark_vec, "Cellular", "cell", point_num, place_num);
         }
 
         if (!client_placemark_vec.empty() || !ap_wpa_placemark_vec.empty() || !ap_wep_placemark_vec.empty() || 
@@ -832,6 +925,8 @@ int main(int argc, char *argv[]) {
                 fmt::print(ofile, "<styleUrl>btle</styleUrl>");
             } else if (pl.phy_layer == "802.15.4") {
                 fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
+            } else if (pl.phy_layer == "Cellular") {
+                fmt::print(ofile, "<styleUrl>cell</styleUrl>");
             }
 
             // add description
@@ -841,6 +936,8 @@ int main(int argc, char *argv[]) {
 
             if (pl.crypt.length() > 0)
                 pl.description += "\nCrypt:" + pl.crypt;
+
+            pl.description += pl.extra;
 
             fmt::print(ofile, "<description>{}</description>", pl.description);
 
