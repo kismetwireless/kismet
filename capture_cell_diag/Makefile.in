@@ -241,6 +241,8 @@ TEST_NATIVE_BIN = test_diag_native_decode
 # nothing on the other. Pure libc; its selftest is in-file behind
 # -DDIAG_WWANPORT_SELFTEST and needs no such hardware attached.
 TEST_WWANPORT_BIN = test_diag_wwanport
+# ../usbserial's DIAG transfer split (-DUSBSERIAL_SELFTEST): pure, no device.
+TEST_USBSERIAL_BIN = test_usbserial
 # diag_probeclose releases an AT-scan probe fd without waiting out the tty's
 # closing_wait when the port never took its probe. Pure libc +
 # pthreads; its selftest is in-file behind -DDIAG_PROBECLOSE_SELFTEST and drives
@@ -314,6 +316,10 @@ SELFTEST_BINS = $(TEST_HDLC_BIN) \
 	$(TEST_GPSFIX_BIN) \
 	$(TEST_GSMTAP_SINK_BIN)
 
+ifeq ($(CELL_USBSERIAL),1)
+SELFTEST_BINS += $(TEST_USBSERIAL_BIN)
+endif
+
 all: $(SELFTEST_BINS)
 
 $(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
@@ -380,6 +386,10 @@ $(TEST_WWANPORT_BIN):	diag_wwanport.c diag_wwanport.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_WWANPORT_SELFTEST \
 		    -o $(TEST_WWANPORT_BIN) diag_wwanport.c
 
+$(TEST_USBSERIAL_BIN):	../usbserial/usbserial.c ../usbserial/usbserial.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) -DUSBSERIAL_SELFTEST \
+		    -o $(TEST_USBSERIAL_BIN) ../usbserial/usbserial.c $(LIBUSBLIBS) -lpthread
+
 $(TEST_MODEMIDENT_BIN):	test_diag_modemident.c diag_modemident.c diag_modemident.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_MODEMIDENT_BIN) \
 		    test_diag_modemident.c diag_modemident.c
@@ -445,6 +455,7 @@ clean:
 	@-rm -f $(TEST_CONFIG_BIN)
 	@-rm -f $(TEST_CAPTURE_BIN)
 	@-rm -f $(TEST_WWANPORT_BIN)
+	@-rm -f $(TEST_USBSERIAL_BIN)
 	@-rm -f $(TEST_LOGSTREAM_BIN)
 	@-rm -f $(LOGSTREAM_DUMP_BIN)
 	@-rm -f $(NATIVE_OBJS_FULL)
