@@ -135,6 +135,13 @@ bc str_op(op o) {
 
 }
 
+const char *field_alias(const std::string& name) {
+    for (const auto& a : aliases)
+        if (name == a.name)
+            return a.path;
+    return nullptr;
+}
+
 class compiler {
 public:
     compiler(ruleset& rs, resolver& r) :

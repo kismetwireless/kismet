@@ -36,6 +36,7 @@
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 #include "trackedcomponent.h"
+#include "webhooks.h"
 
 // Server-side device rules: tag, color, collect into views, and alert on devices that
 // match rules written in the device rules language (see devicerules/).  Rules are
@@ -158,6 +159,11 @@ public:
         std::vector<uint8_t> live_want;
         bool any_live;
 
+        // Webhooks of each rule, and which rules have one that sees repeat matches
+        std::vector<std::vector<std::shared_ptr<webhook_binding>>> hooks;
+        std::vector<uint8_t> hook_repeat;
+        bool any_hooks;
+
         // Index into rs of each rule by name
         std::map<std::string, size_t> by_name;
         std::map<std::string, size_t> sorts_by_name;
@@ -231,6 +237,7 @@ protected:
 
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<kis_webhooks> webhooks;
 
     std::shared_ptr<active_set> current;
     std::atomic<uint32_t> next_gen;

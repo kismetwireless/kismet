@@ -762,6 +762,7 @@ device_rules::device_rules() :
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
+    webhooks = Globalreg::fetch_global_as<kis_webhooks>();
 
     rule_state_id =
         entrytracker->register_field("kismet.device.base.rules",
@@ -920,6 +921,7 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
     as->text = text;
     as->jit = false;
     as->any_live = false;
+    as->any_hooks = false;
 
     kismet_resolver r(entrytracker);
     as->rs->compile(r);
@@ -933,6 +935,8 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
     size_t n = as->rs->size();
     as->live_want.assign(n, 0);
     as->views.assign(n, nullptr);
+    as->hooks.resize(n);
+    as->hook_repeat.assign(n, 0);
 
     for (size_t i = 0; i < n; i++) {
         const auto& rd = as->rs->rule(i);
@@ -940,6 +944,23 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
         if (rd.live) {
             as->live_want[i] = 1;
             as->any_live = true;
+        }
+
+        for (size_t h = 0; h < rd.webhooks.size(); h++) {
+            if (webhooks == nullptr)
+                throw devicerules::parse_error("rule '" + rd.name + "': webhooks aren't available",
+                        rd.webhooks[h].line, rd.webhooks[h].col);
+
+            try {
+                as->hooks[i].push_back(webhooks->bind(rd, h));
+            } catch (devicerules::parse_error& e) {
+                e.origin = rd.origin;
+                throw;
+            }
+
+            as->any_hooks = true;
+            if (as->hooks[i].back()->repeats())
+                as->hook_repeat[i] = 1;
         }
     }
 
@@ -1415,6 +1436,13 @@ void device_rules::install_set(std::shared_ptr<active_set> as) {
 
     as->gen = next_gen++;
 
+    if (webhooks != nullptr) {
+        std::vector<std::shared_ptr<webhook_binding>> bindings;
+        for (const auto& h : as->hooks)
+            bindings.insert(bindings.end(), h.begin(), h.end());
+        webhooks->install(bindings, as->gen);
+    }
+
     std::atomic_store(&current, as);
     full_pending = true;
 
@@ -1460,6 +1488,28 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
         for (size_t r = 0; r < n; r++)
             if (!want[r])
                 out[r] = prev[r];
+
+    // Webhooks decide with the device still locked, so its changes reach them in order
+    if (as.any_hooks) {
+        for (size_t r = 0; r < n; r++) {
+            if (as.hooks[r].empty() || (want != nullptr && !want[r]))
+                continue;
+
+            kis_webhooks::dev_event ev;
+            if (out[r] && !prev[r])
+                ev = kis_webhooks::dev_event::start;
+            else if (!out[r] && prev[r])
+                ev = kis_webhooks::dev_event::stop;
+            else if (out[r] && as.hook_repeat[r])
+                ev = kis_webhooks::dev_event::cont;
+            else
+                continue;
+
+            for (const auto& b : as.hooks[r])
+                if (ev != kis_webhooks::dev_event::cont || b->repeats())
+                    webhooks->device_event(b, ev, dev);
+        }
+    }
 
     bool any = false;
     for (size_t r = 0; r < n; r++)
@@ -1668,6 +1718,10 @@ void device_rules::timer_pass() {
     devicetracker->do_device_work(worker);
 
     apply_changes(changes);
+
+    // Every device has been seen once, so the matches webhooks record from here are new
+    if (full && webhooks != nullptr)
+        webhooks->primed(as->gen);
 
     stat_passes++;
     stat_devices += evaluated;
