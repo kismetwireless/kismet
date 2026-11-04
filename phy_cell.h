@@ -178,6 +178,7 @@ public:
     __Proxy(cell_rsrp, int64_t, int16_t, int16_t, cell_rsrp);
     __Proxy(cell_rsrq, int64_t, int16_t, int16_t, cell_rsrq);
     __Proxy(cell_sinr, int64_t, int16_t, int16_t, cell_sinr);
+    __Proxy(cell_snr, int64_t, int16_t, int16_t, cell_snr);
     __Proxy(cell_rssi, int64_t, int16_t, int16_t, cell_rssi);
     __Proxy(cell_cqi, int64_t, int16_t, int16_t, cell_cqi);
     __Proxy(cell_min_rsrp, int64_t, int16_t, int16_t, cell_min_rsrp);
@@ -230,6 +231,7 @@ protected:
         register_field("cellular.cell.rsrp", "Last RSRP dBm", &cell_rsrp);
         register_field("cellular.cell.rsrq", "Last RSRQ dB", &cell_rsrq);
         register_field("cellular.cell.sinr", "Last SINR dB", &cell_sinr);
+        register_field("cellular.cell.snr", "Last SNR dB (no interference term; not a SINR)", &cell_snr);
         register_field("cellular.cell.cqi", "Last LTE CQI (0-15), -1 if never reported", &cell_cqi);
         register_field("cellular.cell.rssi", "Last RSSI dBm", &cell_rssi);
         register_field("cellular.cell.min_rsrp", "Minimum RSRP dBm seen", &cell_min_rsrp);
@@ -274,6 +276,7 @@ protected:
     std::shared_ptr<tracker_element_int64> cell_rsrp;
     std::shared_ptr<tracker_element_int64> cell_rsrq;
     std::shared_ptr<tracker_element_int64> cell_sinr;
+    std::shared_ptr<tracker_element_int64> cell_snr;
     std::shared_ptr<tracker_element_int64> cell_rssi;
     std::shared_ptr<tracker_element_int64> cell_cqi;
     std::shared_ptr<tracker_element_int64> cell_min_rsrp;

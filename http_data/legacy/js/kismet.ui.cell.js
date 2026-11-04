@@ -145,6 +145,15 @@ kismet_ui.AddDeviceDetail("cell", "Cell Info", 0, {
                 },
             },
             {
+                field: "cellular.device/cellular.cell.snr",
+                title: "SNR",
+                help: "Signal to Noise Ratio, from the most recent measurement, in dB (decibels).  Unlike SINR it leaves out interference, so the two can differ widely.  Only some modems report it.  Higher is better.",
+                empty: "<i>Unknown</i>",
+                render: function(opts) {
+                    return opts['value'] + " dB";
+                },
+            },
+            {
                 field: "cellular.device/cellular.cell.cqi",
                 title: "CQI",
                 help: "LTE Channel Quality Indicator, from the most recent report: 0 (out of range) to 15 (best).  Only some modems report it.",
