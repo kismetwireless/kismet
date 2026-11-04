@@ -136,6 +136,82 @@ protected:
     std::shared_ptr<tracker_element_uint64> string_cache_sz;
 };
 
+// Detailed memory use, for /system/memory; sizes in kB, 0 where unknown
+class tracked_memory_status : public tracker_component {
+public:
+    tracked_memory_status() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_memory_status(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_memory_status(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    virtual ~tracked_memory_status() { }
+
+    __Proxy(peak_rss, uint64_t, uint64_t, uint64_t, peak_rss);
+    __Proxy(virtual_size, uint64_t, uint64_t, uint64_t, virtual_size);
+    __Proxy(rss_anon, uint64_t, uint64_t, uint64_t, rss_anon);
+    __Proxy(rss_file, uint64_t, uint64_t, uint64_t, rss_file);
+    __Proxy(rss_shmem, uint64_t, uint64_t, uint64_t, rss_shmem);
+    __Proxy(swap, uint64_t, uint64_t, uint64_t, swap);
+    __Proxy(threads, uint64_t, uint64_t, uint64_t, threads);
+
+    __Proxy(system_total, uint64_t, uint64_t, uint64_t, system_total);
+    __Proxy(system_available, uint64_t, uint64_t, uint64_t, system_available);
+    __ProxyTrackable(system_used_rrd, kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>, system_used_rrd);
+
+    __Proxy(heap_known, uint8_t, bool, bool, heap_known);
+    __Proxy(heap_used, uint64_t, uint64_t, uint64_t, heap_used);
+    __Proxy(heap_free, uint64_t, uint64_t, uint64_t, heap_free);
+    __Proxy(heap_mmap, uint64_t, uint64_t, uint64_t, heap_mmap);
+
+    __ProxyTrackable(num_fields_rrd, kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>, num_fields_rrd);
+
+    __ProxyTrackable(settings, tracker_element_string_map, settings);
+
+protected:
+    virtual void register_fields() override;
+
+    std::shared_ptr<tracker_element_uint64> peak_rss;
+    std::shared_ptr<tracker_element_uint64> virtual_size;
+    std::shared_ptr<tracker_element_uint64> rss_anon;
+    std::shared_ptr<tracker_element_uint64> rss_file;
+    std::shared_ptr<tracker_element_uint64> rss_shmem;
+    std::shared_ptr<tracker_element_uint64> swap;
+    std::shared_ptr<tracker_element_uint64> threads;
+
+    std::shared_ptr<tracker_element_uint64> system_total;
+    std::shared_ptr<tracker_element_uint64> system_available;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> system_used_rrd;
+
+    std::shared_ptr<tracker_element_uint8> heap_known;
+    std::shared_ptr<tracker_element_uint64> heap_used;
+    std::shared_ptr<tracker_element_uint64> heap_free;
+    std::shared_ptr<tracker_element_uint64> heap_mmap;
+
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> num_fields_rrd;
+
+    std::shared_ptr<tracker_element_string_map> settings;
+};
+
 class Systemmonitor : public lifetime_global, public time_tracker_event {
 public:
     static std::string global_name() { return "SYSTEMMONITOR"; }
@@ -173,6 +249,15 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
 
     std::shared_ptr<tracked_system_status> status;
+
+    std::shared_ptr<tracked_memory_status> memstatus;
+    std::shared_ptr<kis_net_web_tracked_endpoint> memory_endp;
+    // Heap stats walk every malloc arena under its lock, so they're only read
+    // for /system/memory, and at most this often
+    time_t heap_read_time;
+
+    void update_proc_memory();
+    void update_heap_memory();
 
     long mem_per_page;
 

@@ -24,6 +24,11 @@ export function register(kismet) {
         onClick: () => kismet.widgets.gps.openGps(),
     });
 
+    ui.menuItems.add({
+        id: 'memory', title: 'Memory', icon: 'memory',
+        onClick: () => kismet.widgets.memory.openMemory(),
+    });
+
     kismet.widgets.packetgraphs.recordEvents();
     ui.menuItems.add({
         id: 'packets', title: 'Packet rates', icon: 'packets',

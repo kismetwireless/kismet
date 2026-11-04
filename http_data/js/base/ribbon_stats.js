@@ -106,10 +106,14 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'memory', title: 'Memory', priority: 40,
-        description: 'Memory used by the Kismet server',
+        description: 'Memory used by the Kismet server; click for the memory window',
         create(body) {
             const v = valueStat('memory');
             body.append(v.node);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            stat.title = 'Show the memory window';
+            stat.addEventListener('click', () => kismet.widgets.memory.openMemory());
             return eventbus.subscribe('STATISTICS', ['kismet.system.memory.rss'], (e) => {
                 // 0 where the server can't read its memory use (no /proc)
                 const kb = e['kismet.system.memory.rss'];
