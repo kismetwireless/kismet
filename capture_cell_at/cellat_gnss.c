@@ -145,6 +145,185 @@ int cellat_qgps_outport(const char *resp, char *out, size_t outsz) {
     return 0;
 }
 
+/* A field of digits, '.' and a leading '-' only (or empty, if allowed):
+ * nothing that could end or split a sentence */
+static int numeric_field(const char *s, int empty_ok) {
+    if (*s == '\0')
+        return empty_ok;
+    int digits = 0;
+    for (const char *p = s; *p; p++) {
+        if (*p >= '0' && *p <= '9')
+            digits++;
+        else if (!(*p == '.' || (*p == '-' && p == s)))
+            return 0;
+    }
+    return digits > 0;
+}
+
+/* <mode> 0 coordinate: "4807.0380N" -> "4807.0380", 'N'. deg_digits is 2 for
+ * a latitude and 3 for a longitude. */
+static int coord_mode0(const char *s, int deg_digits, const char *hemis,
+                       char *out, size_t outsz, char *hemi) {
+    size_t len = strlen(s);
+    if (len < 2 || strchr(hemis, s[len - 1]) == NULL || len - 1 >= outsz)
+        return 0;
+    const char *dot = strchr(s, '.');
+    if (dot == NULL || dot - s != deg_digits + 2)
+        return 0;
+    for (size_t i = 0; i < len - 1; i++) {
+        if (s + i != dot && (s[i] < '0' || s[i] > '9'))
+            return 0;
+    }
+    memcpy(out, s, len - 1);
+    out[len - 1] = '\0';
+    *hemi = s[len - 1];
+    return 1;
+}
+
+/* <mode> 2 coordinate: "-11.51667" -> "01131.000200", 'W'. Integer only: the
+ * fraction is read as nanodegrees and turned into microminutes, so no float
+ * rounding can print a 60th minute. */
+static int coord_mode2(const char *s, int deg_digits, long max_deg, const char *hemis,
+                       char *out, size_t outsz, char *hemi) {
+    int neg = (*s == '-');
+    const char *p = s + neg;
+    long deg = 0;
+    long long nano = 0;
+    int ndeg = 0, nfrac = 0;
+
+    for (; *p >= '0' && *p <= '9'; p++, ndeg++) {
+        if (ndeg >= 3)
+            return 0;
+        deg = deg * 10 + (*p - '0');
+    }
+    if (ndeg == 0 || *p != '.')
+        return 0;
+    for (p++; *p >= '0' && *p <= '9'; p++, nfrac++) {
+        if (nfrac < 9)
+            nano = nano * 10 + (*p - '0');
+    }
+    if (*p != '\0' || nfrac == 0)
+        return 0;
+    for (int i = nfrac; i < 9; i++)
+        nano *= 10;
+
+    long long umin = (nano * 60 + 500) / 1000;   /* microminutes, rounded */
+    if (umin >= 60000000LL) {
+        umin -= 60000000LL;
+        deg++;
+    }
+    if (deg > max_deg || (deg == max_deg && umin > 0))
+        return 0;
+
+    int n = snprintf(out, outsz, "%0*ld%02lld.%06lld", deg_digits, deg,
+                     umin / 1000000, umin % 1000000);
+    if (n < 0 || (size_t)n >= outsz)
+        return 0;
+    *hemi = neg ? hemis[1] : hemis[0];
+    return 1;
+}
+
+static int coord(const char *s, int deg_digits, long max_deg, const char *hemis,
+                 char *out, size_t outsz, char *hemi) {
+    return coord_mode0(s, deg_digits, hemis, out, outsz, hemi) ||
+           coord_mode2(s, deg_digits, max_deg, hemis, out, outsz, hemi);
+}
+
+/* "$" body "*" checksum CR LF, appended at *pos */
+static int put_sentence(char *out, size_t outsz, size_t *pos, const char *body) {
+    unsigned int sum = 0;
+    for (const char *p = body; *p; p++)
+        sum ^= (unsigned char)*p;
+    int n = snprintf(out + *pos, outsz - *pos, "$%s*%02X\r\n", body, sum);
+    if (n < 0 || (size_t)n >= outsz - *pos || (size_t)n - 2 >= CELLAT_NMEA_LINE_MAX)
+        return 0;
+    *pos += (size_t)n;
+    return 1;
+}
+
+int cellat_qgpsloc_nmea(const char *resp, char *out, size_t outsz) {
+    char line[256], body[CELLAT_NMEA_LINE_MAX];
+    char *f[16];
+    int nf = 0;
+    size_t pos = 0;
+
+    if (resp == NULL || out == NULL || outsz == 0)
+        return 0;
+    out[0] = '\0';
+
+    const char *e = strstr(resp, "+CME ERROR:");
+    if (e != NULL) {
+        e += strlen("+CME ERROR:");
+        while (*e == ' ')
+            e++;
+        if (strncmp(e, "516", 3) == 0 && (e[3] < '0' || e[3] > '9'))
+            return put_sentence(out, outsz, &pos, "GNGGA,,,,,,0,,,,,,,,") ? 1 : 0;
+        return 0;
+    }
+
+    const char *p = strstr(resp, "+QGPSLOC:");
+    if (p == NULL)
+        return 0;
+    p += strlen("+QGPSLOC:");
+    while (*p == ' ')
+        p++;
+    size_t len = strcspn(p, "\r\n");
+    if (len == 0 || len >= sizeof(line))
+        return 0;
+    memcpy(line, p, len);
+    line[len] = '\0';
+
+    /* <UTC>,<lat>,<lon>,<HDOP>,<altitude>,<fix>,<COG>,<spkm>,<spkn>,<date>,<nsat>
+     * Eleven fields in <mode> 0 and 2; <mode> 1 splits the hemispheres out
+     * into fields of their own and is not decoded. */
+    for (char *s = line; nf < 16; ) {
+        f[nf++] = s;
+        char *comma = strchr(s, ',');
+        if (comma == NULL)
+            break;
+        *comma = '\0';
+        s = comma + 1;
+    }
+    if (nf != 11)
+        return 0;
+
+    const char *utc = f[0], *hdop = f[3], *alt = f[4], *fix = f[5], *cog = f[6];
+    const char *spkn = f[8], *date = f[9], *nsat = f[10];
+    char lat[24], lon[24], ns, ew;
+
+    if (!numeric_field(utc, 0) || strlen(utc) < 6 || utc[0] == '-' ||
+        !coord(f[1], 2, 90, "NS", lat, sizeof(lat), &ns) ||
+        !coord(f[2], 3, 180, "EW", lon, sizeof(lon), &ew) ||
+        !numeric_field(alt, 0) || !numeric_field(hdop, 1) || !numeric_field(nsat, 1) ||
+        !numeric_field(cog, 1) || !numeric_field(spkn, 1) ||
+        !(date[0] == '\0' || (strlen(date) == 6 && strspn(date, "0123456789") == 6)) ||
+        !(fix[0] == '\0' || ((fix[0] == '2' || fix[0] == '3') && fix[1] == '\0')))
+        return 0;
+
+    int count = 0;
+    snprintf(body, sizeof(body), "GNGGA,%s,%s,%c,%s,%c,1,%s,%s,%s,M,,M,,",
+             utc, lat, ns, lon, ew, nsat, hdop, alt);
+    if (!put_sentence(out, outsz, &pos, body))
+        return 0;
+    count++;
+
+    if (spkn[0] != '\0') {
+        snprintf(body, sizeof(body), "GNRMC,%s,A,%s,%c,%s,%c,%s,%s,%s,,,A",
+                 utc, lat, ns, lon, ew, spkn, cog, date);
+        if (put_sentence(out, outsz, &pos, body))
+            count++;
+    }
+
+    if (fix[0] != '\0') {
+        /* mode, 12 satellite slots, PDOP, HDOP, VDOP */
+        snprintf(body, sizeof(body), "GNGSA,A,%c,,,,,,,,,,,,,,%s,", fix[0], hdop);
+        if (put_sentence(out, outsz, &pos, body))
+            count++;
+    }
+
+    return count;
+}
+
 int cellat_gnss_wwan_nmea(const char *at_path, char *out, size_t outsz) {
     unsigned int idx, port;
     char tail;

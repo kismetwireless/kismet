@@ -305,10 +305,12 @@ typedef struct {
      * (cellat_gnss.h). The thread touches only gnss_fd, the counters and
      * caph's send ring, never the AT port. */
     int           gnss_wanted;
-    char          gnss_port_opt[512];     /* gpsport=; "" = find it */
+    char          gnss_port_opt[512];     /* gpsport=; "" = find it; "at" = AT+QGPSLOC */
     char          gnss_port[512];
     int           gnss_fd;
     int           gnss_we_enabled;        /* AT+QGPS=1 was ours: AT+QGPSEND at close */
+    int           gnss_atpoll;            /* no NMEA port: poll AT+QGPSLOC in the AT loop */
+    unsigned long gnss_atpoll_last_ms;
     char          gnss_outport_orig[16];  /* outport we changed from; "" = untouched */
     pthread_t     gnss_thread;
     int           gnss_thread_live;
@@ -4353,10 +4355,27 @@ static void cellat_gnss_start(local_cell_t *local, kis_capture_handler_t *caph) 
         }
     }
 
-    if (cellat_gnss_find_port(local, local->gnss_port, sizeof(local->gnss_port)) != 0) {
-        snprintf(msg, sizeof(msg), "%s: gps=: found no NMEA port beside %s; name it "
-                 "with gpsport=<path>", who, local->device_path);
-        cf_send_warning(caph, msg);
+    /* No NMEA port (a PCIe/MHI modem may expose none), or gpsport=at: the
+     * position is read with AT+QGPSLOC on the AT port, in the poll loop, so it
+     * takes turns with the cell queries rather than racing them */
+    int asked_at = strcmp(local->gnss_port_opt, "at") == 0;
+    if (asked_at ||
+        cellat_gnss_find_port(local, local->gnss_port, sizeof(local->gnss_port)) != 0) {
+        local->gnss_atpoll = 1;
+        local->gnss_atpoll_last_ms = 0;
+        snprintf(local->gnss_port, sizeof(local->gnss_port), "%s", local->device_path);
+        if (asked_at)
+            snprintf(msg, sizeof(msg), "%s: reading the modem's GNSS with %s on %s, "
+                     "every %d ms (gpsport=at)%s", who, CELLAT_QGPSLOC_CMD,
+                     local->device_path, CELLAT_QGPSLOC_INTERVAL_MS,
+                     local->gnss_we_enabled ? " (GNSS turned on; off at close)" : "");
+        else
+            snprintf(msg, sizeof(msg), "%s: gps=: found no NMEA port beside %s; reading "
+                     "the modem's GNSS with %s on the AT port instead, every %d ms. "
+                     "Name an NMEA port with gpsport=<path> to read it there%s", who,
+                     local->device_path, CELLAT_QGPSLOC_CMD, CELLAT_QGPSLOC_INTERVAL_MS,
+                     local->gnss_we_enabled ? " (GNSS turned on; off at close)" : "");
+        cf_send_message(caph, msg, MSGFLAG_INFO);
         return;
     }
 
@@ -4383,10 +4402,27 @@ static void cellat_gnss_start(local_cell_t *local, kis_capture_handler_t *caph) 
     cf_send_message(caph, msg, MSGFLAG_INFO);
 }
 
+/* One AT+QGPSLOC poll: its reply as NMEA sentences, sent as one CellNMEA
+ * record, the same record an NMEA port's reader sends. An answer that is
+ * neither a position nor "not fixed now" sends nothing. */
+static void cellat_gnss_atpoll(local_cell_t *local) {
+    static cellat_nmea_t n;    /* one capture thread per helper */
+    char resp[512], nmea[CELLAT_QGPSLOC_NMEA_MAX];
+    size_t used = 0;
+
+    int r = at_command_t(local, CELLAT_QGPSLOC_CMD, resp, sizeof(resp), 1000);
+    if (r <= 0 || cellat_qgpsloc_nmea(resp, nmea, sizeof(nmea)) == 0)
+        return;
+    cellat_nmea_init(&n);
+    cellat_nmea_feed(&n, nmea, strlen(nmea), &used);
+    cellat_gnss_send(local, &n);
+}
+
 /* Stop the reader, then leave the GNSS as it was found. */
 static void cellat_gnss_stop(local_cell_t *local) {
     char resp[256], cmd[64];
 
+    local->gnss_atpoll = 0;
     if (local->gnss_thread_live) {
         __atomic_store_n(&local->gnss_stop, 1, __ATOMIC_RELEASE);
         pthread_join(local->gnss_thread, NULL);
@@ -4918,6 +4954,15 @@ void capture_thread(kis_capture_handler_t *caph) {
                 }
             }
 
+            did_work = 1;
+        }
+
+        /* --- The modem's GNSS over AT, when it has no NMEA port --- */
+        if (local->gnss_atpoll &&
+            (now - local->gnss_atpoll_last_ms) >= CELLAT_QGPSLOC_INTERVAL_MS) {
+
+            local->gnss_atpoll_last_ms = now;
+            cellat_gnss_atpoll(local);
             did_work = 1;
         }
 
