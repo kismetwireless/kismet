@@ -647,6 +647,23 @@ static int build_cell_json(char *buf, size_t buf_sz,
     return (int) pos;
 }
 
+/* Append one integer key to an observation build_cell_json wrote, for the
+ * few parsers that read a metric the shared builder has no parameter for.
+ * Returns -1, leaving `buf` untouched, if it is not an object or the key
+ * does not fit. */
+static int cell_json_add_long(char *buf, size_t buf_sz, const char *key, long val) {
+    size_t len = strnlen(buf, buf_sz);
+    if (len < 2 || len >= buf_sz || buf[len - 1] != '}')
+        return -1;
+    char tail[64];
+    int n = snprintf(tail, sizeof(tail), "%s\"%s\":%ld}",
+                     buf[len - 2] == '{' ? "" : ",", key, val);
+    if (n < 0 || (size_t) n >= sizeof(tail) || len - 1 + (size_t) n >= buf_sz)
+        return -1;
+    memcpy(buf + len - 1, tail, (size_t) n + 1);
+    return 0;
+}
+
 /*
  * Insert a data-lineage prov block before the closing brace of a
  * cell_observation JSON object, in place. src=at; origin names the AT command
@@ -714,6 +731,11 @@ static void inject_prov(char *json, size_t json_sz, const char *imei,
  *   +QENG: "servingcell","state","LTE","FDD/TDD",
  *     MCC,MNC,cellID(hex),PCID,EARFCN,band,UL_BW,DL_BW,
  *     TAC(hex),RSRP,RSRQ,RSSI,SINR,CQI
+ * The tail after SINR differs by firmware family, which decides where CQI is:
+ *   20 fields  ...,SINR,CQI,tx_power,srxlev   RM5xxQ, RM520N, EG12/EG18
+ *   19 fields  ...,SINR,tx_power,srxlev       EM06x-K
+ *   18 fields  ...,SINR,srxlev                EG25-G, EG95, EM06, EM12/EM16
+ * so fields[17] is CQI only in the 20-field form; elsewhere it is srxlev.
  *
  * NR5G-SA field order (RM5xxQ manual only):
  *   +QENG: "servingcell","state","NR5G-SA","FDD/TDD",
@@ -771,11 +793,11 @@ static int parse_qeng_serving(const char *response, char json_out[][JSON_BUF_MAX
              * NR5G-SA reaches the call with h_rssi still 0 and no rssi key is
              * emitted. Setting it at the shared call site instead would make
              * NR5G-SA report a value lifted from an unrelated column. */
-            long rsrp = 0, rsrq = 0, sinr = 0, rssi = 0;
+            long rsrp = 0, rsrq = 0, sinr = 0, rssi = 0, cqi = 0;
             unsigned long cell_id = 0, tac = 0;
             int h_pci = 0, h_earfcn = 0, h_band = 0, h_bw = 0;
             int h_rsrp = 0, h_rsrq = 0, h_sinr = 0, h_cell_id = 0, h_tac = 0;
-            int h_rssi = 0;
+            int h_rssi = 0, h_cqi = 0;
             const char *duplex = (nf > 3) ? fields[3] : NULL;
 
             if (strcmp(rat_raw, "LTE") == 0) {
@@ -798,6 +820,10 @@ static int parse_qeng_serving(const char *response, char json_out[][JSON_BUF_MAX
                 if (nf > 14) h_rsrq = parse_int(fields[14], &rsrq);
                 if (nf > 15) h_rssi = parse_int(fields[15], &rssi);
                 if (nf > 16) h_sinr = parse_int(fields[16], &sinr);
+                /* CQI only from the 20-field form (see above); 0 is a real
+                 * CQI, and 0..15 is the whole range. */
+                if (nf >= 20)
+                    h_cqi = parse_int(fields[17], &cqi) && cqi >= 0 && cqi <= 15;
             } else if (strcmp(rat_raw, "NR5G-SA") == 0) {
                 /* +QENG: "servingcell","state","NR5G-SA","FDD/TDD",
                  *   MCC,MNC,cellID,PCID,TAC,ARFCN,band,NR_DL_BW,
@@ -830,6 +856,8 @@ static int parse_qeng_serving(const char *response, char json_out[][JSON_BUF_MAX
                             rsrp, h_rsrp, rsrq, h_rsrq,
                             sinr, h_sinr, rssi, h_rssi,
                             "serving", 1, NULL);
+            if (h_cqi)
+                cell_json_add_long(json_out[obs_count], JSON_BUF_MAX, "cqi", cqi);
             obs_count++;
 
         } else if (strcmp(header, "NR5G-NSA") == 0) {

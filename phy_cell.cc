@@ -546,6 +546,9 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
         celldev = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_cellular_tracked_cell>(cell_device_entry_id);
         basedev->insert(celldev);
 
+        // CQI 0 is a reading ("out of range"), so "never reported" is -1
+        celldev->set_cell_cqi(-1);
+
         if (is_full_identity) {
             _MSG_INFO("Detected new cell {} {}", rat, cell_key);
         } else {
@@ -762,6 +765,10 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     auto rssi_j = json["rssi"];
     if (rssi_j.is_number())
         celldev->set_cell_rssi(rssi_j.get<int16_t>());
+
+    auto cqi_j = json["cqi"];
+    if (cqi_j.is_number_integer() && cqi_j.get<int>() >= 0 && cqi_j.get<int>() <= 15)
+        celldev->set_cell_cqi(cqi_j.get<int16_t>());
 
     // Update observation count
     celldev->set_cell_observation_count(celldev->get_cell_observation_count() + 1);
