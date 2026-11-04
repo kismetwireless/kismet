@@ -67,9 +67,13 @@ constexpr int64_t max_retry_after = 3600;
 constexpr int64_t max_backoff = 300;
 constexpr time_t log_interval = 300;
 constexpr size_t max_due_per_tick = 2000;
-constexpr size_t max_purge_checks = 5000;
-constexpr time_t purge_interval = 60;
+// Devices each hook's purge looks at per tick
+constexpr size_t purge_per_tick = 1000;
 constexpr time_t purge_idle = 600;
+// Longer change values are compared by hash
+constexpr size_t max_change_value = 1024;
+// 'new' remembers this many times webhook_max_tracked devices that stopped matching
+constexpr size_t new_sent_factor = 4;
 
 constexpr const char *default_fields[] = {
     "kismet.device.base.key",
@@ -255,6 +259,28 @@ void repair_utf8(std::string& s) {
     s = std::move(r);
 }
 
+// Retry-After as seconds or an HTTP date, capped; -1 when it's neither
+int64_t parse_retry_after(const std::string& v, time_t now) {
+    if (v.empty() || v.size() > 64)
+        return -1;
+
+    if (std::all_of(v.begin(), v.end(), [](char c) { return c >= '0' && c <= '9'; })) {
+        if (v.size() > 9)
+            return max_retry_after;
+        return std::min<int64_t>(std::stoll(v), max_retry_after);
+    }
+
+    struct tm tm;
+    memset(&tm, 0, sizeof(tm));
+    auto end = strptime(v.c_str(), "%a, %d %b %Y %H:%M:%S GMT", &tm);
+    if (end == nullptr || *end != '\0')
+        return -1;
+    auto t = timegm(&tm);
+    if (t <= now)
+        return 0;
+    return std::min<int64_t>(t - now, max_retry_after);
+}
+
 std::string version_string() {
     return fmt::format("{}.{}.{}-{}", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
 }
@@ -266,6 +292,28 @@ std::string pack_element(const std::shared_ptr<tracker_element>& e) {
     json_adapter::pack(ss, e);
     auto s = ss.str();
     return s.empty() ? "null" : s;
+}
+
+// Visit a slice of an unordered container, resuming at the bucket the last call
+// stopped at, so a big one is covered over several calls
+template <typename C, typename F>
+void scan_slice(C& c, size_t& bucket, F&& fn) {
+    auto nb = c.bucket_count();
+    if (c.empty() || nb == 0) {
+        bucket = 0;
+        return;
+    }
+    if (bucket >= nb)
+        bucket = 0;
+    size_t seen = 0;
+    auto max_buckets = std::min(nb, purge_per_tick * 8);
+    for (size_t visited = 0; visited < max_buckets && seen < purge_per_tick; visited++) {
+        for (auto it = c.begin(bucket); it != c.end(bucket); ++it) {
+            fn(*it);
+            seen++;
+        }
+        bucket = (bucket + 1) % nb;
+    }
 }
 
 template <typename T>
@@ -289,6 +337,11 @@ void webhook_bucket::refill(webhook_clock::time_point now) {
     double s = std::chrono::duration<double>(now - last).count();
     tokens = std::min(cap, tokens + s * per_sec);
     last = now;
+}
+
+bool webhook_bucket::available(webhook_clock::time_point now) {
+    refill(now);
+    return tokens >= 1.0;
 }
 
 bool webhook_bucket::take(webhook_clock::time_point now) {
@@ -448,15 +501,31 @@ void webhook_endpoint::start() {
     worker = std::thread([this]() { run(); });
 }
 
+struct webhook_endpoint::resolve_job {
+    std::mutex m;
+    std::condition_variable cv;
+    bool done = false;
+    beast::error_code ec;
+    std::vector<tcp::endpoint> eps;
+};
+
 void webhook_endpoint::stop() {
+    request_stop();
+    join();
+}
+
+void webhook_endpoint::request_stop() {
     {
         std::lock_guard<std::mutex> lk(m);
         stopping = true;
+        halt = true;
         if (cur_ioc != nullptr)
             static_cast<net::io_context *>(cur_ioc)->stop();
     }
     cv.notify_all();
+}
 
+void webhook_endpoint::join() {
     if (worker.joinable())
         worker.join();
 }
@@ -545,7 +614,6 @@ webhook_endpoint::result webhook_endpoint::deliver(const std::string& body) {
     result res;
 
     net::io_context ioc;
-    tcp::resolver resolver(ioc);
 
     {
         std::lock_guard<std::mutex> lk(m);
@@ -591,13 +659,20 @@ webhook_endpoint::result webhook_endpoint::deliver(const std::string& body) {
             done = true;
         });
 
-        ioc.restart();
+        // Restarted under the lock so a stop() can't land between the check and the run
+        bool halted;
+        {
+            std::lock_guard<std::mutex> lk(m);
+            halted = stopping;
+            if (!halted)
+                ioc.restart();
+        }
+
         auto left = deadline - webhook_clock::now();
-        if (left > webhook_clock::duration::zero())
+        if (!halted && left > webhook_clock::duration::zero())
             ioc.run_for(left);
 
         if (!done) {
-            resolver.cancel();
             if (plain || tls) {
                 beast::error_code ign;
                 lowest().socket().close(ign);
@@ -618,16 +693,56 @@ webhook_endpoint::result webhook_endpoint::deliver(const std::string& body) {
         return res;
     };
 
-    tcp::resolver::results_type results;
-    auto ec = step([&](auto h) {
-        resolver.async_resolve(url.host, url.port,
-                [&results, h](beast::error_code e, tcp::resolver::results_type r) {
-                    results = r;
-                    h(e);
-                });
-    });
-    if (ec)
-        return finish("resolve: " + ec.message());
+    // A lookup that outlives the deadline is left to finish on its own; the next call
+    // waits on it rather than starting another
+    std::shared_ptr<resolve_job> job;
+    {
+        std::lock_guard<std::mutex> lk(m);
+        job = resolving;
+    }
+    if (job == nullptr) {
+        job = std::make_shared<resolve_job>();
+        {
+            std::lock_guard<std::mutex> lk(m);
+            resolving = job;
+        }
+        std::thread([job, host = url.host, port = url.port]() {
+            net::io_context rioc;
+            tcp::resolver r(rioc);
+            beast::error_code rec;
+            auto res = r.resolve(host, port, rec);
+            std::lock_guard<std::mutex> lk(job->m);
+            job->ec = rec;
+            for (const auto& e : res)
+                job->eps.push_back(e.endpoint());
+            job->done = true;
+            job->cv.notify_all();
+        }).detach();
+    }
+
+    std::vector<tcp::endpoint> eps;
+    beast::error_code rec;
+    {
+        std::unique_lock<std::mutex> lk(job->m);
+        while (!job->done && !halt && webhook_clock::now() < deadline)
+            job->cv.wait_until(lk, std::min(deadline, webhook_clock::now() + std::chrono::milliseconds(100)));
+        if (!job->done)
+            return finish(halt ? "shutting down" : "resolve: timed out");
+        rec = job->ec;
+        eps = job->eps;
+    }
+    {
+        // Finished either way, so the next call looks the name up again
+        std::lock_guard<std::mutex> lk(m);
+        if (resolving == job)
+            resolving.reset();
+    }
+    if (rec)
+        return finish("resolve: " + rec.message());
+    if (eps.empty())
+        return finish("resolve: no addresses");
+
+    beast::error_code ec;
 
     if (url.tls) {
         tls.emplace(ioc, *std::static_pointer_cast<ssl::context>(ssl_ctx));
@@ -654,7 +769,7 @@ webhook_endpoint::result webhook_endpoint::deliver(const std::string& body) {
     }
 
     ec = step([&](auto h) {
-        lowest().async_connect(results,
+        lowest().async_connect(eps,
                 [h](beast::error_code e, const tcp::endpoint&) { h(e); });
     });
     if (ec)
@@ -720,11 +835,8 @@ webhook_endpoint::result webhook_endpoint::deliver(const std::string& body) {
     }
 
     auto ra = parser->get().find(http::field::retry_after);
-    if (ra != parser->get().end()) {
-        uint64_t v;
-        if (parse_count(std::string(ra->value()), 0, max_retry_after, v))
-            res.retry_after = static_cast<int64_t>(v);
-    }
+    if (ra != parser->get().end())
+        res.retry_after = parse_retry_after(std::string(ra->value()), time(nullptr));
 
     {
         beast::error_code ign;
@@ -822,7 +934,7 @@ void webhook_endpoint::run() {
         }
 
         int64_t wait;
-        if (res.status == 429 && res.retry_after >= 0)
+        if ((res.status == 429 || res.status == 503) && res.retry_after >= 0)
             wait = res.retry_after;
         else
             wait = std::min<int64_t>(max_backoff, int64_t{5} << std::min(failures - 1, 6U));
@@ -909,7 +1021,6 @@ kis_webhooks::kis_webhooks() :
     max_tracked{100000},
     seq{0},
     group_seq{0},
-    last_purge{0},
     timer_id{-1} {
 
     mutex.set_name("webhooks");
@@ -1087,8 +1198,11 @@ void kis_webhooks::trigger_deferred_shutdown() {
         timer_id = -1;
     }
 
+    // Every endpoint at once, then wait for them all
     for (auto& e : endpoints)
-        e.second->stop();
+        e.second->request_stop();
+    for (auto& e : endpoints)
+        e.second->join();
 }
 
 std::shared_ptr<webhook_binding> kis_webhooks::bind(const devicerules::rule_def& rd, size_t idx) {
@@ -1142,6 +1256,10 @@ std::shared_ptr<webhook_binding> kis_webhooks::bind(const devicerules::rule_def&
     for (const auto& f : def.change_fields) {
         std::vector<int> path;
         auto full = resolve(f, path);
+        auto inst = et->get_shared_instance(path.back());
+        if (inst == nullptr || !inst->is_stringable())
+            throw devicerules::parse_error("rule '" + rd.name + "': change field '" + f +
+                    "' isn't a single value", def.line, def.col);
         b->change_paths.push_back(path);
         b->change_names.push_back(full);
     }
@@ -1149,40 +1267,47 @@ std::shared_ptr<webhook_binding> kis_webhooks::bind(const devicerules::rule_def&
     return b;
 }
 
+std::shared_ptr<webhook_hook_state> kis_webhooks::new_state(const std::shared_ptr<webhook_binding>& b,
+        uint32_t gen, time_t now) {
+    auto hs = std::make_shared<hook_state>();
+    hs->b = b;
+    hs->installed = now;
+    hs->priming = true;
+    hs->prime_gen = gen;
+    hs->rate.init(b->def.rate, b->def.rate_period, b->def.burst);
+    return hs;
+}
+
 void kis_webhooks::install(const std::vector<std::shared_ptr<webhook_binding>>& bindings, uint32_t gen) {
     kis_lock_guard<kis_mutex> lk(mutex, "webhooks install");
 
     time_t now = Globalreg::globalreg->last_tv_sec;
-    std::map<std::string, hook_state> next;
+    std::map<std::string, std::shared_ptr<hook_state>> next;
 
     for (const auto& b : bindings) {
+        std::shared_ptr<hook_state> hs;
+
         auto hi = hooks.find(b->key);
         if (hi != hooks.end()) {
-            auto hs = std::move(hi->second);
-            const auto& od = hs.b->def;
-            if (od.rate != b->def.rate || od.rate_period != b->def.rate_period || od.burst != b->def.burst)
-                hs.rate.init(b->def.rate, b->def.rate_period, b->def.burst);
-            // Kept state only means something for the same trigger
+            hs = hi->second;
+            std::lock_guard<std::mutex> hlk(hs->m);
+            const auto& od = hs->b->def;
+            // Kept state only means something for the same trigger; a new state
+            // leaves the old one to the old rule set's bindings until it's replaced
             if (od.trigger != b->def.trigger || od.change_fields != b->def.change_fields) {
-                hs.devs.clear();
-                hs.pending.clear();
-                hs.once_fired = false;
-                hs.priming = true;
-                hs.prime_gen = gen;
-                hs.installed = now;
+                hs.reset();
+            } else {
+                if (od.rate != b->def.rate || od.rate_period != b->def.rate_period || od.burst != b->def.burst)
+                    hs->rate.init(b->def.rate, b->def.rate_period, b->def.burst);
+                hs->b = b;
             }
-            hs.b = b;
-            next[b->key] = std::move(hs);
-            continue;
         }
 
-        hook_state hs;
-        hs.b = b;
-        hs.installed = now;
-        hs.priming = true;
-        hs.prime_gen = gen;
-        hs.rate.init(b->def.rate, b->def.rate_period, b->def.burst);
-        next[b->key] = std::move(hs);
+        if (hs == nullptr)
+            hs = new_state(b, gen, now);
+
+        b->state = hs;
+        next[b->key] = hs;
     }
 
     hooks = std::move(next);
@@ -1190,30 +1315,41 @@ void kis_webhooks::install(const std::vector<std::shared_ptr<webhook_binding>>& 
 
 void kis_webhooks::primed(uint32_t gen) {
     kis_lock_guard<kis_mutex> lk(mutex, "webhooks primed");
-    for (auto& h : hooks)
-        if (h.second.priming && h.second.prime_gen <= gen)
-            h.second.priming = false;
+    for (auto& h : hooks) {
+        std::lock_guard<std::mutex> hlk(h.second->m);
+        if (h.second->priming && h.second->prime_gen <= gen)
+            h.second->priming = false;
+    }
 }
 
 std::vector<std::string> kis_webhooks::read_values(const webhook_binding& b,
         const std::shared_ptr<kis_tracked_device_base>& dev) {
     std::vector<std::string> v;
     v.reserve(b.change_paths.size());
-    for (const auto& p : b.change_paths)
-        v.push_back(pack_element(get_tracker_element_path(p, dev)));
+    for (const auto& p : b.change_paths) {
+        auto s = pack_element(get_tracker_element_path(p, dev));
+        if (s.size() > max_change_value)
+            s = fmt::format("\"<{} bytes, hash {:016x}>\"", s.size(), std::hash<std::string>{}(s));
+        v.push_back(std::move(s));
+    }
     return v;
 }
 
 bool kis_webhooks::allow(hook_state& hs) {
     auto now = webhook_clock::now();
 
-    if (!hs.rate.take(now)) {
-        hs.suppressed++;
-        hs.b->endpoint->note_suppressed(1);
-        return false;
+    bool ok;
+    {
+        // Both limits are checked before either token is taken
+        std::lock_guard<std::mutex> lk(global_m);
+        ok = hs.rate.available(now) && global_rate.available(now);
+        if (ok) {
+            hs.rate.take(now);
+            global_rate.take(now);
+        }
     }
 
-    if (!global_rate.take(now)) {
+    if (!ok) {
         hs.suppressed++;
         hs.b->endpoint->note_suppressed(1);
         return false;
@@ -1227,96 +1363,113 @@ void kis_webhooks::device_event(const std::shared_ptr<webhook_binding>& b, dev_e
         const std::shared_ptr<kis_tracked_device_base>& dev) {
     using devicerules::hook_trigger;
 
-    const auto& def = b->def;
-    time_t now = Globalreg::globalreg->last_tv_sec;
+    auto hsp = b->state;
+    if (hsp == nullptr)
+        return;
+    auto& hs = *hsp;
 
-    std::vector<std::string> values;
-    if (def.trigger == hook_trigger::change && ev != dev_event::stop)
-        values = read_values(*b, dev);
+    const auto& def = b->def;
+    const bool change = def.trigger == hook_trigger::change;
+    time_t now = Globalreg::globalreg->last_tv_sec;
 
     fire f;
     f.trigger = nullptr;
+    bool warn_full = false;
 
     {
-        kis_lock_guard<kis_mutex> lk(mutex, "webhooks device_event");
-
-        auto hi = hooks.find(b->key);
-        if (hi == hooks.end())
-            return;
-        auto& hs = hi->second;
+        std::lock_guard<std::mutex> lk(hs.m);
 
         auto key = dev->get_key();
 
-        auto send_first = [&](dev_state *st) {
-            const char *trig = "match";
-
-            if (def.trigger == hook_trigger::new_device) {
-                if (st->new_done || static_cast<time_t>(dev->get_first_time()) < hs.installed)
-                    return;
-                st->new_done = true;
-                trig = "new";
-            } else if (def.trigger == hook_trigger::once) {
-                if (hs.once_fired)
-                    return;
-                hs.once_fired = true;
-                trig = "once";
-            }
-
-            if (st != nullptr) {
-                st->last_sent = now;
-                if (def.trigger == hook_trigger::change)
-                    st->values = values;
-            }
-
-            if (!allow(hs))
+        auto queue_at = [&](dev_state& st, time_t when) {
+            if (st.due == when)
                 return;
-
-            if (st != nullptr)
-                st->notified = true;
-            f.trigger = trig;
+            if (st.due != 0)
+                hs.due_q.erase({st.due, key});
+            st.due = when;
+            hs.due_q.emplace(when, key);
         };
 
-        if (!b->per_device()) {
-            // Plain match and once keep no state per device
-            if (ev != dev_event::start)
-                return;
-            if (hs.priming && !def.fire_existing && static_cast<time_t>(dev->get_first_time()) < hs.installed) {
-                hs.primed_devices++;
-                if (def.trigger == hook_trigger::once)
-                    hs.once_fired = true;
-                return;
+        auto unqueue = [&](dev_state& st) {
+            if (st.due != 0) {
+                hs.due_q.erase({st.due, key});
+                st.due = 0;
             }
-            dev_state tmp;
-            send_first(&tmp);
-        } else if (ev == dev_event::stop) {
-            auto si = hs.devs.find(key);
-            if (si == hs.devs.end())
-                return;
-            if (si->second.notified && def.stop && allow(hs))
-                f.trigger = "stop";
-            hs.pending.erase(key);
-            if (def.trigger == hook_trigger::new_device && si->second.new_done) {
-                si->second = dev_state{};
-                si->second.new_done = true;
-                si->second.touched = now;
-            } else {
-                hs.devs.erase(si);
-            }
-        } else {
-            auto si = hs.devs.find(key);
+        };
 
+        auto read = [&](dev_state& st) {
+            st.checked = now;
+            return read_values(*b, dev);
+        };
+
+        auto full = [&]() {
+            hs.untracked++;
+            if (!hs.warned_full) {
+                hs.warned_full = true;
+                warn_full = true;
+            }
+        };
+
+        auto decide = [&]() {
+            bool old = static_cast<time_t>(dev->get_first_time()) < hs.installed;
+
+            if (!b->per_device()) {
+                // Plain match and once keep no state per device
+                if (ev != dev_event::start)
+                    return;
+                if (hs.priming && !def.fire_existing && old) {
+                    hs.primed_devices++;
+                    if (def.trigger == hook_trigger::once)
+                        hs.once_fired = true;
+                    return;
+                }
+                if (def.trigger == hook_trigger::once && hs.once_fired)
+                    return;
+                if (!allow(hs))
+                    return;
+                if (def.trigger == hook_trigger::once) {
+                    hs.once_fired = true;
+                    f.trigger = "once";
+                } else {
+                    f.trigger = "match";
+                }
+                return;
+            }
+
+            if (ev == dev_event::stop) {
+                auto si = hs.devs.find(key);
+                if (si == hs.devs.end())
+                    return;
+                if (si->second.notified && def.stop && allow(hs))
+                    f.trigger = "stop";
+                bool sent_new = si->second.new_done;
+                unqueue(si->second);
+                hs.devs.erase(si);
+                // Only 'new' needs to remember a device that's no longer matching
+                if (def.trigger == hook_trigger::new_device && sent_new) {
+                    if (hs.new_sent.size() < max_tracked * new_sent_factor)
+                        hs.new_sent.insert(key);
+                    else
+                        full();
+                }
+                return;
+            }
+
+            auto si = hs.devs.find(key);
             if (si == hs.devs.end()) {
                 if (hs.devs.size() >= max_tracked) {
-                    hs.untracked++;
+                    full();
                     return;
                 }
                 si = hs.devs.emplace(key, dev_state{}).first;
+                si->second.new_done = hs.new_sent.erase(key) > 0;
                 // A device already matching when its state was lost isn't a new match
-                if (ev == dev_event::cont) {
+                if (ev != dev_event::start) {
                     si->second.match_since = now;
                     si->second.handled = true;
                     si->second.last_sent = now;
-                    si->second.values = values;
+                    if (change)
+                        si->second.values = read(si->second);
                 }
             }
 
@@ -1328,13 +1481,14 @@ void kis_webhooks::device_event(const std::shared_ptr<webhook_binding>& b, dev_e
                 st.handled = false;
                 st.notified = false;
                 st.trailing = false;
+                unqueue(st);
 
-                if (hs.priming && !def.fire_existing &&
-                        static_cast<time_t>(dev->get_first_time()) < hs.installed) {
+                if (hs.priming && !def.fire_existing && old) {
                     hs.primed_devices++;
                     st.handled = true;
                     st.last_sent = now;
-                    st.values = values;
+                    if (change)
+                        st.values = read(st);
                     if (def.trigger == hook_trigger::new_device)
                         st.new_done = true;
                     return;
@@ -1343,13 +1497,38 @@ void kis_webhooks::device_event(const std::shared_ptr<webhook_binding>& b, dev_e
 
             if (!st.handled) {
                 if (def.hold > 0 && now - st.match_since < def.hold) {
-                    hs.pending.insert(key);
+                    queue_at(st, st.match_since + def.hold);
                     return;
                 }
-                hs.pending.erase(key);
+                unqueue(st);
                 st.handled = true;
-                send_first(&st);
-            } else if (def.trigger == hook_trigger::every) {
+                st.last_sent = now;
+                if (change)
+                    st.values = read(st);
+
+                const char *trig = "match";
+                bool eligible = true;
+                if (def.trigger == hook_trigger::new_device) {
+                    eligible = !st.new_done && !old;
+                    trig = "new";
+                } else if (def.trigger == hook_trigger::once) {
+                    eligible = !hs.once_fired;
+                    trig = "once";
+                }
+
+                // once and new are only spent on a send the rate limits let through
+                if (!eligible || !allow(hs))
+                    return;
+                if (def.trigger == hook_trigger::new_device)
+                    st.new_done = true;
+                else if (def.trigger == hook_trigger::once)
+                    hs.once_fired = true;
+                st.notified = true;
+                f.trigger = trig;
+                return;
+            }
+
+            if (def.trigger == hook_trigger::every) {
                 if (now - st.last_sent >= def.interval) {
                     st.last_sent = now;
                     if (allow(hs)) {
@@ -1357,60 +1536,87 @@ void kis_webhooks::device_event(const std::shared_ptr<webhook_binding>& b, dev_e
                         st.notified = true;
                     }
                 }
-            } else if (def.trigger == hook_trigger::change) {
-                if (values != st.values) {
-                    if (now - st.last_sent >= def.interval) {
-                        if (allow(hs)) {
-                            for (size_t i = 0; i < values.size(); i++)
-                                if (i >= st.values.size() || values[i] != st.values[i]) {
-                                    f.changed_old.emplace_back(b->change_names[i],
-                                            i < st.values.size() ? st.values[i] : "null");
-                                    f.changed_new.push_back(values[i]);
-                                }
-                            f.trigger = "change";
-                            st.notified = true;
-                            st.values = values;
-                            st.last_sent = now;
-                            st.trailing = false;
-                            hs.pending.erase(key);
-                        } else {
-                            st.trailing = true;
-                            hs.pending.insert(key);
-                        }
-                    } else {
-                        // Merged into one send when the limit is up
-                        st.trailing = true;
-                        hs.pending.insert(key);
-                    }
-                } else if (st.trailing) {
+                return;
+            }
+
+            if (!change)
+                return;
+
+            // Packets read the fields at most once a second, and not at all while a
+            // change waits on the limit; the due queue checks it when the limit is up
+            if (ev != dev_event::due &&
+                    (st.checked == now || (st.trailing && now - st.last_sent < def.interval)))
+                return;
+
+            auto values = read(st);
+
+            if (values == st.values) {
+                if (st.trailing) {
                     st.trailing = false;
-                    hs.pending.erase(key);
+                    unqueue(st);
                 }
+                return;
             }
-        }
 
-        if (f.trigger == nullptr)
-            return;
-
-        f.b = b;
-        f.seq = ++seq;
-
-        // Events of one batch window share a release time; a full window goes at once
-        f.not_before = webhook_clock::now();
-        f.group = 0;
-        f.release = false;
-        if (def.batch > 0) {
-            if (hs.batch_group == 0 || f.not_before >= hs.batch_until || hs.batch_count >= def.batch_max) {
-                hs.batch_group = ++group_seq;
-                hs.batch_until = f.not_before + std::chrono::seconds(def.batch);
-                hs.batch_count = 0;
+            if (now - st.last_sent < def.interval) {
+                // Merged into one send when the limit is up
+                st.trailing = true;
+                queue_at(st, st.last_sent + def.interval);
+                return;
             }
-            hs.batch_count++;
-            f.group = hs.batch_group;
-            f.not_before = hs.batch_until;
-            f.release = hs.batch_count >= def.batch_max;
+
+            if (!allow(hs)) {
+                // Try again after another limit, not every tick
+                st.last_sent = now;
+                st.trailing = true;
+                queue_at(st, now + def.interval);
+                return;
+            }
+
+            for (size_t i = 0; i < values.size(); i++)
+                if (i >= st.values.size() || values[i] != st.values[i]) {
+                    f.changed_old.emplace_back(b->change_names[i],
+                            i < st.values.size() ? st.values[i] : "null");
+                    f.changed_new.push_back(values[i]);
+                }
+            f.trigger = "change";
+            st.notified = true;
+            st.values = std::move(values);
+            st.last_sent = now;
+            st.trailing = false;
+            unqueue(st);
+        };
+
+        decide();
+
+        if (f.trigger != nullptr) {
+            f.b = b;
+            f.seq = ++seq;
+
+            // Events of one batch window share a release time; a full window goes at once
+            f.not_before = webhook_clock::now();
+            f.group = 0;
+            f.release = false;
+            if (def.batch > 0) {
+                if (hs.batch_group == 0 || f.not_before >= hs.batch_until || hs.batch_count >= def.batch_max) {
+                    hs.batch_group = ++group_seq;
+                    hs.batch_until = f.not_before + std::chrono::seconds(def.batch);
+                    hs.batch_count = 0;
+                }
+                hs.batch_count++;
+                f.group = hs.batch_group;
+                f.not_before = hs.batch_until;
+                f.release = hs.batch_count >= def.batch_max;
+            }
         }
     }
+
+    if (warn_full)
+        _MSG_ERROR("The webhook for device rule '{}' is keeping state for webhook_max_tracked={} "
+                "devices; more devices are skipped until some stop matching", b->rule, max_tracked);
+
+    if (f.trigger == nullptr)
+        return;
 
     send(f, dev, now);
 }
@@ -1467,73 +1673,80 @@ void kis_webhooks::send(fire& f, const std::shared_ptr<kis_tracked_device_base>&
 void kis_webhooks::tick() {
     time_t now = Globalreg::globalreg->last_tv_sec;
 
-    std::vector<std::pair<std::shared_ptr<webhook_binding>, device_key>> due;
-    std::vector<std::pair<std::string, device_key>> check;
-
+    std::vector<std::shared_ptr<hook_state>> list;
     {
         kis_lock_guard<kis_mutex> lk(mutex, "webhooks tick");
-
-        for (auto& h : hooks) {
-            auto& hs = h.second;
-            const auto& def = hs.b->def;
-
-            for (const auto& k : hs.pending) {
-                if (due.size() >= max_due_per_tick)
-                    break;
-                auto si = hs.devs.find(k);
-                if (si == hs.devs.end())
-                    continue;
-                const auto& st = si->second;
-                if ((!st.handled && st.match_since != 0 && now - st.match_since >= def.hold) ||
-                        (st.trailing && now - st.last_sent >= def.interval))
-                    due.emplace_back(hs.b, k);
-            }
-        }
-
-        if (last_purge + purge_interval <= now) {
-            last_purge = now;
-            for (auto& h : hooks)
-                for (auto& d : h.second.devs) {
-                    if (check.size() >= max_purge_checks)
-                        break;
-                    if (d.second.touched + purge_idle < now)
-                        check.emplace_back(h.first, d.first);
-                }
-        }
+        for (const auto& h : hooks)
+            list.push_back(h.second);
     }
 
-    for (const auto& d : due) {
-        auto dev = devicetracker->fetch_device(d.second);
+    for (const auto& hs : list)
+        tick_hook(hs, now);
+}
+
+void kis_webhooks::tick_hook(const std::shared_ptr<hook_state>& hs, time_t now) {
+    std::shared_ptr<webhook_binding> b;
+    std::vector<device_key> due, idle, idle_new;
+
+    {
+        std::lock_guard<std::mutex> lk(hs->m);
+        b = hs->b;
+
+        while (!hs->due_q.empty() && hs->due_q.begin()->first <= now && due.size() < max_due_per_tick) {
+            auto k = hs->due_q.begin()->second;
+            hs->due_q.erase(hs->due_q.begin());
+            auto si = hs->devs.find(k);
+            if (si != hs->devs.end())
+                si->second.due = 0;
+            due.push_back(k);
+        }
+
+        // A slice of the purge each tick
+        scan_slice(hs->devs, hs->purge_bucket, [&](const std::pair<const device_key, dev_state>& d) {
+            if (d.second.touched + purge_idle < now)
+                idle.push_back(d.first);
+        });
+        scan_slice(hs->new_sent, hs->purge_new_bucket, [&](const device_key& k) {
+            idle_new.push_back(k);
+        });
+    }
+
+    for (const auto& k : due) {
+        auto dev = devicetracker->fetch_device(k);
         if (dev == nullptr)
             continue;
         kis_device_lock dlk(dev, false);
-        device_event(d.first, dev_event::cont, dev);
+        device_event(b, dev_event::due, dev);
     }
+
+    if (idle.empty() && idle_new.empty())
+        return;
 
     // Devices timed out of the tracker never send a stop; forget them
-    if (!check.empty()) {
-        std::vector<std::pair<std::string, device_key>> gone;
-        for (const auto& c : check)
-            if (devicetracker->fetch_device(c.second) == nullptr)
-                gone.push_back(c);
+    std::vector<device_key> gone, gone_new;
+    for (const auto& k : idle)
+        if (devicetracker->fetch_device(k) == nullptr)
+            gone.push_back(k);
+    for (const auto& k : idle_new)
+        if (devicetracker->fetch_device(k) == nullptr)
+            gone_new.push_back(k);
 
-        kis_lock_guard<kis_mutex> lk(mutex, "webhooks purge");
-        for (const auto& g : gone) {
-            auto hi = hooks.find(g.first);
-            if (hi == hooks.end())
-                continue;
-            hi->second.devs.erase(g.second);
-            hi->second.pending.erase(g.second);
-        }
-        for (const auto& c : check) {
-            auto hi = hooks.find(c.first);
-            if (hi == hooks.end())
-                continue;
-            auto si = hi->second.devs.find(c.second);
-            if (si != hi->second.devs.end())
-                si->second.touched = now;
-        }
+    std::lock_guard<std::mutex> lk(hs->m);
+    for (const auto& k : idle) {
+        auto si = hs->devs.find(k);
+        if (si != hs->devs.end())
+            si->second.touched = now;
     }
+    for (const auto& k : gone) {
+        auto si = hs->devs.find(k);
+        if (si == hs->devs.end())
+            continue;
+        if (si->second.due != 0)
+            hs->due_q.erase({si->second.due, k});
+        hs->devs.erase(si);
+    }
+    for (const auto& k : gone_new)
+        hs->new_sent.erase(k);
 }
 
 std::shared_ptr<tracker_element> kis_webhooks::status_endpoint() {
@@ -1547,10 +1760,16 @@ std::shared_ptr<tracker_element> kis_webhooks::status_endpoint() {
 
     auto rules = status_field<tracker_element_vector>(et, "kismet.webhooks.rules", "device rule webhooks");
 
-    kis_lock_guard<kis_mutex> lk(mutex, "webhooks status");
+    std::vector<std::shared_ptr<hook_state>> list;
+    {
+        kis_lock_guard<kis_mutex> lk(mutex, "webhooks status");
+        for (const auto& h : hooks)
+            list.push_back(h.second);
+    }
 
-    for (const auto& h : hooks) {
-        const auto& hs = h.second;
+    for (const auto& hsp : list) {
+        std::lock_guard<std::mutex> hlk(hsp->m);
+        const auto& hs = *hsp;
         auto r = std::make_shared<tracker_element_map>();
 
         auto f_rule = status_field<tracker_element_string>(et, "kismet.webhooks.rule.rule", "device rule");
