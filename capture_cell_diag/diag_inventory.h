@@ -96,7 +96,8 @@ size_t   diag_inventory_distinct(const diag_inventory_t *inv);
 uint64_t diag_inventory_overflow(const diag_inventory_t *inv);
 
 /* Tally one record its leg parsed and deliberately set aside for a benign,
- * known reason -- a GNSS record whose receiver has no fix yet. Counted as
+ * known reason -- a GNSS record whose receiver has no fix yet, or a 0xB0C0
+ * LTE RRC message on a channel that never carries SIB1 (paging). Counted as
  * decoded, emits nothing, and is NOT a silence: a code whose non-emitting
  * records were all gated is not reported silent. Any other non-emitting decode
  * of the same key still is. Same admission and caps as diag_inventory_record. */
