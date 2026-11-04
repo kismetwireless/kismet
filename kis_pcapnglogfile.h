@@ -21,6 +21,10 @@
 
 #include "config.h"
 
+#include <atomic>
+#include <ctime>
+#include <mutex>
+
 #include "globalregistry.h"
 #include "logtracker.h"
 #include "pcapng_stream_futurebuf.h"
@@ -117,6 +121,18 @@ protected:
 
     uint64_t reported_drops = 0;
     time_t last_drop_report = 0;
+
+    // Start a new file after this many seconds (pcapng_log_max_seconds), 0 for no limit
+    time_t max_duration;
+
+    // When the current file was opened
+    std::atomic<time_t> file_opened;
+
+    // Wakes the writer when the current file is due, so it rotates without packets
+    int duration_timer_id;
+
+    // Keeps the timer from waking a buffer rotate_log() is replacing
+    std::mutex buffer_mutex;
 
     int pack_comp_l1data, pack_comp_linkframe;
 };

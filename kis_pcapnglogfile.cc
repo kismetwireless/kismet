@@ -21,6 +21,7 @@
 #include "configfile.h"
 #include "kis_pcapnglogfile.h"
 #include "messagebus.h"
+#include "timetracker.h"
 
 #include <algorithm>
 #include <ctime>
@@ -42,6 +43,12 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     max_size = 
         Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_max_mb", 0L);
     max_size = max_size * 1024 * 1024;
+
+    // Max time per file in seconds
+    max_duration =
+        Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_max_seconds", 0L);
+    file_opened = 0;
+    duration_timer_id = -1;
 
     // How far the writer may fall behind before packets are dropped (or wait, when
     // blocking); at least 1MB
@@ -103,6 +110,8 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
     _MSG_INFO("Opened pcapng log file '{}'", in_path);
 
+    file_opened = time(nullptr);
+
     set_int_log_open(true);
 
     auto thread_p = std::promise<void>();
@@ -133,8 +142,16 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
                 report_drops(false);
 
-                // Flush the buffer, close the log, and make a new one
-                if (log_size >= max_size && max_size != 0) {
+                // Flush the buffer, close the log, and make a new one.  Not while closing:
+                // the new buffer wouldn't be cancelled, and close_log() would wait for this
+                // thread forever
+                if (log_size >= max_size && max_size != 0 && buffer->running()) {
+                    log_size = 0;
+                    rotate_log();
+                } else if (max_duration != 0 && buffer->running() &&
+                        time(nullptr) - file_opened >= max_duration) {
+                    // The timer below wakes the writer when the file is due, even without
+                    // packets
                     log_size = 0;
                     rotate_log();
                 }
@@ -144,6 +161,21 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
     thread_f.wait();
     pcapng->start_stream();
+
+    if (max_duration != 0) {
+        auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+
+        duration_timer_id =
+            timetracker->register_timer(std::chrono::seconds(1), 1,
+                    [this](int) -> int {
+                        if (time(nullptr) - file_opened >= max_duration) {
+                            std::lock_guard<std::mutex> lk(buffer_mutex);
+                            buffer->sync();
+                        }
+
+                        return 1;
+                    });
+    }
 
     return true;
 }
@@ -164,6 +196,8 @@ void kis_pcapng_logfile::rotate_log() {
     if (new_file == nullptr) {
         _MSG_ERROR("Failed to open new pcapng log '{}' - {}; continuing to log to '{}'",
                 logpath, kis_strerror_r(errno), get_log_path());
+        // Retry after another max_duration too, instead of every second
+        file_opened = time(nullptr);
         return;
     }
 
@@ -176,9 +210,13 @@ void kis_pcapng_logfile::rotate_log() {
 
     // Reset the buffer and pcap log; this will make a new SHB in the new buffer
     // immediately, and leave the remnants of the old packets in the old buffer
-    buffer = pcapng->restart_stream(new future_chainbuf(4096, 1024));
+    {
+        std::lock_guard<std::mutex> lk(buffer_mutex);
+        buffer = pcapng->restart_stream(new future_chainbuf(4096, 1024));
+    }
     pcapng_file = new_file;
     set_int_log_path(logpath);
+    file_opened = time(nullptr);
 
     // Flush out the contents of the old buffer direct to the old file; the buffer will
     // empty because the stream has the new buffer assigned already
@@ -256,6 +294,14 @@ void kis_pcapng_logfile::close_log() {
     kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_open(false);
+
+    // Waits for a running callback, which only takes buffer_mutex
+    if (duration_timer_id >= 0) {
+        auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+        if (timetracker != nullptr)
+            timetracker->remove_timer(duration_timer_id);
+        duration_timer_id = -1;
+    }
 
     // Stop the writer first; it uses the stream, so the stream is removed only after
     buffer->cancel();
