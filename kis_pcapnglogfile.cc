@@ -21,9 +21,18 @@
 #include "configfile.h"
 #include "kis_pcapnglogfile.h"
 #include "messagebus.h"
+#include "timetracker.h"
 
 #include <algorithm>
 #include <ctime>
+#include <thread>
+
+#include <unistd.h>
+
+namespace {
+// Longest pcapng_log_max_seconds: a year
+constexpr long max_log_seconds = 366L * 86400;
+}
 
 kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder) {
@@ -42,6 +51,24 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     max_size = 
         Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_max_mb", 0L);
     max_size = max_size * 1024 * 1024;
+
+    // Max time per file in seconds; read as text, since an unsigned read turns -1 into
+    // a negative time_t and a file that's always due
+    max_duration = std::chrono::seconds(0);
+    auto max_seconds = Globalreg::globalreg->kismet_config->fetch_opt("pcapng_log_max_seconds");
+    if (!max_seconds.empty()) {
+        if (max_seconds.size() > 8 ||
+                max_seconds.find_first_not_of("0123456789") != std::string::npos ||
+                std::stol(max_seconds) > max_log_seconds) {
+            _MSG_ERROR("Ignoring pcapng_log_max_seconds={}; expected seconds from 0 (no limit) "
+                    "to {}", max_seconds, max_log_seconds);
+        } else {
+            max_duration = std::chrono::seconds(std::stol(max_seconds));
+        }
+    }
+    file_opened = std::chrono::steady_clock::now();
+    duration_timer_id = -1;
+    closing = false;
 
     // How far the writer may fall behind before packets are dropped (or wait, when
     // blocking); at least 1MB
@@ -103,6 +130,9 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
     _MSG_INFO("Opened pcapng log file '{}'", in_path);
 
+    closing = false;
+    file_opened = std::chrono::steady_clock::now();
+
     set_int_log_open(true);
 
     auto thread_p = std::promise<void>();
@@ -133,8 +163,11 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
                 report_drops(false);
 
-                // Flush the buffer, close the log, and make a new one
-                if (log_size >= max_size && max_size != 0) {
+                // Flush the buffer, close the log, and make a new one; rotate_log() checks
+                // for close_log() again under buffer_mutex before it swaps.  The timer below
+                // wakes the writer when the file is due, even without packets.
+                if (!closing && buffer->running() &&
+                        ((log_size >= max_size && max_size != 0) || file_due())) {
                     log_size = 0;
                     rotate_log();
                 }
@@ -144,6 +177,21 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
 
     thread_f.wait();
     pcapng->start_stream();
+
+    if (max_duration.count() != 0) {
+        auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+
+        duration_timer_id =
+            timetracker->register_timer(std::chrono::seconds(1), 1,
+                    [this](int) -> int {
+                        if (file_due()) {
+                            std::lock_guard<std::mutex> lk(buffer_mutex);
+                            buffer->sync();
+                        }
+
+                        return 1;
+                    });
+    }
 
     return true;
 }
@@ -164,10 +212,10 @@ void kis_pcapng_logfile::rotate_log() {
     if (new_file == nullptr) {
         _MSG_ERROR("Failed to open new pcapng log '{}' - {}; continuing to log to '{}'",
                 logpath, kis_strerror_r(errno), get_log_path());
+        // Retry after another max_duration too, instead of every second
+        file_opened = std::chrono::steady_clock::now();
         return;
     }
-
-    _MSG_INFO("Rotating to new pcapng log {}", logpath);
 
     // Move the old buffer and file, replace with new
     auto old_buffer = buffer;
@@ -176,9 +224,54 @@ void kis_pcapng_logfile::rotate_log() {
 
     // Reset the buffer and pcap log; this will make a new SHB in the new buffer
     // immediately, and leave the remnants of the old packets in the old buffer
-    buffer = pcapng->restart_stream(new future_chainbuf(4096, 1024));
+    auto new_buffer = new future_chainbuf(4096, 1024);
+
+    while (true) {
+        {
+            std::lock_guard<std::mutex> lk(buffer_mutex);
+
+            // close_log() has cancelled the current buffer; a new one would never be
+            // cancelled, so drop the empty file this rotation made
+            if (closing) {
+                delete new_buffer;
+                fclose(new_file);
+                unlink(logpath.c_str());
+                return;
+            }
+
+            if (pcapng->try_restart_stream(new_buffer)) {
+                buffer = new_buffer;
+                break;
+            }
+        }
+
+        // A packet thread blocked on a full buffer (pcapng_log_blocking) holds the stream
+        // until there's room, so keep writing the old file until it lets go
+        char *data;
+        auto sz = old_buffer->get(&data);
+
+        if (sz == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
+
+        if (fwrite(data, sz, 1, old_pcapng_file) == 0) {
+            _MSG_ERROR("Error writing to pcapng log '{}' - {}", old_path, kis_strerror_r(errno));
+            delete new_buffer;
+            fclose(new_file);
+            unlink(logpath.c_str());
+            writer_failed();
+            return;
+        }
+
+        old_buffer->consume(sz);
+    }
+
+    _MSG_INFO("Rotating to new pcapng log {}", logpath);
+
     pcapng_file = new_file;
     set_int_log_path(logpath);
+    file_opened = std::chrono::steady_clock::now();
 
     // Flush out the contents of the old buffer direct to the old file; the buffer will
     // empty because the stream has the new buffer assigned already
@@ -202,7 +295,8 @@ void kis_pcapng_logfile::rotate_log() {
     }
 
     // Close the old file and remove the old buffer
-    fclose(old_pcapng_file);
+    if (fclose(old_pcapng_file) != 0)
+        _MSG_ERROR("Error closing pcapng log '{}' - {}", old_path, kis_strerror_r(errno));
     delete old_buffer;
 
     // Return to the packet handling loop thread and let it start processing packets again
@@ -257,8 +351,22 @@ void kis_pcapng_logfile::close_log() {
 
     set_int_log_open(false);
 
-    // Stop the writer first; it uses the stream, so the stream is removed only after
-    buffer->cancel();
+    // Waits for a running callback, which only takes buffer_mutex
+    if (duration_timer_id >= 0) {
+        auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+        if (timetracker != nullptr)
+            timetracker->remove_timer(duration_timer_id);
+        duration_timer_id = -1;
+    }
+
+    // Stop the writer first; it uses the stream, so the stream is removed only after.
+    // Under buffer_mutex, so a rotation either swaps before this and its new buffer is
+    // the one cancelled, or sees closing and doesn't swap.
+    {
+        std::lock_guard<std::mutex> blk(buffer_mutex);
+        closing = true;
+        buffer->cancel();
+    }
 
     if (stream_t.joinable())
         stream_t.join();

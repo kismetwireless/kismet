@@ -104,16 +104,19 @@ public:
     virtual future_chainbuf *restart_stream(future_chainbuf *new_buffer) {
         // Restart a stream on the current buffer
         kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf restart_stream");
-
-        // Swap to the new buffer; the caller should finish dealing with the old
-        // buffer somehow (such as flushing it out to file)
-        chainbuf = new_buffer;
-
-        log_packets = 0;
-        datasource_id_map.clear();
-        pcapng_make_shb("", "", "Kismet");
-
+        swap_buffer(new_buffer);
         return chainbuf;
+    }
+
+    // restart_stream(), but false instead of waiting while a packet holds the stream.
+    // A packet blocked on a full buffer holds it until the consumer makes room, so a
+    // consumer restarting the stream must keep draining between tries.
+    virtual bool try_restart_stream(future_chainbuf *new_buffer) {
+        std::unique_lock<kis_mutex> lk(pcap_mutex, std::try_to_lock);
+        if (!lk.owns_lock())
+            return false;
+        swap_buffer(new_buffer);
+        return true;
     }
 
     virtual void stop_stream(std::string in_reason) override {
@@ -157,6 +160,16 @@ protected:
 
     // Map kismet internal interface ID + DLT hash to log interface ID
     std::unordered_map<unsigned int, unsigned int> datasource_id_map;
+
+    // Swap to the new buffer; the caller should finish dealing with the old buffer
+    // somehow (such as flushing it out to file).  pcap_mutex must be held.
+    void swap_buffer(future_chainbuf *new_buffer) {
+        chainbuf = new_buffer;
+
+        log_packets = 0;
+        datasource_id_map.clear();
+        pcapng_make_shb("", "", "Kismet");
+    }
 
     virtual bool block_until(size_t req_bytes) {
         if (!block_for_buffer)
