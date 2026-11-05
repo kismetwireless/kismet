@@ -851,7 +851,10 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->custom_channel_hop_list = privchans;
     caph->channel_hop_list_sz = chan_sz;
 
-    if (caph->max_channel_hop_rate != 0 && rate < caph->max_channel_hop_rate)
+    /* A negative max disables hopping; a positive one caps the rate */
+    if (caph->max_channel_hop_rate < 0)
+        caph->channel_hop_rate = 0;
+    else if (caph->max_channel_hop_rate > 0 && rate > caph->max_channel_hop_rate)
         caph->channel_hop_rate = caph->max_channel_hop_rate;
     else
         caph->channel_hop_rate = rate;
@@ -1746,10 +1749,12 @@ void *cf_int_chanhop_thread(void *arg) {
             // Only add error positions we haven't seen in error before
             if (!err_seen) {
                 err = (struct cf_channel_error *) malloc(sizeof(struct cf_channel_error));
-                err->channel_pos = hopidx;
-                err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
-                caph->channel_hop_failure_list = err;
-                caph->channel_hop_failure_list_sz++;
+                if (err != NULL) {
+                    err->channel_pos = hopidx;
+                    err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
+                    caph->channel_hop_failure_list = err;
+                    caph->channel_hop_failure_list_sz++;
+                }
             }
         }
 
@@ -2265,7 +2270,14 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             chanhop_channels_sz = mpack_node_array_length(chanlist);
-            chanhop_channels = (char **) malloc(sizeof(char *) * chanhop_channels_sz);
+            chanhop_channels = (char **) calloc(chanhop_channels_sz ? chanhop_channels_sz : 1, sizeof(char *));
+
+            if (chanhop_channels == NULL) {
+                fprintf(stderr, "FATAL: Could not allocate channel hop list.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
 
             for (szi = 0; szi < chanhop_channels_sz; szi++) {
                 chanhop_channels[szi] = mpack_node_cstr_alloc(mpack_node_array_at(chanlist, szi), 64);
@@ -2279,7 +2291,17 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             /* translate or duplicate all the channels to native channel definitions */
-            chanhop_priv_channels = (void **) malloc(sizeof(void *) * chanhop_channels_sz);
+            chanhop_priv_channels = (void **) calloc(chanhop_channels_sz ? chanhop_channels_sz : 1, sizeof(void *));
+
+            if (chanhop_priv_channels == NULL) {
+                fprintf(stderr, "FATAL: Could not allocate channel hop list.\n");
+                for (szi = 0; szi < chanhop_channels_sz; szi++)
+                    free(chanhop_channels[szi]);
+                free(chanhop_channels);
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
 
             for (szi = 0; szi < chanhop_channels_sz; szi++) {
                 if (caph->chantranslate_cb != NULL) {
@@ -2360,6 +2382,11 @@ finish:
     pthread_mutex_unlock(&caph->handler_lock);
 
     return cbret;
+}
+
+/* select() can only watch descriptors below FD_SETSIZE */
+static int cf_fd_selectable(int fd) {
+    return fd >= 0 && fd < FD_SETSIZE;
 }
 
 /* A --tcp connection which never got a valid frame most likely reached the web server
@@ -3016,6 +3043,12 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             write_fd = caph->out_fd;
         }
 
+        if (!cf_fd_selectable(read_fd) || !cf_fd_selectable(write_fd) ||
+                (caph->out_ringbuf_wake[0] >= 0 && !cf_fd_selectable(caph->out_ringbuf_wake[0]))) {
+            fprintf(stderr, "FATAL:  Capture source descriptors out of range for select()\n");
+            return -1;
+        }
+
         /* Basic select loop using ring buffers; we fill in from the read descriptor
          * and try to make frames; similarly we populate the outbound descriptor from
          * anything that comes in from our IO thread */
@@ -3068,18 +3101,23 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 }
 
                 if (spindown == 0) {
-                    FD_SET(ipc_iter->out_fd, &rset);
-                    if (max_fd < ipc_iter->out_fd)
-                        max_fd = ipc_iter->out_fd;
+                    if (cf_fd_selectable(ipc_iter->out_fd)) {
+                        FD_SET(ipc_iter->out_fd, &rset);
+                        if (max_fd < ipc_iter->out_fd)
+                            max_fd = ipc_iter->out_fd;
+                    }
 
-                    FD_SET(ipc_iter->err_fd, &rset);
-                    if (max_fd < ipc_iter->err_fd)
-                        max_fd = ipc_iter->err_fd;
+                    if (cf_fd_selectable(ipc_iter->err_fd)) {
+                        FD_SET(ipc_iter->err_fd, &rset);
+                        if (max_fd < ipc_iter->err_fd)
+                            max_fd = ipc_iter->err_fd;
+                    }
                 }
 
                 pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
 
-                if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
+                if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0 &&
+                        cf_fd_selectable(ipc_iter->in_fd)) {
                     FD_SET(ipc_iter->in_fd, &wset);
                     if (max_fd < ipc_iter->in_fd)
                         max_fd = ipc_iter->in_fd;
@@ -3168,7 +3206,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 }
 
                 /* Handle stdout ops into the buffer */
-                if (FD_ISSET(ipc_iter->out_fd, &rset) && ipc_iter->running) {
+                if (cf_fd_selectable(ipc_iter->out_fd) && FD_ISSET(ipc_iter->out_fd, &rset) && ipc_iter->running) {
                     while (kis_simple_ringbuf_available(ipc_iter->in_ringbuf)) {
                         ssize_t amt_read;
                         size_t maxread = 0;
@@ -3213,7 +3251,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     }
                 }
 
-                if (FD_ISSET(ipc_iter->err_fd, &rset) && ipc_iter->running) {
+                if (cf_fd_selectable(ipc_iter->err_fd) && FD_ISSET(ipc_iter->err_fd, &rset) && ipc_iter->running) {
                     while (kis_simple_ringbuf_available(ipc_iter->err_ringbuf)) {
                         ssize_t amt_read;
                         size_t maxread = 0;
@@ -3258,7 +3296,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 }
 
                 /* Write anything queued to the stdin of the forked process */
-                if (FD_ISSET(ipc_iter->in_fd, &wset) && ipc_iter->running) {
+                if (cf_fd_selectable(ipc_iter->in_fd) && FD_ISSET(ipc_iter->in_fd, &wset) && ipc_iter->running) {
                     pthread_mutex_lock(&ipc_iter->out_ringbuf_lock);
 
                     if (kis_simple_ringbuf_used(ipc_iter->out_ringbuf) != 0) {
