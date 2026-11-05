@@ -47,6 +47,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "cellat_selftest_json.h"
 #include <sys/time.h>
 
 #define JSON_BUF_MAX 4096
@@ -67,7 +69,7 @@ static void check(int cond, const char *what) {
 }
 
 static void check_has(const char *json, const char *frag, const char *what) {
-    if (strstr(json, frag)) {
+    if (json_has(json, frag)) {
         printf("  OK    %s\n", what);
     } else {
         printf("  FAIL  %s (expected %s)\n     in: %s\n", what, frag, json);

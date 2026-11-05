@@ -38,6 +38,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "cellat_selftest_json.h"
 #include <sys/time.h>
 
 /* cellat_qeng.inc expects the includer to have defined this, exactly as
@@ -65,7 +67,7 @@ static void check(int cond, const char *what) {
  * build_cell_json as bare numbers, so a substring match on "key":value is
  * unambiguous given the surrounding quotes and colon. */
 static void check_has(const char *json, const char *frag, const char *what) {
-    if (strstr(json, frag)) {
+    if (json_has(json, frag)) {
         printf("  OK    %s\n", what);
     } else {
         printf("  FAIL  %s (expected %s)\n     in: %s\n", what, frag, json);
@@ -224,7 +226,7 @@ int main(void) {
             check_has(nobs[0], "\"rssi\":-56", "neighbour path decodes rssi");
             /* The actual cross-check: serving and neighbour reports of the SAME
              * cell in the SAME poll must not disagree about its RSSI. */
-            check(strstr(obs[0], "\"rssi\":-56") && strstr(nobs[0], "\"rssi\":-56"),
+            check(json_has(obs[0], "\"rssi\":-56") && json_has(nobs[0], "\"rssi\":-56"),
                   "serving and neighbour agree on rssi for PCI 221");
         }
     }
@@ -412,7 +414,7 @@ int main(void) {
         {
             int fabricated = 0;
             for (int i = 0; i < nn; i++) {
-                if (strstr(nobs[i], "\"earfcn\":685") || strstr(nobs[i], "\"earfcn\":514"))
+                if (json_has(nobs[i], "\"earfcn\":685") || json_has(nobs[i], "\"earfcn\":514"))
                     fabricated = 1;
             }
             check(!fabricated, "no GSM ARFCN leaked into an earfcn field");
