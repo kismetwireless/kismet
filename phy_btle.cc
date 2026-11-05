@@ -148,9 +148,15 @@ static void btle_set_service_data(btle_tracked_device *btle_dev, const std::stri
     }
 }
 
-// Appends uuid to vec unless it's already present.
+// Advertised UUIDs remembered per device; a spoofing advertiser could send endless new ones
+constexpr size_t btle_max_service_uuids = 64;
+
+// Appends uuid to vec unless it's already present or the list is full.
 static void btle_add_unique_uuid(std::shared_ptr<tracker_element_vector_string> vec,
         const std::string& uuid) {
+    if (vec->size() >= btle_max_service_uuids)
+        return;
+
     for (const auto& existing : *vec) {
         if (existing == uuid)
             return;
