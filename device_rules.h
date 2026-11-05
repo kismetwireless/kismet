@@ -190,7 +190,8 @@ public:
 
     // A device rules file named in a plugin's manifest, read now and built in by
     // plugins_loaded, once every plugin has registered its fields
-    void add_plugin_rules(const std::string& plugin, const std::string& path);
+    // Files outside plugin_dir, by include or symlink, aren't read
+    void add_plugin_rules(const std::string& plugin, const std::string& plugin_dir, const std::string& path);
 
     // Every plugin is loaded: build their rules in after the configured rules files
     // and before the rules on config lines.  A plugin whose rules don't build is
@@ -248,6 +249,8 @@ protected:
     // Views are never destroyed: their routes hold the view, so a rule that goes away
     // leaves an empty view that a later rule of the same name takes over
     std::map<std::string, std::shared_ptr<device_tracker_view>> views;
+    // Emptied views of rules no longer in the set, out of the tracker; see install_set
+    std::map<std::string, std::shared_ptr<device_tracker_view>> parked_views;
 
     int rule_state_id;
     int alert_ref;
