@@ -1680,6 +1680,11 @@ void kis_net_beast_httpd_connection::append_header(const std::string& header, co
     if (first_response_write)
         throw std::runtime_error("tried to set a header on a connection already in progress");
 
+    // Proxied helpers supply these; a CR or LF would split the response
+    if (header.find_first_of("\r\n\0:", 0, 4) != std::string::npos ||
+            value.find_first_of("\r\n\0", 0, 3) != std::string::npos)
+        throw std::runtime_error("invalid character in http header");
+
     response.set(header, value);
 }
 

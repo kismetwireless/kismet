@@ -373,7 +373,8 @@ void kis_external_ws::write_impl() {
 
             boost::asio::post(self->strand(),
                     boost::beast::bind_front_handler([self, errc]() {
-                        self->out_bufs_.pop_front();
+                        if (self->out_bufs_.size())
+                            self->out_bufs_.pop_front();
 
                         if (errc) {
                             self->close();
@@ -434,9 +435,6 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
                 "an IPC instance running.");
         return false;
     }
-
-    // grab the incoming IP
-    std::string s = socket.remote_endpoint().address().to_string();
 
     cancelled = false;
 
@@ -820,7 +818,14 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         protocol_version = 2;
 
         // Dispatch the received command & see if we need to purge the buffer ourselves
-        dispatch_rx_packet(command, seqno, content);
+        try {
+            dispatch_rx_packet(command, seqno, content);
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Kismet external interface could not handle a {} packet: {}",
+                    command, e.what());
+            trigger_error("invalid packet");
+            return result_handle_packet_error;
+        }
 
 #else
         _MSG_ERROR("Kismet external interface got an v2 command frame, but this "
@@ -863,7 +868,14 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         protocol_version = 3;
 
         // Dispatch the received command
-        dispatch_rx_packet_v3(buffer, command, seqno, code, content);
+        try {
+            dispatch_rx_packet_v3(buffer, command, seqno, code, content);
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Kismet external interface could not handle a type {} packet: {}",
+                    command, e.what());
+            trigger_error("invalid packet");
+            return result_handle_packet_error;
+        }
 
         return result_handle_packet_ok;
     } else {
