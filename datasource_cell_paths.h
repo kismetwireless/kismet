@@ -77,6 +77,19 @@ namespace cell_paths {
         return true;
     }
 
+    // An option key the helper splits the same way the server does; a ',' or '"'
+    // in a key would hide a file option from find_opt but not from the helper
+    inline bool key_ok(const std::string& key, std::string& err) {
+        for (unsigned char c : key) {
+            if (!isalnum(c) && c != '_' && c != '-' && c != '.') {
+                err = "invalid character in source option name";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     inline const file_opt *find_opt(const std::vector<file_opt>& opts, const std::string& key) {
         auto k = str_lower(key);
 
@@ -128,6 +141,9 @@ namespace cell_paths {
         auto key = str_strip(setting.substr(0, eq));
         auto value = str_strip(setting.substr(eq + 1));
 
+        if (!key_ok(key, err))
+            return false;
+
         auto opt = find_opt(opts, key);
 
         if (opt == nullptr)
@@ -145,6 +161,9 @@ namespace cell_paths {
     inline bool confine_definition(const std::vector<file_opt>& opts,
             std::map<std::string, std::string>& def_opts, std::string& err) {
         for (auto& d : def_opts) {
+            if (!key_ok(d.first, err))
+                return false;
+
             auto opt = find_opt(opts, d.first);
 
             if (opt != nullptr) {
