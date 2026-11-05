@@ -526,7 +526,7 @@ protected:
         // Append the session headers
         if (auth_token_.length()) {
             r.set(boost::beast::http::field::set_cookie,
-                    fmt::format("{}={}; Path=/", httpd->auth_cookie(), auth_token_));
+                    fmt::format("{}={}; Path=/; HttpOnly", httpd->auth_cookie(), auth_token_));
         }
 
         // Turn off caching
