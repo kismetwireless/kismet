@@ -91,16 +91,26 @@ static const char *SERVING_LTE =
     "OK\n";
 
 /* The LTE tail differs by firmware family (cellat_qeng.inc): CQI is
- * fields[17] only in the 20-field form above. The same cell in the 18-field
- * form (EG25-G and kin; fields[17] is srxlev, here a CQI-looking 7) and the 19-field form (EM06x-K;
- * tx_power then srxlev), and two 20-field CQIs. */
+ * fields[17] only in the 20-field form above, and only while connected (the
+ * idle anchor's 0 is not a reading). The same cell, connected, in the
+ * 18-field form (EG25-G and kin; fields[17] is srxlev, here a CQI-looking 7),
+ * the 19-field form (EM06x-K; tx_power then srxlev), a 21-field line from a
+ * firmware that grew a column, and 20-field CQIs. */
 static const char *SERVING_LTE_18 =
-    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,7\n"   /* srxlev 7: inside CQI's 0..15, so only the field count can tell */
     "OK\n";
 static const char *SERVING_LTE_19 =
-    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,-,7\n"
+    "OK\n";
+static const char *SERVING_LTE_21 =
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "66,5,5,BBB,-96,-11,-56,14,9,-,29,1\n"
+    "OK\n";
+static const char *SERVING_LTE_CQI0 =
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "66,5,5,BBB,-96,-11,-56,14,0,-,29\n"
     "OK\n";
 static const char *SERVING_LTE_CQI9 =
     "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
@@ -619,9 +629,17 @@ int main(void) {
 
     printf("\n[cqi] LTE CQI only from the 20-field +QENG form\n");
     n = parse_qeng_serving(SERVING_LTE, obs, MAX_OBS);
-    check(n == 1, "20-field anchor parsed");
+    check(n == 1, "20-field idle anchor parsed");
     if (n == 1)
-        check_has(obs[0], "\"cqi\":0}", "CQI 0 is a reading, emitted, last key");
+        check_lacks(obs[0], "\"cqi\"", "idle (NOCONN): its CQI column is not a reading");
+    n = parse_qeng_serving(SERVING_LTE_CQI0, obs, MAX_OBS);
+    check(n == 1, "20-field connected CQI 0 parsed");
+    if (n == 1)
+        check_has(obs[0], "\"cqi\":0}", "connected CQI 0 is a reading, emitted, last key");
+    n = parse_qeng_serving(SERVING_LTE_21, obs, MAX_OBS);
+    check(n == 1, "21-field form parsed");
+    if (n == 1)
+        check_lacks(obs[0], "\"cqi\"", "21-field: an unknown layout, no CQI");
     n = parse_qeng_serving(SERVING_LTE_CQI9, obs, MAX_OBS);
     check(n == 1, "20-field CQI 9 parsed");
     if (n == 1) {

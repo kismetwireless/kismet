@@ -766,9 +766,13 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     if (rssi_j.is_number())
         celldev->set_cell_rssi(rssi_j.get<int16_t>());
 
+    // Range check before narrowing, so a huge value can't wrap into 0..15
     auto cqi_j = json["cqi"];
-    if (cqi_j.is_number_integer() && cqi_j.get<int>() >= 0 && cqi_j.get<int>() <= 15)
-        celldev->set_cell_cqi(cqi_j.get<int16_t>());
+    if (cqi_j.is_number_unsigned() && cqi_j.get<uint64_t>() <= 15)
+        celldev->set_cell_cqi(static_cast<int16_t>(cqi_j.get<uint64_t>()));
+    else if (cqi_j.is_number_integer() && !cqi_j.is_number_unsigned() &&
+            cqi_j.get<int64_t>() >= 0 && cqi_j.get<int64_t>() <= 15)
+        celldev->set_cell_cqi(static_cast<int16_t>(cqi_j.get<int64_t>()));
 
     // Update observation count
     celldev->set_cell_observation_count(celldev->get_cell_observation_count() + 1);

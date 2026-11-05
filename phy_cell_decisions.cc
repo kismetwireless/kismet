@@ -463,7 +463,7 @@ const std::vector<std::string>& prov_field_keys() {
     static const std::vector<std::string> keys = {
         "rat", "mcc", "mnc", "tac", "cell_id", "pci", "earfcn",
         "band", "bandwidth", "rsrp", "rsrq", "sinr", "rssi",
-        "operator_name", "duplex",
+        "operator_name", "duplex", "cqi",
     };
     return keys;
 }
