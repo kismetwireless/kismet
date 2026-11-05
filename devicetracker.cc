@@ -730,7 +730,14 @@ device_tracker::device_tracker() :
                                 if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
-                                auto rate = json["rate"];
+                                auto rate = json["rate"].get<int>();
+                                if (rate < 1 || rate > 3600)
+                                    throw std::runtime_error("invalid monitor rate");
+
+                                // Each request is a timer for the life of the socket
+                                if (key_timer_map.find(req_id) == key_timer_map.end() &&
+                                        key_timer_map.size() >= 64)
+                                    throw std::runtime_error("too many monitor requests on one connection");
 
                                 // Remove any existing request under this ID
                                 auto kt_v = key_timer_map.find(req_id);
