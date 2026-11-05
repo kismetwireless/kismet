@@ -90,6 +90,27 @@ static const char *SERVING_LTE =
     "66,5,5,BBB,-96,-11,-56,14,0,-,29\n"
     "OK\n";
 
+/* The LTE tail differs by firmware family (cellat_qeng.inc): CQI is
+ * fields[17] only in the 20-field form above. The same cell in the 18-field
+ * form (EG25-G and kin; fields[17] is srxlev, here a CQI-looking 7) and the 19-field form (EM06x-K;
+ * tx_power then srxlev), and two 20-field CQIs. */
+static const char *SERVING_LTE_18 =
+    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "66,5,5,BBB,-96,-11,-56,14,7\n"   /* srxlev 7: inside CQI's 0..15, so only the field count can tell */
+    "OK\n";
+static const char *SERVING_LTE_19 =
+    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "66,5,5,BBB,-96,-11,-56,14,-,7\n"
+    "OK\n";
+static const char *SERVING_LTE_CQI9 =
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "66,5,5,BBB,-96,-11,-56,14,9,-,29\n"
+    "OK\n";
+static const char *SERVING_LTE_CQI_BAD =
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "66,5,5,BBB,-96,-11,-56,14,16,-,29\n"
+    "OK\n";
+
 /* Same poll cycle, same physical cell (PCI 221 / EARFCN 66536) via the
  * neighbour path. */
 static const char *NEIGHBOUR_LTE =
@@ -594,6 +615,48 @@ int main(void) {
               "plmn_split_mccmnc(\"123\") -> 0 (too short)");
         check(plmn_split_mccmnc("3102x0", mc, sizeof mc, mn, sizeof mn) == 0,
               "plmn_split_mccmnc rejects a non-digit blob");
+    }
+
+    printf("\n[cqi] LTE CQI only from the 20-field +QENG form\n");
+    n = parse_qeng_serving(SERVING_LTE, obs, MAX_OBS);
+    check(n == 1, "20-field anchor parsed");
+    if (n == 1)
+        check_has(obs[0], "\"cqi\":0}", "CQI 0 is a reading, emitted, last key");
+    n = parse_qeng_serving(SERVING_LTE_CQI9, obs, MAX_OBS);
+    check(n == 1, "20-field CQI 9 parsed");
+    if (n == 1) {
+        check_has(obs[0], "\"cqi\":9", "CQI 9 from fields[17]");
+        check_has(obs[0], "\"sinr\":14", "sinr unchanged beside it");
+    }
+    n = parse_qeng_serving(SERVING_LTE_CQI_BAD, obs, MAX_OBS);
+    check(n == 1, "20-field CQI 16 parsed");
+    if (n == 1)
+        check_lacks(obs[0], "\"cqi\"", "CQI 16 is outside 0..15: no key");
+    n = parse_qeng_serving(SERVING_LTE_18, obs, MAX_OBS);
+    check(n == 1, "18-field form parsed");
+    if (n == 1) {
+        check_lacks(obs[0], "\"cqi\"", "18-field: fields[17] is srxlev, not CQI");
+        check_has(obs[0], "\"sinr\":14", "18-field sinr");
+    }
+    n = parse_qeng_serving(SERVING_LTE_19, obs, MAX_OBS);
+    check(n == 1, "19-field form parsed");
+    if (n == 1)
+        check_lacks(obs[0], "\"cqi\"", "19-field: no CQI column");
+    n = parse_qeng_serving(SERVING_NR5G_SA_CONNECT, obs, MAX_OBS);
+    if (n >= 1)
+        check_lacks(obs[0], "\"cqi\"", "NR5G-SA: no CQI column");
+
+    {
+        char b[16] = "{\"a\":1}";
+        check(cell_json_add_long(b, sizeof b, "c", 2) == 0 &&
+              strcmp(b, "{\"a\":1,\"c\":2}") == 0, "add_long appends a key");
+        check(cell_json_add_long(b, sizeof b, "d", 3) == -1 &&
+              strcmp(b, "{\"a\":1,\"c\":2}") == 0, "add_long refuses to overflow, buf untouched");
+        char e[8] = "{}";
+        check(cell_json_add_long(e, sizeof e, "c", 2) == 0 && strcmp(e, "{\"c\":2}") == 0,
+              "add_long into an empty object");
+        char x[8] = "nope";
+        check(cell_json_add_long(x, sizeof x, "c", 2) == -1, "add_long refuses a non-object");
     }
 
     printf("\n%s: %d failure(s)\n", g_fails ? "FAIL" : "PASS", g_fails);

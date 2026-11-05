@@ -145,6 +145,17 @@ kismet_ui.AddDeviceDetail("cell", "Cell Info", 0, {
                 },
             },
             {
+                field: "cellular.device/cellular.cell.cqi",
+                title: "CQI",
+                help: "LTE Channel Quality Indicator, from the most recent report: 0 (out of range) to 15 (best).  Only some modems report it.",
+                empty: "<i>Unknown</i>",
+                render: function(opts) {
+                    if (opts['value'] < 0)
+                        return "<i>Unknown</i>";
+                    return opts['value'];
+                },
+            },
+            {
                 field: "cellular.device/cellular.cell.min_rsrp",
                 title: "Min RSRP",
                 help: "Weakest Reference Signal Received Power (signal strength) seen for this cell.",
