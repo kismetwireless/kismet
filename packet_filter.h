@@ -24,6 +24,8 @@
 #include "eventbus.h"
 #include "kis_net_beast_httpd.h"
 
+#include <shared_mutex>
+
 // Common packet filter mechanism which can be used in multiple locations;
 // implements basic default behavior, filtering by address, and REST endpoints.
 //
@@ -159,8 +161,10 @@ protected:
         std::map<mac_addr, bool> filter_any;
     };
 
-	// Internal fast lookup tables per-phy we use for actual filtering
+	// Internal fast lookup tables per-phy we use for actual filtering; read per packet
+	// under a shared lock, changed under an exclusive one
 	std::map<int, struct phy_filter_group> phy_mac_filter_map;
+	std::shared_mutex phy_mac_filter_mutex;
 	// Internal unknown phy map for filters registered before we had a phy ID
 	std::map<std::string, struct phy_filter_group> unknown_phy_mac_filter_map;
 
