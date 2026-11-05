@@ -1667,8 +1667,16 @@ void kis_net_beast_httpd_connection::set_target_file(const std::string& fname) {
     if (first_response_write)
         throw std::runtime_error("tried to set file target on connection already in progress");
 
+    // Filenames can come from the URI; keep only plain characters in the header
+    std::string safe;
+    for (auto c : fname.substr(0, 128))
+        safe += (isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '-' || c == '_' || c == ':') ? c : '_';
+
+    if (safe.empty() || safe[0] == '.')
+        safe = "kismet" + safe;
+
     response.set(boost::beast::http::field::content_disposition,
-            fmt::format("attachment; filename=\"{}\"", fname));
+            fmt::format("attachment; filename=\"{}\"", safe));
 }
 
 void kis_net_beast_httpd_connection::clear_timeout() {

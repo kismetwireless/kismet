@@ -91,6 +91,14 @@ void event_bus::trigger_deferred_startup() {
                             }
 
                             if (!json["SUBSCRIBE"].is_null()) {
+                                // Every channel name gets a listener table entry
+                                if (json["SUBSCRIBE"].get<std::string>().size() > 256 ||
+                                        reg_map.size() >= 256) {
+                                    _MSG_ERROR("Invalid websocket request (too many or too long event "
+                                            "subscriptions) on /eventbus/events.ws");
+                                    return;
+                                }
+
                                 auto e_k = reg_map.find(json["SUBSCRIBE"].get<std::string>());
                                 if (e_k != reg_map.end()) {
                                     remove_listener(e_k->second);
@@ -241,15 +249,22 @@ void event_bus::remove_listener(unsigned long id) {
         return;
 
     // Match all channels this cbl is subscribed to
-    for (auto c : cbl->second->channels) {
+    for (const auto& c : cbl->second->channels) {
+        auto ct = callback_table.find(c);
+        if (ct == callback_table.end())
+            continue;
 
         // remove from each channel
-        for (auto cbi = callback_table[c].begin(); cbi != callback_table[c].end(); ++cbi) {
+        for (auto cbi = ct->second.begin(); cbi != ct->second.end(); ++cbi) {
             if ((*cbi)->id == id) {
-                callback_table[c].erase(cbi);
+                ct->second.erase(cbi);
                 break;
             }
         }
+
+        // Drop empty channels so subscriptions to arbitrary names don't accumulate
+        if (ct->second.empty())
+            callback_table.erase(ct);
     }
 
     // Remove from CBL ID table
