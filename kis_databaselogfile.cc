@@ -1302,7 +1302,7 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
 
     std::string uuidstring = ds->get_source_uuid().uuid_to_string();
     std::string typestring = ds->get_source_builder()->get_source_type();
-    std::string defstring = ds->get_source_definition();
+    std::string defstring = ds->get_source_definition_redacted();
     std::string namestring = ds->get_source_name();
     std::string intfstring = ds->get_source_interface();
 

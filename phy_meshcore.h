@@ -371,8 +371,8 @@ public:
         auto sv_comma = opts->next_key_comma;
         opts->next_key_comma = false;
 
+        // The channel secret is never exported; read-only logins can list channels
         json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshcore.channel.channel", opts, channel_);
-        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshcore.channel.key", opts, key_);
         json_adapter_v2::json_encode_keyed<std::string_view>{}(os, "meshcore.channel.key_type", opts, meshcore::channel_key_type);
         json_adapter_v2::json_encode_keyed<uint8_t>{}(os, "meshcore.channel.hash", opts, hash_);
         json_adapter_v2::json_encode_keyed_array<messages_iter_t>{}(os, "meshcore.channel.messages", opts, messages_.begin(), messages_.end());
@@ -399,9 +399,6 @@ public:
             switch (json_adapter_v2::consthash(f.first)) {
                 case json_adapter_v2::consthash("meshcore.channel.channel"):
                     json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, channel_);
-                    break;
-                case json_adapter_v2::consthash("meshcore.channel.key"):
-                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, key_);
                     break;
                 case json_adapter_v2::consthash("meshcore.channel.key_type"):
                     json_adapter_v2::json_encode_keyed<std::string_view>{}(os, f.second.rename, opts, meshcore::channel_key_type);

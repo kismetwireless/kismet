@@ -401,8 +401,8 @@ public:
         auto sv_comma = opts->next_key_comma;
         opts->next_key_comma = false;
 
+        // The channel PSK is never exported; read-only logins can list channels
         json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.channel.channel", opts, channel());
-        json_adapter_v2::json_encode_keyed<std::string>{}(os, "meshtastic.channel.key", opts, key());
         json_adapter_v2::json_encode_keyed_array<messages_iter_t>{}(os, "meshtastic.channel.messages", opts, messages_.begin(), messages_.end());
 
         opts->next_key_comma = sv_comma;
@@ -427,9 +427,6 @@ public:
             switch (json_adapter_v2::consthash(f.first)) {
                 case json_adapter_v2::consthash("meshtastic.channel.channel"):
                     json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, channel());
-                    break;
-                case json_adapter_v2::consthash("meshtastic.channel.key"):
-                    json_adapter_v2::json_encode_keyed<std::string>{}(os, f.second.rename, opts, key());
                     break;
                 case json_adapter_v2::consthash("meshtastic.channel.messages"):
                     json_adapter_v2::group_fields(f.second.subfields, subgroup);

@@ -441,7 +441,19 @@ public:
     // Read-only access to the source state; this mirrors the state in the capture
     // binary. Set commands queue a command to the binary and then update as
     // they complete.
-    __ProxyGetM(source_definition, std::string, std::string, source_definition, data_mutex);
+    // The full definition, secrets included, for opening the source.  The tracked
+    // (exported) definition has password-like options redacted.
+    std::string get_source_definition() {
+        kis_lock_guard<kis_mutex> lk(data_mutex);
+        return source_definition_raw;
+    }
+    std::string get_source_definition_redacted() {
+        kis_lock_guard<kis_mutex> lk(data_mutex);
+        return get_tracker_value<std::string>(source_definition);
+    }
+
+    static bool is_secret_definition_opt(const std::string& in_key);
+    static std::string redact_source_definition(const std::string& in_definition);
     __ProxyGetM(source_interface, std::string, std::string, source_interface, data_mutex);
     __ProxyGetM(source_cap_interface, std::string, std::string, source_cap_interface, data_mutex);
     __ProxyGetM(source_hardware, std::string, std::string, source_hardware, data_mutex);
@@ -854,7 +866,12 @@ protected:
     // given to us by the capture binary itself.  We use the ProxySet macros with
     // a modified function name so that we can easily set our tracker components
     // from the KV handlers
-    __ProxySetM(int_source_definition, std::string, std::string, source_definition, data_mutex);
+    void set_int_source_definition(const std::string& in) {
+        auto redacted = redact_source_definition(in);
+        kis_lock_guard<kis_mutex> lk(data_mutex, __func__);
+        source_definition_raw = in;
+        set_tracker_value<std::string>(source_definition, redacted);
+    }
     __ProxySetM(int_source_interface, std::string, std::string, source_interface, data_mutex);
     __ProxySetM(int_source_cap_interface, std::string, std::string, source_cap_interface, data_mutex);
     __ProxySetM(int_source_hardware, std::string, std::string, source_hardware, data_mutex);
@@ -886,8 +903,9 @@ protected:
 
     // Read-only tracked element states
 
-    // Raw definition
+    // Definition with secrets redacted, and the full definition kept out of the tracked record
     std::shared_ptr<tracker_element_string> source_definition;
+    std::string source_definition_raw;
 
     // Network interface / filename
     std::shared_ptr<tracker_element_string> source_interface;
