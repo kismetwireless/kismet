@@ -73,6 +73,53 @@ std::string MungeForXML(const std::string& in_data) {
 	return ret;
 }
 
+// A cell's summary line for its description: the fields a Cellular device
+// keeps under cellular.device. Empty for any other phy.
+std::string CellDescription(const nlohmann::json& dev, const std::string& sep) {
+    auto c = dev.find("cellular.device");
+    if (c == dev.end() || !c->is_object())
+        return "";
+
+    auto str = [&](const char *k) -> std::string {
+        auto i = c->find(k);
+        if (i == c->end())
+            return "";
+        if (i->is_string())
+            return i->get<std::string>();
+        if (i->is_number())
+            return i->dump();
+        return "";
+    };
+
+    std::string ret;
+    auto key = str("cellular.cell.key");
+    if (key.length() > 0)
+        ret += sep + "Cell:" + MungeForXML(key);
+
+    auto op = str("cellular.cell.operator");
+    if (op.length() == 0)
+        op = str("cellular.cell.resolved_operator");
+    if (op.length() == 0)
+        op = str("cellular.cell.plmn");
+    if (op.length() > 0)
+        ret += sep + "Operator:" + MungeForXML(op);
+
+    // 0 is "never measured": a real RSRP is -44 to -140 dBm
+    auto rsrp = c->find("cellular.cell.rsrp");
+    if (rsrp != c->end() && rsrp->is_number() && rsrp->get<double>() != 0)
+        ret += sep + fmt::format("RSRP:{} dBm", rsrp->get<double>());
+
+    auto ident = str("cellular.cell.identity_level");
+    if (ident.length() > 0)
+        ret += sep + "Identity:" + MungeForXML(ident);
+
+    auto obs = c->find("cellular.cell.observation_count");
+    if (obs != c->end() && obs->is_number_integer())
+        ret += sep + "Observations:" + obs->dump();
+
+    return ret;
+}
+
 // Some conversion functions from Kismet for Wi-Fi channels
 int FrequencyToWifiChannel(double in_freq) {
     if (in_freq == 0)
@@ -171,13 +218,16 @@ public:
 class gpx_waypoint {
 public:
     // Running lat, lon, and alt, if we're computing it
-    double avg_lat, avg_lon, avg_alt;
-    double avg_2d_num, avg_alt_num;
+    double avg_lat = 0, avg_lon = 0, avg_alt = 0;
+    double avg_2d_num = 0, avg_alt_num = 0;
 
-    double lat, lon, alt;
+    double lat = 0, lon = 0, alt = 0;
 
     // Name (last known name, user name, or mac address)
     std::string name;
+
+    // Description, already escaped; empty for most phys
+    std::string desc;
 };
 
 void print_help(char *argv) {
@@ -490,6 +540,7 @@ int main(int argc, char *argv[]) {
 
                 gpx_waypoint pl;
                 pl.name = json["kismet.device.base.commonname"].get<std::string>();
+                pl.desc = CellDescription(json, "; ");
                 pl.lat = avg_lat;
                 pl.lon = avg_lon;
                 pl.alt = 0;
@@ -504,7 +555,7 @@ int main(int argc, char *argv[]) {
         }
     } else {
         auto basic_q = 
-            _SELECT(db, "devices", {"phyname", "devmac", "device"});
+            _SELECT(db, "devices", {"phyname", "devmac", "device", "avg_lat", "avg_lon"});
 
         for (auto d : basic_q) {
             // Prep the packet list for different kismetdb versions
@@ -531,6 +582,7 @@ int main(int argc, char *argv[]) {
             try {
                 ss >> json;
                 pl.name = json["kismet.device.base.commonname"].get<std::string>();
+                pl.desc = CellDescription(json, "; ");
             } catch (const std::exception& e) {
                 fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json.dump());
                 continue;
@@ -547,7 +599,7 @@ int main(int argc, char *argv[]) {
             pl.avg_lat = 0;
             pl.avg_lon = 0;
             pl.avg_2d_num = 0;
-            pl.avg_alt = 0;
+            pl.avg_alt_num = 0;
 
             auto packet_q = _SELECT(db, "packets", packet_fields,
                     _WHERE("sourcemac", EQ, devmac, AND, "phyname", EQ, phyname, AND, lat_col, NEQ, 0, AND, lon_col, NEQ, 0));
@@ -635,6 +687,34 @@ int main(int argc, char *argv[]) {
                 }
             }
 
+            // A cell never sends a packet or data record of its own: each
+            // cell observation is logged under the modem that heard it, so
+            // the per-mac average above finds nothing for a cell.  Fall back
+            // to the location the tracker averaged from those observations.
+            if (pl.avg_2d_num == 0 && phyname == "Cellular") {
+                double avg_lat = sqlite3_column_as<double>(d, 3);
+                double avg_lon = sqlite3_column_as<double>(d, 4);
+
+                if (db_version < 5) {
+                    avg_lat = avg_lat / 100000;
+                    avg_lon = avg_lon / 100000;
+                }
+
+                bool violates_exclusion = false;
+                for (auto ez : exclusion_zones) {
+                    if (distance_meters(avg_lat, avg_lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                        violates_exclusion = true;
+                        break;
+                    }
+                }
+
+                if (avg_lat != 0 && avg_lon != 0 && !violates_exclusion) {
+                    pl.avg_lat = avg_lat;
+                    pl.avg_lon = avg_lon;
+                    pl.avg_2d_num = 1;
+                }
+            }
+
             if (pl.avg_2d_num == 0) {
                 fmt::print(stderr, "WARNING:  No packets with GPS info for '{}', skipping\n", pl.name);
                 continue;
@@ -660,6 +740,8 @@ int main(int argc, char *argv[]) {
         fmt::print(ofile, "<wpt lat=\"{}\" lon=\"{}\">\n", pl.lat, pl.lon);
         fmt::print(ofile, "<ele>{}</ele>\n", pl.alt);
         fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+        if (pl.desc.length() > 0)
+            fmt::print(ofile, "<desc>{}</desc>", pl.desc.substr(2));
         fmt::print(ofile, "</wpt>");
     }
 
