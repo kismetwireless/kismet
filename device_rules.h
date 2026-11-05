@@ -171,6 +171,9 @@ public:
         std::vector<std::shared_ptr<device_tracker_view>> views;
         // Views of rules no longer in the set, or no longer with a view, by name
         std::map<std::string, std::shared_ptr<device_tracker_view>> retired;
+        // Distinct tag index of each rule's tags, for de-duplicating per device
+        std::vector<std::vector<uint32_t>> tag_ids;
+        size_t tag_count;
     };
 
     // A view change is applied from the device's rule state at the time, not from

@@ -42,6 +42,7 @@ namespace {
 
 constexpr size_t max_rules_text = 256 * 1024;
 constexpr size_t max_views = 256;
+constexpr size_t max_distinct_tags = 1024;
 constexpr unsigned int max_nesting = 4;
 constexpr const char *api_origin = "api";
 
@@ -922,6 +923,7 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
     as->jit = false;
     as->any_live = false;
     as->any_hooks = false;
+    as->tag_count = 0;
 
     kismet_resolver r(entrytracker);
     as->rs->compile(r);
@@ -937,10 +939,23 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
     as->views.assign(n, nullptr);
     as->hooks.resize(n);
     as->hook_repeat.assign(n, 0);
+    as->tag_ids.resize(n);
+
+    std::map<std::string, uint32_t> tag_index;
 
     for (size_t i = 0; i < n; i++) {
         const auto& rd = as->rs->rule(i);
         as->by_name[rd.name] = i;
+
+        for (const auto& t : rd.tags) {
+            auto ti = tag_index.emplace(t, static_cast<uint32_t>(tag_index.size())).first;
+            as->tag_ids[i].push_back(ti->second);
+        }
+
+        if (tag_index.size() > max_distinct_tags)
+            throw devicerules::parse_error("rules use more than " + std::to_string(max_distinct_tags) +
+                    " different tags", 0, 0);
+        as->tag_count = tag_index.size();
         if (rd.live) {
             as->live_want[i] = 1;
             as->any_live = true;
@@ -1294,10 +1309,16 @@ void device_rules::plugins_loaded() {
         return;
     }
 
+    try {
+        install_set(as);
+    } catch (const std::exception& e) {
+        _MSG_ERROR("Device rules from plugins not loaded: {}", e.what());
+        plugin_chunks.clear();
+        return;
+    }
+
     for (const auto& p : plugin_chunks)
         _MSG_INFO("Device rules: loaded the rules from plugin '{}'", p.first);
-
-    install_set(as);
 }
 
 std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::string& api) {
@@ -1573,6 +1594,7 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
     state->set_color("");
 
     bool have_color = false;
+    std::vector<uint8_t> tag_seen(as.tag_count, 0);
 
     for (size_t r = 0; r < n; r++) {
         if (!out[r])
@@ -1581,9 +1603,13 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
         const auto& rd = as.rs->rule(r);
         matched->push_back(rd.name);
 
-        for (const auto& t : rd.tags)
-            if (std::find(tags->begin(), tags->end(), t) == tags->end())
-                tags->push_back(t);
+        for (size_t t = 0; t < rd.tags.size(); t++) {
+            auto id = as.tag_ids[r][t];
+            if (!tag_seen[id]) {
+                tag_seen[id] = 1;
+                tags->push_back(rd.tags[t]);
+            }
+        }
 
         if (!have_color && !rd.color.empty()) {
             state->set_color(rd.color);
@@ -2021,7 +2047,7 @@ namespace {
         j["error"] = e.what();
         j["line"] = e.line;
         j["col"] = e.col;
-        stream << j.dump();
+        stream << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
 
     std::string rules_param(std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -2061,12 +2087,12 @@ void device_rules::check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection
         for (size_t i = 0; i < as->rs->sort_count(); i++)
             snames.push_back(as->rs->sort(i).name);
         j["sorts"] = snames;
-        stream << j.dump();
+        stream << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     } catch (const devicerules::parse_error& e) {
         json_error(stream, e);
     } catch (const std::exception& e) {
         con->set_status(400);
-        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump();
+        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
 }
 
@@ -2083,12 +2109,12 @@ void device_rules::set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> 
             {"backend", as->jit ? "jit" : "vm"}, {"replaced", api_replaced(*as->rs)}, {"saved", saved}};
         if (!save_err.empty())
             j["save_error"] = save_err;
-        stream << j.dump();
+        stream << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     } catch (const devicerules::parse_error& e) {
         json_error(stream, e);
     } catch (const std::exception& e) {
         con->set_status(400);
-        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump();
+        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
 }
 
@@ -2110,7 +2136,7 @@ void device_rules::test_endpoint(std::shared_ptr<kis_net_beast_httpd_connection>
         auto dev = devicetracker->fetch_device(key);
         if (dev == nullptr) {
             con->set_status(404);
-            stream << nlohmann::json{{"ok", false}, {"error", "no such device"}}.dump();
+            stream << nlohmann::json{{"ok", false}, {"error", "no such device"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             return;
         }
 
@@ -2135,11 +2161,11 @@ void device_rules::test_endpoint(std::shared_ptr<kis_net_beast_httpd_connection>
         for (size_t i = 0; i < as->rs->size(); i++)
             m[as->rs->rule(i).name] = out[i] != 0;
         res["matches"] = m;
-        stream << res.dump();
+        stream << res.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     } catch (const devicerules::parse_error& e) {
         json_error(stream, e);
     } catch (const std::exception& e) {
         con->set_status(400);
-        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump();
+        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
 }
