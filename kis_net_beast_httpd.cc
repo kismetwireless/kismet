@@ -1803,6 +1803,9 @@ bool kis_net_beast_httpd_connection::start() {
     } else {
         // _MSG_INFO("(DEBUG) {} {} had auth {} but isn't valid", verb_, uri_, auth_token_);
 
+        // Never echo an unvalidated client token back in Set-Cookie
+        auth_token_.clear();
+
         // Extract the basic auth
         auto auth_h = request_.find(boost::beast::http::field::authorization);
         if (auth_h != request_.end()) {

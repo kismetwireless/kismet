@@ -1771,6 +1771,15 @@ void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
         return;
     }
 
+    if (io_->is_remote() && !allow_remote_web_auth_) {
+        _MSG_ERROR("Remote capture connection from {} requested a web auth token, which "
+                "is blocked by the current Kismet config (remote_capture_allow_http_auth)",
+                io_->remote_addresss());
+        trigger_error("Remote capture connections can not request web auth tokens, check "
+                "your Kismet configuration");
+        return;
+    }
+
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
     auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
 
