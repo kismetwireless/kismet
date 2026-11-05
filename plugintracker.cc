@@ -472,7 +472,7 @@ int plugin_tracker::activate_plugins() {
             if (dir.empty() || dir.back() != '/')
                 dir += "/";
             for (const auto& r : *x->get_plugin_device_rules())
-                devicerules->add_plugin_rules(x->get_plugin_name(), dir + r);
+                devicerules->add_plugin_rules(x->get_plugin_name(), dir, dir + r);
         }
 
         _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);

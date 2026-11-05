@@ -42,6 +42,8 @@ namespace {
 
 constexpr size_t max_rules_text = 256 * 1024;
 constexpr size_t max_views = 256;
+// Parked views stay allocated, since their http routes capture them
+constexpr size_t max_parked_views = 4096;
 constexpr size_t max_distinct_tags = 1024;
 constexpr unsigned int max_nesting = 4;
 constexpr const char *api_origin = "api";
@@ -50,6 +52,8 @@ constexpr const char *api_origin = "api";
 constexpr size_t max_query_text = 16 * 1024;
 constexpr size_t max_text_fields = 64;
 constexpr size_t max_query_cache = 16;
+// A filter or sort request that runs longer than this stops with an error
+constexpr std::chrono::seconds max_query_time{10};
 
 using namespace devicerules;
 
@@ -439,6 +443,18 @@ public:
     rules_loader(devicerules::ruleset& in_rs, std::vector<device_rules::rules_chunk>& in_out) :
         rs{in_rs}, out{in_out}, total{0} { }
 
+    // Every file read, includes too, has to resolve inside dir; for plugin rules
+    void confine_to(const std::string& dir) {
+        char *rp = realpath(dir.c_str(), nullptr);
+        if (rp == nullptr)
+            throw devicerules::parse_error("can't resolve the directory '" + dir + "': " +
+                    kis_strerror_r(errno), 0, 0);
+        confine = rp;
+        free(rp);
+        if (confine.empty() || confine.back() != '/')
+            confine += "/";
+    }
+
     // A missing file is skipped when it's optional, and logged otherwise
     void load_file(const std::string& path, bool required) {
         load_path(path, required, 0, out);
@@ -514,6 +530,15 @@ public:
     }
 
 private:
+    bool inside_confine(const std::string& path) const {
+        char *rp = realpath(path.c_str(), nullptr);
+        if (rp == nullptr)
+            return false;
+        bool ok = std::string_view{rp}.substr(0, confine.size()) == confine;
+        free(rp);
+        return ok;
+    }
+
     static constexpr size_t max_dir_files = 256;
     static constexpr int max_include_depth = 8;
 
@@ -521,6 +546,7 @@ private:
     std::vector<device_rules::rules_chunk>& out;
     size_t total;
     std::unordered_set<std::string> loaded;
+    std::string confine;
 
     void charge(size_t n) {
         total += n;
@@ -537,6 +563,10 @@ private:
             std::vector<device_rules::rules_chunk>& into) {
         std::string text;
         std::string real;
+
+        // Checked before opening, so a confined file can't probe for files outside
+        if (!confine.empty() && !inside_confine(path))
+            throw devicerules::parse_error("device rules file '" + path + "' is outside " + confine, 0, 0);
 
         int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
         if (fd < 0) {
@@ -611,6 +641,15 @@ private:
         if (depth + 1 > max_include_depth)
             throw devicerules::parse_error("includes nest more than " + std::to_string(max_include_depth) +
                     " deep", line, col);
+
+        // Confined rules include only relative paths below their own file, so a glob
+        // never lists a directory outside
+        if (!confine.empty() && (inc.empty() || inc[0] == '/' || inc.find('%') != std::string::npos ||
+                    inc == ".." || inc.compare(0, 3, "../") == 0 ||
+                    inc.find("/../") != std::string::npos ||
+                    (inc.size() >= 3 && inc.compare(inc.size() - 3, 3, "/..") == 0)))
+            throw devicerules::parse_error("include '" + inc + "' has to be a relative path inside " +
+                    confine, line, col);
 
         auto target = Globalreg::globalreg->kismet_config->expand_log_path(inc);
         if (target.empty() || target[0] != '/') {
@@ -1137,7 +1176,15 @@ void device_rules::filter_devices(const std::string& filter, const std::string& 
     int64_t now = Globalreg::globalreg->last_tv_sec;
     uint8_t hit = 1;
 
+    // Read-only logins can send any filter; bound the whole request, not just each regex
+    const auto deadline = std::chrono::steady_clock::now() + max_query_time;
+    size_t n = 0;
+
     for (const auto& d : *devices) {
+        if ((++n & 63) == 0 && std::chrono::steady_clock::now() > deadline)
+            throw devicerules::parse_error("the filter took longer than " +
+                    std::to_string(max_query_time.count()) + " seconds", 0, 0);
+
         auto dev = std::static_pointer_cast<kis_tracked_device_base>(d);
         kis_device_lock dlk(dev, true);
         env.root = dev.get();
@@ -1235,7 +1282,8 @@ void device_rules::replay_configured(devicerules::ruleset& rs) const {
             replay_chunk(rs, c);
 }
 
-void device_rules::add_plugin_rules(const std::string& plugin, const std::string& path) {
+void device_rules::add_plugin_rules(const std::string& plugin, const std::string& plugin_dir,
+        const std::string& path) {
     kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules add_plugin_rules");
 
     // Parsed here for the errors; built once every plugin is loaded
@@ -1244,6 +1292,7 @@ void device_rules::add_plugin_rules(const std::string& plugin, const std::string
     rules_loader loader(rs, chunks);
 
     try {
+        loader.confine_to(plugin_dir);
         loader.load_file(path, true);
     } catch (const devicerules::parse_error& e) {
         _MSG_ERROR("Device rules from plugin '{}' not loaded: {}", plugin, describe(e));
@@ -1363,14 +1412,20 @@ std::shared_ptr<device_rules::active_set> device_rules::set_api_rules(const std:
 }
 
 bool device_rules::save_api(const std::string& text, std::string& err) {
-    // Write beside the file and rename over it, so a crash never leaves half a file
-    auto tmp = api_file + ".tmp";
+    // Write a new, uniquely named file beside it and rename over it, so a crash never
+    // leaves half a file and nothing pre-placed at the temp path can be truncated
+    std::vector<char> tmpl(api_file.begin(), api_file.end());
+    for (auto c : std::string{".XXXXXX"})
+        tmpl.push_back(c);
+    tmpl.push_back('\0');
 
-    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
+    int fd = mkostemp(tmpl.data(), O_CLOEXEC);
     if (fd < 0) {
         err = kis_strerror_r(errno);
         return false;
     }
+
+    const std::string tmp{tmpl.data()};
 
     auto fail = [&](int e) {
         err = kis_strerror_r(e);
@@ -1408,6 +1463,16 @@ bool device_rules::save_api(const std::string& text, std::string& err) {
         return false;
     }
 
+    // The rename itself is only durable once the directory is synced
+    auto slash = api_file.find_last_of('/');
+    auto dir = slash == std::string::npos ? std::string{"."} :
+        (slash == 0 ? std::string{"/"} : api_file.substr(0, slash));
+    int dfd = open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (dfd >= 0) {
+        fsync(dfd);
+        close(dfd);
+    }
+
     return true;
 }
 
@@ -1427,9 +1492,26 @@ void device_rules::install_set(std::shared_ptr<active_set> as) {
         if (as->rs->rule(i).view && views.find(as->rs->rule(i).name) == views.end())
             new_views++;
 
+    // At the cap, park the views no rule in the new set uses once they have emptied, so
+    // names used once don't hold a slot until restart.  Parked views leave the tracker
+    // but are never freed: their http routes still point at them.
+    if (views.size() + new_views > max_views) {
+        for (auto vi = views.begin(); vi != views.end() && parked_views.size() < max_parked_views; ) {
+            auto ri = as->by_name.find(vi->first);
+            bool used = ri != as->by_name.end() && as->rs->rule(ri->second).view;
+            if (!used && vi->second->get_list_sz() == 0) {
+                devicetracker->remove_view(vi->second->get_view_id());
+                parked_views.emplace(vi->first, vi->second);
+                vi = views.erase(vi);
+            } else {
+                ++vi;
+            }
+        }
+    }
+
     if (views.size() + new_views > max_views)
         throw devicerules::parse_error("rules would make more than " + std::to_string(max_views) +
-                " views", 0, 0);
+                " views (views of removed rules count until their devices are gone)", 0, 0);
 
     for (size_t i = 0; i < as->rs->size(); i++) {
         const auto& rd = as->rs->rule(i);
@@ -1437,6 +1519,14 @@ void device_rules::install_set(std::shared_ptr<active_set> as) {
             continue;
 
         auto vi = views.find(rd.name);
+        if (vi == views.end()) {
+            auto pi = parked_views.find(rd.name);
+            if (pi != parked_views.end()) {
+                devicetracker->add_view(pi->second);
+                vi = views.emplace(rd.name, pi->second).first;
+                parked_views.erase(pi);
+            }
+        }
         if (vi == views.end()) {
             auto desc = !rd.view_desc.empty() ? rd.view_desc :
                 !rd.description.empty() ? rd.description : fmt::format("Devices matching rule {}", rd.name);
