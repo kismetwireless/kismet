@@ -77,7 +77,7 @@ static void check_lacks(const char *json, const char *frag, const char *what) {
 /* --- MEASURED. A SIM7600NA (LE20B01SIM7600NA), verbatim from an AT survey.
  *     RSRQ -125 / RSRP -987 / RSSI -663 are dBm x10. --- */
 static const char *CPSI_LTE_TENTHS =
-    "+CPSI: LTE,Online,310-260,0x1A2B,27439874,236,EUTRAN-BAND4,2300,5,5,"
+    "+CPSI: LTE,Online,310-260,0x1A2B,27439874,7,EUTRAN-BAND4,2300,5,5,"
     "-125,-987,-663,10\n"
     "OK\n";
 
@@ -86,7 +86,7 @@ static const char *CPSI_LTE_TENTHS =
  *     collapse "01" -> 1, losing the count; the emitter must carry it as the
  *     string "01". Same LTE layout as CPSI_LTE_TENTHS otherwise. --- */
 static const char *CPSI_LTE_ZEROMNC =
-    "+CPSI: LTE,Online,310-01,0x1A2B,27439874,236,EUTRAN-BAND4,2300,5,5,"
+    "+CPSI: LTE,Online,310-01,0x1A2B,27439874,7,EUTRAN-BAND4,2300,5,5,"
     "-125,-987,-663,10\n"
     "OK\n";
 
@@ -149,7 +149,7 @@ int main(void) {
          * all-hex habit turns 27439874 into 1351406146. */
         check_has(obs[0], "\"tac\":6699", "tac 0x1A2B decoded as HEX");
         check_has(obs[0], "\"cell_id\":27439874", "cell_id decoded as DECIMAL");
-        check_has(obs[0], "\"pci\":236", "pci");
+        check_has(obs[0], "\"pci\":7", "pci");
         check_has(obs[0], "\"band\":4", "band from the EUTRAN-BAND4 label");
         check_has(obs[0], "\"earfcn\":2300", "earfcn");
         /* dlbw is an ENUM index -- 5 is 20 MHz, not 5 MHz. AT+QSCAN

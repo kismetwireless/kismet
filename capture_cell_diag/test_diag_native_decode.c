@@ -81,89 +81,89 @@ static size_t unhex(const char *h, uint8_t *out, size_t out_sz) {
 /* LTE idle neighbors, SDX62 -- 3 cells, exercises the multi-cell walk
  * Source fixture: lte_ml1_neighbor_b192_rm520ngl_sdx62_232B.bin (232 B) */
 static const char *kHex_b192_rm520ngl_sdx62 =
-        "010200461a023c00fc08000023000000ec08000060d4010060d4010000000000d709000090d4010090d4010000000000"
-        "0609000080d5010080d50100000000001b38a800fc0800000300000065000000022550007bb44700022550001c71e40a"
-        "ae70c411f7010000ddb90f00000000003500340060d4010060d4010000000000660000007dd447009994490099944900"
-        "9658c20ccc30c30cf7010000deb90f00000000003500340090d4010090d4010000000000670000005664450056644500"
+        "010200461a023c00d0070000230000000208000060d4010060d40100000000000408000090d4010090d4010000000000"
+        "0508000080d5010080d50100000000001b38a800d00700000300000002000000022550007bb44700022550001c71e40a"
+        "ae70c411f7010000ddb90f00000000003500340060d4010060d4010000000000040000007dd447009994490099944900"
+        "9658c20ccc30c30cf7010000deb90f00000000003500340090d4010090d4010000000000050000005664450056644500"
         "566445008514d2088d34d208e1010000d9090f00000000003500340080d5010080d5010000000000";
 static const expect_t kExp_b192_rm520ngl_sdx62[] = {
-        {"LTE", 0xB192, 101, 2300, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB192, 102, 2300, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB192, 103, 2300, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB192, 2, 2000, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB192, 4, 2000, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB192, 5, 2000, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
 };
 /* LTE idle neighbors, MDM9207 -- a different chipset generation
  * Source fixture: lte_ml1_neighbor_b192_eg25g_mdm9207_96B_v4.bin (96 B) */
 static const char *kHex_b192_eg25g_mdm9207 =
-        "010202001a021c00fc08000021000000031000000000000000000000000000001b044000fc0800000100000068000000"
+        "010202001a021c00d0070000210000000a1000000000000000000000000000001b044000d00700000100000006000000"
         "42244400c0033c0042244400bdf4220bb2f4d20b960100001eb10c000000000025003000b2560300b256030000000000";
 static const expect_t kExp_b192_eg25g_mdm9207[] = {
-        {"LTE", 0xB192, 104, 2300, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB192, 6, 2000, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
 };
 /* LTE connected neighbors, sp_ver=40 body-derived-count branch, 2 cells
  * Source fixture: lte_ml1_conn_neighbor_b195_lv55_sdx55_168B_v40.bin (168 B) */
 static const char *kHex_b195_lv55_sdx55_168B =
-        "010292ff1e283000e803010022010000d154000001100000853502008535020000000000361100007935020079350200"
-        "000000001f287400e803010002c853016900000007744000eaa33e0007744000a184c2099c84120a620100004a110b00"
-        "00000000350037008535020085350200000000006a000000411444005224450052244500db6c43100411441062010000"
+        "010292ff1e283000c403010022010000d15400000f100000853502008535020000000000101000007935020079350200"
+        "000000001f287400c403010002c853010f00000007744000eaa33e0007744000a184c2099c84120a620100004a110b00"
+        "000000003500370085350200853502000000000010000000411444005224450052244500db6c43100411441062010000"
         "4a110b000000000035003700793502007935020000000000";
 static const expect_t kExp_b195_lv55_sdx55_168B[] = {
-        {"LTE", 0xB195, 105, 66536, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB195, 106, 66536, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB195, 15, 66500, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB195, 16, 66500, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
 };
 /* LTE SIB1 identity -- the only code carrying MCC/MNC/TAC/CellID; v20 branch
  * Source fixture: lte_rrc_sib1_ident_b0c0_eg25g_mdm9207_v20.bin (56 B) */
 static const char *kHex_b0c0_ident_eg25g_v20 =
-        "140e30007000ab130000a5fe0202000000250068400600312340abcde182352c8020610b089848c306e38263f4228070"
+        "140e30001300ec130000a5fe0202000000250068400600312340abcde182352c8020610b089848c306e38263f4228070"
         "0964760000000000";
 static const expect_t kExp_b0c0_ident_eg25g_v20[] = {
-        {"LTE", 0xB0C0, 112, 5035, false, false, 0.0, false, 0.0, true, "001", "001", 4660, 11259361},
+        {"LTE", 0xB0C0, 19, 5100, false, false, 0.0, false, 0.0, true, "001", "001", 4660, 11259361},
 };
 /* LTE SIB1 identity -- the v>=25 variable-header branch
  * Source fixture: lte_rrc_sib1_ident_b0c0_rm520ngl_sdx62_v27.bin (53 B) */
 static const char *kHex_b0c0_ident_rm520ngl =
-        "1b101010600071006e140000054e03020000002000484006003234501234569181822103108ac21bac1524a80c030292"
+        "1b1010106000140050140000054e03020000002000484006003234501234569181822103108ac21bac1524a80c030292"
         "ccba000000";
 static const expect_t kExp_b0c0_ident_rm520ngl[] = {
-        {"LTE", 0xB0C0, 113, 5230, false, false, 0.0, false, 0.0, true, "001", "001", 9029, 1193046},
+        {"LTE", 0xB0C0, 20, 5200, false, false, 0.0, false, 0.0, true, "001", "001", 9029, 1193046},
 };
 /* NR meas, v7 SDX55 -- carries a serving flag AND an absent-rsrp sentinel cell
  * Source fixture: nr5g_meas_db_update_b97f_rm500q_sdx55_168B.bin (168 B) */
 static const char *kHex_b97f_rm500q_sdx55_v7 =
-        "0700020001140000ac000000f4ffffff8ea607000200c900000000000000000000000000ffffffffffff0000ffffffff"
-        "c900fe020100000000cdffff00f9ffff0000000000000000000000004b63074584d6f80cb8ccffff14cdffff14cdffff"
-        "e6f8ffff0000000000000000ca007e000100000000baffff00ecffff0200000000000000000000009747dd782f13f90c"
+        "0700020001140000ac000000f4ffffff20a1070002000200000000000000000000000000ffffffffffff0000ffffffff"
+        "0200fe020100000000cdffff00f9ffff0000000000000000000000004b63074584d6f80cb8ccffff14cdffff14cdffff"
+        "e6f8ffff000000000000000004007e000100000000baffff00ecffff0200000000000000000000009747dd782f13f90c"
         "00baffff00baffff00baffff80eaffff0000000000000000";
 static const expect_t kExp_b97f_rm500q_sdx55_v7[] = {
-        {"NR", 0xB97F, 201, 501390, true, true, -102, true, -14, false, "", "", 0, 0},
-        {"NR", 0xB97F, 202, 501390, false, false, 0, true, -40, false, "", "", 0, 0},
+        {"NR", 0xB97F, 2, 500000, true, true, -102, true, -14, false, "", "", 0, 0},
+        {"NR", 0xB97F, 4, 500000, false, false, 0, true, -40, false, "", "", 0, 0},
 };
 /* NR meas, v9 SDX62 -- 4 cells with fractional /128 rsrp/rsrq
  * Source fixture: nr5g_meas_db_update_b97f_rm520ngl_sdx62_v9_292B.bin (292 B) */
 static const char *kHex_b97f_rm520ngl_v9 =
-        "090002000000f125011400006811000051000000a0e009000004cb000001000055c8ffff67c3ffffffffffffffff0000"
-        "ffffffffcb00be00010000003ec6ffff8ef6ffff010000000000000000000000801f71aefa6bd01009c3ffff1cc6ffff"
-        "3ec6ffff8ef6fffff2c7ffff97f8ffffcc00a6000100000010c3ffff27f5ffff010000000000000000000000a3cc2504"
-        "5b6c851061c1ffff00b2ffff10c3ffff27f5ffff0000000000000000cd004e01010000000ac5ffff16f6ffff00000000"
-        "0000000000000000ccae36a7a252d01000b2ffff1bc5ffff0ac5ffff16f6ffff0000000000000000ce00be0001000000"
+        "090002000000f12501140000681100005100000000c40900000405000001000055c8ffff67c3ffffffffffffffff0000"
+        "ffffffff0500be00010000003ec6ffff8ef6ffff010000000000000000000000801f71aefa6bd01009c3ffff1cc6ffff"
+        "3ec6ffff8ef6fffff2c7ffff97f8ffff0600a6000100000010c3ffff27f5ffff010000000000000000000000a3cc2504"
+        "5b6c851061c1ffff00b2ffff10c3ffff27f5ffff00000000000000000a004e01010000000ac5ffff16f6ffff00000000"
+        "0000000000000000ccae36a7a252d01000b2ffff1bc5ffff0ac5ffff16f6ffff00000000000000000f00be0001000000"
         "86c3ffff93f4ffff0000000000000000000000004c7c78dad552d010e6c0ffff86c3ffff86c3ffff93f4ffff00000000"
         "00000000";
 static const expect_t kExp_b97f_rm520ngl_v9[] = {
-        {"NR", 0xB97F, 203, 647328, true, true, -115.515625, true, -18.890625, false, "", "", 0, 0},
-        {"NR", 0xB97F, 204, 647328, false, true, -121.875, true, -21.6953125, false, "", "", 0, 0},
-        {"NR", 0xB97F, 205, 647328, false, true, -117.921875, true, -19.828125, false, "", "", 0, 0},
-        {"NR", 0xB97F, 206, 647328, false, true, -120.953125, true, -22.8515625, false, "", "", 0, 0},
+        {"NR", 0xB97F, 5, 640000, true, true, -115.515625, true, -18.890625, false, "", "", 0, 0},
+        {"NR", 0xB97F, 6, 640000, false, true, -121.875, true, -21.6953125, false, "", "", 0, 0},
+        {"NR", 0xB97F, 10, 640000, false, true, -117.921875, true, -19.828125, false, "", "", 0, 0},
+        {"NR", 0xB97F, 15, 640000, false, true, -120.953125, true, -22.8515625, false, "", "", 0, 0},
 };
 
 /* v59 SDX62 -- BITPACKED 12-bit rsrp/rsrq at cell+44/+56, PCI at cell+8, and the
  * only version with a grounded serving flag (bit15 of the PCI word)
  * Source fixture: lte_ml1_serving_b193_rm520ngl_sdx62_164B_v59.bin (164 B) */
 static const char *kHex_b193_rm520ngl_sdx62_v59 =
-        "01018df8193ba000f613000001000000030000000001ffff6b800000fa2600000a0900008504d817fbde1200b7344700"
+        "01018df8193ba000ba13000001000000030000000001ffff0a800000fa2600000a0900008504d817fbde1200b7344700"
         "730400006009960000702300b7744b0079e4a1033a00000079e49107cd4a160000000000cd020000fbfff9ff00000000"
         "350036000000000000000000ef3e0000a01300000000000000000000a4c5050000000000280000000c00000000000000"
         "00000000b0c44700000000000000000079000000";
 static const expect_t kExp_b193_rm520ngl_sdx62_v59[] = {
-        {"LTE", 0xB193, 107, 5110, true, true, -104.56, true, -22.44, false, "", "", 0, 0},
+        {"LTE", 0xB193, 10, 5050, true, true, -104.56, true, -22.44, false, "", "", 0, 0},
 };
 /* v48 SDX55, THREE cells -- the ONLY 12-byte carrier header, so the array both
  * starts and is STRIDED 4 B later. Signal absent on every cell: the x16 scale
@@ -173,31 +173,31 @@ static const expect_t kExp_b193_rm520ngl_sdx62_v59[] = {
  * identical at num_cells == 1
  * Source fixture: lte_ml1_serving_b193_m2000_sdx55_440B_v48_3cell.bin (440 B) */
 static const char *kHex_b193_m2000_sdx55_v48_3cell =
-        "01015f201930b401e204010003000f00000102036c1000009e120000489a010024cdf0149eb21300e6745000fb844e00"
+        "01015f201930b4018c04010003000f0000010203021000009e120000489a010024cdf0149eb21300e6745000fb844e00"
         "e3d44f000675280007d54f00d34c430ee43cd30de490030eda221700da4a1700e4020000f8fff7fff8fff7ff23002400"
         "290029000000ff7f8d3d0200c2f30100eccc0100c1d6010076010000b2010000d9be0100c3ba010035000000e4000000"
-        "a2010000710200007affffff090200006d0000009e160000489a010024cdf0149e0a1100e6944300fbb44400e3d44f00"
+        "a2010000710200007affffff09020000040000009e160000489a010024cdf0149e0a1100e6944300fbb44400e3d44f00"
         "21241c0042a443002bac900009c400002bac0002d7821700da921700f0020000f8fff7fff8fff7ff2300240029002900"
         "0000ff7f5c2100005c21000070e000006bc6000007000000050000002c3c000032000000350000002b000000a2010000"
-        "6202000075ffffff090200006e0000009e1a0000489a010024cdf0149e6e1100e6244b00fb344600e3d44f0077242300"
+        "6202000075ffffff09020000050000009e1a0000489a010024cdf0149e6e1100e6244b00fb344600e3d44f0077242300"
         "b2b4490046185108853c210485145207d66a1700d4aa1700ed020000f8fff7fff8fff7ff23002400290029000000ff7f"
         "ab350000bc990000856401008210010027000000780000007750010065f800003500000085000000a50100004b020000"
         "75ffffff0c020000";
 static const expect_t kExp_b193_m2000_sdx55_v48_3cell[] = {
-        {"LTE", 0xB193, 108, 66786, true, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB193, 109, 66786, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB193, 110, 66786, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 2, 66700, true, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 4, 66700, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 5, 66700, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
 };
 /* v18 MDM9207 (EG25-G) -- NO cell array at all; the serving cell is packed inline
  * in the carrier header. Its signal is v6's x16 block at +8: expected values
  * pinned from a reference decode of the same bytes.
  * Source fixture: lte_ml1_serving_b193_eg25g_mdm9207_100B_v18.bin (100 B) */
 static const char *kHex_b193_eg25g_mdm9207_v18 =
-        "0101ff0019126000fc0800006f100000410600004aad0600a5560b1241ba11006ed43c00cde346006ea48b2e9e78a20b"
+        "0101ff0019126000d00700000f100000410600004aad0600a5560b1241ba11006ed43c00cde346006ea48b2e9e78a20b"
         "bacce93d73020000000008002500300000000000ea2b0000973100007c020100190000001100000063a600003a000000"
         "ba000000";
 static const expect_t kExp_b193_eg25g_mdm9207_v18[] = {
-        {"LTE", 0xB193, 111, 2300, true, true, -109.12, true, -18.38, false, "", "", 0, 0},
+        {"LTE", 0xB193, 15, 2000, true, true, -109.12, true, -18.38, false, "", "", 0, 0},
 };
 
 static bool check(const char *name, uint16_t code, const char *hex,
@@ -823,23 +823,23 @@ static bool check_sib1_map_contract(void) {
  * shaped for the renderer, and the -1 / 0 / NULL-map contract.
  *
  * Payloads: real tshark-pinned bodies (a Band 66 reconfiguration whose measId 1
- * carrier is signalled in carrierFreq-v9e0, and a measId 1 report of PCI 114)
+ * carrier is signalled in carrierFreq-v9e0, and a measId 1 report of PCI 15)
  * framed in a v20 0xB0C0 header. A release is its first byte only (DL-DCCH c1 5):
  * the state machine reads nothing else of it. */
 static const char *kHex_b0c0_v20_reconfig_b66_v9e0 =
-    "140e000064006e14000000000700000000a10020105588c0057fffac901e1c13cb847a68cf6e"
-    "21f1853ec0c7e61cfed42018940b4a07c82f989f41bea47d8afb844affffb800414ca07c82f9"
-    "89f41bea47d8afb8680030021280e11e001072281f20be627d06fa91f62bee1a000c00c4a13a"
-    "b582042482856940f905f313e837d48fb15f70d00060060052050b2e1082e004b7b01011625a"
-    "1b8c08b0a105ca000020088021846410ca31a006800d1c055f809c40";
+    "140e00000a005014000000000700000000a10020105588c0057fffac90009c1023840568c0ce"
+    "201d850440c0961c16d40318906b4a07c82f989f41bea47d8afb844affffb800014ca07c82f9"
+    "89f41bea47d8afb8680030021280e11e000092281f20be627d06fa91f62bee1a000c00c4a13a"
+    "b582002c82066940f905f313e837d48fb15f70d00060060052050b2e1082e004b7b01011625a"
+    "1b8c08b0a105ca000020088021846410ca31a006800d1c0428809c40";
 static const char *kHex_b0c0_v20_report_meas_id_1 =
-    "140e000064006e1400000000090000000013000830251401c9a93042002148a93124a5a6c4f0";
+    "140e00000a005014000000000900000000130008302514003da93042002148a93124a5a6c4f0";
 /* Synthetic (diagspec's MeasurementReport fixture encoder): measId 1, a cgi-Info
  * neighbour PCI 17 (001/01, TAC 0x1234, CI 0x0ABCDE1) and a PCI-only PCI 18. */
 static const char *kHex_b0c0_v20_report_cgi =
-    "140e000064006e14000000000900000000130008103c50184500100855e6f0891a24e09348a0";
+    "140e00000a005014000000000900000000130008103c50184500100855e6f0891a24e09348a0";
 static const char *kHex_b0c0_v20_release =
-    "140e000064006e1400000000070000000003002800" "00";
+    "140e00000a00501400000000070000000003002800" "00";
 
 static bool check_lte_meas_neighbours(void) {
     bool ok = true;
@@ -874,7 +874,7 @@ static bool check_lte_meas_neighbours(void) {
         const diag_native_obs_t *o = &got[0];
         if (!o->meas_neighbour || o->earfcn_absent || o->has_identity ||
                 o->is_serving || o->log_code != 0xB0C0 || strcmp(o->rat, "LTE") != 0 ||
-                o->pci != 114 || o->earfcn != 66911 ||
+                o->pci != 15 || o->earfcn != 66600 ||
                 !o->has_rsrp || o->rsrp != -99.0 || !o->has_rsrq || o->rsrq != -14.0) {
             printf("  FAIL meas: row fields (pci %d earfcn %d nb %d absent %d id %d)\n",
                    o->pci, o->earfcn, o->meas_neighbour, o->earfcn_absent,
@@ -882,7 +882,7 @@ static bool check_lte_meas_neighbours(void) {
             ok = false;
         }
         /* A PCI-only row carries no identity, so SIB1 enrichment may reach it
-         * (miss here: the map holds no SIB1 for (114, 66911)). */
+         * (miss here: the map holds no SIB1 for (15, 66600)). */
         if (diag_native_sib1_enrich(map, &got[0])) {
             printf("  FAIL meas: enrich hit on an empty SIB1 map\n"); ok = false;
         }
@@ -933,13 +933,13 @@ static bool check_lte_meas_neighbours(void) {
  * earlier it sat in bits 20..29, the pre-v13 reading). */
 static bool check_b17f_decode(void) {
     static const char *hex =
-        "05000000fc08000074060000f2040000000000003801000000f00900000000000000000000000000";
+        "05000000d007000010060000f2040000000000003801000000f00900000000000000000000000000";
     uint8_t payload[64];
     size_t len = unhex(hex, payload, sizeof(payload));
     diag_native_obs_t got[4];
     int n = diag_native_decode(0xB17F, payload, len, got, 4);
     if (n != 1 || strcmp(got[0].rat, "LTE") != 0 || got[0].log_code != 0xB17F ||
-        got[0].pci != 116 || got[0].earfcn != 2300 || got[0].is_serving ||
+        got[0].pci != 16 || got[0].earfcn != 2000 || got[0].is_serving ||
         !got[0].has_rsrp || got[0].rsrp != -100.875 ||
         !got[0].has_rsrq || got[0].rsrq != -10.5 ||
         !got[0].has_rssi || got[0].rssi != -70.25 || got[0].has_identity) {
@@ -1011,13 +1011,13 @@ static bool check_serialize(void) {
      * enriched with SIB1 identity appended last. */
     diag_native_obs_t b193n;
     memset(&b193n, 0, sizeof(b193n));
-    b193n.rat = "LTE"; b193n.log_code = 0xB193; b193n.pci = 106; b193n.earfcn = 66536;
+    b193n.rat = "LTE"; b193n.log_code = 0xB193; b193n.pci = 16; b193n.earfcn = 66500;
     b193n.is_serving = false;
     b193n.has_identity = true;
     strcpy(b193n.mcc, "310"); strcpy(b193n.mnc, "410");
     b193n.tac = 1234; b193n.cell_id = 173696769;
     ok &= check_serialize_one("b193_enriched_norsrp", &b193n,
-        "{\"rat\":\"LTE\",\"pci\":106,\"earfcn\":66536,\"prov\":{\"src\":\"diag\","
+        "{\"rat\":\"LTE\",\"pci\":16,\"earfcn\":66500,\"prov\":{\"src\":\"diag\","
         "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"observation_type\":\"observation\","
         "\"is_serving\":false,\"mcc\":\"310\",\"mnc\":\"410\",\"tac\":1234,"
@@ -1085,14 +1085,14 @@ static bool check_serialize(void) {
     diag_native_obs_t b0c0n;
     memset(&b0c0n, 0, sizeof(b0c0n));
     b0c0n.rat = "LTE"; b0c0n.log_code = 0xB0C0; b0c0n.meas_neighbour = true;
-    b0c0n.pci = 114; b0c0n.earfcn = 66911;
+    b0c0n.pci = 15; b0c0n.earfcn = 66600;
     b0c0n.has_rsrp = true; b0c0n.rsrp = -99.0;
     b0c0n.has_rsrq = true; b0c0n.rsrq = -14.0;
     ok &= check_serialize_one("b0c0_meas_neighbour", &b0c0n,
-        "{\"rat\":\"LTE\",\"pci\":114,\"observation_type\":\"observation\","
+        "{\"rat\":\"LTE\",\"pci\":15,\"observation_type\":\"observation\","
         "\"is_serving\":false,\"prov\":{\"src\":\"diag\",\"origin\":\"0xB0C0\","
         "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
-        "\"log_tick\":60345938315396},\"earfcn\":66911,\"rsrp\":-99.0,\"rsrq\":-14.0,\"band\":66,\"duplex\":\"FDD\"}");
+        "\"log_tick\":60345938315396},\"earfcn\":66600,\"rsrp\":-99.0,\"rsrq\":-14.0,\"band\":66,\"duplex\":\"FDD\"}");
 
     /* ...and a cgi-Info neighbour whose measId did not map: NO earfcn key at
      * all, identity from the report itself. */
@@ -1130,7 +1130,7 @@ static bool check_serialize(void) {
      * a one-entry sib1_map; payload in check_b17f_decode below. */
     diag_native_obs_t b17f;
     memset(&b17f, 0, sizeof(b17f));
-    b17f.rat = "LTE"; b17f.log_code = 0xB17F; b17f.pci = 116; b17f.earfcn = 2300;
+    b17f.rat = "LTE"; b17f.log_code = 0xB17F; b17f.pci = 16; b17f.earfcn = 2000;
     b17f.has_rsrp = true; b17f.rsrp = -100.875;
     b17f.has_rsrq = true; b17f.rsrq = -10.5;
     b17f.has_rssi = true; b17f.rssi = -70.25;
@@ -1138,7 +1138,7 @@ static bool check_serialize(void) {
     strcpy(b17f.mcc, "001"); strcpy(b17f.mnc, "001");
     b17f.tac = 4660; b17f.cell_id = 11259361;
     ok &= check_serialize_one("b17f_enriched_rssi", &b17f,
-        "{\"rat\":\"LTE\",\"pci\":116,\"earfcn\":2300,\"observation_type\":\"observation\","
+        "{\"rat\":\"LTE\",\"pci\":16,\"earfcn\":2000,\"observation_type\":\"observation\","
         "\"is_serving\":false,\"prov\":{\"src\":\"diag\",\"origin\":\"0xB17F\","
         "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"rsrp\":-100.875,\"rsrq\":-10.5,"
@@ -1205,9 +1205,9 @@ static bool check_serialize(void) {
 
 /* The 0xB197 cell-config cache and the 0xB97F beam keys, through the
  * learn -> attach -> render path the helper runs. The 0xB197 payload is a live
- * RM500Q-AE record (EARFCN 66786 truncated to 1250, PCI 115, 100 RB, 2 ports);
+ * RM500Q-AE record (EARFCN 66786 truncated to 1250, PCI 19, 100 RB, 2 ports);
  * diagspec's own tests pin the cache itself. */
-static const char *kHex_b197_rm500q = "02643000e20400007342000000000000df050000a4596d0000000000000030a800000200";
+static const char *kHex_b197_rm500q = "02643000e20400001342000000000000df050000a4596d0000000000000030a800000200";
 
 static bool check_cell_config_and_beams(void) {
     bool ok = true;
@@ -1231,7 +1231,7 @@ static bool check_cell_config_and_beams(void) {
     /* An NR row is never attached, and must not enter the alias guard. */
     diag_native_obs_t nr;
     memset(&nr, 0, sizeof(nr));
-    nr.rat = "NR"; nr.log_code = 0xB97F; nr.pci = 115; nr.earfcn = 1250;
+    nr.rat = "NR"; nr.log_code = 0xB97F; nr.pci = 19; nr.earfcn = 1250;
     if (diag_native_lte_cell_config(map, &nr) || nr.has_bandwidth_rb) {
         printf("  FAIL cell_config: attached to an NR row\n");
         ok = false;
@@ -1240,14 +1240,14 @@ static bool check_cell_config_and_beams(void) {
     /* The live case: the LTE row carries the FULL earfcn, 0xB197 the low 16. */
     diag_native_obs_t o;
     memset(&o, 0, sizeof(o));
-    o.rat = "LTE"; o.log_code = 0xB193; o.pci = 115; o.earfcn = 66786;
+    o.rat = "LTE"; o.log_code = 0xB193; o.pci = 19; o.earfcn = 66786;
     o.is_serving = true;
     if (!diag_native_lte_cell_config(map, &o)) {
         printf("  FAIL cell_config: 66786 did not find the 1250-keyed config\n");
         ok = false;
     }
     ok &= check_serialize_one("b193_cell_config_b66", &o,
-        "{\"rat\":\"LTE\",\"pci\":115,\"earfcn\":66786,\"prov\":{\"src\":\"diag\","
+        "{\"rat\":\"LTE\",\"pci\":19,\"earfcn\":66786,\"prov\":{\"src\":\"diag\","
         "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"observation_type\":\"serving\","
         "\"is_serving\":true,\"band\":66,\"duplex\":\"FDD\",\"bandwidth_rb\":100,"
@@ -1269,7 +1269,7 @@ static bool check_cell_config_and_beams(void) {
      * a fixed %.6f renderer would round, and rsrq_a is -43.0, which must keep its .0. */
     diag_native_obs_t b;
     memset(&b, 0, sizeof(b));
-    b.rat = "NR"; b.log_code = 0xB97F; b.pci = 160; b.earfcn = 524190;
+    b.rat = "NR"; b.log_code = 0xB97F; b.pci = 5; b.earfcn = 524190;
     b.is_serving = true;
     b.has_rsrp = true; b.rsrp = -108.5078125;
     b.has_rsrq = true; b.rsrq = -15.296875;
@@ -1281,7 +1281,7 @@ static bool check_cell_config_and_beams(void) {
     b.has_serving_ssb_index = true; b.serving_ssb_index = 4;
     b.has_ssb_periodicity_ms = true; b.ssb_periodicity_ms = 20;
     ok &= check_serialize_one("b97f_beams_ssb", &b,
-        "{\"rat\":\"NR\",\"pci\":160,\"earfcn\":524190,\"observation_type\":\"serving\","
+        "{\"rat\":\"NR\",\"pci\":5,\"earfcn\":524190,\"observation_type\":\"serving\","
         "\"is_serving\":true,\"prov\":{\"src\":\"diag\",\"origin\":\"0xB97F\","
         "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"rsrp\":-108.5078125,\"rsrq\":-15.296875,"
@@ -1299,7 +1299,7 @@ static bool check_cell_config_and_beams(void) {
 static bool check_gsmtap_frame(void) {
     bool ok = true;
     static const char *kWant =
-        "02040d0013ab0000000003ea0500000068400600312340abcde182352c8020610b"
+        "02040d0013ec0000000003ea0500000068400600312340abcde182352c8020610b"
         "089848c306e38263f42280700964760000000000";
     uint8_t payload[256], want[256], frame[512];
     size_t len = unhex(kHex_b0c0_ident_eg25g_v20, payload, sizeof(payload));
@@ -1382,13 +1382,13 @@ static bool check_gsmtap_frame(void) {
  * omitted, not rendered as a sentinel. diagspec's own tests pin the leg at
  * every PDU length; this pins the shim's cache and render. */
 static const char *kHex_b821_sib1_rm500q_n41 =
-    "090000000f9000cf005ef407002800640002020000007b006e80160a0800c00400d158048d15"
-    "9e282623490423a001c8c9f138000c50010810c04b082802200002f46407330f9b8201000000"
+    "090000000f9000130040ef07002800640002020000007b006e80160a0800c00400d158048d15"
+    "9e28200300200789a0abcdef02000c50010810c04b082802200002f46407330f9b8201000000"
     "8400020834601440350a22010400005e9e3901ccda41203bd81aa8332012017bc11b84370c6e"
     "20dc51b8c37206e48df64be20fac78809300330118080c020100001395ee430000";
 static const char *kHex_b821_sib1_rm500q_n41_nrb200 =
-    "090000000f9000cf005ef407002800640002020000007b006e80160a0800c00400d158048d15"
-    "9e282623490423a001c8c9f138000c50010810c04b082802200002c76407330f9b8201000000"
+    "090000000f9000130040ef07002800640002020000007b006e80160a0800c00400d158048d15"
+    "9e28200300200789a0abcdef02000c50010810c04b082802200002c76407330f9b8201000000"
     "8400020834601440350a22010400005e9e3901ccda41203bd81aa8332012017bc11b84370c6e"
     "20dc51b8c37206e48df64be20fac78809300330118080c020100001395ee430000";
 
@@ -1418,7 +1418,7 @@ static bool check_nr_cell_config(void) {
     /* The n41 serving cell, as a later 0xB97F would report it. */
     diag_native_obs_t row;
     memset(&row, 0, sizeof(row));
-    row.rat = "NR"; row.log_code = 0xB97F; row.pci = 207; row.earfcn = 521310;
+    row.rat = "NR"; row.log_code = 0xB97F; row.pci = 19; row.earfcn = 520000;
     row.is_serving = true;
 
     if (diag_native_sib1_learn(map, 0xB821, sib1, sib1_len) != 1) {
@@ -1440,7 +1440,7 @@ static bool check_nr_cell_config(void) {
     /* A different cell gets nothing; so does an LTE row on the SAME
      * (pci, earfcn) -- it may pick up the shared identity, never the NR config. */
     diag_native_obs_t other = row;
-    other.pci = 208;
+    other.pci = 20;
     (void)diag_native_sib1_enrich(map, &other);
     diag_native_obs_t lte = row;
     lte.rat = "LTE"; lte.log_code = 0xB193;
@@ -1502,7 +1502,7 @@ static bool check_nr_cell_config(void) {
 /* ---- Cell security events -------------------------------------------------
  *
  * PDUs are built bit by bit from the TS 36.331 / 24.301 layouts and framed in
- * a v20 0xB0C0 header (PCI 100, EARFCN 5230) or a 4-byte EMM OTA header. The
+ * a v20 0xB0C0 header (PCI 10, EARFCN 5200) or a 4-byte EMM OTA header. The
  * SIB1 uses the 001/01 test PLMN. */
 typedef struct {
     uint8_t b[64];
@@ -1526,7 +1526,7 @@ static size_t bw_len(const bitw_t *w, size_t min_len) {
 
 static size_t b0c0_v20(uint8_t chan, const uint8_t *pdu, size_t pdu_len,
                        uint8_t *out, size_t out_sz) {
-    static const uint8_t head[12] = {0x14, 0x0e, 0x00, 0x00, 0x64, 0x00, 0x6e, 0x14,
+    static const uint8_t head[12] = {0x14, 0x0e, 0x00, 0x00, 0x0a, 0x00, 0x50, 0x14,
                                      0x00, 0x00, 0x00, 0x00};
     if (19 + pdu_len > out_sz)
         return 0;
@@ -1660,7 +1660,7 @@ static bool check_security_events(void) {
     n = b0c0_v20(V20_DL_DCCH, pdu, smc_pdu(pdu, 0, 2), rec, sizeof(rec));
     ok &= sec_expect("rrc eea0", sec_feed(st, 0xB0C0, rec, n), 1,
             "{\"schema\":\"cell-security/1\",\"event\":\"null_security\",\"layer\":\"rrc\","
-            "\"rat\":\"LTE\",\"pci\":100,\"earfcn\":5230,\"ciphering\":\"eea0\","
+            "\"rat\":\"LTE\",\"pci\":10,\"earfcn\":5200,\"ciphering\":\"eea0\","
             "\"integrity\":\"eia2\",\"prov\":{\"src\":\"diag\",\"origin\":\"0xB0C0\"");
     n = b0c0_v20(V20_DL_DCCH, pdu, smc_pdu(pdu, 2, 0), rec, sizeof(rec));
     ok &= sec_expect("rrc eia0", sec_feed(st, 0xB0C0, rec, n), 1,
@@ -1678,8 +1678,8 @@ static bool check_security_events(void) {
     /* RRCConnectionRelease */
     n = b0c0_v20(V20_DL_DCCH, pdu, release_pdu(pdu, 1, 512, 10), rec, sizeof(rec));
     ok &= sec_expect("geran redirect", sec_feed(st, 0xB0C0, rec, n), 1,
-            "\"event\":\"redirect\",\"layer\":\"rrc\",\"rat\":\"LTE\",\"pci\":100,"
-            "\"earfcn\":5230,\"redirect\":\"geran\",\"release_cause\":\"other\","
+            "\"event\":\"redirect\",\"layer\":\"rrc\",\"rat\":\"LTE\",\"pci\":10,"
+            "\"earfcn\":5200,\"redirect\":\"geran\",\"release_cause\":\"other\","
             "\"redirect_arfcn\":512");
     n = b0c0_v20(V20_DL_DCCH, pdu, release_pdu(pdu, 0, 5230, 16), rec, sizeof(rec));
     ok &= sec_expect("eutra redirect", sec_feed(st, 0xB0C0, rec, n), 1,
@@ -1690,8 +1690,8 @@ static bool check_security_events(void) {
     /* SIB1 schedulingInfoList, reported once per cell */
     n = b0c0_v20(V20_BCCH_DL_SCH, pdu, sib1_pdu(pdu, 1), rec, sizeof(rec));
     ok &= sec_expect("sib1 one SI", sec_feed(st, 0xB0C0, rec, n), 1,
-            "\"event\":\"incomplete_sib1\",\"layer\":\"rrc\",\"rat\":\"LTE\",\"pci\":100,"
-            "\"earfcn\":5230,\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":4660,"
+            "\"event\":\"incomplete_sib1\",\"layer\":\"rrc\",\"rat\":\"LTE\",\"pci\":10,"
+            "\"earfcn\":5200,\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":4660,"
             "\"cell_id\":11259361,\"scheduling_info_count\":1");
     ok &= sec_expect("sib1 repeat", sec_feed(st, 0xB0C0, rec, n), 0, NULL);
     n = b0c0_v20(V20_BCCH_DL_SCH, pdu, sib1_pdu(pdu, 4), rec, sizeof(rec));
@@ -1707,8 +1707,8 @@ static bool check_security_events(void) {
     static const uint8_t nas_smc_eea0[] = {0x07, 0x5D, 0x02, 0x00, 0x02, 0xE0, 0xE0};
     n = emm_record(nas_smc_eea0, sizeof(nas_smc_eea0), rec);
     ok &= sec_expect("nas eea0", sec_feed(st, 0xB0EC, rec, n), 1,
-            "\"event\":\"null_security\",\"layer\":\"nas\",\"rat\":\"LTE\",\"pci\":100,"
-            "\"earfcn\":5230,\"ciphering\":\"eea0\",\"integrity\":\"eia2\"");
+            "\"event\":\"null_security\",\"layer\":\"nas\",\"rat\":\"LTE\",\"pci\":10,"
+            "\"earfcn\":5200,\"ciphering\":\"eea0\",\"integrity\":\"eia2\"");
     static const uint8_t nas_smc_prot[] = {0x37, 0x11, 0x22, 0x33, 0x44, 0x00,
                                            0x07, 0x5D, 0x20, 0x00, 0x02, 0xE0, 0xE0};
     n = emm_record(nas_smc_prot, sizeof(nas_smc_prot), rec);
@@ -1731,8 +1731,8 @@ static bool check_security_events(void) {
     static const uint8_t conn_req[] = {0x40, 0x00, 0x00, 0x00, 0x00, 0x00};
     n = emm_record(id_req_imsi, sizeof(id_req_imsi), rec);
     ok &= sec_expect("id after disconnect", sec_feed(st, 0xB0EC, rec, n), 1,
-            "\"event\":\"identity_request\",\"layer\":\"nas\",\"rat\":\"LTE\",\"pci\":100,"
-            "\"earfcn\":5230,\"reason\":\"no_connection_request\",\"identity_type\":\"IMSI\"");
+            "\"event\":\"identity_request\",\"layer\":\"nas\",\"rat\":\"LTE\",\"pci\":10,"
+            "\"earfcn\":5200,\"reason\":\"no_connection_request\",\"identity_type\":\"IMSI\"");
 
     n = b0c0_v20(V20_UL_CCCH, conn_req, sizeof(conn_req), rec, sizeof(rec));
     ok &= sec_expect("connection request", sec_feed(st, 0xB0C0, rec, n), 0, NULL);

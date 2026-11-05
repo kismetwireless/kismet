@@ -83,19 +83,19 @@ static const char *obs_with(char json[][JSON_BUF_MAX], int n, const char *needle
 /* --- Verbatim recorded AT+QSCAN=3,1 slice (RM520N-GL R03A04) --- */
 static const char *QSCAN_CORPUS =
     "AT+QSCAN=3,1\n"
-    "+QSCAN: \"NR5G\",310,260,521310,596,-95,-11,16,1,1A2B97138,1A2B00,245,41,34,14,1\n"
-    "+QSCAN: \"NR5G\",311,480,647328,310,-111,-16,-1,1,0BBB9002A,BBB00,273,77,28,6,1\n"
-    "+QSCAN: \"NR5G\",311,480,177150,541,-102,-18,26,0,0BBB7C028,BBB00,52,5,20,2,-\n"
-    "+QSCAN: \"LTE\",310,260,66786,471,-106,-17,18,17,1A2D601,1A2B,100,4\n"
-    "+QSCAN: \"LTE\",310,260,900,221,-104,-16,21,18,1A2E70C,1A2B,50,2\n"
-    "+QSCAN: \"LTE\",310,260,5035,404,-88,-8,36,23,1A2E816,1A2B,25,12\n"
+    "+QSCAN: \"NR5G\",310,260,521310,11,-95,-11,16,1,1A2B97138,1A2B00,245,41,34,14,1\n"
+    "+QSCAN: \"NR5G\",311,480,647328,12,-111,-16,-1,1,0BBB9002A,BBB00,273,77,28,6,1\n"
+    "+QSCAN: \"NR5G\",311,480,177150,13,-102,-18,26,0,0BBB7C028,BBB00,52,5,20,2,-\n"
+    "+QSCAN: \"LTE\",310,260,66786,8,-106,-17,18,17,1A2D601,1A2B,100,4\n"
+    "+QSCAN: \"LTE\",310,260,900,9,-104,-16,21,18,1A2E70C,1A2B,50,2\n"
+    "+QSCAN: \"LTE\",310,260,5035,14,-88,-8,36,23,1A2E816,1A2B,25,12\n"
     "+QSCAN: \"LTE\",311,480,5230,1,-99,-22,29,107,BBB202,BBB,50,13\n"
     "\nOK\n";
 
 /* The gate free-oracle: same field[11]=100, LTE vs NR5G, differ only in RAT. */
 static const char *QSCAN_GATE =
-    "+QSCAN: \"LTE\",310,260,66786,471,-106,-17,18,17,1A2D601,1A2B,100,4\n"   /* corpus */
-    "+QSCAN: \"NR5G\",310,260,521310,596,-95,-11,16,1,1A2B97138,1A2B00,100,41\n"; /* field[11] forced to a valid RB */
+    "+QSCAN: \"LTE\",310,260,66786,8,-106,-17,18,17,1A2D601,1A2B,100,4\n"   /* corpus */
+    "+QSCAN: \"NR5G\",310,260,521310,11,-95,-11,16,1,1A2B97138,1A2B00,100,41\n"; /* field[11] forced to a valid RB */
 
 int main(void) {
     char json[MAX_OBS][JSON_BUF_MAX];
@@ -121,7 +121,7 @@ int main(void) {
     check(lte4 != NULL, "LTE B4 EARFCN 66786 row is present");
     if (lte4) {
         check(strstr(lte4, "\"rat\":\"LTE\"") != NULL, "  66786 rat=LTE");
-        check(json_has(lte4, "\"pci\":471"),     "  66786 pci=471");
+        check(json_has(lte4, "\"pci\":8"),     "  66786 pci=8");
         check(json_has(lte4, "\"band\":4"),       "  66786 band=4");
         check(json_has(lte4, "\"bandwidth\":20"), "  66786 RB 100 -> bandwidth=20 MHz");
         check(json_has(lte4, "\"rsrp\":-106"),    "  66786 rsrp=-106");

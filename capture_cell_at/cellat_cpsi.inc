@@ -43,7 +43,7 @@
  * 2. THE SIGNAL UNITS ARE NOT CONSTANT ACROSS THE FAMILY -- OR EVEN ACROSS ONE
  *    RESPONSE. The SIM8200/SIM7600 manuals define <RSRP>/<RSRQ>/<RSSI> as
  *    "dBm x10", and the captured SIM7600NA line agrees:
- *      +CPSI: LTE,Online,310-260,0x1A2B,27439874,236,EUTRAN-BAND4,2300,5,5,
+ *      +CPSI: LTE,Online,310-260,0x1A2B,27439874,7,EUTRAN-BAND4,2300,5,5,
  *             -125,-987,-663,10          -> RSRQ -12.5 dB, RSRP -98.7 dBm
  *    But the SIM7070 manual's own example is in whole units:
  *      +CPSI: LTE NB-IOT,Online,460-11,0x5AE1,187212754,82,EUTRAN-BAND5,2506,

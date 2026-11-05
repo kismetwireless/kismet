@@ -409,7 +409,7 @@ static void test_timing_burst_reply_reads_as_zero_transfer(void) {
     static char burst[3400];
     size_t len = 0;
     const char *line =
-        "\r\n+QENG: \"neighbourcell intra\",\"LTE\",66536,221,-96,-11,-56,14,0,-,29,-,-,-,-";
+        "\r\n+QENG: \"neighbourcell intra\",\"LTE\",66536,9,-96,-11,-56,14,0,-,29,-,-,-,-";
     for (int i = 0; i < 40; i++)
         len += (size_t)snprintf(burst + len, sizeof(burst) - len, "%s", line);
     snprintf(burst + len, sizeof(burst) - len, "\r\n\r\nOK\r\n");
