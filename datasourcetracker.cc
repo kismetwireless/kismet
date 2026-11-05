@@ -2018,7 +2018,9 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
                     } else {
                         _MSG_ERROR("Error connecting new remote source {} ({}) - {}",
                                 ds->get_source_name(), ds->get_source_uuid(), msg);
+                        kis_lock_guard<kis_mutex> lk(dst_lock, "dst remote connect lambda broken");
                         broken_source_vec.push_back(ds);
+                        schedule_cleanup();
                     }
                 });
 

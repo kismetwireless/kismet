@@ -105,6 +105,14 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             datasourcetracker->merge_source(virtual_source);
         } else {
+            // Scan reports only feed virtual sources; never rename or inject into a real one
+            if (virtual_source->get_source_builder() == nullptr ||
+                    virtual_source->get_source_builder()->get_source_type() != "virtual") {
+                con->set_status(400);
+                stream << "{\"status\": \"source uuid is not a scan report source\", \"success\": false}\n";
+                return;
+            }
+
             // Update the name
             virtual_source->set_source_name(name);
         }
