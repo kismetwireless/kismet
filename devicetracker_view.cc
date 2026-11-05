@@ -827,7 +827,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             con->set_status(400);
             con->set_mime_type("application/json");
             os << nlohmann::json{{"ok", false}, {"error", e.what()}, {"line", e.line}, {"col", e.col},
-                {"in", e.origin}}.dump();
+                {"in", e.origin}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             return;
         }
 

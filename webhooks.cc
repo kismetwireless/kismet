@@ -935,14 +935,16 @@ void webhook_endpoint::run() {
 
         int64_t wait;
         if ((res.status == 429 || res.status == 503) && res.retry_after >= 0)
-            wait = res.retry_after;
+            wait = std::min<int64_t>(res.retry_after, max_backoff);
         else
             wait = std::min<int64_t>(max_backoff, int64_t{5} << std::min(failures - 1, 6U));
 
         backoff_until = webhook_clock::now() + std::chrono::seconds(wait);
         backoff_wall = wall + wait;
 
-        // Put the batch back ahead of newer events, dropping the ones out of tries
+        // Put the batch back in seq order, dropping the ones out of tries; events still in a
+        // batch window can be older than the failed batch
+        auto pos = queue.end();
         for (auto i = batch.rbegin(); i != batch.rend(); ++i) {
             if (++i->attempts >= max_attempts) {
                 dropped_events++;
@@ -955,7 +957,9 @@ void webhook_endpoint::run() {
                 continue;
             }
             queue_bytes += i->json.size();
-            queue.push_front(std::move(*i));
+            while (pos != queue.begin() && std::prev(pos)->seq > i->seq)
+                --pos;
+            pos = queue.insert(pos, std::move(*i));
         }
     }
 }
@@ -1185,7 +1189,12 @@ void kis_webhooks::trigger_deferred_startup() {
     timer_id =
         Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(
                 SERVER_TIMESLICES_SEC, nullptr, 1, [this](int) -> int {
-                    tick();
+                    // A throw on the timer thread would end the server
+                    try {
+                        tick();
+                    } catch (const std::exception& e) {
+                        _MSG_ERROR("Webhook processing failed: {}", e.what());
+                    }
                     return 1;
                 });
 }
@@ -1618,7 +1627,11 @@ void kis_webhooks::device_event(const std::shared_ptr<webhook_binding>& b, dev_e
     if (f.trigger == nullptr)
         return;
 
-    send(f, dev, now);
+    try {
+        send(f, dev, now);
+    } catch (const std::exception& e) {
+        _MSG_ERROR("The webhook for device rule '{}' could not build an event: {}", b->rule, e.what());
+    }
 }
 
 void kis_webhooks::send(fire& f, const std::shared_ptr<kis_tracked_device_base>& dev, time_t now) {

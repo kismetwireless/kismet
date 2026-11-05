@@ -568,6 +568,8 @@ public:
                     error("expected a tag string");
                 if (r->tags.size() >= 16)
                     error("too many tags on one rule");
+                if (cur.text.size() > 256)
+                    error("tag is longer than 256 characters");
                 r->tags.push_back(cur.text);
                 advance();
             } else if (w == "color") {
