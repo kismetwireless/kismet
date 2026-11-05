@@ -190,7 +190,7 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
         size_t chunk_a = ringbuf->buffer_sz - copy_start;
         size_t chunk_b = length - chunk_a;
 
-        memcpy(ringbuf->buffer + ringbuf->start_pos + ringbuf->length, data, chunk_a);
+        memcpy(ringbuf->buffer + copy_start, data, chunk_a);
         memcpy(ringbuf->buffer, (uint8_t *) data + chunk_a, chunk_b);
 
         /* Increase the length of the buffer */
@@ -318,7 +318,7 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
             size_t chunk_a = ringbuf->buffer_sz - copy_start;
             size_t chunk_b = size - chunk_a;
 
-            memcpy(ringbuf->buffer + ringbuf->start_pos + ringbuf->length, data, chunk_a);
+            memcpy(ringbuf->buffer + copy_start, data, chunk_a);
             memcpy(ringbuf->buffer, (uint8_t *) data + chunk_a, chunk_b);
 
             /* Increase the length of the buffer */
@@ -377,7 +377,7 @@ size_t kis_simple_ringbuf_read(kis_simple_ringbuf_t *ringbuf, void *ptr,
     if (ringbuf->start_pos + opsize <= ringbuf->buffer_sz) {
         if (ptr != NULL)
             memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
-        ringbuf->start_pos += opsize;
+        ringbuf->start_pos = (ringbuf->start_pos + opsize) % ringbuf->buffer_sz;
         ringbuf->length -= opsize;
         return opsize;
     } else {

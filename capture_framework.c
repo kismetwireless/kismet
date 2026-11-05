@@ -3840,16 +3840,20 @@ void cf_cancel_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta) {
 }
 
 int cf_commit_packet(kis_capture_handler_t *caph, cf_frame_metadata *meta, size_t final_len) {
+    int r = -1;
 
+    /* The commit owns the frame; only the metadata wrapper is ours to free */
     if (caph->use_tcp || caph->use_ipc) {
-        return cf_commit_rb_packet(caph, meta->frame, final_len);
+        r = cf_commit_rb_packet(caph, meta->frame, final_len);
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
-        return cf_commit_ws_packet(caph, (struct cf_ws_msg *) meta->metadata, final_len);
+        r = cf_commit_ws_packet(caph, (struct cf_ws_msg *) meta->metadata, final_len);
 #endif
     }
 
-    return -1;
+    free(meta);
+
+    return r;
 }
 
 uint32_t cf_get_next_seqno(kis_capture_handler_t *caph) {
