@@ -1518,6 +1518,15 @@ void kis_database_logfile::usage(const char *argv0) {
 void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
 	using namespace kissqlite3;
 
+	// Hold the database open for the whole stream; a close waits for it
+	db_writer_guard writer_lk(this);
+	if (!db_enabled) {
+		std::ostream ostream(&con->response_stream());
+		con->set_status(400);
+		ostream << "Illegal request: kismetdb log not enabled\n";
+		return;
+	}
+
 	auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
 	auto ts_start_k = con->http_variables().find("timestamp_start");
