@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <algorithm>
+
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -28,6 +30,25 @@
 #include "messagebus.h"
 #include "packetchain.h"
 #include "sqlite3_cpp11.h"
+
+namespace {
+
+// Tagged data is stored as snapshots of this type prefix and the tag, so it can't
+// collide with Kismet's own GPS, POI, and SYSTEM snapshots
+constexpr const char *tagged_data_prefix = "API:";
+constexpr size_t tagged_data_max_tag = 64;
+constexpr const char *tagged_data_role = "datalog";
+
+constexpr size_t tagged_data_default_size = 8 * 1024 * 1024;
+constexpr size_t tagged_data_min_size = 100000;
+constexpr size_t tagged_data_max_size = 64 * 1024 * 1024;
+
+constexpr bool tagged_data_tag_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+        c == '.' || c == '_' || c == '-';
+}
+
+}
 
 kis_database_logfile::kis_database_logfile():
     kis_logfile(shared_log_builder(NULL)),
@@ -302,6 +323,20 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         Globalreg::globalreg->entrytracker->register_field("kismet.poi.note",
                 tracker_element_factory<tracker_element_string>(),
                 "point of interest note");
+
+    auto tagged_data_endp =
+        std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return tagged_data_endp_handler(con);
+                });
+    httpd->register_route("/logging/kismetdb/data/push", {"POST"},
+            std::list<std::string>{tagged_data_role}, {"cmd"}, tagged_data_endp);
+
+    auto tagged_data_size =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_tagged_data_max_size",
+                tagged_data_default_size);
+    tagged_data_size = std::clamp<size_t>(tagged_data_size, tagged_data_min_size, tagged_data_max_size);
+    httpd->set_route_body_limit(tagged_data_endp, tagged_data_size);
 
     httpd->register_route("/poi/list_poi", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -1702,6 +1737,48 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
     log_snapshot(loc, tv, "POI", poi_data);
 
     ostream << "POI created\n";
+}
+
+void kis_database_logfile::tagged_data_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream ostream(&con->response_stream());
+    con->set_mime_type("application/json");
+
+    auto fail = [&](int status, const std::string& err) {
+        con->set_status(status);
+        ostream << nlohmann::json{{"ok", false}, {"error", err}}.dump();
+    };
+
+    const auto& j = con->json();
+    if (!j.is_object())
+        return fail(400, "expected a JSON object with tag and data");
+
+    auto tag_k = j.find("tag");
+    if (tag_k == j.end() || !tag_k->is_string())
+        return fail(400, "tag has to be a string");
+
+    const auto& tag = tag_k->get_ref<const std::string&>();
+    if (tag.empty() || tag.size() > tagged_data_max_tag ||
+            !std::all_of(tag.begin(), tag.end(), tagged_data_tag_char))
+        return fail(400, fmt::format("tag has to be 1 to {} letters, digits, '.', '_', or '-'",
+                    tagged_data_max_tag));
+
+    auto data_k = j.find("data");
+    if (data_k == j.end())
+        return fail(400, "data is missing");
+
+    if (!db_enabled)
+        return fail(400, "kismetdb log not enabled");
+
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+
+    // The best GPS location, when it has a fix
+    if (log_snapshot(nullptr, tv, tagged_data_prefix + tag,
+                data_k->dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) <= 0)
+        return fail(500, "the record couldn't be saved to the kismetdb log");
+
+    ostream << nlohmann::json{{"ok", true}, {"tag", tag}, {"ts_sec", tv.tv_sec},
+        {"ts_usec", tv.tv_usec}}.dump();
 }
 
 std::shared_ptr<tracker_element>

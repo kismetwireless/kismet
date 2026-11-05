@@ -746,6 +746,9 @@ void kis_net_beast_httpd::release_connection(const std::string& addr) {
     }
 }
 
+// Request bodies on routes without their own limit
+constexpr size_t default_body_limit = 100000;
+
 static std::string beast_peer_addr(const boost::asio::ip::tcp::socket& socket) {
     boost::system::error_code ec;
     auto ep = socket.remote_endpoint(ec);
@@ -1120,6 +1123,15 @@ void kis_net_beast_httpd::register_route(const std::string& route,
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
 
     route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, roles, extensions, handler));
+}
+
+void kis_net_beast_httpd::set_route_body_limit(const std::shared_ptr<kis_net_web_endpoint>& handler,
+        size_t limit) {
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd set_route_body_limit");
+
+    for (const auto& r : route_vec)
+        if (r->get_handler() == handler)
+            r->set_body_limit(limit);
 }
 
 void kis_net_beast_httpd::remove_route(const std::string& route) {
@@ -1697,107 +1709,11 @@ void kis_net_beast_httpd_connection::append_header(const std::string& header, co
     response.set(header, value);
 }
 
-bool kis_net_beast_httpd_connection::start() {
-    parser_.emplace();
-    parser_->body_limit(100000);
-
-    // The stream and its timer must be accessed through the socket's strand.
-    // The connection thread waits while the asynchronous read is in progress.
-    auto read_promise = std::make_shared<std::promise<boost::beast::error_code>>();
-    auto read_future = read_promise->get_future();
-
-    try {
-        boost::asio::post(stream_.get_executor(), [this, read_promise]() {
-            try {
-                stream_.expires_after(std::chrono::seconds(30));
-                io([&](auto& s) {
-                    boost::beast::http::async_read(s, buffer, *parser_,
-                            [read_promise](boost::beast::error_code ec, std::size_t) {
-                                read_promise->set_value(ec);
-                            });
-                });
-            } catch (...) {
-                read_promise->set_exception(std::current_exception());
-            }
-        });
-
-        if (read_future.get())
-            return do_close();
-    } catch (const std::exception&) {
-        // Also handle failures to schedule or initiate the read.
-        return do_close();
-    }
-
-    request_ = boost::beast::http::request<boost::beast::http::string_body>(parser_->release());
-
-    uri_ = request_.target();
-    verb_ = request_.method();
-
-    httpd->strip_uri_prefix(uri_);
-    auto trimmed_uri = httpd->decode_get_variables(uri_, http_variables_);
-
-    // Fix any double-slashes which will break the parser/splitter
-    std::regex re("/+/");
-    trimmed_uri = std::regex_replace(trimmed_uri, re, "/");
-
-    httpd->map_legacy_uri(trimmed_uri);
-
-    uri_ = boost::beast::string_view(trimmed_uri);
-
-    // Process close headers - http 1.0 always closes unless keepalive, 1.1 never closes unless specified
-    bool client_req_close = false;
-
-    if (request_.version() == 10)
-        client_req_close = true;
-
-    auto client_connection_h = request_.find(boost::beast::http::field::connection);
-    if (client_connection_h != request_.end()) {
-        auto connection_decode = httpd->decode_uri(client_connection_h->value(), true);
-
-        if (request_.version() == 10 && connection_decode == "keep-alive") {
-            client_req_close = false;
-            response.set(boost::beast::http::field::connection, "keep-alive");
-        }
-
-        if (connection_decode == "close") {
-            client_req_close = true;
-        }
-    }
-
-    // Handle CORS before auth and route finding; always returns
-    if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
-        response.result(boost::beast::http::status::ok);
-
-        std::string uri_rewrite = "";
-        append_common_headers(response, uri_rewrite);
-
-        response.set(boost::beast::http::field::content_length, "0");
-
-        boost::beast::http::response_serializer<boost::beast::http::buffer_body,
-            boost::beast::http::fields> sr{response};
-
-        boost::system::error_code error;
-        error = write_header_timeout(sr);
-
-        if (error)
-            return do_close();
-
-        // Send the completion record for the chunked response
-        response.body().data = nullptr;
-        response.body().size = 0;
-        response.body().more = false;
-
-        error = write_timeout(sr);
-
-        if (error || client_req_close)
-            return do_close();
-
-        return true;
-    }
-
+void kis_net_beast_httpd_connection::check_login(
+        const boost::beast::http::request<boost::beast::http::string_body>& hdr) {
     // Extract the auth cookie
-    auto cookie_h = request_.find(boost::beast::http::field::cookie);
-    if (cookie_h != request_.end()) {
+    auto cookie_h = hdr.find(boost::beast::http::field::cookie);
+    if (cookie_h != hdr.end()) {
         auto cookie_decode = httpd->decode_uri(cookie_h->value(), true);
         httpd->decode_cookies(cookie_decode, cookies_);
 
@@ -1815,8 +1731,8 @@ bool kis_net_beast_httpd_connection::start() {
         auth_token_ = uri_cookie_k->second;
 
     // An API token given as a bearer token, by clients that can't rely on the cookie
-    auto bearer_h = request_.find(boost::beast::http::field::authorization);
-    if (bearer_h != request_.end() && bearer_h->value().starts_with("Bearer "))
+    auto bearer_h = hdr.find(boost::beast::http::field::authorization);
+    if (bearer_h != hdr.end() && bearer_h->value().starts_with("Bearer "))
         auth_token_ = static_cast<std::string>(bearer_h->value().substr(7));
 
     auto auth_t = httpd->check_auth_token(auth_token_);
@@ -1830,8 +1746,8 @@ bool kis_net_beast_httpd_connection::start() {
         auth_token_.clear();
 
         // Extract the basic auth
-        auto auth_h = request_.find(boost::beast::http::field::authorization);
-        if (auth_h != request_.end()) {
+        auto auth_h = hdr.find(boost::beast::http::field::authorization);
+        if (auth_h != hdr.end()) {
             auto sp = auth_h->value().find_first_of(" ");
 
             if (sp != boost::beast::string_view::npos) {
@@ -1875,6 +1791,163 @@ bool kis_net_beast_httpd_connection::start() {
                 }
             }
         }
+    }
+}
+
+bool kis_net_beast_httpd_connection::start() {
+    // The body limit is set once the headers are read and the route and login are known
+    parser_.emplace();
+    parser_->body_limit(boost::none);
+
+    // The stream and its timer must be accessed through the socket's strand.
+    // The connection thread waits while the asynchronous read is in progress.
+    auto read_request = [this](bool header_only) -> bool {
+        auto read_promise = std::make_shared<std::promise<boost::beast::error_code>>();
+        auto read_future = read_promise->get_future();
+
+        try {
+            boost::asio::post(stream_.get_executor(), [this, read_promise, header_only]() {
+                try {
+                    stream_.expires_after(std::chrono::seconds(30));
+                    io([&](auto& s) {
+                        auto done = [read_promise](boost::beast::error_code ec, std::size_t) {
+                            read_promise->set_value(ec);
+                        };
+
+                        if (header_only)
+                            boost::beast::http::async_read_header(s, buffer, *parser_, done);
+                        else
+                            boost::beast::http::async_read(s, buffer, *parser_, done);
+                    });
+                } catch (...) {
+                    read_promise->set_exception(std::current_exception());
+                }
+            });
+
+            return !read_future.get();
+        } catch (const std::exception&) {
+            // Also handle failures to schedule or initiate the read.
+            return false;
+        }
+    };
+
+    // The headers come first, so a route can take a larger body once its login is checked
+    if (!read_request(true))
+        return do_close();
+
+    const auto& hdr = parser_->get();
+
+    uri_ = hdr.target();
+    verb_ = hdr.method();
+
+    httpd->strip_uri_prefix(uri_);
+    auto trimmed_uri = httpd->decode_get_variables(uri_, http_variables_);
+
+    // Fix any double-slashes which will break the parser/splitter
+    std::regex re("/+/");
+    trimmed_uri = std::regex_replace(trimmed_uri, re, "/");
+
+    httpd->map_legacy_uri(trimmed_uri);
+
+    uri_ = boost::beast::string_view(trimmed_uri);
+
+    // Process close headers - http 1.0 always closes unless keepalive, 1.1 never closes unless specified
+    bool client_req_close = false;
+
+    if (hdr.version() == 10)
+        client_req_close = true;
+
+    auto client_connection_h = hdr.find(boost::beast::http::field::connection);
+    if (client_connection_h != hdr.end()) {
+        auto connection_decode = httpd->decode_uri(client_connection_h->value(), true);
+
+        if (hdr.version() == 10 && connection_decode == "keep-alive") {
+            client_req_close = false;
+            response.set(boost::beast::http::field::connection, "keep-alive");
+        }
+
+        if (connection_decode == "close") {
+            client_req_close = true;
+        }
+    }
+
+    bool cors_preflight = hdr.method() == boost::beast::http::verb::options && httpd->allow_cors();
+    std::shared_ptr<kis_net_beast_route> route;
+    size_t body_limit = default_body_limit;
+
+    if (!cors_preflight) {
+        check_login(hdr);
+
+        // Only a route's own logins get its larger body limit
+        if (!boost::beast::websocket::is_upgrade(hdr)) {
+            route = httpd->find_endpoint(shared_from_this());
+
+            if (route != nullptr && route->body_limit() > 0 && route->match_verb(verb_) &&
+                    route->match_role(login_valid_, login_role_))
+                body_limit = route->body_limit();
+        }
+    }
+
+    // A chunked body is checked against the limit as it's read, but a Content-Length only
+    // while the headers are, so that is checked here
+    parser_->body_limit(body_limit);
+
+    auto content_len = parser_->content_length();
+    if (content_len.has_value() && *content_len > body_limit) {
+        boost::beast::http::response<boost::beast::http::string_body>
+            res{boost::beast::http::status::payload_too_large, hdr.version()};
+
+        res.set(boost::beast::http::field::server, "Kismet");
+        res.set(boost::beast::http::field::content_type, "text/html");
+        res.set(boost::beast::http::field::connection, "close");
+        res.body() = std::string("<html><head><title>413 Request too large</title></head><body>"
+                "<h1>413 Request too large</h1><br><p>The request body is larger than this "
+                "resource accepts.</p></body></html>\n");
+        res.prepare_payload();
+
+        append_cors_headers(res);
+
+        boost::system::error_code error;
+        error = write_timeout(res);
+
+        return do_close();
+    }
+
+    if (!read_request(false))
+        return do_close();
+
+    // hdr is gone after this
+    request_ = boost::beast::http::request<boost::beast::http::string_body>(parser_->release());
+
+    // Handle CORS before auth and route finding; always returns
+    if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
+        response.result(boost::beast::http::status::ok);
+
+        std::string uri_rewrite = "";
+        append_common_headers(response, uri_rewrite);
+
+        response.set(boost::beast::http::field::content_length, "0");
+
+        boost::beast::http::response_serializer<boost::beast::http::buffer_body,
+            boost::beast::http::fields> sr{response};
+
+        boost::system::error_code error;
+        error = write_header_timeout(sr);
+
+        if (error)
+            return do_close();
+
+        // Send the completion record for the chunked response
+        response.body().data = nullptr;
+        response.body().size = 0;
+        response.body().more = false;
+
+        error = write_timeout(sr);
+
+        if (error || client_req_close)
+            return do_close();
+
+        return true;
     }
 
     if (boost::beast::websocket::is_upgrade(request_)) {
@@ -1929,9 +2002,6 @@ bool kis_net_beast_httpd_connection::start() {
 
         return do_close();
     }
-
-    // Look for a route
-    auto route = httpd->find_endpoint(shared_from_this());
 
     if (route != nullptr) {
         if (!route->match_verb(verb_)) {

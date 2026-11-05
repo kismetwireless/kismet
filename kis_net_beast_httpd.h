@@ -120,6 +120,9 @@ public:
     void register_route(const std::string& route, const std::list<std::string>& verbs,
             const std::list<std::string>& role, const std::list<std::string>& extensions,
             std::shared_ptr<kis_net_web_endpoint> handler);
+    // Let a registered handler's routes take request bodies up to limit bytes, after their
+    // login is checked; other routes keep the default
+    void set_route_body_limit(const std::shared_ptr<kis_net_web_endpoint>& handler, size_t limit);
     void remove_route(const std::string& route);
     // Remove every route served by this handler, without touching another
     // owner's route on the same path
@@ -481,6 +484,9 @@ protected:
     std::atomic<bool> first_response_write;
 
     bool do_close();
+
+    // Login from the cookie, token, basic auth, or URI credentials in the request headers
+    void check_login(const boost::beast::http::request<boost::beast::http::string_body>& hdr);
 
     // CORS headers, also on errors, so a client on another origin can read a 401
     template<class Response>
@@ -873,6 +879,11 @@ public:
     std::string& route() { return route_; }
     const std::shared_ptr<kis_net_web_endpoint>& get_handler() const { return handler; }
 
+    // A larger request body than the default, given only to logins this route accepts; 0
+    // keeps the default
+    void set_body_limit(size_t limit) { body_limit_ = limit; }
+    size_t body_limit() const { return body_limit_; }
+
 protected:
     std::shared_ptr<kis_net_web_endpoint> handler;
 
@@ -883,6 +894,8 @@ protected:
     bool login_;
 
     std::list<std::string> roles_;
+
+    std::atomic<size_t> body_limit_{0};
 
     const std::string path_id_pattern = ":([^\\/]+)?";
     const std::string path_capture_pattern = "(?:([^\\/]+?))";
