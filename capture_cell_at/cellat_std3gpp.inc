@@ -15,12 +15,13 @@
  * All emitted objects carry "observation_type" so phy_cell can attribute the
  * source command, and "is_serving" per the TS 27.007 semantics of the command.
  *
- * Ground truth: captured live from
- * EG25-G (no SIM), LM960A18 (SIM, unregistered), RM520N-GL (SIM, 5G-SA on
- * T-Mobile). See the fixtures in test_cellat_std3gpp.c -- each is a verbatim
- * transcript. CESQ populated-signal conversions are anchored to the TS 27.007
- * mapping tables (neither Quectel supports CESQ; the LM960 was unregistered),
- * and are flagged as such in the test.
+ * Ground truth: the shapes were captured live from
+ * EG25-G (no SIM), LM960A18 (SIM, unregistered), RM520N-GL (SIM, 5G-SA,
+ * registered). See the fixtures in test_cellat_std3gpp.c -- each keeps the
+ * shape of a transcript, with synthetic operators. CESQ populated-signal
+ * conversions are anchored to the TS 27.007 mapping tables (neither Quectel
+ * supports CESQ; the LM960 was unregistered), and are flagged as such in the
+ * test.
  */
 
 /* --- <AcT> / COPS access-technology code -> canonical RAT string (TS 27.007
@@ -296,7 +297,7 @@ static int parse_cops_query(const char *response, char json_out[][JSON_BUF_MAX],
     return (r > 0) ? 1 : 0;
 }
 
-/* Split an already-extracted COPS scan group body ("2,\"T-Mobile\",...") into
+/* Split an already-extracted COPS scan group body ("2,\"Operator A\",...") into
  * fields on commas that are NOT inside double quotes, then de-quote each.
  * Distinct from split_fields (which splits on every comma) because operator
  * names may in principle contain a comma. Returns the field count. */

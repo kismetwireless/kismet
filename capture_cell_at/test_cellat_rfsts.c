@@ -86,11 +86,12 @@ static void check_lacks(const char *json, const char *frag, const char *what) {
     }
 }
 
-/* --- MEASURED shape. A Telit LM960A18 (32.01.110) camped on LTE B66, idle;
- *     TAC and cell ID replaced with placeholders. RSSI -66, band 66. --- */
+/* --- The SHAPE of a Telit LM960A18 (32.01.110) reply camped on LTE B66, idle.
+ *     The identifiers are synthetic: PLMN 001/001, EARFCN 66436 (the first B66
+ *     channel), placeholder TAC and cell ID. RSSI -66, band 66. --- */
 static const char *RFSTS_LM960 =
-    "#RFSTS: \"310 260\",66786,-98,-66,-12,1A2B,255,,640,1,0,1A2B302,"
-    "\"000000000000000\",\"T-Mobile\",3,66\r\n"
+    "#RFSTS: \"001 001\",66436,-98,-66,-12,1A2B,255,,640,1,0,1A2B302,"
+    "\"000000000000000\",\"Operator A\",3,66\r\n"
     "OK\r\n";
 
 /* --- MANUAL. LM940 AT Commands Reference Guide r1, section 5.6.1.24 worked
@@ -103,13 +104,13 @@ static const char *RFSTS_MANUAL_TXPWR =
 /* --- A reply cut short before ABND (an older firmware, or a truncated
  *     read): no band must be invented. --- */
 static const char *RFSTS_NO_ABND =
-    "#RFSTS: \"310 260\",66786,-98,-66,-12,1A2B,255,,640,1,0,1A2B302\r\n"
+    "#RFSTS: \"001 001\",66436,-98,-66,-12,1A2B,255,,640,1,0,1A2B302\r\n"
     "OK\r\n";
 
 /* --- ABND 0 is not an E-UTRA band. --- */
 static const char *RFSTS_ABND_ZERO =
-    "#RFSTS: \"310 260\",66786,-98,-66,-12,1A2B,255,,640,1,0,1A2B302,"
-    "\"000000000000000\",\"T-Mobile\",3,0\r\n"
+    "#RFSTS: \"001 001\",66436,-98,-66,-12,1A2B,255,,640,1,0,1A2B302,"
+    "\"000000000000000\",\"Operator A\",3,0\r\n"
     "OK\r\n";
 
 int main(void) {
@@ -120,9 +121,9 @@ int main(void) {
     n = parse_rfsts(RFSTS_LM960, obs, MAX_OBS);
     check(n == 1, "one observation parsed");
     if (n == 1) {
-        check_has(obs[0], "\"mcc\":\"310\"", "mcc");
-        check_has(obs[0], "\"mnc\":\"260\"", "mnc");
-        check_has(obs[0], "\"earfcn\":66786", "earfcn");
+        check_has(obs[0], "\"mcc\":\"001\"", "mcc");
+        check_has(obs[0], "\"mnc\":\"001\"", "mnc");
+        check_has(obs[0], "\"earfcn\":66436", "earfcn");
         check_has(obs[0], "\"rsrp\":-98", "rsrp is field 2");
         check_has(obs[0], "\"rssi\":-66", "rssi is field 3 (not TX power)");
         check_has(obs[0], "\"rsrq\":-12", "rsrq is field 4");

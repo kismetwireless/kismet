@@ -284,7 +284,7 @@ command-line flags or manual vendor selection.
 ### Cell key format and device merging
 
 Cell towers are identified by a composite key: `{MCC}{MNC}_{TAC}_{CellID}`
-(e.g., `310410_36103_173570843`). When multiple modems see the same tower,
+(e.g., `001001_4660_11259361`). When multiple modems see the same tower,
 Kismet's device tracker merges the observations automatically because they
 hash to the same pseudo-MAC.
 
@@ -292,8 +292,8 @@ For neighbor cells (which lack MCC/MNC/TAC), the key falls back to
 `{RAT}_pci{PCI}_f{FREQ_KHZ}` — less specific but sufficient for tracking.
 
 The partial key carries the **resolved downlink frequency**, not the raw
-EARFCN. LTE band 4 is a subset of band 66: the same 2145 MHz
-carrier is EARFCN 2300 to a Quectel (`AT+QENG` reports B4) and 66786 to a Telit
+EARFCN. LTE band 4 is a subset of band 66: the same 2110 MHz
+carrier is EARFCN 1950 to a Quectel (`AT+QENG` reports B4) and 66436 to a Telit
 (`AT#MONI` reports B66). Keyed on the raw value, two modems would track
 **one tower as two devices**, splitting `observation_count`, the
 RSRP range and the `seen_via` provenance between the halves. B2/B25 and
@@ -825,7 +825,7 @@ A bare `cellat` cannot pick between them: its open fails and names each modem's
 Cell towers appear in the Kismet device list with:
 - **Type:** "Cell Tower"
 - **PHY:** `"Cellular"` — the string `phy_cell.cc` registers, what both WiGLE exporters filter on, and what `kismet.device.base.phyname` carries. Match on `"Cellular"`, not the older `"Cell"`.
-- **Name:** e.g., "NR 310260_36103_4526858551" (RAT MCC+MNC_TAC_CellID)
+- **Name:** e.g., "NR 001001_4660_11259361" (RAT MCC+MNC_TAC_CellID)
 - **Channel:** e.g., "NR B41" or "LTE B2"
 - **Signal:** RSRP in dBm (from the base signal column)
 
@@ -833,7 +833,7 @@ Click a cell tower device to see the **Cell Info** detail panel with full
 cell identity (MCC, MNC, TAC, Cell ID, PCI), signal metrics (RSRP, RSRQ,
 SINR), min/max RSRP tracking, and observation count.
 
-The Address column shows the Cell Key (e.g., `310260_36103_4526858551`)
+The Address column shows the Cell Key (e.g., `001001_4660_11259361`)
 instead of the synthetic MAC address, since cell towers don't have MACs.
 
 ### 7. GPS

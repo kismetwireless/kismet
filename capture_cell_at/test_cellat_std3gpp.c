@@ -7,7 +7,7 @@
  * registration state:
  *   - EG25-G   : no SIM              (searching / deregistered edges)
  *   - LM960A18 : SIM, unregistered   (all-unknown signal; name-less scan ops)
- *   - RM520N-GL: SIM, 5G-SA T-Mobile (the populated TAC/CI/AcT case)
+ *   - RM520N-GL: SIM, 5G-SA, registered (the populated TAC/CI/AcT case)
  *
  * The one exception is CESQ_POPULATED, which is CONSTRUCTED from the TS 36.133
  * / TS 45.008 mapping tables: neither Quectel supports AT+CESQ (both ERROR) and
@@ -87,29 +87,30 @@ static const char *C5GREG_RM520N =
     "+C5GREG: 2,1,\"1A2B00\",\"1A2B4B017\",11,1,\"01\"\r\n\r\nOK";
 
 /* COPS? : RM520N-GL, alphanumeric operator + AcT 11 (NR). */
-static const char *COPS_Q_RM520N  = "+COPS: 0,0,\"T-Mobile\",11\r\n\r\nOK";
+static const char *COPS_Q_RM520N  = "+COPS: 0,0,\"Operator A\",11\r\n\r\nOK";
 /* COPS? : deregistered, mode-only -> no operator. */
 static const char *COPS_Q_DEREG   = "+COPS: 0\r\n\r\nOK";
 
-/* COPS=? scans (verbatim). RM520N leads with stat=2 (current). LM960 carries
+/* COPS=? scans (the recorded shapes; the operators are synthetic). RM520N
+ * leads with stat=2 (current). LM960 carries
  * two name-less operators (empty long/short, numeric present). */
 static const char *COPS_SCAN_RM520N =
-    "+COPS: (2,\"T-Mobile\",\"T-Mobile\",\"310260\",12),"
-    "(1,\"T-Mobile\",\"T-Mobile\",\"310260\",7),"
-    "(1,\"Verizon\",\"Verizon\",\"311480\",7),"
-    "(1,\"315 010\",\"315 010\",\"315010\",7),"
-    "(1,\"Verizon\",\"Verizon\",\"311480\",12),"
-    "(1,\"FirstNet\",\"FirstNet\",\"313100\",7),"
-    "(1,\"AT&T\",\"AT&T\",\"310410\",7),,(0-4),(0-2)\r\n\r\nOK";
+    "+COPS: (2,\"Operator A\",\"Operator A\",\"001001\",12),"
+    "(1,\"Operator A\",\"Operator A\",\"001001\",7),"
+    "(1,\"Operator B\",\"Operator B\",\"001002\",7),"
+    "(1,\"001 010\",\"001 010\",\"001010\",7),"
+    "(1,\"Operator B\",\"Operator B\",\"001002\",12),"
+    "(1,\"Operator D\",\"Operator D\",\"001004\",7),"
+    "(1,\"Operator C\",\"Operator C\",\"001003\",7),,(0-4),(0-2)\r\n\r\nOK";
 static const char *COPS_SCAN_LM960 =
-    "+COPS: (1,\"T-Mobile\",\"T-Mobile\",\"310260\",7),"
-    "(1,\"AT&T\",\"AT&T\",\"310410\",7),"
-    "(1,\"\",\"\",\"315010\",7),"
-    "(1,\"Verizon\",\"Verizon\",\"311480\",7),"
-    "(1,\"\",\"\",\"313100\",7),,(0-4),(0-2)\r\n\r\nOK";
+    "+COPS: (1,\"Operator A\",\"Operator A\",\"001001\",7),"
+    "(1,\"Operator C\",\"Operator C\",\"001003\",7),"
+    "(1,\"\",\"\",\"001010\",7),"
+    "(1,\"Operator B\",\"Operator B\",\"001002\",7),"
+    "(1,\"\",\"\",\"001004\",7),,(0-4),(0-2)\r\n\r\nOK";
 static const char *COPS_SCAN_EG25 =
-    "+COPS: (1,\"Verizon\",\"Verizon\",\"311480\",7),"
-    "(1,\"T-Mobile\",\"T-Mobile\",\"310260\",7),,(0-4),(0-2)\r\n\r\nOK";
+    "+COPS: (1,\"Operator B\",\"Operator B\",\"001002\",7),"
+    "(1,\"Operator A\",\"Operator A\",\"001001\",7),,(0-4),(0-2)\r\n\r\nOK";
 
 int main(void) {
     char obs[MAX_OBS][JSON_BUF_MAX];
@@ -168,7 +169,7 @@ int main(void) {
     n = parse_cops_query(COPS_Q_RM520N, obs, MAX_OBS);
     check(n == 1, "COPS? with operator -> 1 record");
     if (n == 1) {
-        check_has(obs[0], "\"operator_name\":\"T-Mobile\"", "COPS? operator name");
+        check_has(obs[0], "\"operator_name\":\"Operator A\"", "COPS? operator name");
         check_has(obs[0], "\"rat\":\"NR\"", "COPS? AcT 11 -> NR");
     }
     check(parse_cops_query(COPS_Q_DEREG, obs, MAX_OBS) == 0,
@@ -182,16 +183,16 @@ int main(void) {
     check(n == 7, "RM520N scan -> 7 operators (trailing (0-4),(0-2) skipped)");
     if (n == 7) {
         /* op 0 is stat=2 (current) -> is_serving true; AcT 12 -> NR */
-        check_has(obs[0], "\"operator_name\":\"T-Mobile\"", "scan op0 name");
-        check_has(obs[0], "\"mcc\":\"310\"", "scan op0 mcc 310");
-        check_has(obs[0], "\"mnc\":\"260\"", "scan op0 mnc 260");
+        check_has(obs[0], "\"operator_name\":\"Operator A\"", "scan op0 name");
+        check_has(obs[0], "\"mcc\":\"001\"", "scan op0 mcc 001");
+        check_has(obs[0], "\"mnc\":\"001\"", "scan op0 mnc 001");
         check_has(obs[0], "\"rat\":\"NR\"", "scan op0 AcT 12 -> NR");
         check_has(obs[0], "\"is_serving\":true", "scan op0 stat 2 -> is_serving");
         check_has(obs[0], "\"observation_type\":\"cops_scan\"", "scan observation_type");
         /* op 1 is stat=1 (available) -> is_serving false; AcT 7 -> LTE */
         check_has(obs[1], "\"rat\":\"LTE\"", "scan op1 AcT 7 -> LTE");
         check_has(obs[1], "\"is_serving\":false", "scan op1 stat 1 -> not serving");
-        /* op 3 is "315 010" with a space in the name + numeric 315010 */
+        /* op 3 is "001 010" with a space in the name + numeric 001010 */
         check_has(obs[3], "\"mnc\":\"010\"", "scan op3 mnc preserves leading zero (010)");
     }
 
@@ -199,7 +200,7 @@ int main(void) {
     check(n == 5, "LM960 scan -> 5 operators");
     if (n == 5) {
         /* op 2 and op 4 are name-less: mcc/mnc present, no operator_name */
-        check_has(obs[2], "\"mcc\":\"315\"", "scan name-less op carries mcc");
+        check_has(obs[2], "\"mcc\":\"001\"", "scan name-less op carries mcc");
         check_lacks(obs[2], "\"operator_name\"", "scan name-less op omits operator_name");
     }
 
@@ -207,7 +208,7 @@ int main(void) {
     check(n == 2, "EG25 scan -> 2 operators");
 
     printf("== generic serving merge (fallback) ==\n");
-    /* RM520N-GL real reads: C5GREG populated (5G-SA), COPS? T-Mobile/NR, CESQ
+    /* RM520N-GL real reads: C5GREG populated (5G-SA), COPS? Operator A/NR, CESQ
      * ERROR, CSQ 99 -> a 5G serving cell with identity + operator, no signal. */
     n = parse_generic_serving(C5GREG_RM520N, CEREG_SEARCHING, CREG_NOT_SEARCH,
                               COPS_Q_RM520N, "ERROR", CSQ_UNKNOWN, obs, MAX_OBS);
@@ -215,7 +216,7 @@ int main(void) {
     if (n == 1) {
         check_has(obs[0], "\"rat\":\"NR\"", "merge rat NR (from C5GREG AcT 11)");
         check_has(obs[0], "\"tac\":1714944", "merge TAC from C5GREG");
-        check_has(obs[0], "\"operator_name\":\"T-Mobile\"", "merge operator from COPS?");
+        check_has(obs[0], "\"operator_name\":\"Operator A\"", "merge operator from COPS?");
         check_lacks(obs[0], "\"rssi\"", "merge: CSQ 99 + CESQ ERROR -> no signal");
         check_has(obs[0], "\"observation_type\":\"generic\"", "merge observation_type");
     }

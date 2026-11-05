@@ -31,7 +31,7 @@
  *           <MM>,<RRC>,<CID>,<IMSI>,[<NetNameAsc>],<SD>,<ABND>
  *
  * Example:
- *   #RFSTS: "311 480",66536,-103,-68,-15,0BBB,255,,1280,1,0,0BBB416,"000000000000000","Verizon",3,66
+ *   #RFSTS: "001 002",66436,-103,-68,-15,0BBB,255,,1280,1,0,0BBB416,"000000000000000","Operator B",3,66
  *
  * The fourth field is RSSI, not TX power, and the band is the LAST field
  * (ABND, the active E-UTRA band), not the seventh: the seventh is the Routing

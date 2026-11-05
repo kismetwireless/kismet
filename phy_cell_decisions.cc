@@ -486,10 +486,10 @@ cell_key_t derive_key(const std::string& rat, const plmn_t& plmn,
         out.valid = true;
     } else if (pci >= 0 && have_earfcn) {
         /* Keyed on the resolved downlink frequency, not the raw EARFCN.
-         * LTE band 4 is a subset of band 66: the same 2145 MHz carrier is
-         * EARFCN 2300 under B4 and 66786 under B66, and vendors disagree
-         * about which to report -- Quectel's AT+QENG says B4/2300, Telit's
-         * AT#MONI says B66/66786. Keying on the raw value would make two
+         * LTE band 4 is a subset of band 66: the same 2110 MHz carrier is
+         * EARFCN 1950 under B4 and 66436 under B66, and vendors disagree
+         * about which to report -- Quectel's AT+QENG says B4/1950, Telit's
+         * AT#MONI says B66/66436. Keying on the raw value would make two
          * modems (e.g. an EG25-G and an LM960A18 on the same network) track
          * one tower as two devices, splitting observation_count, min/max RSRP
          * and the seen_via provenance between the halves. B2/B25 and
@@ -689,8 +689,8 @@ pci_promotion_t pci_promotion(const std::string& rat, int64_t pci,
      * across RATs.
      *
      * Both keys go through carrier_token() for the band-overlap reason: a promotion
-     * registered by a modem that calls the carrier B4/2300 must be findable by
-     * one that calls it B66/66786, and peer_cell_key IS the device MAC, so if
+     * registered by a modem that calls the carrier B4/1950 must be findable by
+     * one that calls it B66/66436, and peer_cell_key IS the device MAC, so if
      * it stopped matching derive_key()'s partial form the promotion would link
      * to a device that does not exist. The two spellings drifting
      * apart is the bug, so there is only one spelling, and

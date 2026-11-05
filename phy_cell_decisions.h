@@ -101,7 +101,7 @@ struct cell_key_t {
  * table range and cannot be converted.
  *
  * Keyed on frequency rather than the raw ARFCN. LTE band 4 is a subset of
- * band 66 -- one 2145 MHz carrier is EARFCN 2300 to a Quectel and 66786 to a
+ * band 66 -- one 2110 MHz carrier is EARFCN 1950 to a Quectel and 66436 to a
  * Telit -- so a raw-ARFCN key would track one tower as two devices and split
  * its observation count, RSRP range and seen_via provenance in half.
  * B2/B25 and B12/B17/B85 overlap the same way.
@@ -286,8 +286,8 @@ const char *lte_duplex_name(lte_duplex d);
  * (`current`, 0 for none) and an observation's band (`incoming`, 0 for none)
  * at downlink `freq_khz`.
  *
- * Modems disagree on the band of one carrier: a 2145 MHz LTE carrier is B4
- * (EARFCN 2300) to one and B66 (EARFCN 66786) to another, and the cell key
+ * Modems disagree on the band of one carrier: a 2110 MHz LTE carrier is B4
+ * (EARFCN 1950) to one and B66 (EARFCN 66436) to another, and the cell key
  * fuses both into one device. Taking the newest report made the label
  * depend on which observer spoke last. When both bands hold the carrier's
  * frequency and have the same duplex mode, the one with the wider downlink
@@ -298,7 +298,7 @@ const char *lte_duplex_name(lte_duplex d);
  *
  * Only the band is chosen this way: the cell's ARFCN stays the newest
  * report's, as WiGLE logs it, so a B4 label can sit beside a B66 EARFCN
- * (66786) for the same carrier. */
+ * (66436) for the same carrier. */
 int label_band(const std::string& rat, int current, int incoming,
         uint64_t freq_khz);
 
@@ -314,7 +314,7 @@ std::string channel_string(const std::string& rat, int explicit_band,
 /* The human-readable device name. Mirrors json_to_cell's three cases:
  * full identity -> "{rat} {key}";  partial with a band -> "{rat} PCI {pci} B{n}";
  * partial without -> "{rat} PCI {pci} {arfcn_label(rat)} {earfcn}", e.g.
- * "NR PCI 11 NR-ARFCN 521310". */
+ * "NR PCI 1 NR-ARFCN 499200". */
 /* What the RAT calls its channel number: "EARFCN" (LTE), "NR-ARFCN" (NR),
  * "UARFCN" (WCDMA), else "ARFCN". The observation carries every one of them in
  * its `earfcn` key; a name or log line must not call an NR-ARFCN an EARFCN. */
@@ -497,7 +497,7 @@ map_claim_t pci_map_claim(bool slot_occupied, bool holder_is_self);
  *
  * Those are not adversarial inputs; `LTE_pci120_1850` and `LTE_pci201_1850` are
  * two ordinary neighbours on one carrier, and they collide. Full identity is no
- * safer: `310260_1_1000080` and `310260_2_1000007` differ in both TAC and CID
+ * safer: `001001_1_1000080` and `001001_2_1000007` differ in both TAC and CID
  * and collide. FNV-1a-64 is used instead -- self-contained, no dependency, and
  * it distributes all 48 bits.
  *
