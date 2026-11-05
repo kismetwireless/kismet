@@ -140,14 +140,16 @@ extern "C" size_t diag_native_gps_codes(uint16_t *out_codes, size_t max_codes) {
 extern "C" int diag_native_decode(uint16_t log_code, const uint8_t *payload,
         size_t payload_len, diag_native_obs_t *out_obs, size_t max_obs) {
     return diag_native_decode_ex(log_code, payload, payload_len, out_obs, max_obs,
-                                 nullptr);
+                                 nullptr, nullptr);
 }
 
 extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
         size_t payload_len, diag_native_obs_t *out_obs, size_t max_obs,
-        bool *refused) {
+        bool *refused, bool *gated) {
     if (refused != nullptr)
         *refused = false;
+    if (gated != nullptr)
+        *gated = false;
     if (out_obs == nullptr || max_obs == 0)
         return -1;
     if (!diag_native_has_leg(log_code))
@@ -218,6 +220,10 @@ extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
                 auto cells = diag_0xb0c0_observation::observations(blob, &why);
                 if (refused != nullptr)
                     *refused = diag_0xb0c0_observation::is_refusal(why);
+                // Not a SIB1 channel: the parse completed (version and length
+                // were already accepted) and the record cannot carry identity.
+                if (gated != nullptr)
+                    *gated = (why == diag_0xb0c0_observation::Decline::kNotSib1Channel);
                 for (const auto& c : cells) {
                     if (n >= max_obs) break;
                     init_obs(&out_obs[n], "LTE", 0xB0C0);

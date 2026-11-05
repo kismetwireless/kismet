@@ -171,15 +171,24 @@ typedef struct {
 int diag_native_decode(uint16_t log_code, const uint8_t *payload, size_t payload_len,
         diag_native_obs_t *out_obs, size_t max_obs);
 
-/* diag_native_decode, plus whether the leg REFUSED the record.
+/* diag_native_decode, plus whether the leg REFUSED the record, and whether
+ * it GATED it.
  *
  * *refused is true exactly when the leg refuses this record (version gate,
  * layout/truncation decline), and false for a completed parse, whatever its
  * row count. The two would otherwise collapse into the same 0 return, and the
  * census would count a refused record as decoded rather than dropped.
- * refused may be NULL. It is false whenever the return is -1. */
+ *
+ * *gated is true when the parse completed but the record, by its structure,
+ * can never yield an observation: today a 0xB0C0 on any channel other than
+ * BCCH-DL-SCH (PCCH paging, the CCCH/DCCH channels). An idle UE logs mostly
+ * paging, so without this the census reads a healthy 0xB0C0 leg as silent.
+ * Never true together with *refused. The leg's own observations still come
+ * back; the caller decides what a gated record with rows means.
+ *
+ * refused and gated may be NULL. Both are false whenever the return is -1. */
 int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload, size_t payload_len,
-        diag_native_obs_t *out_obs, size_t max_obs, bool *refused);
+        diag_native_obs_t *out_obs, size_t max_obs, bool *refused, bool *gated);
 
 /* The value diag_native_cell_config_learn returns for a 0xB197 the leg
  * refuses, distinct from 0 ("parsed, learned nothing") and -1
