@@ -240,6 +240,9 @@ protected:
 
     bool ssid_tracking_enabled;
 
+    size_t max_ssid_groups;
+    void trim_groups();
+
 };
 
 #endif /* ifndef PHY_80211_SSIDTRACKER */

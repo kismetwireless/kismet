@@ -24,6 +24,11 @@
 #include "trackedelement_workers.h"
 #include "messagebus.h"
 
+#include <algorithm>
+
+// Devices remembered per SSID group, per role
+constexpr size_t ssid_group_max_devices = 4096;
+
 dot11_tracked_ssid_group::dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p, const std::string& in_ssid, unsigned int in_ssid_len,
         size_t in_ssid_hash, unsigned int in_crypt_set) :
     tracker_component(p) {
@@ -94,7 +99,8 @@ void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_ma
 
 void dot11_tracked_ssid_group::add_advertising_device(std::shared_ptr<kis_tracked_device_base> device) {
     kis_lock_guard<kis_mutex> lk(mutex);
-    advertising_device_map->insert(device->get_key(), nullptr);
+    if (advertising_device_map->size() < ssid_group_max_devices)
+        advertising_device_map->insert(device->get_key(), nullptr);
 
     if (device->get_first_time() < get_first_time() || get_first_time() == 0)
         set_first_time(device->get_first_time());
@@ -105,7 +111,8 @@ void dot11_tracked_ssid_group::add_advertising_device(std::shared_ptr<kis_tracke
 
 void dot11_tracked_ssid_group::add_probing_device(std::shared_ptr<kis_tracked_device_base> device) {
     kis_lock_guard<kis_mutex> lk(mutex);
-    probing_device_map->insert(device->get_key(), nullptr);
+    if (probing_device_map->size() < ssid_group_max_devices)
+        probing_device_map->insert(device->get_key(), nullptr);
 
     if (device->get_first_time() < get_first_time() || get_first_time() == 0)
         set_first_time(device->get_first_time());
@@ -116,7 +123,8 @@ void dot11_tracked_ssid_group::add_probing_device(std::shared_ptr<kis_tracked_de
 
 void dot11_tracked_ssid_group::add_responding_device(std::shared_ptr<kis_tracked_device_base> device) {
     kis_lock_guard<kis_mutex> lk(mutex);
-    responding_device_map->insert(device->get_key(), nullptr);
+    if (responding_device_map->size() < ssid_group_max_devices)
+        responding_device_map->insert(device->get_key(), nullptr);
 
     if (device->get_first_time() < get_first_time() || get_first_time() == 0)
         set_first_time(device->get_first_time());
@@ -142,6 +150,9 @@ phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
 
     ssid_tracking_enabled = true;
 
+    max_ssid_groups =
+        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("dot11_max_ssid_groups", 10000);
+
     if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_ssids", true)) {
         _MSG_INFO("Disabling 802.11 SSID view (dot11_view_ssids=false in configuration)");
         ssid_tracking_enabled = false;
@@ -164,6 +175,29 @@ phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
                     return detail_endpoint_handler(con);
                 }));
 
+}
+
+// Over the cap, drop the least recently seen tenth so a beacon flood can't grow the
+// table forever or freeze out real networks.  Called under mutex.
+void phy_80211_ssid_tracker::trim_groups() {
+    if (max_ssid_groups == 0 || ssid_map.size() <= max_ssid_groups)
+        return;
+
+    std::vector<std::pair<time_t, size_t>> ages;
+    ages.reserve(ssid_map.size());
+
+    for (const auto& s : ssid_map)
+        ages.emplace_back(s.second->get_last_time(), s.first);
+
+    auto drop = ssid_map.size() - (max_ssid_groups - max_ssid_groups / 10);
+    std::nth_element(ages.begin(), ages.begin() + drop, ages.end());
+
+    for (size_t i = 0; i < drop; i++)
+        ssid_map.erase(ages[i].second);
+
+    ssid_vector->clear();
+    for (const auto& s : ssid_map)
+        ssid_vector->push_back(s.second);
 }
 
 phy_80211_ssid_tracker::~phy_80211_ssid_tracker() {
@@ -439,6 +473,7 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
         tssid->add_advertising_device(device);
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
+        trim_groups();
     } else {
         auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_advertising_device(device);
@@ -465,6 +500,7 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
         tssid->add_responding_device(device);
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
+        trim_groups();
     } else {
         auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_responding_device(device);
@@ -504,6 +540,7 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
         tssid->add_probing_device(device);
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
+        trim_groups();
     } else {
         auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_probing_device(device);
