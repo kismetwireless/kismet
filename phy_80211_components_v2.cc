@@ -75,6 +75,7 @@ void dot11_tracked_eapol_v2::filtered_as_json(std::ostream& os, json_adapter_v2:
             case json_adapter_v2::consthash("dot11.eapol.packet"):
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
                 json_adapter_v2::json_encode_keyed<kis_tracked_packet_v2>{}(os, f.second.rename, opts, packet_, subgroup);
+                break;
             default:
                 json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
         }
@@ -144,10 +145,13 @@ void dot11_tracked_ssid_alert_v2::set_ssid_regex(const std::string& regex) {
     const char *compile_error, *study_error;
     int erroroffset;
 
+    // Null each one so a failed compile below can't leave a freed pointer for the destructor
     if (ssid_re_)
         pcre_free(ssid_re_);
+    ssid_re_ = NULL;
     if (ssid_study_)
         pcre_free_study(ssid_study_);
+    ssid_study_ = NULL;
 
     ssid_regex_ = regex;
 
@@ -167,10 +171,13 @@ void dot11_tracked_ssid_alert_v2::set_ssid_regex(const std::string& regex) {
     PCRE2_SIZE erroroffset;
     int errornumber;
 
+    // Null each one so a failed compile below can't leave a freed pointer for the destructor
     if (ssid_match_data_)
         pcre2_match_data_free(ssid_match_data_);
+    ssid_match_data_ = nullptr;
     if (ssid_re_)
         pcre2_code_free(ssid_re_);
+    ssid_re_ = nullptr;
 
     ssid_regex_ = regex;
 
@@ -181,7 +188,7 @@ void dot11_tracked_ssid_alert_v2::set_ssid_regex(const std::string& regex) {
         PCRE2_UCHAR buffer[256];
         pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
         const auto e = fmt::format("Could not parse PCRE regex: {} at {}",
-                (int) erroroffset, (char *) buffer);
+                (char *) buffer, (int) erroroffset);
         throw std::runtime_error(e);
     }
 

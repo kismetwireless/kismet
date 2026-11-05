@@ -217,11 +217,12 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     jwt_auth_key = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_jwt_key", "");
     if (jwt_auth_key.length() == 0) {
         std::random_device rnd;
-        auto dist = std::uniform_int_distribution<uint8_t>(0, 0xFF);
+        // uint8_t isn't a valid uniform_int_distribution type
+        auto dist = std::uniform_int_distribution<unsigned int>(0, 0xFF);
         char rdata[16];
 
         for (auto i = 0; i < 16; i++)
-            rdata[i] = dist(rnd);
+            rdata[i] = static_cast<char>(dist(rnd));
 
         jwt_auth_key = std::string(rdata, 16);
     } else if (jwt_auth_key.length() < 8) {
@@ -1197,11 +1198,11 @@ std::string kis_net_beast_httpd::create_auth_impl(const std::string& name, const
 
 
     std::random_device rnd;
-    auto dist = std::uniform_int_distribution<uint8_t>(0, 0xFF);
+    auto dist = std::uniform_int_distribution<unsigned int>(0, 0xFF);
     uint8_t rdata[16];
 
     for (auto i = 0; i < 16; i++)
-        rdata[i] = dist(rnd);
+        rdata[i] = static_cast<uint8_t>(dist(rnd));
 
     auto token = uint8_to_hex_str(rdata, 16);
     auto auth = std::make_shared<kis_net_beast_auth>(token, name, role, expiry);
