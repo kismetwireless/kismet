@@ -63,6 +63,9 @@ public:
     std::string snapshot(const std::string& label, unsigned int post_seconds);
 
 protected:
+    void register_snapshot_route();
+    std::shared_ptr<kis_net_web_endpoint> snapshot_route;
+
     // Rotate the active ring file: close current, advance index, truncate
     // and open next. Called from inside the writer thread loop only.
     void rotate_ring();

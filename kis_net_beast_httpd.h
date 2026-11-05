@@ -121,6 +121,9 @@ public:
             const std::list<std::string>& role, const std::list<std::string>& extensions,
             std::shared_ptr<kis_net_web_endpoint> handler);
     void remove_route(const std::string& route);
+    // Remove every route served by this handler, without touching another
+    // owner's route on the same path
+    void remove_route(const std::shared_ptr<kis_net_web_endpoint>& handler);
 
     // These routes do NOT require authentication; this is of course very dangerous and should
     // be limited to those endpoints used for logging in, etc
@@ -868,6 +871,7 @@ public:
     void invoke(std::shared_ptr<kis_net_beast_httpd_connection> connection);
 
     std::string& route() { return route_; }
+    const std::shared_ptr<kis_net_web_endpoint>& get_handler() const { return handler; }
 
 protected:
     std::shared_ptr<kis_net_web_endpoint> handler;

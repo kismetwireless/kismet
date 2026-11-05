@@ -1132,6 +1132,15 @@ void kis_net_beast_httpd::remove_route(const std::string& route) {
     }
 }
 
+void kis_net_beast_httpd::remove_route(const std::shared_ptr<kis_net_web_endpoint>& handler) {
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd remove_route handler");
+
+    route_vec.erase(std::remove_if(route_vec.begin(), route_vec.end(),
+                [&handler](const std::shared_ptr<kis_net_beast_route>& r) {
+                    return r->get_handler() == handler;
+                }), route_vec.end());
+}
+
 void kis_net_beast_httpd::register_unauth_route(const std::string& route,
         const std::list<std::string>& verbs,
         std::shared_ptr<kis_net_web_endpoint> handler) {
