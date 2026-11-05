@@ -55,6 +55,7 @@
 #include <future>
 #include <exception>
 #include <string_view>
+#include <limits>
 #include <type_traits>
 
 #include <sys/time.h>
@@ -212,6 +213,16 @@ T string_to_n_dfl(const std::string& s, T dvalue) {
     } catch (const std::exception& e) {
         return dvalue;
     }
+}
+
+// First element of a page of results; saturates so a hostile page or length can't wrap
+constexpr unsigned int page_window_start(unsigned int page, unsigned int len) {
+    auto start = static_cast<uint64_t>(page) * len;
+
+    if (start > std::numeric_limits<unsigned int>::max())
+        return std::numeric_limits<unsigned int>::max();
+
+    return static_cast<unsigned int>(start);
 }
 
 // String compare, 1 true 0 false -1 unknown, or default value as provided
