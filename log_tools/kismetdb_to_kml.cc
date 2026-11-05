@@ -114,9 +114,9 @@ std::string CellDescription(const nlohmann::json& dev, const std::string& sep) {
     if (ident.length() > 0)
         ret += sep + "Identity:" + MungeForXML(ident);
 
-    auto obs = str("cellular.cell.observation_count");
-    if (obs.length() > 0)
-        ret += sep + "Observations:" + obs;
+    auto obs = c->find("cellular.cell.observation_count");
+    if (obs != c->end() && obs->is_number_integer())
+        ret += sep + "Observations:" + obs->dump();
 
     return ret;
 }
@@ -212,15 +212,15 @@ std::string WifiCryptToString(unsigned long cryptset) {
 // Specific points
 class kml_point {
 public:
-    double lat, lon, alt;
+    double lat = 0, lon = 0, alt = 0;
 };
 
 // Placemark cache
 class kml_placemark {
 public:
     // Running lat, lon, and alt, if we're computing it
-    double avg_lat, avg_lon, avg_alt;
-    double avg_2d_num, avg_alt_num;
+    double avg_lat = 0, avg_lon = 0, avg_alt = 0;
+    double avg_2d_num = 0, avg_alt_num = 0;
 
     // We might want to support multiple points per AP
     std::vector<kml_point> point_vec;
@@ -272,11 +272,11 @@ void add_placemarks_from_vec(FILE* ofile, std::vector<kml_placemark>& placemark_
 
         // add description
         pl.description = "Name:" + MungeForXML(pl.name) + "\n";
-        pl.description += pl.phy_layer + "\n";
-        pl.description += "Channel:" + pl.channel;
+        pl.description += MungeForXML(pl.phy_layer) + "\n";
+        pl.description += "Channel:" + MungeForXML(pl.channel);
 
         if (pl.crypt.length() > 0)
-            pl.description += "\nCrypt:" + pl.crypt;
+            pl.description += "\nCrypt:" + MungeForXML(pl.crypt);
 
         pl.description += pl.extra;
 
@@ -334,7 +334,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:e:vfsH", 
+                            "-hi:o:r:c:e:vfsHg", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -689,7 +689,7 @@ int main(int argc, char *argv[]) {
             pl.avg_lat = 0;
             pl.avg_lon = 0;
             pl.avg_2d_num = 0;
-            pl.avg_alt = 0;
+            pl.avg_alt_num = 0;
 
             auto packet_q = _SELECT(db, "packets", packet_fields,
                     _WHERE("sourcemac", EQ, devmac, AND, "phyname", EQ, phyname, AND, lat_col, NEQ, 0, AND, lon_col, NEQ, 0));
@@ -931,11 +931,11 @@ int main(int argc, char *argv[]) {
 
             // add description
             pl.description = "Name:" + MungeForXML(pl.name) + "\n";
-            pl.description += pl.phy_layer + "\n";
-            pl.description += "Channel:" + pl.channel;
+            pl.description += MungeForXML(pl.phy_layer) + "\n";
+            pl.description += "Channel:" + MungeForXML(pl.channel);
 
             if (pl.crypt.length() > 0)
-                pl.description += "\nCrypt:" + pl.crypt;
+                pl.description += "\nCrypt:" + MungeForXML(pl.crypt);
 
             pl.description += pl.extra;
 
