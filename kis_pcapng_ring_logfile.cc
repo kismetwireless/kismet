@@ -230,21 +230,21 @@ kis_pcapng_ring_logfile::kis_pcapng_ring_logfile(shared_log_builder in_builder) 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
     pack_comp_l1data = packetchain->register_packet_component("L1RAW");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+}
 
-    // Register the snapshot HTTP route here (logfile ctor), mirroring the
-    // pattern used by kis_databaselogfile / wiglecsv. `this` capture is safe
-    // because pcapng_ring_logfile_builder declares this log as a singleton —
-    // exactly one instance lives for the duration of the Kismet process.
-    // Kismet's beast HTTPD requires every route to have a `.<ext>` suffix
-    // even when the extensions list is empty — the route-match regex always
-    // appends \.([A-Za-z0-9]+). Declaring `cmd` here keeps the URL contract
-    // explicit and matches the pattern used by every other POST command
-    // endpoint in Kismet (see kis_databaselogfile.cc).
+// Registered while the log is open and removed on close, so a failed open, a
+// restart or a destroyed log never leaves the server calling into a stale instance.
+// Kismet's beast HTTPD requires every route to have a `.<ext>` suffix, hence `cmd`.
+void kis_pcapng_ring_logfile::register_snapshot_route() {
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
-    httpd->register_route("/logging/pcapng_ring/snapshot/:label",
-            {"POST"}, httpd->LOGON_ROLE, {"cmd"},
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    snapshot_route = std::make_shared<kis_net_web_function_endpoint>(
+                [this, weak = weak_from_this()](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto self = weak.lock();
+                    if (self == nullptr) {
+                        con->set_status(503);
+                        return;
+                    }
+
                     std::ostream ostream(&con->response_stream());
 
                     auto label = con->uri_params()[":label"];
@@ -286,7 +286,10 @@ kis_pcapng_ring_logfile::kis_pcapng_ring_logfile(shared_log_builder in_builder) 
                         out["error"] = what;
                         ostream << out.dump();
                     }
-                }));
+                });
+
+    httpd->register_route("/logging/pcapng_ring/snapshot/:label",
+            {"POST"}, httpd->LOGON_ROLE, {"cmd"}, snapshot_route);
 }
 
 kis_pcapng_ring_logfile::~kis_pcapng_ring_logfile() {
@@ -432,6 +435,8 @@ bool kis_pcapng_ring_logfile::open_log(const std::string& /*in_template*/,
 
     prune_t = std::thread([this]() { prune_loop(); });
 
+    register_snapshot_route();
+
     return true;
 }
 
@@ -521,6 +526,14 @@ void kis_pcapng_ring_logfile::close_log() {
 
     set_int_log_open(false);
     shutting_down = true;
+
+    if (snapshot_route != nullptr) {
+        auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
+        if (httpd != nullptr)
+            httpd->remove_route(snapshot_route);
+        snapshot_route.reset();
+    }
+
     // Wake any snapshot thread blocked in force_rotate_now() so it
     // returns false promptly instead of waiting the full 5s timeout.
     rotation_cv.notify_all();

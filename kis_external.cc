@@ -478,6 +478,18 @@ void kis_external_interface::close_external_impl() {
         s.second->locker->unlock();
     }
 
+    // Drop our proxied routes so the web server can't call into a closed interface
+    if (http_route_handlers.size()) {
+        auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
+
+        if (httpd != nullptr) {
+            for (const auto& h : http_route_handlers)
+                httpd->remove_route(h);
+        }
+
+        http_route_handlers.clear();
+    }
+
     // Under ext_mutex, which the ping timer takes; the datasource destructor waits for it
     timetracker->cancel_timer(ping_timer_id);
 
@@ -1195,9 +1207,15 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
     auto uri = std::string(uri_s, uri_sz);
     auto method = std::string(method_s, method_sz);
 
-    httpd->register_route(uri, {method}, httpd->LOGON_ROLE,
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    auto handler = std::make_shared<kis_net_web_function_endpoint>(
+                [this, weak = weak_from_this()](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                // Hold the interface for the whole request; a closed one has dropped its routes
+                auto self = weak.lock();
+                if (self == nullptr) {
+                    con->set_status(503);
+                    return;
+                }
+
                 kis_unique_lock<kis_mutex> l(ext_mutex, std::defer_lock,
                         fmt::format("proxied req {}", con->uri()));
                 l.lock();
@@ -1231,7 +1249,10 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
                 auto mi = http_proxy_session_map.find(sess_id);
                 if (mi != http_proxy_session_map.end())
                     http_proxy_session_map.erase(mi);
-                }));
+                });
+
+    http_route_handlers.push_back(handler);
+    httpd->register_route(uri, {method}, httpd->LOGON_ROLE, handler);
 }
 
 void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
@@ -1664,9 +1685,15 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    httpd->register_route(uri.uri(), {uri.method()}, httpd->LOGON_ROLE,
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    auto handler = std::make_shared<kis_net_web_function_endpoint>(
+                [this, weak = weak_from_this()](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    // Hold the interface for the whole request; a closed one has dropped its routes
+                    auto self = weak.lock();
+                    if (self == nullptr) {
+                        con->set_status(503);
+                        return;
+                    }
+
                     kis_unique_lock<kis_mutex> l(ext_mutex, std::defer_lock,
                             fmt::format("proxied req {}", con->uri()));
                     l.lock();
@@ -1700,7 +1727,10 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
                     auto mi = http_proxy_session_map.find(sess_id);
                     if (mi != http_proxy_session_map.end())
                         http_proxy_session_map.erase(mi);
-            }));
+            });
+
+    http_route_handlers.push_back(handler);
+    httpd->register_route(uri.uri(), {uri.method()}, httpd->LOGON_ROLE, handler);
 }
 
 void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,

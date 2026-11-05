@@ -569,6 +569,7 @@ protected:
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
+    std::vector<std::shared_ptr<kis_net_web_endpoint>> http_route_handlers;
 
     // send a specially hand-crafted ping to determine if we have a legacy v2 datasource
     unsigned int send_v2_probe_ping();
