@@ -705,7 +705,8 @@ void kis_datasource::handle_error(const std::string& in_error) {
 
     if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
-                get_source_name(), generate_source_definition(), get_source_interface(), in_error);
+                get_source_name(), redact_source_definition(generate_source_definition()),
+                get_source_interface(), in_error);
     }
 
     set_int_source_error(true);
@@ -1097,6 +1098,50 @@ std::string kis_datasource::generate_source_definition() {
     return ss.str();
 }
 
+
+bool kis_datasource::is_secret_definition_opt(const std::string& in_key) {
+    auto k = str_lower(in_key);
+
+    for (const auto& s : {"password", "passwd", "secret", "token", "psk", "apikey", "api_key"}) {
+        if (k.find(s) != std::string::npos)
+            return true;
+    }
+
+    return k == "key" || (k.size() > 4 && k.compare(k.size() - 4, 4, "_key") == 0);
+}
+
+std::string kis_datasource::redact_source_definition(const std::string& in_definition) {
+    auto cpos = in_definition.find(':');
+
+    if (cpos == std::string::npos)
+        return in_definition;
+
+    std::vector<opt_pair> options;
+
+    // Never echo a definition we can't split into options; it might hold a secret
+    if (string_to_opts(in_definition.substr(cpos + 1), ",", &options) < 0)
+        return in_definition.substr(0, cpos) + ":<redacted>";
+
+    std::stringstream ss;
+    ss << in_definition.substr(0, cpos) << ":";
+
+    bool comma = false;
+
+    for (const auto& o : options) {
+        if (comma)
+            ss << ",";
+        comma = true;
+
+        if (is_secret_definition_opt(o.opt))
+            ss << o.opt << "=<redacted>";
+        else if (o.val.find(',') != std::string::npos)
+            ss << o.opt << "=\"" << o.val << "\"";
+        else
+            ss << o.opt << "=" << o.val;
+    }
+
+    return ss.str();
+}
 
 std::map<std::string, std::string> kis_datasource::get_config_overrides(const std::string& in_key) {
     std::map<std::string, std::string> ret;
@@ -4134,7 +4179,7 @@ bool kis_datasource::launch_ipc() {
     }
 
     _MSG_ERROR("Data source '{} / {}' could not launch IPC helper", get_source_name(),
-            generate_source_definition());
+            redact_source_definition(generate_source_definition()));
 
     return false;
 }

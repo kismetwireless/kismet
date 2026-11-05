@@ -178,7 +178,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (unsigned
     if ((comma_pos != std::string::npos && colon_pos == std::string::npos) || comma_pos < colon_pos) {
         _MSG_ERROR("Found a ',' in the source definition '{}'.  Sources should be defined as "
                 "interface:option1,option2,... this is likely a typo in your 'source=' config "
-                "or in your '-c' option on the command line.", definition);
+                "or in your '-c' option on the command line.", definition.substr(0, comma_pos) + ",...");
         cancel();
         return;
     }
@@ -209,7 +209,8 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (unsigned
         int cancel_timer =
             timetracker->register_timer(std::chrono::seconds(2), false,
                     [self = shared_from_this()] (int) -> int {
-                        _MSG_ERROR("Datasource {} cancelling source probe due to timeout", self->definition);
+                        _MSG_ERROR("Datasource {} cancelling source probe due to timeout",
+                                kis_datasource::redact_source_definition(self->definition));
                         self->cancel();
                         return 0;
                     });
@@ -1061,7 +1062,8 @@ void datasource_tracker::trigger_deferred_startup() {
                         _MSG_INFO("Source '{}' ({}) definition override {}={} "
                                 "(applies on next open)",
                                 ds->get_source_name(), ds->get_source_uuid(),
-                                kv.key(), kv.value().get<std::string>());
+                                kv.key(), kis_datasource::is_secret_definition_opt(kv.key()) ?
+                                    std::string("<redacted>") : kv.value().get<std::string>());
 
                         ds->set_source_definition_override(kv.key(),
                                 kv.value().get<std::string>());
@@ -1331,12 +1333,12 @@ void datasource_tracker::launch_configured_sources() {
             dst->open_datasource(src,
                     [src](bool success, std::string reason, shared_datasource) {
                 if (success) {
-                    _MSG_INFO("Data source '{}' launched successfully", src);
+                    _MSG_INFO("Data source '{}' launched successfully", kis_datasource::redact_source_definition(src));
                 } else {
                     if (reason.length() != 0) {
-                        _MSG_ERROR("Data source '{}' failed to launch: {}", src, reason);
+                        _MSG_ERROR("Data source '{}' failed to launch: {}", kis_datasource::redact_source_definition(src), reason);
                     } else {
-                        _MSG_ERROR("Data source '{}' failed to launch, no error provided.", src);
+                        _MSG_ERROR("Data source '{}' failed to launch, no error provided.", kis_datasource::redact_source_definition(src));
                     }
                 }
             });
@@ -1672,7 +1674,8 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 lock.lock();
             } else {
                 // We got a builder
-                _MSG_INFO("Found type '{}' for '{}'", builder->get_source_type(), i->second->get_definition());
+                _MSG_INFO("Found type '{}' for '{}'", builder->get_source_type(),
+                        kis_datasource::redact_source_definition(i->second->get_definition()));
 
                 // Let go of the lock
                 lock.unlock();
