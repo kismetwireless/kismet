@@ -472,9 +472,9 @@ void kis_location_rrd_v2::as_json(std::ostream& os, json_adapter_v2::opts *opts)
     json_adapter_v2::json_encode_keyed_array<sample_iter_>{}(os, "kismet.gps.rrd.samples_100", opts,
             samples_tier1_.begin(), samples_tier1_.end());
     json_adapter_v2::json_encode_keyed_array<sample_iter_>{}(os, "kismet.gps.rrd.samples_10k", opts,
-            samples_tier1_.begin(), samples_tier2_.end());
+            samples_tier2_.begin(), samples_tier2_.end());
     json_adapter_v2::json_encode_keyed_array<sample_iter_>{}(os, "kismet.gps.rrd.samples_1m", opts,
-            samples_tier1_.begin(), samples_tier3_.end());
+            samples_tier3_.begin(), samples_tier3_.end());
 
     json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.gps.rrd.last_sample_ts", opts, last_sample_ts_);
 

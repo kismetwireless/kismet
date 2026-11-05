@@ -148,6 +148,11 @@ std::shared_ptr<entry_tracker::reserved_field> entry_tracker::register_field_def
         return field_iter->second;
     }
 
+    // Field ids are 16 bits; a wrapped id would alias an existing field
+    if (next_field_num > 0xFFFF)
+        throw std::runtime_error(fmt::format("entry_tracker can not register field '{}', all field "
+                    "ids are in use", in_name));
+
     auto definition = std::make_shared<reserved_field>();
     definition->field_id = next_field_num++;
     definition->field_name = in_name;

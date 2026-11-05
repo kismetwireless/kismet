@@ -637,7 +637,10 @@ void tracker_element_map::as_json(std::ostream& os, struct json_adapter::opts *o
         }
 
         if (as_vec) {
-            v->as_json(os, opts);
+            if (v == nullptr)
+                fmt::print(os, "0");
+            else
+                v->as_json(os, opts);
         } else {
             std::string tname;
             bool named = false;
@@ -672,8 +675,20 @@ void tracker_element_map::as_json(std::ostream& os, struct json_adapter::opts *o
 
             else
                 tname = json_adapter::sanitize_string(tname);
+
+            fmt::print(os, "\"{}\":", tname);
+
+            if (v == nullptr)
+                fmt::print(os, "0");
+            else
+                v->as_json(os, opts);
         }
     }
+
+    if (as_vec)
+        fmt::print(os, "{}", "]");
+    else
+        fmt::print(os, "{}", "}");
 }
 
 void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& in_summary) {
