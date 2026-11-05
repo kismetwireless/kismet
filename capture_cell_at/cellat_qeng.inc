@@ -736,6 +736,8 @@ static void inject_prov(char *json, size_t json_sz, const char *imei,
  *   19 fields  ...,SINR,tx_power,srxlev       EM06x-K
  *   18 fields  ...,SINR,srxlev                EG25-G, EG95, EM06, EM12/EM16
  * so fields[17] is CQI only in the 20-field form; elsewhere it is srxlev.
+ * CQI is only measured in RRC-connected state; an idle reply still fills
+ * the column (often with 0), so it is read only when the state is CONNECT.
  *
  * NR5G-SA field order (RM5xxQ manual only):
  *   +QENG: "servingcell","state","NR5G-SA","FDD/TDD",
@@ -820,9 +822,9 @@ static int parse_qeng_serving(const char *response, char json_out[][JSON_BUF_MAX
                 if (nf > 14) h_rsrq = parse_int(fields[14], &rsrq);
                 if (nf > 15) h_rssi = parse_int(fields[15], &rssi);
                 if (nf > 16) h_sinr = parse_int(fields[16], &sinr);
-                /* CQI only from the 20-field form (see above); 0 is a real
-                 * CQI, and 0..15 is the whole range. */
-                if (nf >= 20)
+                /* CQI only from the 20-field form while connected (see
+                 * above); 0 is a real CQI, and 0..15 is the whole range. */
+                if (nf == 20 && strcmp(fields[1], "CONNECT") == 0)
                     h_cqi = parse_int(fields[17], &cqi) && cqi >= 0 && cqi <= 15;
             } else if (strcmp(rat_raw, "NR5G-SA") == 0) {
                 /* +QENG: "servingcell","state","NR5G-SA","FDD/TDD",

@@ -51,7 +51,7 @@
             "interval_ms": 2000,
             "timeout_ms": 5000,
             "parser": "qeng_serving",
-            "notes": "LTE only. Field order: MCC,MNC,cellID,PCID,EARFCN,band,UL_BW,DL_BW,TAC,RSRP,RSRQ,RSSI,SINR,CQI"
+            "notes": "LTE only. Field order: MCC,MNC,cellID,PCID,EARFCN,band,UL_BW,DL_BW,TAC,RSRP,RSRQ,RSSI,SINR,srxlev (no CQI column)"
         },
         "neighbor": {
             "cmd": "AT+QENG=\"neighbourcell\"",

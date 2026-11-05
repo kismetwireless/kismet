@@ -61,8 +61,9 @@ RG500Q-EA, RG502Q-EA
 
 **Serving cell response format (LTE):**
 ```
-+QENG: "servingcell","state","LTE","FDD/TDD",MCC,MNC,cellID,PCID,EARFCN,band,UL_BW,DL_BW,TAC,RSRP,RSRQ,RSSI,SINR,CQI
++QENG: "servingcell","state","LTE","FDD/TDD",MCC,MNC,cellID,PCID,EARFCN,band,UL_BW,DL_BW,TAC,RSRP,RSRQ,RSSI,SINR,CQI,tx_power,srxlev
 ```
+CQI is read only from this 20-field form, and only when the state is `CONNECT`.
 
 ### Quectel RM520N-GL Series (5G NR + LTE, SDX62)
 
@@ -120,6 +121,9 @@ EM05-G, EM05-CE
 |---------|---------|---------|
 | `AT+QENG="servingcell"` | §6 Network Service | Serving cell info (LTE only) |
 | `AT+QENG="neighbourcell"` | §6 Network Service | Intra/inter-frequency LTE neighbor cells |
+
+The EG25-G LTE serving reply ends `...,RSSI,SINR,srxlev` (18 fields): it has no
+CQI column, so no CQI is reported for these modems.
 
 Note: `AT+QSCAN` is not available on the EC2x/EG2x series. `AT+COPS=?` is
 available but has been observed to hang the EG25-G, requiring a power cycle.
