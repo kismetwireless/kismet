@@ -19,6 +19,9 @@
 #include "config.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <optional>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -46,6 +49,71 @@ constexpr size_t tagged_data_max_size = 64 * 1024 * 1024;
 constexpr bool tagged_data_tag_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
         c == '.' || c == '_' || c == '-';
+}
+
+bool tagged_data_valid_tag(const std::string& tag) {
+    return !tag.empty() && tag.size() <= tagged_data_max_tag &&
+        std::all_of(tag.begin(), tag.end(), tagged_data_tag_char);
+}
+
+// Every API:<tag> snaptype sorts strictly between these
+constexpr const char *tagged_data_range_lo = "API:";
+constexpr const char *tagged_data_range_hi = "API;";
+
+constexpr int64_t tagged_data_default_limit = 100;
+constexpr int64_t tagged_data_max_limit = 1000;
+// A read stops adding records once they hold this much data; one record is always
+// returned, so a single large record can still be read
+constexpr size_t tagged_data_read_budget = 32 * 1024 * 1024;
+
+// Read options come from a JSON command, or from URI variables, where numbers are strings
+std::optional<double> tagged_data_num_opt(std::shared_ptr<kis_net_beast_httpd_connection> con,
+        const std::string& key, bool& bad) {
+    const auto& j = con->json();
+    if (j.is_object()) {
+        auto k = j.find(key);
+        if (k != j.end()) {
+            if (k->is_number() && std::isfinite(k->get<double>()))
+                return k->get<double>();
+            bad = true;
+            return std::nullopt;
+        }
+    }
+
+    auto v = con->http_variables().find(key);
+    if (v == con->http_variables().end())
+        return std::nullopt;
+
+    const auto& str = v->second;
+    char *end = nullptr;
+    errno = 0;
+    double d = str.empty() ? 0 : std::strtod(str.c_str(), &end);
+    if (str.empty() || errno != 0 || end != str.c_str() + str.size() || !std::isfinite(d)) {
+        bad = true;
+        return std::nullopt;
+    }
+    return d;
+}
+
+std::optional<std::string> tagged_data_str_opt(std::shared_ptr<kis_net_beast_httpd_connection> con,
+        const std::string& key, bool& bad) {
+    const auto& j = con->json();
+    if (j.is_object()) {
+        auto k = j.find(key);
+        if (k != j.end()) {
+            if (k->is_string())
+                return k->get<std::string>();
+            if (k->is_boolean())
+                return std::string{k->get<bool>() ? "true" : "false"};
+            bad = true;
+            return std::nullopt;
+        }
+    }
+
+    auto v = con->http_variables().find(key);
+    if (v == con->http_variables().end())
+        return std::nullopt;
+    return v->second;
 }
 
 }
@@ -337,6 +405,18 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
                 tagged_data_default_size);
     tagged_data_size = std::clamp<size_t>(tagged_data_size, tagged_data_min_size, tagged_data_max_size);
     httpd->set_route_body_limit(tagged_data_endp, tagged_data_size);
+
+    httpd->register_route("/logging/kismetdb/data/tags", {"GET", "POST"}, httpd->RO_ROLE, {"json"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return tagged_data_tags_endp_handler(con);
+                }));
+
+    httpd->register_route("/logging/kismetdb/data/records", {"GET", "POST"}, httpd->RO_ROLE, {"json"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return tagged_data_records_endp_handler(con);
+                }));
 
     httpd->register_route("/poi/list_poi", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -1757,8 +1837,7 @@ void kis_database_logfile::tagged_data_endp_handler(std::shared_ptr<kis_net_beas
         return fail(400, "tag has to be a string");
 
     const auto& tag = tag_k->get_ref<const std::string&>();
-    if (tag.empty() || tag.size() > tagged_data_max_tag ||
-            !std::all_of(tag.begin(), tag.end(), tagged_data_tag_char))
+    if (!tagged_data_valid_tag(tag))
         return fail(400, fmt::format("tag has to be 1 to {} letters, digits, '.', '_', or '-'",
                     tagged_data_max_tag));
 
@@ -1779,6 +1858,217 @@ void kis_database_logfile::tagged_data_endp_handler(std::shared_ptr<kis_net_beas
 
     ostream << nlohmann::json{{"ok", true}, {"tag", tag}, {"ts_sec", tv.tv_sec},
         {"ts_usec", tv.tv_usec}}.dump();
+}
+
+void kis_database_logfile::tagged_data_tags_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream ostream(&con->response_stream());
+    con->set_mime_type("application/json");
+
+    auto fail = [&](int status, const std::string& err) {
+        con->set_status(status);
+        ostream << nlohmann::json{{"ok", false}, {"error", err}}.dump();
+    };
+
+    auto ret = nlohmann::json::array();
+
+    {
+        db_writer_guard writer_lk(this);
+
+        if (!db_enabled)
+            return fail(400, "kismetdb log not enabled");
+
+        const std::string sql =
+            "SELECT snaptype, count(*), min(ts_sec), max(ts_sec) FROM snapshots "
+            "WHERE snaptype > ?1 AND snaptype < ?2 GROUP BY snaptype ORDER BY snaptype";
+
+        sqlite3_stmt *stmt = nullptr;
+        if (sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, nullptr) != SQLITE_OK) {
+            _MSG_ERROR("kis_database_logfile unable to query tagged data in {}: {}", ds_dbfile, sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return fail(500, "the kismetdb log couldn't be read");
+        }
+
+        sqlite3_bind_text(stmt, 1, tagged_data_range_lo, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, tagged_data_range_hi, -1, SQLITE_STATIC);
+
+        const auto prefix_len = strlen(tagged_data_prefix);
+
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            auto type = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+            if (type == nullptr || strlen(type) <= prefix_len)
+                continue;
+
+            ret.push_back({{"tag", type + prefix_len},
+                    {"count", sqlite3_column_int64(stmt, 1)},
+                    {"first_ts_sec", sqlite3_column_int64(stmt, 2)},
+                    {"last_ts_sec", sqlite3_column_int64(stmt, 3)}});
+        }
+
+        sqlite3_finalize(stmt);
+    }
+
+    ostream << ret.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+}
+
+void kis_database_logfile::tagged_data_records_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream ostream(&con->response_stream());
+    con->set_mime_type("application/json");
+
+    auto fail = [&](int status, const std::string& err) {
+        con->set_status(status);
+        ostream << nlohmann::json{{"ok", false}, {"error", err}}.dump();
+    };
+
+    bool bad = false;
+
+    auto tag = tagged_data_str_opt(con, "tag", bad);
+    if (bad || (tag.has_value() && !tagged_data_valid_tag(*tag)))
+        return fail(400, fmt::format("tag has to be 1 to {} letters, digits, '.', '_', or '-'",
+                    tagged_data_max_tag));
+
+    auto after = tagged_data_num_opt(con, "after", bad);
+    if (bad || (after.has_value() && (*after < 0 || *after > 9e15 || *after != std::floor(*after))))
+        return fail(400, "after has to be a record id");
+
+    auto limit = tagged_data_num_opt(con, "limit", bad);
+    if (bad || (limit.has_value() && (*limit < 1 || *limit > tagged_data_max_limit ||
+                    *limit != std::floor(*limit))))
+        return fail(400, fmt::format("limit has to be a whole number from 1 to {}", tagged_data_max_limit));
+
+    auto ts_start = tagged_data_num_opt(con, "ts_start", bad);
+    auto ts_end = tagged_data_num_opt(con, "ts_end", bad);
+    if (bad)
+        return fail(400, "ts_start and ts_end have to be times in seconds");
+
+    bool with_data = true;
+    auto data_opt = tagged_data_str_opt(con, "data", bad);
+    if (data_opt.has_value()) {
+        if (*data_opt == "true" || *data_opt == "1")
+            with_data = true;
+        else if (*data_opt == "false" || *data_opt == "0")
+            with_data = false;
+        else
+            bad = true;
+    }
+    if (bad)
+        return fail(400, "data has to be true or false");
+
+    const int64_t max_rows = limit.has_value() ? static_cast<int64_t>(*limit) : tagged_data_default_limit;
+
+    struct record {
+        int64_t id, ts_sec, ts_usec, size;
+        double lat, lon;
+        std::string tag, json;
+    };
+
+    std::vector<record> records;
+    bool more = false;
+
+    // Rows are copied out under the log lock and written after it's released, so a slow
+    // client never holds up logging
+    {
+        db_writer_guard writer_lk(this);
+
+        if (!db_enabled)
+            return fail(400, "kismetdb log not enabled");
+
+        const std::string sql = fmt::format(
+            "SELECT rowid, snaptype, ts_sec, ts_usec, lat, lon, {} FROM snapshots "
+            "WHERE rowid > ?1 AND {} "
+            "AND ts_sec + ts_usec / 1000000.0 >= ?4 AND ts_sec + ts_usec / 1000000.0 <= ?5 "
+            "ORDER BY rowid LIMIT ?6",
+            with_data ? "json" : "length(CAST(json AS BLOB))",
+            tag.has_value() ? "snaptype = ?2" : "snaptype > ?2 AND snaptype < ?3");
+
+        sqlite3_stmt *stmt = nullptr;
+        if (sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, nullptr) != SQLITE_OK) {
+            _MSG_ERROR("kis_database_logfile unable to query tagged data in {}: {}", ds_dbfile, sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return fail(500, "the kismetdb log couldn't be read");
+        }
+
+        const std::string snaptype = tag.has_value() ? tagged_data_prefix + *tag : "";
+
+        sqlite3_bind_int64(stmt, 1, after.has_value() ? static_cast<int64_t>(*after) : 0);
+        if (tag.has_value()) {
+            sqlite3_bind_text(stmt, 2, snaptype.c_str(), snaptype.length(), SQLITE_STATIC);
+        } else {
+            sqlite3_bind_text(stmt, 2, tagged_data_range_lo, -1, SQLITE_STATIC);
+            sqlite3_bind_text(stmt, 3, tagged_data_range_hi, -1, SQLITE_STATIC);
+        }
+        sqlite3_bind_double(stmt, 4, ts_start.has_value() ? *ts_start : -1e18);
+        sqlite3_bind_double(stmt, 5, ts_end.has_value() ? *ts_end : 1e18);
+        // One more than asked for, to know whether there are more
+        sqlite3_bind_int64(stmt, 6, max_rows + 1);
+
+        const auto prefix_len = strlen(tagged_data_prefix);
+        size_t total = 0;
+
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            if (static_cast<int64_t>(records.size()) >= max_rows ||
+                    (!records.empty() && total >= tagged_data_read_budget)) {
+                more = true;
+                break;
+            }
+
+            record r;
+            r.id = sqlite3_column_int64(stmt, 0);
+            auto type = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+            if (type != nullptr && strlen(type) > prefix_len)
+                r.tag = type + prefix_len;
+            r.ts_sec = sqlite3_column_int64(stmt, 2);
+            r.ts_usec = sqlite3_column_int64(stmt, 3);
+            r.lat = sqlite3_column_double(stmt, 4);
+            r.lon = sqlite3_column_double(stmt, 5);
+
+            if (with_data) {
+                auto txt = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 6));
+                auto len = sqlite3_column_bytes(stmt, 6);
+                if (txt != nullptr && len > 0)
+                    r.json.assign(txt, len);
+                r.size = len;
+            } else {
+                r.size = sqlite3_column_int64(stmt, 6);
+            }
+
+            total += r.json.size();
+            records.push_back(std::move(r));
+        }
+
+        sqlite3_finalize(stmt);
+    }
+
+    ostream << "{\"ok\":true,\"records\":[";
+
+    bool first = true;
+    for (const auto& r : records) {
+        auto head = nlohmann::json{{"id", r.id}, {"tag", r.tag}, {"ts_sec", r.ts_sec},
+            {"ts_usec", r.ts_usec}, {"lat", r.lat}, {"lon", r.lon}, {"size", r.size}}.dump(-1, ' ', false,
+                    nlohmann::json::error_handler_t::replace);
+
+        ostream << (first ? "" : ",");
+        first = false;
+
+        if (!with_data) {
+            ostream << head;
+            continue;
+        }
+
+        // The push API stores compact JSON; it's checked without building the document,
+        // then copied as-is
+        head.pop_back();
+        ostream << head << ",\"data\":";
+        if (!r.json.empty() && nlohmann::json::accept(r.json))
+            ostream << r.json;
+        else
+            ostream << "null";
+        ostream << "}";
+    }
+
+    ostream << "],\"more\":" << (more ? "true" : "false");
+    if (!records.empty())
+        ostream << ",\"next\":" << records.back().id;
+    ostream << "}";
 }
 
 std::shared_ptr<tracker_element>
