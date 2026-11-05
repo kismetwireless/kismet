@@ -1181,9 +1181,12 @@ void device_rules::filter_devices(const std::string& filter, const std::string& 
     size_t n = 0;
 
     for (const auto& d : *devices) {
-        if ((++n & 63) == 0 && std::chrono::steady_clock::now() > deadline)
-            throw devicerules::parse_error("the filter took longer than " +
+        if ((++n & 63) == 0 && std::chrono::steady_clock::now() > deadline) {
+            devicerules::parse_error pe("the filter took longer than " +
                     std::to_string(max_query_time.count()) + " seconds", 0, 0);
+            pe.origin = "filter";
+            throw pe;
+        }
 
         auto dev = std::static_pointer_cast<kis_tracked_device_base>(d);
         kis_device_lock dlk(dev, true);
