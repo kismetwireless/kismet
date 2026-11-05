@@ -26,7 +26,7 @@
     that modem. Do not "tidy" them -- the "-" placeholders and the field counts
     are the parser's actual input.
 
-    The free oracle: the same physical cell (PCI 221, EARFCN 66536) is reported
+    The free oracle: the same physical cell (PCI 9, EARFCN 66536) is reported
     by BOTH AT+QENG="servingcell" and AT+QENG="neighbourcell" in the same poll
     cycle, and the neighbour path decodes RSSI independently. So the two
     paths must agree on -56 -- that cross-check is what makes this a real
@@ -86,7 +86,7 @@ static void check_lacks(const char *json, const char *frag, const char *what) {
 
 /* --- the anchor: RM520N-GL on Verizon B66, verbatim from the transcript --- */
 static const char *SERVING_LTE =
-    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,0,-,29\n"
     "OK\n";
 
@@ -95,26 +95,26 @@ static const char *SERVING_LTE =
  * form (EG25-G and kin; fields[17] is srxlev, here a CQI-looking 7) and the 19-field form (EM06x-K;
  * tx_power then srxlev), and two 20-field CQIs. */
 static const char *SERVING_LTE_18 =
-    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,7\n"   /* srxlev 7: inside CQI's 0..15, so only the field count can tell */
     "OK\n";
 static const char *SERVING_LTE_19 =
-    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,-,7\n"
     "OK\n";
 static const char *SERVING_LTE_CQI9 =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,9,-,29\n"
     "OK\n";
 static const char *SERVING_LTE_CQI_BAD =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,221,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
     "66,5,5,BBB,-96,-11,-56,14,16,-,29\n"
     "OK\n";
 
-/* Same poll cycle, same physical cell (PCI 221 / EARFCN 66536) via the
+/* Same poll cycle, same physical cell (PCI 9 / EARFCN 66536) via the
  * neighbour path. */
 static const char *NEIGHBOUR_LTE =
-    "+QENG: \"neighbourcell intra\",\"LTE\",66536,221,-10,-96,-56,-,29,7,8,4,255\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",66536,9,-10,-96,-56,-,29,7,8,4,255\n"
     "OK\n";
 
 /* --- a SIM-less EG25-G at LIMSRV, verbatim from a cellat transcript ---
@@ -128,8 +128,8 @@ static const char *NEIGHBOUR_LTE =
  * to earfcn_to_band() lands inside B2 (600-1199). A GSM row reaching the
  * observation layer would render as "LTE B2" in WiGLE-bound output. */
 static const char *NEIGHBOUR_EG25G_MIXED =
-    "+QENG: \"neighbourcell intra\",\"LTE\",2300,236,-16,-101,-65,-20,22,6,2,0,46\n"
-    "+QENG: \"neighbourcell intra\",\"LTE\",2300,471,-17,-104,-78,-20,19,6,2,0,46\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",2300,7,-16,-101,-65,-20,22,6,2,0,46\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",2300,8,-17,-104,-78,-20,19,6,2,0,46\n"
     "+QENG: \"neighbourcell inter\",\"LTE\",900,-,-,-,-,-,-,0,8,5\n"
     "+QENG: \"neighbourcell inter\",\"LTE\",5035,-,-,-,-,-,-,0,8,2\n"
     "+QENG: \"neighbourcell\",\"GSM\",685,0,4,10,255,1,0,-1920,0\n"
@@ -153,7 +153,7 @@ static const char *NEIGHBOUR_EG25G_MIXED =
  * value, so a parser that kept the last one would re-report on every poll of a
  * modem emitting two. */
 static const char *NEIGHBOUR_UNKNOWN_RAT =
-    "+QENG: \"neighbourcell intra\",\"LTE\",2300,236,-16,-101,-65,-20,22,6,2,0,46\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",2300,7,-16,-101,-65,-20,22,6,2,0,46\n"
     "+QENG: \"neighbourcell\",\"NR5G-XX\",123456,505,-11,-88,-,-,-,-,-\n"
     "+QENG: \"neighbourcell\",\"ZZ-RAT\",654321,101,-12,-90,-,-,-,-,-\n"
     "OK\n";
@@ -228,7 +228,7 @@ int main(void) {
         check_has(obs[0], "\"tac\":3003", "tac 0xBBB decoded as hex");
         check_has(obs[0], "\"mcc\":\"311\"", "mcc (as-broadcast string)");
         check_has(obs[0], "\"mnc\":\"480\"", "mnc (as-broadcast string)");
-        check_has(obs[0], "\"pci\":221", "pci");
+        check_has(obs[0], "\"pci\":9", "pci");
         check_has(obs[0], "\"earfcn\":66536", "earfcn");
         check_has(obs[0], "\"band\":66", "band");
         /* DL_BW 5 is the enum for 20 MHz. AT+QSCAN reports the same B66
@@ -238,7 +238,7 @@ int main(void) {
         check_lacks(obs[0], "\"bandwidth\":5,", "the raw enum index is NOT emitted");
     }
 
-    printf("\n[2] the free oracle -- both paths see PCI 221 and must agree\n");
+    printf("\n[2] the free oracle -- both paths see PCI 9 and must agree\n");
     {
         char nobs[MAX_OBS][JSON_BUF_MAX];
         int nn = parse_qeng_neighbor(NEIGHBOUR_LTE, nobs, MAX_OBS, NULL);
@@ -248,7 +248,7 @@ int main(void) {
             /* The actual cross-check: serving and neighbour reports of the SAME
              * cell in the SAME poll must not disagree about its RSSI. */
             check(json_has(obs[0], "\"rssi\":-56") && json_has(nobs[0], "\"rssi\":-56"),
-                  "serving and neighbour agree on rssi for PCI 221");
+                  "serving and neighbour agree on rssi for PCI 9");
         }
     }
 
@@ -443,7 +443,7 @@ int main(void) {
         /* ...and prove the LTE EARFCNs DID land, so the check above is not
          * passing merely because nothing was parsed. */
         check_has(nobs[0], "\"earfcn\":2300", "the LTE rows kept their earfcn");
-        check_has(nobs[0], "\"pci\":236", "...and their pci");
+        check_has(nobs[0], "\"pci\":7", "...and their pci");
 
         /* The rendered suffix for the existing `observation: N cells` line. */
         check(qeng_drops_summary(&d, summary, sizeof(summary)) > 0,

@@ -1050,7 +1050,7 @@ static int selftest(void) {
     expect_same("whitespace is not content", "{ \"a\" : [1, 2] }", "{\"a\":[1,2]}");
     expect_differ("int and float stay distinct", "{\"x\":2300}", "{\"x\":2300.0}");
     expect_differ("a missing key is a difference",
-                  "{\"rsrp\":-104.19,\"pci\":236}", "{\"pci\":236}");
+                  "{\"rsrp\":-104.19,\"pci\":7}", "{\"pci\":7}");
     expect_differ("adjacent doubles stay distinct", "{\"x\":1000.0}", "{\"x\":1000.0000000000001}");
     expect_canon("trailing garbage rejected", "{\"a\":1} x", NULL);
     expect_canon("truncated rejected", "{\"a\":", NULL);

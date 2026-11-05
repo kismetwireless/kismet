@@ -1584,7 +1584,7 @@ static int parse_gstatus(const char *response, int serial_fd,
              *   EARFCN MCC MNC TAC CID(hex) Bd D U SNR PCI RSRQ RSRP RSSI RXLV
              *
              * Example:
-             *   66786 310 260 6699 01A2B302 66 5 5 -1 236 -14.9 -103.3 -66.6 20
+             *   66786 310 260 6699 01A2B302 66 5 5 -1 7 -14.9 -103.3 -66.6 20
              */
             char lte_resp[4096];
             int n = at_command(serial_fd, "AT!LTEINFO?", lte_resp, sizeof(lte_resp), 5000);
@@ -1914,7 +1914,7 @@ static long earfcn_to_freq_khz(long earfcn) {
  *   SINR:1.0
  *   CGI:310260
  *   TX_PWR:0
- *   PCI:236
+ *   PCI:7
  */
 static int parse_scellinfo(const char *response, char json_out[][JSON_BUF_MAX],
                            int max_obs) {
