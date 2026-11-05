@@ -254,13 +254,13 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
         if (length_k != con->http_variables().end()) {
             in_window_len = string_to_n<unsigned int>(length_k->second);
 
-            in_window_start *= in_window_len;
+            in_window_start = page_window_start(in_window_start, in_window_len);
         } else {
             length_k = con->http_variables().find("size");
             if (length_k != con->http_variables().end())
                 in_window_len = string_to_n<unsigned int>(length_k->second);
 
-            in_window_start *= in_window_len;
+            in_window_start = page_window_start(in_window_start, in_window_len);
         }
 
         // Set the window elements for datatables
@@ -361,7 +361,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     tracker_element_vector::iterator si = std::next(next_work_vec->begin(), in_window_start);
     tracker_element_vector::iterator ei;
 
-    if (in_window_len + in_window_start >= next_work_vec->size() || in_window_len == 0)
+    if (in_window_len == 0 || in_window_len >= next_work_vec->size() - in_window_start)
         ei = next_work_vec->end();
     else
         ei = std::next(next_work_vec->begin(), in_window_start + in_window_len);
