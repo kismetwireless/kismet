@@ -182,6 +182,7 @@ void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt)
     // if we can't activate the filter b/c the phy is unknown
 
     // Copy the filter-engine code over to the new one
+    std::unique_lock<std::shared_mutex> tlk(phy_mac_filter_mutex);
     phy_mac_filter_map[phy->fetch_phy_id()] = unknown_key->second;
     unknown_phy_mac_filter_map.erase(unknown_key);
 }
@@ -268,6 +269,8 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
 	}
 
 	// Set known phy types
+    std::unique_lock<std::shared_mutex> tlk(phy_mac_filter_mutex);
+
     if (in_block == "source")
         phy_mac_filter_map[phy->fetch_phy_id()].filter_source[in_mac] = value;
     else if (in_block == "destination")
@@ -352,6 +355,8 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
         return;
 	}
 
+    std::unique_lock<std::shared_mutex> tlk(phy_mac_filter_mutex);
+
     if (in_block == "source") {
         auto k = phy_mac_filter_map[phy->fetch_phy_id()].filter_source.find(in_mac);
         if (k != phy_mac_filter_map[phy->fetch_phy_id()].filter_source.end())
@@ -434,6 +439,8 @@ bool packet_filter_mac_addr::filter_packet(std::shared_ptr<kis_packet> packet) {
 bool packet_filter_mac_addr::filter_packet(const kis_packet* packet) {
     if (!packet->common_info.common_info_ok)
         return get_filter_default();
+
+    std::shared_lock<std::shared_mutex> tlk(phy_mac_filter_mutex);
 
     auto phy_filter_group =
         phy_mac_filter_map.find(packet->common_info.phyid);
