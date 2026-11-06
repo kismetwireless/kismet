@@ -4044,10 +4044,13 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     }
 
-    /* Send errors tied to this sequence number and exit */
+    /* Failures go back as a list report with a nonzero code (0 is success for
+     * list reports, unlike probe/open/config) and the error text */
     if (!success) {
-        n = cf_send_error(caph, seq, msg);
-        return n;
+        len = 0;
+
+        if (msg != NULL)
+            est_len += strlen(msg);
     } else if (msg != NULL && strlen(msg) != 0) {
         /* Send messages independently not tied to this sequence,
          * they're just informational */
@@ -4080,7 +4083,7 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     seqno = cf_get_next_seqno(caph);
 
     meta =
-        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_LISTREPORT, seqno, 0, est_len);
+        cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_LISTREPORT, seqno, success ? 0 : 1, est_len);
 
     if (meta == NULL) {
         return 0;
@@ -4092,6 +4095,11 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_SEQNO);
     mpack_write_u32(&writer, seq);
+
+    if (!success && msg != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_MSG);
+        mpack_write_cstr(&writer, msg);
+    }
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_VERSION);
     mpack_write_cstr(&writer, version);
