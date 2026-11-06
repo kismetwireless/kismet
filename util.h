@@ -54,6 +54,7 @@
 #include <sstream>
 #include <future>
 #include <exception>
+#include <optional>
 #include <string_view>
 #include <limits>
 #include <type_traits>
@@ -431,6 +432,9 @@ std::string kis_strerror_r(int errnum);
 // Replace a file with data readable only by the user, via a temp file and rename so a
 // crash never leaves half a file and a planted link isn't followed; false and err on failure
 bool write_private_file(const std::string& path, const std::string& data, std::string& err);
+
+// realpath() as a string, or nullopt when the path can't be resolved (errno is set)
+std::optional<std::string> realpath_string(const std::string& path);
 
 double ts_to_double(struct timeval ts);
 double ts_now_to_double();

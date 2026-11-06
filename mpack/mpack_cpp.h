@@ -36,4 +36,19 @@ protected:
     mpack_tree_t tree;
 };
 
+// Owns the buffer a growable writer allocates, so no return or throw can leak it
+class mpack_growable_buf {
+public:
+    mpack_growable_buf() { }
+    ~mpack_growable_buf() {
+        MPACK_FREE(data);
+    }
+
+    mpack_growable_buf(const mpack_growable_buf&) = delete;
+    mpack_growable_buf& operator=(const mpack_growable_buf&) = delete;
+
+    char *data = nullptr;
+    size_t size = 0;
+};
+
 #endif

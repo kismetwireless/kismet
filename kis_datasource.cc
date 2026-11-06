@@ -2649,13 +2649,12 @@ unsigned int kis_datasource::send_configure_channel_v3(const std::string& in_cha
         in_transaction = next_transaction++;
     }
 
-    char *data = NULL;
-    size_t size;
+    mpack_growable_buf buf;
     uint32_t seqno = 0;
 
     mpack_writer_t writer;
 
-    mpack_writer_init_growable(&writer, &data, &size);
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
     mpack_build_map(&writer);
 
@@ -2665,10 +2664,6 @@ unsigned int kis_datasource::send_configure_channel_v3(const std::string& in_cha
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to serialize v3 CONFIGREQ");
@@ -2680,13 +2675,9 @@ unsigned int kis_datasource::send_configure_channel_v3(const std::string& in_cha
         }
     }
 
-    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, data, size);
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, buf.data, buf.size);
 
     if (seqno == 0) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to send v3 CONFIGREQ");
@@ -2715,13 +2706,12 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
         in_transaction = next_transaction++;
     }
 
-    char *data = NULL;
-    size_t size;
+    mpack_growable_buf buf;
     uint32_t seqno = 0;
 
     mpack_writer_t writer;
 
-    mpack_writer_init_growable(&writer, &data, &size);
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
     mpack_build_map(&writer); // total map
 
@@ -2750,10 +2740,6 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
     mpack_complete_map(&writer); // total map
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to serialize v3 CONFIGREQ");
@@ -2765,13 +2751,9 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
         }
     }
 
-    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, data, size);
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_CONFIGREQ, 0, 1, buf.data, buf.size);
 
     if (seqno == 0) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to send v3 CONFIGREQ");
@@ -2831,13 +2813,12 @@ unsigned int kis_datasource::send_open_source_v3(const std::string& in_definitio
         in_transaction = next_transaction++;
     }
 
-    char *data = NULL;
-    size_t size;
+    mpack_growable_buf buf;
     uint32_t seqno = 0;
 
     mpack_writer_t writer;
 
-    mpack_writer_init_growable(&writer, &data, &size);
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
     mpack_build_map(&writer);
 
@@ -2847,10 +2828,6 @@ unsigned int kis_datasource::send_open_source_v3(const std::string& in_definitio
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to serialize v3 OPENREQ");
@@ -2862,13 +2839,9 @@ unsigned int kis_datasource::send_open_source_v3(const std::string& in_definitio
         }
     }
 
-    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_OPENREQ, 0, 1, data, size);
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_OPENREQ, 0, 1, buf.data, buf.size);
 
     if (seqno == 0) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to send v3 OPENREQ");
@@ -2895,13 +2868,12 @@ unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definiti
         in_transaction = next_transaction++;
     }
 
-    char *data = NULL;
-    size_t size;
+    mpack_growable_buf buf;
     uint32_t seqno = 0;
 
     mpack_writer_t writer;
 
-    mpack_writer_init_growable(&writer, &data, &size);
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
     mpack_build_map(&writer);
 
@@ -2911,10 +2883,6 @@ unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definiti
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to serialize v3 PROBEREQ");
@@ -2926,13 +2894,9 @@ unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definiti
         }
     }
 
-    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_PROBEREQ, 0, 1, data, size);
+    seqno = send_packet_v3(KIS_EXTERNAL_V3_KDS_PROBEREQ, 0, 1, buf.data, buf.size);
 
     if (seqno == 0) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         if (in_cb != NULL) {
             lk.unlock();
             in_cb(in_transaction, false, "failed to send v3 PROBEREQ");

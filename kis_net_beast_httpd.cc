@@ -1513,47 +1513,27 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
         auto modified_fpath = sd.path + "/" + uri.substr(sd.prefix.length(), uri.length());
 
-        char *modified_realpath = nullptr;
-        char *base_realpath = realpath(sd.path.c_str(), nullptr);
+        const auto base_realpath = realpath_string(sd.path);
+        const auto modified_realpath = realpath_string(modified_fpath);
 
-        modified_realpath = realpath(modified_fpath.c_str(), nullptr);
-
-        if (modified_realpath == nullptr || base_realpath == nullptr) {
-            if (modified_realpath)
-                free(modified_realpath);
-
-            if (base_realpath)
-                free(base_realpath);
-
+        if (!base_realpath || !modified_realpath)
             continue;
-        }
 
         // A matching path prefix alone can also match a sibling directory.
-        const size_t base_len = std::strlen(base_realpath);
-        if (std::strncmp(modified_realpath, base_realpath, base_len) != 0 ||
-                (base_realpath[base_len - 1] != '/' &&
-                 modified_realpath[base_len] != '/' &&
-                 modified_realpath[base_len] != '\0')) {
-            if (modified_realpath)
-                free(modified_realpath);
-            if (base_realpath)
-                free(base_realpath);
+        const auto& base = *base_realpath;
+        const auto& modified = *modified_realpath;
+        if (!modified.starts_with(base) ||
+                (base.back() != '/' && modified.size() > base.size() &&
+                 modified[base.size()] != '/'))
             continue;
-        }
 
         // Only regular files; a directory opens, but reading it fails and the request hangs
         struct stat st;
-        if (stat(modified_realpath, &st) != 0 || !S_ISREG(st.st_mode)) {
-            free(modified_realpath);
-            free(base_realpath);
+        if (stat(modified.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
             continue;
-        }
 
         boost::beast::http::file_body::value_type body;
-        body.open(modified_realpath, boost::beast::file_mode::scan, ec);
-
-        free(modified_realpath);
-        free(base_realpath);
+        body.open(modified.c_str(), boost::beast::file_mode::scan, ec);
 
         if (ec == boost::beast::errc::no_such_file_or_directory) {
             continue;
@@ -2171,6 +2151,16 @@ bool kis_net_beast_httpd_connection::start() {
 
             std::ostream os(&response_stream_);
             os << "ERROR: " << e.what();
+        } catch (...) {
+            // Anything else leaving this detached thread would end the server
+            try {
+                set_status(500);
+            } catch (...) {
+                ;
+            }
+
+            std::ostream os(&response_stream_);
+            os << "ERROR: unknown error";
         }
 
         response_stream_.complete();
