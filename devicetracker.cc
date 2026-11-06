@@ -1532,6 +1532,7 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
 
     }
 
+    device->set_if_earlier_first_time(in_pack->ts.tv_sec);
     device->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     if (in_flags & UCD_UPDATE_PACKETS) {

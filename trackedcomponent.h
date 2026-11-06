@@ -472,6 +472,15 @@ class tracker_component : public tracker_element_map {
         } \
     }
 
+// Keeps the earliest nonzero time, for first-seen fields when packets are handled out of order
+#define __ProxySetIfEarlier(name, ptype, rtype, cvar) \
+    inline void set_if_earlier_##name(rtype i) { \
+        const auto cur = cvar->get(); \
+        if (i != 0 && (cur == 0 || i < cur)) { \
+            cvar->set(i); \
+        } \
+    }
+
 // Proxy increment and decrement functions, with mutex
 #define __ProxyIncDecM(name, ptype, rtype, cvar, mutex) \
     inline void inc_##name() { \

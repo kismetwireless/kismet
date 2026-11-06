@@ -1779,7 +1779,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             if (!source_kis_802154->has_key_state() ||
                     source_kis_802154->get_key_state() != zigbee_key_state::known) {
                 source_kis_802154->set_key_state(zigbee_key_state::known);
-                source_kis_802154->set_key_first_time(Globalreg::globalreg->last_tv_sec);
+                source_kis_802154->set_key_first_time(in_pack->ts.tv_sec);
             }
 
             source_kis_802154->set_key_status(checked == 0 ?

@@ -198,7 +198,9 @@ public:
         agg_x_{0},
         agg_y_{0},
         agg_z_{0},
-        agg_a_{0} { }
+        agg_a_{0},
+        num_avg_{0},
+        num_alt_avg_{0} { }
 
     virtual ~kis_tracked_location_v2() { }
 
@@ -207,6 +209,9 @@ public:
         max_loc_.reset();
         avg_loc_.reset();
         last_loc_.reset();
+
+        agg_x_ = agg_y_ = agg_z_ = agg_a_ = 0;
+        num_avg_ = num_alt_avg_ = 0;
     }
 
     void add_loc(const kis_gps_packinfo* p);

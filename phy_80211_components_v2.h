@@ -443,7 +443,7 @@ public:
         ssid_ = {};
         ssid_len_ = 0;
 
-        bssid_ = {};
+        bssid_ = mac_addr{};
 
         first_time_ = 0;
         last_time_ = 0;
@@ -486,7 +486,7 @@ public:
     const auto first_time() { return first_time_; }
     template<typename T> void set_first_time(T time) { first_time_ = time; }
     template<typename T> void set_first_time_ifless(T time) {
-        if (time < first_time_) {
+        if (time != 0 && (first_time_ == 0 || static_cast<uint64_t>(time) < first_time_)) {
             first_time_ = time;
         }
     }
@@ -494,7 +494,7 @@ public:
     const auto last_time() { return last_time_; }
     template<typename T> void set_last_time(T time) { last_time_ = time; }
     template<typename T> void set_last_time_ifgreater(T time) {
-        if (last_time_ < time) {
+        if (last_time_ < static_cast<uint64_t>(time)) {
             last_time_ = time;
         }
     }
@@ -673,7 +673,7 @@ public:
 
         owe_ssid_ = {};
         owe_ssid_len_ = 0;
-        owe_bssid_ = {};
+        owe_bssid_ = mac_addr{};
 
         ssid_beacon_ = false;
         ssid_probe_response_ = false;
@@ -737,7 +737,7 @@ public:
         airmax_version_ = 0;
         airmax_radioname_ = {};
         airmax_ssid_ = {};
-        airmax_radio_mac_ = {};
+        airmax_radio_mac_ = mac_addr{};
         airmax_cap_flags_ = 0;
         airmax_mixed_mode_ = 0;
         mikrotik_device_name_ = {};
@@ -791,7 +791,7 @@ public:
     const auto first_time() { return first_time_; }
     template<typename T> void set_first_time(T time) { first_time_ = time; }
     template<typename T> void set_first_time_ifless(T time) {
-        if (time < first_time_) {
+        if (time != 0 && (first_time_ == 0 || static_cast<uint64_t>(time) < first_time_)) {
             first_time_ = time;
         }
     }
@@ -799,7 +799,7 @@ public:
     const auto last_time() { return last_time_; }
     template<typename T> void set_last_time(T time) { last_time_ = time; }
     template<typename T> void set_last_time_ifgreater(T time) {
-        if (last_time_ < time) {
+        if (last_time_ < static_cast<uint64_t>(time)) {
             last_time_ = time;
         }
     }
@@ -1054,7 +1054,7 @@ public:
 
         location_ = {};
 
-        bssid_ = {};
+        bssid_ = mac_addr{};
         bssid_key_ = {};
 
         first_time_ = 0;
@@ -1091,7 +1091,7 @@ public:
     const auto first_time() { return first_time_; }
     template<typename T> void set_first_time(T time) { first_time_ = time; }
     template<typename T> void set_first_time_ifless(T time) {
-        if (time < first_time_) {
+        if (time != 0 && (first_time_ == 0 || static_cast<uint64_t>(time) < first_time_)) {
             first_time_ = time;
         }
     }
@@ -1099,7 +1099,7 @@ public:
     const auto last_time() { return last_time_; }
     template<typename T> void set_last_time(T time) { last_time_ = time; }
     template<typename T> void set_last_time_ifgreater(T time) {
-        if (last_time_ < time) {
+        if (last_time_ < static_cast<uint64_t>(time)) {
             last_time_ = time;
         }
     }
@@ -1227,7 +1227,7 @@ public:
         datasize_ = 0;
         datasize_retry_ = 0;
 
-        last_bssid_ = {};
+        last_bssid_ = mac_addr{};
 
         last_beacon_time_ = 0;
 

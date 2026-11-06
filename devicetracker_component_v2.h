@@ -194,6 +194,9 @@ public:
         first_time_ = time;
     }
 
+    const auto first_time() { return first_time_; }
+    const auto last_time() { return last_time_; }
+
     void inc_seenby(uint64_t frequency, uint64_t time, const kis_tracked_signal_data_v2& signal);
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
@@ -359,7 +362,7 @@ public:
     const auto first_time() { return first_time_; }
     template<typename T> void set_first_time(T time) { first_time_ = time; }
     template<typename T> void set_first_time_ifless(T time) {
-        if (time < first_time_) {
+        if (time != 0 && (first_time_ == 0 || static_cast<uint64_t>(time) < first_time_)) {
             first_time_ = time;
         }
     }
@@ -367,7 +370,7 @@ public:
     const auto last_time() { return last_time_; }
     template<typename T> void set_last_time(T time) { last_time_ = time; }
     template<typename T> void set_last_time_ifgreater(T time) {
-        if (last_time_ < time) {
+        if (last_time_ < static_cast<uint64_t>(time)) {
             last_time_ = time;
         }
     }

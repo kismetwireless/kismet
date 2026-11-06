@@ -528,7 +528,7 @@ public:
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
-    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
+    __ProxySetIfEarlier(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
@@ -808,7 +808,7 @@ public:
     __Proxy(channel_width, uint64_t, uint64_t, uint64_t, channel_width);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
-    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
+    __ProxySetIfEarlier(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
@@ -1113,7 +1113,7 @@ public:
     __Proxy(client_type, uint32_t, uint32_t, uint32_t, client_type);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
-    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
+    __ProxySetIfEarlier(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
