@@ -116,7 +116,7 @@ kis_bt_oid::kis_bt_oid() {
         }
 
         try {
-            oid = string_to_n<unsigned int>(o_pair[0], std::hex);
+            oid = string_to_n<unsigned int>(o_pair[0], 16);
         } catch (const std::runtime_error& e) {
             _MSG_ERROR("Expected 'btoid=AABB,Name' for a config file OID record.");
             continue;
@@ -288,7 +288,7 @@ kis_bt_manuf::kis_bt_manuf() {
         }
 
         try {
-            id = string_to_n<unsigned int>(m_pair[0], std::hex);
+            id = string_to_n<unsigned int>(m_pair[0], 16);
         } catch (const std::runtime_error& e) {
             _MSG_ERROR("Expected 'btmanuf=AABB,Name' for a config file manufacturer record.");
             continue;

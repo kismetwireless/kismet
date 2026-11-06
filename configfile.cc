@@ -451,6 +451,12 @@ std::string config_file::fetch_opt_path(const std::string& in_key, const std::st
     return expand_log_path(p, "", "", 0, 1);
 }
 
+void config_file::report_invalid_number(const std::string& in_key, const config_entity& ent,
+        const std::string& dvalue) {
+    _MSG_ERROR("Config option {}={} ({}:{}) is not a valid number; using the default, {}",
+            in_key, ent.value, ent.sourcefile, ent.line, dvalue);
+}
+
 int config_file::fetch_opt_int(const std::string& in_key, int dvalue) {
     return fetch_opt_as<int>(in_key, dvalue);
 }
