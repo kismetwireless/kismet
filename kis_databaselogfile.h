@@ -253,6 +253,7 @@ protected:
     void tagged_data_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void tagged_data_tags_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void tagged_data_records_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    void tagged_data_delete_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     // Pcap streaming api
     void pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);

@@ -418,6 +418,12 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
                     return tagged_data_records_endp_handler(con);
                 }));
 
+    httpd->register_route("/logging/kismetdb/data/delete", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return tagged_data_delete_endp_handler(con);
+                }));
+
     httpd->register_route("/poi/list_poi", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -2069,6 +2075,120 @@ void kis_database_logfile::tagged_data_records_endp_handler(std::shared_ptr<kis_
     if (!records.empty())
         ostream << ",\"next\":" << records.back().id;
     ostream << "}";
+}
+
+void kis_database_logfile::tagged_data_delete_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream ostream(&con->response_stream());
+    con->set_mime_type("application/json");
+
+    auto fail = [&](int status, const std::string& err) {
+        con->set_status(status);
+        ostream << nlohmann::json{{"ok", false}, {"error", err}}.dump();
+    };
+
+    bool bad = false;
+
+    auto tag = tagged_data_str_opt(con, "tag", bad);
+    if (bad || (tag.has_value() && !tagged_data_valid_tag(*tag)))
+        return fail(400, fmt::format("tag has to be 1 to {} letters, digits, '.', '_', or '-'",
+                    tagged_data_max_tag));
+
+    auto ts_start = tagged_data_num_opt(con, "ts_start", bad);
+    auto ts_end = tagged_data_num_opt(con, "ts_end", bad);
+    if (bad)
+        return fail(400, "ts_start and ts_end have to be times in seconds");
+
+    bool all = false;
+    auto all_opt = tagged_data_str_opt(con, "all", bad);
+    if (all_opt.has_value()) {
+        if (*all_opt == "true" || *all_opt == "1")
+            all = true;
+        else if (*all_opt != "false" && *all_opt != "0")
+            bad = true;
+    }
+    if (bad)
+        return fail(400, "all has to be true or false");
+
+    const auto ids_err = fmt::format("ids has to be a list of 1 to {} record ids", tagged_data_max_limit);
+    std::vector<int64_t> ids;
+    bool have_ids = false;
+
+    const auto& j = con->json();
+    auto ids_k = j.is_object() ? j.find("ids") : j.end();
+    if (j.is_object() && ids_k != j.end()) {
+        if (!ids_k->is_array() || ids_k->empty() || ids_k->size() > tagged_data_max_limit)
+            return fail(400, ids_err);
+        for (const auto& i : *ids_k) {
+            if (!i.is_number_integer() || (i.is_number_unsigned() && i.get<uint64_t>() > INT64_MAX) ||
+                    i.get<int64_t>() < 1)
+                return fail(400, ids_err);
+            ids.push_back(i.get<int64_t>());
+        }
+        have_ids = true;
+    } else if (con->http_variables().find("ids") != con->http_variables().end()) {
+        return fail(400, ids_err);
+    }
+
+    // An empty request never deletes everything by accident
+    if (!tag.has_value() && !have_ids && !ts_start.has_value() && !ts_end.has_value() && !all)
+        return fail(400, "give a tag, ids, ts_start, or ts_end, or all to delete every tagged record");
+
+    db_writer_guard writer_lk(this);
+
+    if (!db_enabled)
+        return fail(400, "kismetdb log not enabled");
+
+    // Only API:<tag> records, whatever else matches
+    std::string sql = "DELETE FROM snapshots WHERE snaptype > ? AND snaptype < ?";
+    if (tag.has_value())
+        sql += " AND snaptype = ?";
+    if (ts_start.has_value())
+        sql += " AND ts_sec + ts_usec / 1000000.0 >= ?";
+    if (ts_end.has_value())
+        sql += " AND ts_sec + ts_usec / 1000000.0 <= ?";
+    if (have_ids) {
+        sql += " AND rowid IN (?";
+        for (size_t i = 1; i < ids.size(); i++)
+            sql += ",?";
+        sql += ")";
+    }
+
+    sqlite3_stmt *stmt = nullptr;
+    if (sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, nullptr) != SQLITE_OK) {
+        _MSG_ERROR("kis_database_logfile unable to delete tagged data in {}: {}", ds_dbfile, sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return fail(500, "the kismetdb log couldn't be changed");
+    }
+
+    const std::string snaptype = tag.has_value() ? tagged_data_prefix + *tag : "";
+
+    int b = 1;
+    sqlite3_bind_text(stmt, b++, tagged_data_range_lo, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, b++, tagged_data_range_hi, -1, SQLITE_STATIC);
+    if (tag.has_value())
+        sqlite3_bind_text(stmt, b++, snaptype.c_str(), snaptype.length(), SQLITE_STATIC);
+    if (ts_start.has_value())
+        sqlite3_bind_double(stmt, b++, *ts_start);
+    if (ts_end.has_value())
+        sqlite3_bind_double(stmt, b++, *ts_end);
+    for (auto i : ids)
+        sqlite3_bind_int64(stmt, b++, i);
+
+    // Other threads log on the same connection; hold it so the count is this delete's
+    auto conn_mutex = sqlite3_db_mutex(db);
+    sqlite3_mutex_enter(conn_mutex);
+    auto r = sqlite3_step(stmt);
+    auto deleted = sqlite3_changes(db);
+    sqlite3_mutex_leave(conn_mutex);
+
+    sqlite3_finalize(stmt);
+
+    if (r != SQLITE_DONE) {
+        _MSG_ERROR("kis_database_logfile unable to delete tagged data in {}: {}", ds_dbfile, sqlite3_errmsg(db));
+        return fail(500, "the kismetdb log couldn't be changed");
+    }
+
+    ostream << nlohmann::json{{"ok", true}, {"deleted", deleted}}.dump();
 }
 
 std::shared_ptr<tracker_element>
