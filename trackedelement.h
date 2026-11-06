@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <atomic>
+#include <concepts>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -2386,6 +2387,30 @@ template<> void set_tracker_value(const shared_tracker_element& e, const double&
 template<> void set_tracker_value(const shared_tracker_element& e, const mac_addr& v);
 template<> void set_tracker_value(const shared_tracker_element& e, const uuid& v);
 template<> void set_tracker_value(const shared_tracker_element& e, const device_key& v);
+
+// Typed access, picked over the generic versions when the element type is known (proxy
+// macros on a typed member).  A proxy type that doesn't match the element's value type
+// is a build error instead of a cast to the wrong element class.
+template<typename E>
+concept typed_tracker_value = std::derived_from<E, tracker_element> &&
+    !std::same_as<E, tracker_element> && requires(const E& e) { e.get(); };
+
+template<typename E>
+using tracker_value_t = std::remove_cvref_t<decltype(std::declval<const E&>().get())>;
+
+template<typename T, typed_tracker_value E>
+inline T get_tracker_value(const std::shared_ptr<E>& e) {
+    static_assert(std::is_same_v<T, tracker_value_t<E>>,
+            "proxy type does not match the tracked element's value type");
+    return e->get();
+}
+
+template<typename T, typed_tracker_value E>
+inline void set_tracker_value(const std::shared_ptr<E>& e, const T& v) {
+    static_assert(std::is_same_v<T, tracker_value_t<E>>,
+            "proxy type does not match the tracked element's value type");
+    e->set(v);
+}
 
 
 // Element simplification record for summarizing and simplifying records

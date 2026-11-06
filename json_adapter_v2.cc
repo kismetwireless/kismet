@@ -287,10 +287,13 @@ std::string json_adapter_v2::sanitize_string(const std::string& s) noexcept {
                     if (c >= 0x00 and c <= 0x1f)
                     {
                         // print character c as \uxxxx
-                        sprintf(&result[pos + 1], "u%04x", int(c));
+                        constexpr char hexdigits[] = "0123456789abcdef";
+                        result[pos + 1] = 'u';
+                        result[pos + 2] = '0';
+                        result[pos + 3] = '0';
+                        result[pos + 4] = hexdigits[(c >> 4) & 0x0f];
+                        result[pos + 5] = hexdigits[c & 0x0f];
                         pos += 6;
-                        // overwrite trailing null character
-                        result[pos] = '\\';
                     }
                     else
                     {

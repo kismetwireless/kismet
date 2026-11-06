@@ -611,18 +611,23 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     // Unlock before attaching sockets
     lk.unlock();
 
-    if (io_ != nullptr) {
-        io_->stop();
-    }
-
     // Inherit the incoming io mode
-    io_ = in_remote->move_io(shared_from_this());
+    auto io = in_remote->move_io(shared_from_this());
+
+    auto old_io = swap_io(io);
+    if (old_io != nullptr)
+        old_io->stop();
 
     // Inherit the incoming closure
     closure_cb = in_remote->move_closure_cb();
 
+    if (io == nullptr) {
+        trigger_error("remote capture connection closed before it could be attached");
+        return;
+    }
+
     // Set the remote address
-    set_int_source_remote_ip(io_->remote_addresss());
+    set_int_source_remote_ip(io->remote_addresss());
 
     // Send an opensource
     send_open_source(get_source_definition(), 0, in_cb);
@@ -746,7 +751,9 @@ bool kis_datasource::begin_graceful_close() {
 
     auto grace = close_grace_ms.load();
 
-    if (grace == 0 || io_ == nullptr || io_->stopped() || cancelled)
+    auto io = get_io();
+
+    if (grace == 0 || io == nullptr || io->stopped() || cancelled)
         return false;
 
     if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("datasource_graceful_close", true))
@@ -824,11 +831,13 @@ void kis_datasource::abort_graceful_close(const std::string& in_reason,
 }
 
 void kis_datasource::close_source_async(std::function<void (void)> in_callback) {
-    if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
+    auto io = get_io();
+
+    if (io == nullptr || io->strand().running_in_this_thread()) {
         close_external_impl();
         in_callback();
     } else {
-        boost::asio::post(io_->strand(),
+        boost::asio::post(io->strand(),
                 std::packaged_task<void()>([this, in_callback]() mutable {
                     close_external_impl();
                     in_callback();
@@ -838,10 +847,12 @@ void kis_datasource::close_source_async(std::function<void (void)> in_callback) 
 }
 
 void kis_datasource::close_external() {
-    if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
+    auto io = get_io();
+
+    if (io == nullptr || io->strand().running_in_this_thread()) {
         close_external_impl();
     } else {
-        auto ft = boost::asio::post(io_->strand(),
+        auto ft = boost::asio::post(io->strand(),
                 std::packaged_task<void()>([this]() mutable {
                     close_external_impl();
                 }));
@@ -1364,8 +1375,8 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
 }
 
 bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
-        uint16_t command, uint16_t seqno,
-        uint32_t code, const std::string_view& content) {
+        uint16_t command, uint16_t code,
+        uint32_t seqno, const std::string_view& content) {
 
     if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, code, seqno, content)) {
         return true;
@@ -4162,10 +4173,10 @@ bool kis_datasource::launch_ipc() {
         return false;
     }
 
-    if (io_ != nullptr) {
-        io_->stop();
-        io_->close();
-        io_.reset();
+    auto old_io = swap_io(nullptr);
+    if (old_io != nullptr) {
+        old_io->stop();
+        old_io->close();
     }
 
     set_int_source_ipc_pid(-1);

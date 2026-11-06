@@ -74,6 +74,15 @@ int get_length_tag_offsets(unsigned int init_offset,
     return 0;
 }
 
+// Length of the first copy of a tag from get_length_tag_offsets, or -1 when it's absent
+static int tag_length(const std::shared_ptr<kis_datachunk>& chunk,
+        const std::map<int, std::vector<int>>& tags, int tag) {
+    auto t = tags.find(tag);
+    if (t == tags.end() || t->second.empty())
+        return -1;
+    return static_cast<uint8_t>(chunk->data()[t->second[0]]);
+}
+
 
 int ipdata_packethook(CHAINCALL_PARMS) {
 	return ((kis_dissector_ip_data *) auxdata)->handle_packet(in_pack);
@@ -122,11 +131,11 @@ kis_dissector_ip_data::~kis_dissector_ip_data() {
 // Cache offsets we've looked at in the map so we don't follow them repeatedly
 // Bytelen indicates how many bytes to advance the stream; negative indicates
 // error
-std::string MDNS_Fetchname(std::shared_ptr<kis_datachunk> chunk, unsigned int baseofft, 
+std::string MDNS_Fetchname(std::shared_ptr<kis_datachunk> chunk, unsigned int baseofft,
 					  unsigned int startofft, std::map<unsigned int, std::string> *name_cache,
-					  int *bytelen) {
-	// If we're fed a bad offset just throw it back
-	if (startofft > chunk->length()) {
+					  int *bytelen, unsigned int depth = 0) {
+	// If we're fed a bad offset, or a chain of pointers no real name needs, throw it back
+	if (startofft > chunk->length() || depth > 32) {
 		*bytelen = -1;
 		return "";
 	}
@@ -167,25 +176,24 @@ std::string MDNS_Fetchname(std::shared_ptr<kis_datachunk> chunk, unsigned int ba
 				else
 					dns_str += "." + nci->second;
 			} else {
-				// Set our current location in the map to empty so we won't loop 
-				// on a malicious packet with self-referencing compression
-				// pointers
-				(*name_cache)[offt - baseofft] = "";
+				// Mark the target before following it, under the same key the lookup
+				// above uses, so pointers that loop back stop at the cache
+				(*name_cache)[ptr] = "";
 
 				int junklen;
-				std::string ret = MDNS_Fetchname(chunk, baseofft, baseofft + ptr, name_cache, 
-											&junklen);
+				std::string ret = MDNS_Fetchname(chunk, baseofft, baseofft + ptr, name_cache,
+											&junklen, depth + 1);
 
-				(*name_cache)[offt - baseofft] = ret;
+				(*name_cache)[ptr] = ret;
 
 				if (dns_str == "")
 					dns_str = ret;
 				else
 					dns_str += "." + ret;
-
-				// All address pointers are len2 in the buffer
-				offt += 2;
 			}
+
+			// All address pointers are len2 in the buffer, cached or not
+			offt += 2;
 
 			// Pointer record indicates end of string
 			break;
@@ -339,8 +347,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 			// and we can trust the tags
 			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
 
-			if (dhcp_tag_map.find(53) != dhcp_tag_map.end() &&
-				dhcp_tag_map[53].size() != 0 &&
+			if (tag_length(chunk, dhcp_tag_map, 53) >= 1 &&
 				chunk->data()[dhcp_tag_map[53][0] + 1] == 0x02) {
 
 				// We're a DHCP offer...
@@ -354,15 +361,14 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 				memcpy(&addr, &(chunk->data()[DHCPD_OFFSET + 28]), 4);
 				datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
-				if (dhcp_tag_map.find(1) != dhcp_tag_map.end() &&
-					dhcp_tag_map[1].size() != 0) {
+				// Addresses are 4 bytes; a shorter tag would read past it
+				if (tag_length(chunk, dhcp_tag_map, 1) >= 4) {
 
 					memcpy(&addr, &(chunk->data()[dhcp_tag_map[1][0] + 1]), 4);
 					datainfo->ip_netmask_addr.s_addr = kis_hton32(addr);
 				}
 
-				if (dhcp_tag_map.find(3) != dhcp_tag_map.end() &&
-					dhcp_tag_map[3].size() != 0) {
+				if (tag_length(chunk, dhcp_tag_map, 3) >= 4) {
 
 					memcpy(&addr, &(chunk->data()[dhcp_tag_map[3][0] + 1]), 4);
 					datainfo->ip_gateway_addr.s_addr = kis_hton32(addr);
@@ -384,8 +390,7 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 			// and we can trust the tags
 			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
 
-			if (dhcp_tag_map.find(53) != dhcp_tag_map.end() &&
-				dhcp_tag_map[53].size() != 0 &&
+			if (tag_length(chunk, dhcp_tag_map, 53) >= 1 &&
 				chunk->data()[dhcp_tag_map[53][0] + 1] == 0x01) {
 
 				// We're definitely a dhcp discover
@@ -411,8 +416,9 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 						munge_to_printable(datainfo->discover_vendor);
 				}
 
-				if (dhcp_tag_map.find(61) != dhcp_tag_map.end() &&
-					dhcp_tag_map[61].size() == 7) {
+				// Client id is a type byte and a 6 byte MAC; this used to count the tags
+				// instead of checking the length
+				if (tag_length(chunk, dhcp_tag_map, 61) == 7) {
 					mac_addr clmac = mac_addr(&(chunk->data()[dhcp_tag_map[61][0] + 2]), 6);
 
 					if (clmac != in_pack->common_info.source) {

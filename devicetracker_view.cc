@@ -903,11 +903,11 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
                 const auto& fa = a.first;
                 const auto& fb = b.first;
 
-                if (fa == nullptr)
-                    return in_order_direction == 0;
-
-                if (fb == nullptr)
-                    return in_order_direction != 0;
+                if (fa == nullptr || fb == nullptr) {
+                    if (fa == fb)
+                        return false;
+                    return (fa == nullptr) == (in_order_direction == 0);
+                }
 
                 if (in_order_direction == 0)
                     return fast_sort_tracker_element_less(fa, fb);

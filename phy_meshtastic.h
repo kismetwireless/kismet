@@ -177,7 +177,7 @@ public:
     __Proxy(licensed, uint8_t, bool, bool, licensed_);
 
     __Proxy(telem_ts, uint64_t, uint64_t, uint64_t, telem_ts_);
-    __Proxy(telem_battery_perc, uint8_t, uint8_t, uint8_t, telem_battery_perc_);
+    __Proxy(telem_battery_perc, uint16_t, uint8_t, uint8_t, telem_battery_perc_);
     __Proxy(telem_battery_voltage, float, float, float, telem_battery_voltage_);
     __Proxy(telem_channel_util, float, float, float, telem_chan_util_);
     __Proxy(telem_channel_tx_util, float, float, float, telem_chan_tx_util_);

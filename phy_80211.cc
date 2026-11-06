@@ -1095,15 +1095,13 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     con->set_target_file(fmt::format("kismet-80211-bssid-{}.pcapng", mac));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
-                    auto sid =
-                        streamtracker->register_streamer(pcapng, fmt::format("kismet-80211-bssid{}.pcapng", mac),
+                    scoped_streamer stream_reg(streamtracker, pcapng, fmt::format("kismet-80211-bssid{}.pcapng", mac),
                             "pcapng", "httpd",
                             fmt::format("pcapng of packets for phy80211 bssid  {}", mac));
 
                     pcapng->start_stream();
                     pcapng->block_until_stream_done();
 
-                    streamtracker->remove_streamer(sid);
                 }));
 
 }

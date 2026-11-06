@@ -153,7 +153,7 @@ public:
     /* LTE ECI split. Unset for NR: the gNB-ID length is
      * operator-configured and not derivable from the NCI. */
     __Proxy(cell_enb_id, uint64_t, uint64_t, uint64_t, cell_enb_id);
-    __Proxy(cell_sector, uint64_t, uint16_t, uint16_t, cell_sector);
+    __Proxy(cell_sector, uint16_t, uint16_t, uint16_t, cell_sector);
     __Proxy(cell_pci, uint64_t, uint16_t, uint16_t, cell_pci);
     __Proxy(cell_key, std::string, std::string, std::string, cell_key);
     // Full-identity key promoted onto a PCI-only (partial) device at

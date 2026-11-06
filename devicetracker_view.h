@@ -113,7 +113,7 @@ public:
     __ProxyGet(view_id, std::string, std::string, view_id);
     __ProxyGet(view_description, std::string, std::string, view_description);
     __ProxyGet(list_sz, uint64_t, uint64_t, list_sz);
-    __ProxyGet(view_indexed, bool, bool, view_indexed);
+    __ProxyGet(view_indexed, uint8_t, bool, view_indexed);
 
     virtual void pre_serialize() override;
     virtual void post_serialize() override;

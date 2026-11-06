@@ -331,8 +331,9 @@ public:
         if (io_ == nullptr) {
             _MSG_DEBUG("IO was already null!  uhoh!");
         }
-        auto io_ref = io_;
-        io_ = nullptr;
+        auto io_ref = swap_io(nullptr);
+        if (io_ref == nullptr)
+            return nullptr;
         io_ref->attach_interface(newif);
         return io_ref;
     }
@@ -459,8 +460,8 @@ protected:
 
         ssize_t frame_sz = sizeof(kismet_external_frame_v2_t) + content_sz;
 
-        char frame_buf[frame_sz];
-        auto frame = reinterpret_cast<kismet_external_frame_v2_t *>(frame_buf);
+        std::vector<char> frame_buf(frame_sz, 0);
+        auto frame = reinterpret_cast<kismet_external_frame_v2_t *>(frame_buf.data());
 
         frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
         frame->data_sz = kis_hton32(content_sz);
@@ -471,7 +472,7 @@ protected:
 
         content.SerializeToArray(frame->data, content_sz);
 
-        start_write(frame_buf, frame_sz);
+        start_write(frame_buf.data(), frame_sz);
 
         return in_seqno;
     }
@@ -525,7 +526,21 @@ protected:
 
     void start_write(const char *data, size_t len);
 
+    // io_ may be replaced from outside the strand; off-strand code copies it through
+    // get_io().  io_ptr_mutex guards only the pointer and is never held across io calls.
     std::shared_ptr<kis_external_io> io_;
+    kis_mutex io_ptr_mutex;
+
+    std::shared_ptr<kis_external_io> get_io() {
+        std::lock_guard<kis_mutex> lk(io_ptr_mutex);
+        return io_;
+    }
+
+    std::shared_ptr<kis_external_io> swap_io(std::shared_ptr<kis_external_io> in_io) {
+        std::lock_guard<kis_mutex> lk(io_ptr_mutex);
+        io_.swap(in_io);
+        return in_io;
+    }
 
 
     // Pipe IPC

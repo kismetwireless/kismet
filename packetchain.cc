@@ -379,6 +379,28 @@ std::shared_ptr<kis_packet> packet_chain::generate_packet() {
     // return std::make_shared<kis_packet>();
 }
 
+// Handler errors are logged no more than every 10 seconds, so a flood of bad frames
+// can't flood the log
+static void report_handler_error(const char *what) {
+    static std::atomic<uint64_t> last_report{0};
+    static std::atomic<uint64_t> suppressed{0};
+
+    const uint64_t now = Globalreg::globalreg->last_tv_sec;
+    auto last = last_report.load(std::memory_order_relaxed);
+
+    if ((last != 0 && now - last < 10) || !last_report.compare_exchange_strong(last, now)) {
+        suppressed.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+
+    auto n = suppressed.exchange(0);
+    if (n > 0)
+        _MSG_ERROR("A packet handler failed: {} ({} more packet errors since the last report)",
+                what, n);
+    else
+        _MSG_ERROR("A packet handler failed: {}", what);
+}
+
 void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
     std::deque<std::shared_ptr<kis_packet>> batch;
 
@@ -407,9 +429,10 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
                     cur_chains->generation != chains_generation.load(std::memory_order_acquire))
                 cur_chains.set(fetch_chains());
 
+            try {
             // Lock the individual packet to make sure no competing processing threads
             // manipulate it (such as via dupe packet collision) while we're processing
-            packet->mutex.lock();
+            std::lock_guard<kis_mutex> packet_lk(packet->mutex);
 
             const auto& chunk = packet->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
@@ -450,8 +473,11 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
                 if (pcl.callback != nullptr)
                     pcl.callback(pcl.auxdata, packet);
             }
-
-            packet->mutex.unlock();
+            } catch (const std::exception& e) {
+                // An exception leaving this thread would end the server over one bad packet
+                packet->error = true;
+                report_handler_error(e.what());
+            }
 
             uint64_t now = Globalreg::globalreg->last_tv_sec;
 

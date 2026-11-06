@@ -936,8 +936,9 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool q
     std::string::size_type p = 0;
 
     while (p < in.length()) {
-        if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) &&
-                std::isxdigit(in[p+2])) {
+        if (in[p] == '%' && (p + 2) < in.length() &&
+                std::isxdigit(static_cast<unsigned char>(in[p+1])) &&
+                std::isxdigit(static_cast<unsigned char>(in[p+2]))) {
             char c1 = in[p+1] - (in[p+1] <= '9' ? '0' : (in[p+1] <= 'F' ? 'A' : 'a') - 10);
             char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
             ret += char(16 * c1 + c2);
@@ -983,29 +984,31 @@ bool kis_net_beast_httpd::check_admin_login(const std::string& username, const s
     return !compare(username, admin_username) && !compare(password, admin_password);
 }
 
-void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decoded,
-        http_var_map_t& var_map) {
+// Split on the raw text and decode each name and value after, so an encoded & or = stays
+// part of its value instead of starting another variable
+void kis_net_beast_httpd::decode_variables(const boost::beast::string_view raw,
+        http_var_map_t& var_map, bool query) {
     boost::beast::string_view::size_type pos = 0;
     while (pos != boost::beast::string_view::npos) {
-        auto next = decoded.find("&", pos);
+        auto next = raw.find("&", pos);
 
         boost::beast::string_view varline;
 
         if (next == boost::beast::string_view::npos) {
-            varline = decoded.substr(pos, decoded.length());
+            varline = raw.substr(pos, raw.length());
             pos = next;
         } else {
-            varline = decoded.substr(pos, next - pos);
+            varline = raw.substr(pos, next - pos);
             pos = next + 1;
         }
 
         auto eqpos = varline.find("=");
 
         if (eqpos == boost::beast::string_view::npos)
-            var_map[static_cast<std::string>(varline)] = "";
+            var_map[decode_uri(varline, query)] = "";
         else
-            var_map[static_cast<std::string>(varline.substr(0, eqpos))] =
-                static_cast<std::string>(varline.substr(eqpos + 1, varline.length()));
+            var_map[decode_uri(varline.substr(0, eqpos), query)] =
+                decode_uri(varline.substr(eqpos + 1, varline.length()), query);
     }
 }
 
@@ -1017,32 +1020,32 @@ std::string kis_net_beast_httpd::decode_get_variables(const boost::beast::string
     if (q_pos == boost::beast::string_view::npos)
         return std::string(uri);
 
-    auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()), false);
-    kis_net_beast_httpd::decode_variables(uri_decode, var_map);
+    kis_net_beast_httpd::decode_variables(uri.substr(q_pos + 1, uri.length()), var_map, false);
 
     return std::string(uri.substr(0, q_pos));
 }
 
-void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& var_map) {
+// Like variables, split the raw header and decode each name and value after
+void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view raw, http_cookie_map_t& var_map) {
     boost::beast::string_view::size_type pos = 0;
-    while (pos != boost::beast::string_view::npos && pos < decoded.length()) {
-        if (decoded[pos] == ' ') {
+    while (pos != boost::beast::string_view::npos && pos < raw.length()) {
+        if (raw[pos] == ' ') {
             pos++;
             continue;
         }
 
-        auto eq = decoded.find("=", pos);
+        auto eq = raw.find("=", pos);
 
         if (eq == boost::beast::string_view::npos)
             break;
 
-        auto end = decoded.find(";", eq);
+        auto end = raw.find(";", eq);
 
         if (end == boost::beast::string_view::npos)
-            end = decoded.length();
+            end = raw.length();
 
-        var_map[static_cast<std::string>(decoded.substr(pos, eq - pos))] =
-            static_cast<std::string>(decoded.substr(eq + 1, end - (eq + 1)));
+        var_map[decode_uri(raw.substr(pos, eq - pos), true)] =
+            decode_uri(raw.substr(eq + 1, end - (eq + 1)), true);
 
         pos = end + 1;
     }
@@ -1724,8 +1727,7 @@ void kis_net_beast_httpd_connection::check_login(
     // Extract the auth cookie
     auto cookie_h = hdr.find(boost::beast::http::field::cookie);
     if (cookie_h != hdr.end()) {
-        auto cookie_decode = httpd->decode_uri(cookie_h->value(), true);
-        httpd->decode_cookies(cookie_decode, cookies_);
+        httpd->decode_cookies(cookie_h->value(), cookies_);
 
         auto auth_cookie_k = cookies_.find(httpd->auth_cookie());
         if (auth_cookie_k == cookies_.end())
@@ -2118,8 +2120,7 @@ bool kis_net_beast_httpd_connection::start() {
 
         if (boost::beast::iequals(content_type, "application/x-www-form-urlencoded") ||
                 boost::beast::iequals(content_type, "application/x-www-form-urlencoded; charset=UTF-8")) {
-            auto decoded_body = httpd->decode_uri(http_post, true);
-            httpd->decode_variables(decoded_body, http_variables_);
+            httpd->decode_variables(http_post, http_variables_, true);
 
             auto j_k = http_variables_.find("json");
             if (j_k != http_variables_.end()) {

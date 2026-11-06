@@ -228,12 +228,19 @@ void time_tracker::run_timer(const std::shared_ptr<timer_event>& evt,
     if (!evt->timer_cancelled) {
         current_timer_id = evt->timer_id;
 
-        if (evt->callback != NULL) {
-            ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
-        } else if (evt->event != NULL) {
-            ret = evt->event->timetracker_event(evt->timer_id);
-        } else if (evt->event_func != NULL) {
-            ret = evt->event_func(evt->timer_id);
+        // An exception leaving the worker thread would end the server, and leave
+        // in_callback set so remove_timer waits forever; a failed timer doesn't recur
+        try {
+            if (evt->callback != NULL) {
+                ret = (*evt->callback)(evt.get(), evt->callback_parm, Globalreg::globalreg);
+            } else if (evt->event != NULL) {
+                ret = evt->event->timetracker_event(evt->timer_id);
+            } else if (evt->event_func != NULL) {
+                ret = evt->event_func(evt->timer_id);
+            }
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Timer {} failed and was stopped: {}", evt->timer_id, e.what());
+            ret = 0;
         }
 
         current_timer_id = -1;

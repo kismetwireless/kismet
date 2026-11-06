@@ -1131,15 +1131,13 @@ void datasource_tracker::trigger_deferred_startup() {
                     con->set_target_file("kismet-all-packets.pcapng");
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
-                    auto sid =
-                        streamtracker->register_streamer(pcapng, "kismet-all-packets.pcapng",
+                    scoped_streamer stream_reg(streamtracker, pcapng, "kismet-all-packets.pcapng",
                             "pcapng", "httpd",
                             fmt::format("pcapng of all packets"));
 
                     pcapng->start_stream();
                     pcapng->block_until_stream_done();
 
-                    streamtracker->remove_streamer(sid);
                 }));
 
     httpd->register_route("/datasource/pcap/by-uuid/:uuid/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
@@ -1164,8 +1162,7 @@ void datasource_tracker::trigger_deferred_startup() {
                                 ds->get_source_name(), dsuuid));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
-                    auto sid =
-                        streamtracker->register_streamer(pcapng, fmt::format("kismet-datasource-{}-{}.pcapng",
+                    scoped_streamer stream_reg(streamtracker, pcapng, fmt::format("kismet-datasource-{}-{}.pcapng",
                                 ds->get_source_name(), dsuuid),
                             "pcapng", "httpd",
                             fmt::format("pcapng of packets for datasource {} {}", ds->get_source_name(), dsuuid));
@@ -1173,7 +1170,6 @@ void datasource_tracker::trigger_deferred_startup() {
                     pcapng->start_stream();
                     pcapng->block_until_stream_done();
 
-                    streamtracker->remove_streamer(sid);
                 }));
 
     httpd->register_websocket_route("/datasource/remote/remotesource", "datasource", {"ws"},
@@ -2290,7 +2286,7 @@ bool dst_incoming_remote::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::str
         return true;
     }
 
-    if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, seqno, code, content)) {
+    if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, code, seqno, content)) {
         return true;
     }
 

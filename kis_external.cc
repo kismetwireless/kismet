@@ -443,17 +443,20 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
 
     cancelled = false;
 
-    io_ = std::make_shared<kis_external_tcp>(shared_from_this(), socket);
-    io_->start_read();
+    auto io = std::make_shared<kis_external_tcp>(shared_from_this(), socket);
+    swap_io(io);
+    io->start_read();
 
     return true;
 }
 
 void kis_external_interface::close_external() {
-    if (io_ == nullptr || (io_ != nullptr && io_->strand().running_in_this_thread())) {
+    auto io = get_io();
+
+    if (io == nullptr || io->strand().running_in_this_thread()) {
         close_external_impl();
     } else {
-        auto ft = boost::asio::post(io_->strand(),
+        auto ft = boost::asio::post(io->strand(),
                 std::packaged_task<void()>([this]() mutable {
                     close_external_impl();
                 }));
@@ -496,10 +499,9 @@ void kis_external_interface::close_external_impl() {
     // Under ext_mutex, which the ping timer takes; the datasource destructor waits for it
     timetracker->cancel_timer(ping_timer_id);
 
-    if (io_ != nullptr) {
-        io_->close();
-        io_.reset();
-    }
+    auto io = swap_io(nullptr);
+    if (io != nullptr)
+        io->close();
 
     if (closure_cb != nullptr) {
         lk.unlock();
@@ -749,9 +751,10 @@ bool kis_external_interface::run_ipc() {
 
     ipctracker->register_ipc(ipc);
 
-    io_ = std::make_shared<kis_external_ipc>(shared_from_this(), ipc, ipc_in, ipc_out);
+    auto io = std::make_shared<kis_external_ipc>(shared_from_this(), ipc, ipc_in, ipc_out);
+    swap_io(io);
 
-    io_->start_read();
+    io->start_read();
 
     return true;
 }
@@ -874,7 +877,7 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
         // Dispatch the received command
         try {
-            dispatch_rx_packet_v3(buffer, command, seqno, code, content);
+            dispatch_rx_packet_v3(buffer, command, code, seqno, content);
         } catch (const std::exception& e) {
             _MSG_ERROR("Kismet external interface could not handle a type {} packet: {}",
                     command, e.what());
@@ -902,14 +905,16 @@ void kis_external_interface::start_write(const char *data, size_t len) {
     if (cancelled)
         return;
 
-    if (io_ == nullptr) {
+    auto io = get_io();
+
+    if (io == nullptr) {
         throw(std::runtime_error("kis_external tried to write with no io handler"));
     }
 
-    if (io_->stopped())
+    if (io->stopped())
         return;
 
-    io_->write(data, len);
+    io->write(data, len);
 }
 
 bool kis_external_interface::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
@@ -1138,8 +1143,11 @@ void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqn
 
         unsigned long eid =
             eventbus->register_listener(evt,
-                    [this](std::shared_ptr<eventbus_event> e) {
-                    proxy_event(e);
+                    [weak = weak_from_this()](std::shared_ptr<eventbus_event> e) {
+                    // A dispatch already in flight can outlive remove_listener
+                    auto self = weak.lock();
+                    if (self != nullptr && !self->cancelled)
+                        self->proxy_event(e);
                     });
 
         eventbus_callback_map[evt] = eid;
@@ -1383,10 +1391,14 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_http_auth_request_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
-    if (io_->is_remote() && !allow_remote_web_auth_) {
+    auto io = get_io();
+    if (io == nullptr)
+        return;
+
+    if (io->is_remote() && !allow_remote_web_auth_) {
         _MSG_ERROR("Remote capture connection from {} requested a web auth token, which "
                 "is blocked by the current Kismet config (remote_capture_allow_http_auth)",
-                io_->remote_addresss());
+                io->remote_addresss());
         trigger_error("Remote capture connections can not request web auth tokens, check "
                 "your Kismet configuration");
     } else {
@@ -1499,7 +1511,7 @@ unsigned int kis_external_interface::send_ping() {
 unsigned int kis_external_interface::send_v2_probe_ping() {
     // craft a v2 ping
     const ssize_t frame_sz = sizeof(kismet_external_frame_v2_t);
-    std::array<char, frame_sz> frame_buf;
+    std::array<char, frame_sz> frame_buf{};
     auto frame = reinterpret_cast<kismet_external_frame_v2_t *>(frame_buf.data());
 
     frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
@@ -1662,8 +1674,11 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
 
         unsigned long eid =
             eventbus->register_listener(evtlisten.event(e),
-                    [this](std::shared_ptr<eventbus_event> e) {
-                    proxy_event(e);
+                    [weak = weak_from_this()](std::shared_ptr<eventbus_event> e) {
+                    // A dispatch already in flight can outlive remove_listener
+                    auto self = weak.lock();
+                    if (self != nullptr && !self->cancelled)
+                        self->proxy_event(e);
                     });
 
         eventbus_callback_map[evtlisten.event(e)] = eid;
@@ -1818,10 +1833,14 @@ void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
         return;
     }
 
-    if (io_->is_remote() && !allow_remote_web_auth_) {
+    auto io = get_io();
+    if (io == nullptr)
+        return;
+
+    if (io->is_remote() && !allow_remote_web_auth_) {
         _MSG_ERROR("Remote capture connection from {} requested a web auth token, which "
                 "is blocked by the current Kismet config (remote_capture_allow_http_auth)",
-                io_->remote_addresss());
+                io->remote_addresss());
         trigger_error("Remote capture connections can not request web auth tokens, check "
                 "your Kismet configuration");
         return;
