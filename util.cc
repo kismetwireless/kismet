@@ -490,6 +490,9 @@ int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr) {
         if (in_hex[strpos] == ':')
             strpos++;
 
+        if (strpos >= WEPKEYSTR_MAX || in_hex[strpos] == 0)
+            break;
+
         // Assume we're going to eat the pair here
         if (isxdigit(in_hex[strpos])) {
             if (strpos > (WEPKEYSTR_MAX - 2))

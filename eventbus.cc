@@ -215,6 +215,15 @@ void event_bus::event_queue_dispatcher() {
         // Reset the lock
         event_cl.lock();
 
+        // A publish (or the shutdown unlock) between the queue check above and lock() has
+        // already unlocked, so look again before sleeping or it waits for the next event
+        lock.lock();
+        bool pending = event_queue.size() > 0;
+        lock.unlock();
+
+        if (pending || shutdown)
+            continue;
+
         // Wait until new events
         event_cl.block_until();
     }

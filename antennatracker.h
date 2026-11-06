@@ -66,7 +66,7 @@ public:
         return r;
     }
 
-    __Proxy(antenna_id, uint32_t, unsigned int, unsigned int, antenna_id);
+    __Proxy(antenna_id, int32_t, int32_t, int32_t, antenna_id);
     __Proxy(antenna_uuid, uuid, uuid, uuid, antenna_uuid);
     __Proxy(source_uuid, uuid, uuid, uuid, source_uuid);
     __Proxy(source_antnum, int32_t, int32_t, int32_t, source_antnum);

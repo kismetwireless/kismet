@@ -795,7 +795,7 @@ public:
     }
 
     __ProxyFullyDynamic(owe_ssid, std::string, std::string, std::string, tracker_element_string, owe_ssid_id);
-    __ProxyFullyDynamic(owe_ssid_len, uint32_t, unsigned int, unsigned int, tracker_element_uint8, owe_ssid_len_id);
+    __ProxyFullyDynamic(owe_ssid_len, uint8_t, unsigned int, unsigned int, tracker_element_uint8, owe_ssid_len_id);
     __ProxyFullyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, tracker_element_mac_addr, owe_bssid_id);
 
     __Proxy(ssid_beacon, uint8_t, bool, bool, ssid_beacon);
@@ -805,7 +805,7 @@ public:
     __Proxy(ht_mode, std::string, std::string, std::string, ht_mode);
     __Proxy(ht_center_1, uint64_t, uint64_t, uint64_t, ht_center_1);
     __Proxy(ht_center_2, uint64_t, uint64_t, uint64_t, ht_center_2);
-    __Proxy(channel_width, uint64_t, uint64_t, uint64_t, channel);
+    __Proxy(channel_width, uint64_t, uint64_t, uint64_t, channel_width);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);

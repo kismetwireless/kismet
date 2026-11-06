@@ -25,6 +25,7 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "messagebus.h"
 #include "trackedelement.h"
 #include "kis_net_beast_httpd.h"
 #include "devicetracker_component.h"
@@ -219,6 +220,33 @@ protected:
     int info_builder_id;
 
     double next_stream_id;
+};
+
+// Registers a streamer and removes it when it goes out of scope, so an early return or
+// an exception in the handler feeding it can't leave a dead connection's stream tracked
+class scoped_streamer {
+public:
+    scoped_streamer(std::shared_ptr<stream_tracker> in_tracker,
+            std::shared_ptr<streaming_agent> in_agent, std::string in_name,
+            std::string in_type, std::string in_path, std::string in_description) :
+        tracker{std::move(in_tracker)},
+        sid{tracker->register_streamer(std::move(in_agent), std::move(in_name),
+                std::move(in_type), std::move(in_path), std::move(in_description))} { }
+
+    ~scoped_streamer() {
+        try {
+            tracker->remove_streamer(sid);
+        } catch (const std::exception& e) {
+            _MSG_ERROR("Could not remove stream {}: {}", sid, e.what());
+        }
+    }
+
+    scoped_streamer(const scoped_streamer&) = delete;
+    scoped_streamer& operator=(const scoped_streamer&) = delete;
+
+private:
+    std::shared_ptr<stream_tracker> tracker;
+    double sid;
 };
 
 #endif

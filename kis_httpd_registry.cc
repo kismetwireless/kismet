@@ -18,6 +18,9 @@
 
 #include "config.h"
 
+#include <algorithm>
+#include <cctype>
+
 #include "messagebus.h"
 #include "configfile.h"
 #include "kis_httpd_registry.h"
@@ -157,6 +160,28 @@ bool kis_httpd_registry::register_js_module(std::string in_module, std::string i
         in_path = in_path.substr(1, in_path.length());
     }
     */
+
+    // Both are written raw into /dynamic.js as a JS identifier and template literal
+    auto valid_ident = [](const std::string& s) {
+        if (s.empty() || s.length() > 64 || std::isdigit(static_cast<unsigned char>(s[0])))
+            return false;
+        return std::all_of(s.begin(), s.end(), [](unsigned char c) {
+                return std::isalnum(c) || c == '_'; });
+    };
+
+    auto valid_path = [](const std::string& s) {
+        if (s.length() > 256)
+            return false;
+        return std::all_of(s.begin(), s.end(), [](unsigned char c) {
+                return std::isalnum(c) || c == '_' || c == '-' || c == '.' || c == '/'; });
+    };
+
+    if (!valid_ident(in_module) || !valid_path(in_path)) {
+        _MSG_ERROR("HTTPD Module Registry: Module '{}' has an invalid name or path; names "
+                "must be identifiers and paths may only use letters, digits, and _-./",
+                in_module);
+        return false;
+    }
 
     js_module_path_map[in_module] = in_path;
 

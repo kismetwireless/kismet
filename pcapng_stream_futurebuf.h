@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <functional>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -158,8 +159,10 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
     int pack_comp_linkframe, pack_comp_datasrc, pack_comp_meta;
 
-    // Map kismet internal interface ID + DLT hash to log interface ID
-    std::unordered_map<unsigned int, unsigned int> datasource_id_map;
+    // Map kismet internal interface ID + DLT to log interface ID.  The pair is the exact key;
+    // xor-mixing their hashes let two sources share one interface block and its link type.
+    using idb_key = std::pair<uint64_t, int>;
+    std::map<idb_key, unsigned int> datasource_id_map;
 
     // Swap to the new buffer; the caller should finish dealing with the old buffer
     // somehow (such as flushing it out to file).  pcap_mutex must be held.
@@ -279,11 +282,7 @@ protected:
     virtual int pcapng_make_idb(kis_datasource *in_datasource, int in_dlt) {
         kis_lock_guard<kis_mutex> kl(pcap_mutex, "make idb");
 
-        auto h1 = std::hash<unsigned int>{}(in_datasource->get_source_number());
-        auto h2 = std::hash<unsigned int>{}(in_dlt);
-        auto ds_index = h1 ^ (h2 << 1);
-
-        auto ds_id_rec = datasource_id_map.find(ds_index);
+        auto ds_id_rec = datasource_id_map.find(idb_key{in_datasource->get_source_number(), in_dlt});
 
         // Interface ID for multiple interfaces per file
         int ng_interface_id;
@@ -303,7 +302,7 @@ protected:
         return pcapng_make_idb(in_datasource->get_source_number(), ifname, ifdesc, in_dlt);
     }
 
-    virtual int pcapng_make_idb(unsigned int in_sourcenumber, const std::string& in_interface,
+    virtual int pcapng_make_idb(uint64_t in_sourcenumber, const std::string& in_interface,
             const std::string& in_ifdesc, int in_dlt) {
         // Calculate the size and if we're going to wait to insert it before we put it into the key map
         // because if we don't have room and aren't waiting, we need to generate it next time
@@ -329,14 +328,10 @@ protected:
         // position in the list of IDBs is the size of the map because we never
         // remove from the number map.
         //
-        // Index ID is a hash of the source number and DLT
+        // Index ID is the source number and DLT
         unsigned int logid = datasource_id_map.size();
 
-        auto h1 = std::hash<unsigned int>{}(in_sourcenumber);
-        auto h2 = std::hash<unsigned int>{}(in_dlt);
-        auto index = h1 ^ (h2 << 1);
-
-        datasource_id_map[index] = logid;
+        datasource_id_map[idb_key{in_sourcenumber, in_dlt}] = logid;
 
         std::shared_ptr<char> buf;
 

@@ -34,6 +34,7 @@ namespace protobuf_decoder {
 const unsigned int max_varint = (64+6) / 7;
 const unsigned int max_lengthcode = (32 + 6) / 7;
 const unsigned int fieldnum_scale = 8;
+constexpr unsigned int max_group_depth = 64;
 
 enum class tagtype {
     UNDEFINED = -1,
@@ -90,12 +91,16 @@ public:
                 skip(read_varint());
                 break;
             case tagtype::STARTGROUP:
+                stack.push_front(id_);
+
                 while (!stack.empty()) {
                     auto nf = next_field();
                     if (nf < 0)
                         throw std::runtime_error("protobuf end of buffer in group");
 
                     if (type_ == tagtype::STARTGROUP) {
+                        if (stack.size() >= max_group_depth)
+                            throw std::runtime_error("protobuf groups nested too deeply");
                         stack.push_front(nf);
                     } else if (type_ == tagtype::ENDGROUP) {
                         if (nf != *stack.begin()) {

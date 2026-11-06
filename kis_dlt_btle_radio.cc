@@ -117,7 +117,7 @@ int kis_dlt_btle_radio::handle_packet(const std::shared_ptr<kis_packet>& in_pack
     // TODO handle dewhitening
 
     auto decapchunk = std::make_shared<kis_datachunk>();
-    decapchunk->set_data(in_pack->data.substr(sizeof(btle_rf), in_pack->data.length() - sizeof(btle_rf)));
+    decapchunk->set_data(linkchunk->substr(sizeof(btle_rf), linkchunk->length() - sizeof(btle_rf)));
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
     in_pack->insert(pack_comp_decap, decapchunk);
 

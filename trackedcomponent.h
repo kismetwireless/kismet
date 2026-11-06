@@ -938,7 +938,8 @@ public:
         return std::move(dup);
     }
 
-    tracker_component(tracker_component&&) = default;
+    // registered_fields is an owning raw pointer; a defaulted move would free it twice
+    tracker_component(tracker_component&&) = delete;
     tracker_component(tracker_component&) = delete;
     tracker_component& operator=(tracker_component&) = delete;
 

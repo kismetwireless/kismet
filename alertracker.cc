@@ -352,6 +352,15 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
     if (check_times(arec) != 1)
         return 0;
 
+    // Count it while still locked, so concurrent packets can't all pass the rate check
+    // before any of them is counted
+    struct timeval alert_tm;
+    gettimeofday(&alert_tm, NULL);
+
+    arec->inc_burst_sent(1);
+    arec->inc_total_sent(1);
+    arec->set_time_last(ts_to_double(alert_tm));
+
     lock.unlock();
 
     auto info = std::make_shared<kis_alert_info>();
@@ -361,7 +370,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
     info->severity = arec->get_severity();
     info->phy = arec->get_phy();
 
-    gettimeofday(&(info->tm), NULL);
+    info->tm = alert_tm;
 
     info->bssid = bssid;
     info->source = source;
@@ -375,11 +384,6 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
     if (gpstracker != nullptr) {
 		gpstracker->get_best_location(info->gps);
 	}
-
-    // Increment and set the timers
-    arec->inc_burst_sent(1);
-    arec->inc_total_sent(1);
-    arec->set_time_last(ts_to_double(info->tm));
 
     lock.lock();
 
@@ -635,7 +639,10 @@ int alert_tracker::parse_alert_config(config_file *in_conf) {
             return -1;
         }
 
-        alert_conf_map.insert(std::make_pair(rec->header, rec));
+        if (!alert_conf_map.insert(std::make_pair(rec->header, rec)).second) {
+            _MSG_ERROR("Duplicate 'alert' config option for {}, using the first one", rec->header);
+            delete rec;
+        }
     }
 
     return 1;
@@ -1041,11 +1048,11 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
                 fa = get_tracker_element_path(order_field, a);
                 fb = get_tracker_element_path(order_field, b);
 
-                if (fa == nullptr)
-                    return in_order_direction == 0;
-
-                if (fb == nullptr)
-                    return in_order_direction != 0;
+                if (fa == nullptr || fb == nullptr) {
+                    if (fa == fb)
+                        return false;
+                    return (fa == nullptr) == (in_order_direction == 0);
+                }
 
                 if (in_order_direction == 0)
                     return fast_sort_tracker_element_less(fa, fb);

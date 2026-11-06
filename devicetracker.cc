@@ -525,15 +525,13 @@ device_tracker::device_tracker() :
                     con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
-                    auto sid =
-                        streamtracker->register_streamer(pcapng, fmt::format("kismet-device-{}.pcapng", devkey),
+                    scoped_streamer stream_reg(streamtracker, pcapng, fmt::format("kismet-device-{}.pcapng", devkey),
                             "pcapng", "httpd",
                             fmt::format("pcapng of packets for dev key {}", devkey));
 
                     pcapng->start_stream();
                     pcapng->block_until_stream_done();
 
-                    streamtracker->remove_streamer(sid);
                 }));
 
     httpd->register_route("/devices/alerts/mac/:type/add", {"POST"}, httpd->LOGON_ROLE, {"cmd"},

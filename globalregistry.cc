@@ -234,7 +234,7 @@ std::atomic<unsigned long> Globalreg::n_tracked_http_connections;
 
 std::string *Globalreg::cache_string(const char *string, size_t len) {
     auto str = std::string(string, len);
-    return cache_string(string);
+    return cache_string(str);
 
 }
 

@@ -1742,8 +1742,7 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 	con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
 	auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
-	auto sid =
-		streamtracker->register_streamer(pcapng, fmt::format("kismet-dblog.pcapng"),
+	scoped_streamer stream_reg(streamtracker, pcapng, fmt::format("kismet-dblog.pcapng"),
 				"pcapng", "httpd",
 				fmt::format("pcapng of from dblog"));
 
@@ -1773,7 +1772,6 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 		}
 	}
 
-	streamtracker->remove_streamer(sid);
 }
 
 void kis_database_logfile::packet_drop_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -2299,8 +2297,10 @@ int pcapng_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64
     if (pcap_intf->dlt != dlt)
         pcap_intf->dlt = dlt;
 
+    // Same key the interface block was stored under; the bare interface number never
+    // matched it, so every packet wrote a new interface block
     auto ds_id_rec =
-        datasource_id_map.find(pcap_intf->pcapnum);
+        datasource_id_map.find(idb_key{pcap_intf->pcapnum, static_cast<int>(pcap_intf->dlt)});
 
     if (ds_id_rec == datasource_id_map.end()) {
         ng_interface_id = pcapng_make_idb(pcap_intf->pcapnum, pcap_intf->interface,

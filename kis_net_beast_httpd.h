@@ -96,9 +96,11 @@ public:
     unsigned int fetch_ssl_port() const { return ssl_endpoint.port(); }
 
     static std::string decode_uri(boost::beast::string_view in, bool query);
-    static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
+    // Split raw (still encoded) variables and decode each; query maps '+' to space
+    static void decode_variables(const boost::beast::string_view raw, http_var_map_t& var_map,
+            bool query);
     static std::string decode_get_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
-    static void decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& cookie_map);
+    static void decode_cookies(const boost::beast::string_view raw, http_cookie_map_t& cookie_map);
     static std::string escape_html(const boost::beast::string_view& html);
 
     // Register mime types.  These functions are NOT THREAD SAFE and must not be called

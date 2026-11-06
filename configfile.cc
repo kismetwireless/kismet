@@ -508,9 +508,13 @@ std::string config_file::process_log_template(const std::string& path, const std
 
     logtemplate = path;
 
-    for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length(); nl = logtemplate.find("%", nl)) {
+    for (size_t nl = logtemplate.find("%"); nl < logtemplate.length(); nl = logtemplate.find("%", nl)) {
         char op = logtemplate[nl+1];
         logtemplate.erase(nl, 2);
+
+        // Resume after what gets inserted, so a title or path holding a % (such as %n)
+        // isn't expanded again, or forever
+        const auto before = logtemplate.length();
 
         if (op == 'n')
             logtemplate.insert(nl, logname);
@@ -608,6 +612,8 @@ std::string config_file::process_log_template(const std::string& path, const std
         } else if (op == 'B') {
             logtemplate.insert(nl, BIN_LOC);
         }
+
+        nl += logtemplate.length() - before;
     }
 
     return logtemplate;
