@@ -29,6 +29,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <string_view>
 #include <thread>
 
 #include <limits.h>
@@ -225,9 +226,8 @@ namespace kismet {
 template<class M>
 class kis_lock_guard {
 public:
-    kis_lock_guard(M& m, const std::string& op = "UNKNOWN") :
+    kis_lock_guard(M& m, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         retain{false} {
             if (mutex.debug)
                 fmt::print(stderr, "DEBUG: locking {} op {}\n", mutex.name, op);
@@ -235,14 +235,12 @@ public:
             mutex.lock();
         }
 
-    kis_lock_guard(M& m, std::adopt_lock_t t, const std::string& op = "UNKNOWN") :
+    kis_lock_guard(M& m, std::adopt_lock_t t, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         retain{false} { }
 
-    kis_lock_guard(M& m, kismet::retain_lock_t t, const std::string& op = "UNKNOWN") :
+    kis_lock_guard(M& m, kismet::retain_lock_t t, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         retain{true} {
             if (mutex.debug)
                 fmt::print(stderr, "DEBUG: locking {} op {}\n", mutex.name, op);
@@ -261,16 +259,14 @@ public:
 
 protected:
     M& mutex;
-    std::string op;
     bool retain;
 };
 
 template<class M>
 class kis_unique_lock {
 public:
-    kis_unique_lock(M& m, const std::string& op) :
-        mutex{m},
-        op{op} {
+    kis_unique_lock(M& m, std::string_view op) :
+        mutex{m} {
             if (mutex.debug)
                 fmt::print(stderr, "locking {} op {}\n", mutex.name, op);
 
@@ -278,14 +274,12 @@ public:
             locked = true;
         }
 
-    kis_unique_lock(M& m, std::defer_lock_t t, const std::string& op = "UNKNOWN") :
+    kis_unique_lock(M& m, std::defer_lock_t t, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         locked{false} { }
 
-    kis_unique_lock(M& m, std::adopt_lock_t, const std::string& op = "UNKNOWN") :
+    kis_unique_lock(M& m, std::adopt_lock_t, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         locked{true} { }
 
     kis_unique_lock(const kis_unique_lock&) = delete;
@@ -296,7 +290,7 @@ public:
             mutex.unlock();
     }
 
-    void lock(const std::string& op = "UNKNOWN") {
+    void lock(std::string_view op = "UNKNOWN") {
         if (locked) {
             const auto e = fmt::format("invalid use: thread {} attempted to lock "
                     "unique lock {} when already locked for {}", 
@@ -312,7 +306,7 @@ public:
 
     }
 
-    bool try_lock(const std::string& op = "UNKNOWN") {
+    bool try_lock(std::string_view op = "UNKNOWN") {
         if (locked) {
             const auto e = fmt::format("invalid use: thread {} attempted to try_lock "
                     "unique lock {} when already locked for {}", 
@@ -341,28 +335,24 @@ public:
 
 protected:
     M& mutex;
-    std::string op;
     bool locked{false};
 };
 
 template<class M>
 class kis_shared_lock {
 public:
-    kis_shared_lock(M& m, const std::string& op) :
-        mutex{m},
-        op{op} {
+    kis_shared_lock(M& m, std::string_view op) :
+        mutex{m} {
             mutex.lock_shared();
             locked = true;
         }
 
-    kis_shared_lock(M& m, std::defer_lock_t t, const std::string& op = "UNKNOWN") :
+    kis_shared_lock(M& m, std::defer_lock_t t, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         locked{false} { }
 
-    kis_shared_lock(M& m, std::adopt_lock_t, const std::string& op = "UNKNOWN") :
+    kis_shared_lock(M& m, std::adopt_lock_t, std::string_view op = "UNKNOWN") :
         mutex{m},
-        op{op},
         locked{true} { }
 
     kis_shared_lock(const kis_shared_lock&) = delete;
@@ -373,7 +363,7 @@ public:
             mutex.unlock_shared();
     }
 
-    void lock(const std::string& op = "UNKNOWN") {
+    void lock(std::string_view op = "UNKNOWN") {
         if (locked) {
             const auto e = fmt::format("invalid use: thread {} attempted to lock "
                     "unique lock {} when already locked for {}", 
@@ -399,7 +389,6 @@ public:
 
 protected:
     M& mutex;
-    std::string op;
     bool locked{false};
 };
 

@@ -118,11 +118,11 @@ class tracker_component : public tracker_element_map {
         return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     inline bool set_##name(const itype& in) { \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
         return lambda(in); \
     } \
     inline void set_only_##name(const itype& in) { \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 #define __ProxyLM(name, ptype, itype, rtype, cvar, mvar, lambda) \
@@ -137,12 +137,12 @@ class tracker_component : public tracker_element_map {
     } \
     inline bool set_##name(const itype& in) { \
         kis_lock_guard<kis_mutex> lk(mvar, __func__); \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
         return lambda(in); \
     } \
     inline void set_only_##name(const itype& in) { \
         kis_lock_guard<kis_mutex> lk(mvar, __func__); \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Newer dynamic proxy model which doesn't use an instance pointer, only the
@@ -170,14 +170,14 @@ class tracker_component : public tracker_element_map {
             } \
             return (rtype){}; \
         } \
-        return (rtype) get_tracker_value<ptype>(ci->second); \
+        return (rtype) get_tracker_value<ptype>(std::static_pointer_cast<ctype>(ci->second)); \
     } \
     inline const rtype get_only_##name() const { \
         const auto ci = this->find(id); \
         if (ci == this->cend()) { \
             return (rtype){}; \
         } \
-        return (rtype) get_tracker_value<ptype>(ci->second); \
+        return (rtype) get_tracker_value<ptype>(std::static_pointer_cast<ctype>(ci->second)); \
     } \
     inline void set_##name(const itype& in) { \
         const auto ci = this->find(id); \
@@ -185,12 +185,12 @@ class tracker_component : public tracker_element_map {
             auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
             if (cvar != nullptr) {\
                 insert(cvar); \
-                cvar->set(in); \
+                set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
                 return; \
             } \
             return; \
         } \
-        std::static_pointer_cast<ctype>(ci->second)->set(in); \
+        set_tracker_value<ptype>(std::static_pointer_cast<ctype>(ci->second), static_cast<ptype>(in)); \
     } \
     inline bool has_##name() const { \
         return this->find(id) != this->cend(); \
@@ -230,7 +230,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     inline void set_only_##name(const itype& in) { \
         if (cvar == nullptr) { \
@@ -239,7 +239,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     inline bool has_##name() const { \
         return cvar != nullptr; \
@@ -275,7 +275,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     inline void set_only_##name(const itype& in) { \
         kis_lock_guard<kis_mutex> lk(mutex, __func__); \
@@ -285,7 +285,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     inline bool has_##name() { \
         kis_lock_guard<kis_mutex> lk(mutex); \
@@ -320,7 +320,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
         return lambda(in); \
     } \
     inline void set_only_##name(const itype& in) { \
@@ -330,7 +330,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     inline bool has_##name() const { \
         return cvar != nullptr; \
@@ -383,7 +383,7 @@ class tracker_component : public tracker_element_map {
     } \
     protected: \
     inline void set_int_##name(const itype& in) { \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     public:
 
@@ -399,7 +399,7 @@ class tracker_component : public tracker_element_map {
     protected: \
     inline void set_int_##name(const itype& in) { \
         kis_lock_guard<kis_mutex> lk(mutex, __func__); \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     public:
 
@@ -415,7 +415,7 @@ class tracker_component : public tracker_element_map {
     protected: \
     virtual void set_int_##name(const itype& in) { \
         kis_lock_guard<kis_mutex> lk(mutex, __func__); \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     public:
 
@@ -431,7 +431,7 @@ class tracker_component : public tracker_element_map {
     protected: \
     inline void set_int_##name(const itype& in) { \
         kis_lock_guard<kis_mutex> lk(mutex); \
-        cvar->set((ptype) in); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     } \
     public:
 
