@@ -492,6 +492,8 @@ protected:
     // Datasource logging
     int database_log_timer;
     bool database_log_enabled;
+    // Writes the datasources into each kismetdb file as it opens
+    unsigned long database_open_evt_id;
     std::atomic<bool> database_logging;
 
     // Buffer sizes
