@@ -21,6 +21,8 @@
 #include <iterator>
 #include <utility>
 
+#include "wire_order.h"
+
 namespace btle_adtypes {
 
 namespace {
@@ -302,42 +304,40 @@ bool decode_public_broadcast(const uint8_t *data, size_t len, public_broadcast& 
     if (data == nullptr || len < 4 || get_le16(data) != uuid_public_broadcast)
         return false;
 
-    const uint8_t *meta = data + 4;
-    const size_t meta_len = data[3];
+    kismet::wire_reader rd{data, len};
+    rd.skip(2);
+    const uint8_t features = *rd.u8();
+    const auto meta = rd.take(*rd.u8());
 
-    if (meta_len > len - 4)
+    if (!meta)
         return false;
 
     public_broadcast r;
-    r.features = data[2];
+    r.features = features;
     r.encrypted = r.features & 0x01;
     r.standard_quality = r.features & 0x02;
     r.high_quality = r.features & 0x04;
 
-    size_t offt = 0;
+    kismet::wire_reader mr{*meta};
 
-    while (offt < meta_len) {
-        const size_t ltv_len = meta[offt];
-
+    while (const auto ltv_len = mr.u8()) {
         /* Length 0 is an empty entry */
-        if (ltv_len == 0) {
-            offt++;
+        if (*ltv_len == 0)
             continue;
-        }
 
-        if (ltv_len > meta_len - offt - 1)
+        const auto ltv = mr.take(*ltv_len);
+
+        if (!ltv)
             return false;
 
-        const uint8_t type = meta[offt + 1];
-        const uint8_t *v = meta + offt + 2;
-        const size_t vlen = ltv_len - 1;
+        const uint8_t type = (*ltv)[0];
+        const uint8_t *v = ltv->data() + 1;
+        const size_t vlen = ltv->size() - 1;
 
         if (type == 0x03 && r.program_info.empty())
             append_sanitized(r.program_info, v, vlen, max_program_info_len);
         else if (type == 0x04 && vlen == 3 && r.language.empty())
             append_sanitized(r.language, v, vlen, 3);
-
-        offt += 1 + ltv_len;
     }
 
     out = std::move(r);
@@ -437,22 +437,26 @@ bool decode_transport_discovery(const uint8_t *data, size_t len, transport_disco
         return false;
 
     transport_discovery r;
-    size_t offt = 0;
+    kismet::wire_reader rd{data, len};
 
-    while (offt < len) {
+    while (!rd.empty()) {
+        if (r.blocks.size() >= max_tds_blocks)
+            return false;
+
         /* Org, flags, data length, data */
-        if (len - offt < 3 || r.blocks.size() >= max_tds_blocks)
+        const auto org = rd.u8();
+        const auto flags = rd.u8();
+        const auto data_len = rd.u8();
+
+        if (!org || !flags || !data_len || !rd.skip(*data_len))
             return false;
 
         tds_block b;
-        b.org_id = data[offt];
-        b.role = static_cast<tds_role>(data[offt + 1] & 0x03);
-        b.data_incomplete = data[offt + 1] & 0x04;
-        b.state = static_cast<tds_state>((data[offt + 1] >> 3) & 0x03);
-        b.data_len = data[offt + 2];
-
-        if (b.data_len > len - offt - 3)
-            return false;
+        b.org_id = *org;
+        b.role = static_cast<tds_role>(*flags & 0x03);
+        b.data_incomplete = *flags & 0x04;
+        b.state = static_cast<tds_state>((*flags >> 3) & 0x03);
+        b.data_len = *data_len;
 
         b.org_name = "unknown";
         for (const auto& o : tds_orgs) {
@@ -463,7 +467,6 @@ bool decode_transport_discovery(const uint8_t *data, size_t len, transport_disco
         }
 
         r.blocks.push_back(b);
-        offt += 3 + (size_t) b.data_len;
     }
 
     out = std::move(r);

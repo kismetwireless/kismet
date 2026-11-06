@@ -21,6 +21,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#include "wire_order.h"
+
 namespace btle_continuity {
 
 namespace {
@@ -216,51 +218,53 @@ bool decode_manuf_data(const uint8_t *data, size_t len, info& out) {
     if (data == nullptr || len < 4)
         return false;
 
-    const uint16_t company = (uint16_t) data[0] | ((uint16_t) data[1] << 8);
+    kismet::wire_reader r{data, len};
 
-    if (company != apple_company_id)
+    if (r.le<uint16_t>() != apple_company_id)
         return false;
 
-    const uint8_t *p = data + 2;
-    const size_t plen = len - 2;
-    size_t offt = 0;
+    while (true) {
+        const auto type_r = r.u8();
+        auto tlv_len = r.u8();
 
-    while (plen - offt >= 2) {
-        const uint8_t type = p[offt];
-        uint8_t tlv_len = p[offt + 1];
-
-        if (is_hap_type(type))
-            tlv_len &= hap_length_mask;
-
-        if (tlv_len > plen - offt - 2)
+        if (!type_r || !tlv_len)
             break;
 
-        const uint8_t *v = p + offt + 2;
-        offt += 2 + (size_t) tlv_len;
+        const uint8_t type = *type_r;
+
+        if (is_hap_type(type))
+            *tlv_len &= hap_length_mask;
+
+        const auto tlv = r.take(*tlv_len);
+
+        if (!tlv)
+            break;
 
         if (type == ibeacon_type || type == proximity_pairing_type || type == findmy_type)
             continue;
 
+        const uint8_t *v = tlv->data();
+        const size_t vlen = tlv->size();
         bool ok = false;
 
         switch (static_cast<msg_type>(type)) {
             case msg_type::nearby_info:
-                ok = decode_nearby_info(v, tlv_len, out.nearby_info);
+                ok = decode_nearby_info(v, vlen, out.nearby_info);
                 break;
             case msg_type::nearby_action:
-                ok = decode_nearby_action(v, tlv_len, out.nearby_action);
+                ok = decode_nearby_action(v, vlen, out.nearby_action);
                 break;
             case msg_type::homekit:
-                ok = decode_homekit(v, tlv_len, out.homekit);
+                ok = decode_homekit(v, vlen, out.homekit);
                 break;
             case msg_type::airplay_target:
-                ok = decode_airplay_target(v, tlv_len, out.airplay_target);
+                ok = decode_airplay_target(v, vlen, out.airplay_target);
                 break;
             case msg_type::airprint:
-                ok = decode_airprint(v, tlv_len, out.airprint);
+                ok = decode_airprint(v, vlen, out.airprint);
                 break;
             case msg_type::tethering_source:
-                ok = decode_tethering_source(v, tlv_len, out.tethering_source);
+                ok = decode_tethering_source(v, vlen, out.tethering_source);
                 break;
             default:
                 ok = is_presence_type(type);
