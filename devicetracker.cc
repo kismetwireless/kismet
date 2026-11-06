@@ -2038,6 +2038,20 @@ void device_tracker::databaselog_write_devices() {
     last_database_logged = log_time;
 }
 
+void device_tracker::databaselog_write_all_devices() {
+    auto dbf = Globalreg::fetch_global_as<kis_database_logfile>();
+
+    if (dbf == nullptr || !dbf->is_enabled())
+        return;
+
+    device_tracker_view_function_worker worker([dbf](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            dbf->log_device(dev);
+            return false;
+        });
+
+    do_device_work(worker);
+}
+
 sqlite3_stmt *device_tracker::get_stored_stmt(sqlite3_stmt*& stmt, const char *sql) {
     // Statements belong to the handle they were prepared on; re-prepare if it changed
     if (stored_stmt_db != db)
