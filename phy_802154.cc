@@ -38,6 +38,7 @@
 #include "messagebus.h"
 #include "crc32.h"
 #include "configfile.h"
+#include "wire_order.h"
 
 #include "phy_802154.h"
 #include "zigbee_crypto.h"
@@ -49,20 +50,44 @@
 #define ACK_802154      0x02
 #define CMD_802154      0x03
 
-// 802.15.4 header
+// 802.15.4 frame control, decoded from its little-endian wire value
 struct _802_15_4_fcf {
-    unsigned char type : 3;
-    unsigned char security : 1;
-    unsigned char pending : 1;
-    unsigned char ack_req : 1;
-    unsigned char pan_id_comp : 1;
-    unsigned char reserved : 1;
-    unsigned char sns : 1;
-    unsigned char iep : 1;
-    unsigned char dest_addr_mode : 2;
-    unsigned char frame_ver : 2;
-    unsigned char src_addr_mode : 2;
+    unsigned int type = 0;
+    unsigned int security = 0;
+    unsigned int pending = 0;
+    unsigned int ack_req = 0;
+    unsigned int pan_id_comp = 0;
+    unsigned int reserved = 0;
+    unsigned int sns = 0;
+    unsigned int iep = 0;
+    unsigned int dest_addr_mode = 0;
+    unsigned int frame_ver = 0;
+    unsigned int src_addr_mode = 0;
+
+    static constexpr _802_15_4_fcf decode(uint16_t v) {
+        _802_15_4_fcf f;
+        f.type = v & 0x07;
+        f.security = (v >> 3) & 0x01;
+        f.pending = (v >> 4) & 0x01;
+        f.ack_req = (v >> 5) & 0x01;
+        f.pan_id_comp = (v >> 6) & 0x01;
+        f.reserved = (v >> 7) & 0x01;
+        f.sns = (v >> 8) & 0x01;
+        f.iep = (v >> 9) & 0x01;
+        f.dest_addr_mode = (v >> 10) & 0x03;
+        f.frame_ver = (v >> 12) & 0x03;
+        f.src_addr_mode = (v >> 14) & 0x03;
+        return f;
+    }
 };
+
+// Data frame, ack request, PAN id compression, short dest, 2006 version, long source
+static_assert(_802_15_4_fcf::decode(0xd861).type == DATA_802154);
+static_assert(_802_15_4_fcf::decode(0xd861).ack_req == 1);
+static_assert(_802_15_4_fcf::decode(0xd861).pan_id_comp == 1);
+static_assert(_802_15_4_fcf::decode(0xd861).dest_addr_mode == 0x02);
+static_assert(_802_15_4_fcf::decode(0xd861).frame_ver == 0x01);
+static_assert(_802_15_4_fcf::decode(0xd861).src_addr_mode == 0x03);
 
 
 // The 802.15.4 FCS: the ITU-T CRC-16 (x^16 + x^12 + x^5 + 1), initial value 0, LSB first
@@ -938,8 +963,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     uint16_t csl_period = 0;
     int key_index = -1;
 
-    unsigned short fcf = 0;
-    auto hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
+    _802_15_4_fcf fcf_fields;
+    const auto hdr_802_15_4_fcf = &fcf_fields;
 
     if (packdata == nullptr) {
         return 0;
@@ -1042,8 +1067,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         if (pkt_ctr + 2 > frame_end)
             return 0;
 
-        fcf = (((short) packdata->data()[pkt_ctr + 1]) << 8) |
-            (0x00ff & packdata->data()[pkt_ctr]);
+        fcf_fields = _802_15_4_fcf::decode(
+            kismet::load_le<uint16_t>(reinterpret_cast<const uint8_t *>(&packdata->data()[pkt_ctr])));
 
         pkt_ctr += 2;
 

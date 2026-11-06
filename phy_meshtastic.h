@@ -31,6 +31,7 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
+#include "wire_order.h"
 #include "json_adapter_v2.h"
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
@@ -504,16 +505,10 @@ protected:
     uint16_t mesh_node_id;
 
     const static mac_addr mesh_to_mac(uint32_t meshid) {
-        struct {
-            uint8_t prefix_[2];
-            uint32_t meshid_;
-        } __attribute__((packed)) macbytes;
+        uint8_t macbytes[6] = {0x02, 0x00};
+        kismet::store_le<uint32_t>(macbytes + 2, meshid);
 
-        macbytes.prefix_[0] = 0x2;
-        macbytes.prefix_[1] = 0;
-        macbytes.meshid_ = meshid;
-
-        return mac_addr((uint8_t *) &macbytes, 6);
+        return mac_addr(macbytes, 6);
     }
 
     void handle_telemetry_pb(const std::string_view& pbuf,

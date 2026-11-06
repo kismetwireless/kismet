@@ -31,6 +31,7 @@
 #include <iostream>
 
 #include <functional>
+#include <optional>
 
 #include "endian_magic.h"
 #include "phy_80211.h"
@@ -816,9 +817,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
     packinfo = packetchain->new_packet_component<dot11_packinfo>();
 
-    const auto fc = reinterpret_cast<const frame_control *>(chunk->data());
-
-    uint16_t duration = 0;
+    const dot11_frame_control fc{reinterpret_cast<const uint8_t *>(chunk->data())};
 
     // 18 bytes of normal address ranges
     const uint8_t *addr0 = NULL;
@@ -832,13 +831,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     packinfo->subtype = packet_sub_unknown;
     packinfo->distrib = distrib_unknown;
 
-    // Endian swap the duration  ** Optimize this in the future **
-    memcpy(&duration, &(chunk->data()[2]), 2);
-    duration = kis_ntoh16(duration);
-
-    // 2 bytes of sequence and fragment counts
-    const wireless_fragseq *sequence;
-
     // We always have addr0 even on phy
     addr0 = reinterpret_cast<const uint8_t *>(&chunk->data()[4]);
 
@@ -846,28 +838,28 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     if (chunk->length() >= 16)
         addr1 = reinterpret_cast<const uint8_t *>(&chunk->data()[10]);
 
-    if (fc->more_fragments)
+    if (fc.more_fragments())
         packinfo->fragmented = 1;
 
-    if (fc->retry)
+    if (fc.retry())
         packinfo->retry = 1;
 
     // Assign the distribution direction this packet is traveling
-    if (fc->to_ds == 0 && fc->from_ds == 0)
+    if (fc.to_ds() == 0 && fc.from_ds() == 0)
         packinfo->distrib = distrib_adhoc;
-    else if (fc->to_ds == 0 && fc->from_ds == 1)
+    else if (fc.to_ds() == 0 && fc.from_ds() == 1)
         packinfo->distrib = distrib_from;
-    else if (fc->to_ds == 1 && fc->from_ds == 0)
+    else if (fc.to_ds() == 1 && fc.from_ds() == 0)
         packinfo->distrib = distrib_to;
-    else if (fc->to_ds == 1 && fc->from_ds == 1)
+    else if (fc.to_ds() == 1 && fc.from_ds() == 1)
         packinfo->distrib = distrib_inter;
 
     // Shortcut PHYs here because they're shorter than normal packets
-    if (fc->type == packet_phy) {
+    if (fc.type() == packet_phy) {
         packinfo->type = packet_phy;
         in_pack->common_info.type = packet_basic_phy;
 
-        if (fc->subtype == 5) {
+        if (fc.subtype() == 5) {
             packinfo->subtype = packet_sub_vht_ndp;
 
             if (addr0 == NULL || addr1 == NULL) {
@@ -879,7 +871,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
 
-        } else if (fc->subtype == 8) {
+        } else if (fc.subtype() == 8) {
             packinfo->subtype = packet_sub_block_ack_req;
 
             if (addr0 == NULL || addr1 == NULL) {
@@ -891,7 +883,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
 
-        } else if (fc->subtype == 9) {
+        } else if (fc.subtype() == 9) {
             packinfo->subtype = packet_sub_block_ack;
 
             if (addr0 == NULL || addr1 == NULL) {
@@ -902,7 +894,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->dest_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-        } else if (fc->subtype == 10) {
+        } else if (fc.subtype() == 10) {
             packinfo->subtype = packet_sub_pspoll;
 
             if (addr0 == NULL) {
@@ -914,7 +906,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
-        } else if (fc->subtype == 11) {
+        } else if (fc.subtype() == 11) {
             packinfo->subtype = packet_sub_rts;
 
             if (addr0 == NULL || addr1 == NULL) {
@@ -926,7 +918,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
 
-        } else if (fc->subtype == 12) {
+        } else if (fc.subtype() == 12) {
             packinfo->subtype = packet_sub_cts;
 
             if (addr0 == NULL) {
@@ -938,7 +930,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
-        } else if (fc->subtype == 13) {
+        } else if (fc.subtype() == 13) {
             packinfo->subtype = packet_sub_ack;
 
             if (addr0 == NULL) {
@@ -950,14 +942,14 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
 
-        } else if (fc->subtype == 14) {
+        } else if (fc.subtype() == 14) {
             packinfo->subtype = packet_sub_cf_end;
 
-        } else if (fc->subtype == 15) {
+        } else if (fc.subtype() == 15) {
             packinfo->subtype = packet_sub_cf_end_ack;
 
         } else {
-            // fmt::print(stderr, "debug - unknown type - {} {}\n", fc->type, fc->subtype);
+            // fmt::print(stderr, "debug - unknown type - {} {}\n", fc.type(), fc.subtype());
             packinfo->subtype = packet_sub_unknown;
         }
 
@@ -983,16 +975,16 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     // We must have room for addr0..2 in 24 bytes
     addr1 = reinterpret_cast<const uint8_t *>(&chunk->data()[10]);
     addr2 = reinterpret_cast<const uint8_t *>(&chunk->data()[16]);
-    sequence = reinterpret_cast<const wireless_fragseq *>(&chunk->data()[22]);
+    const dot11_fragseq sequence{reinterpret_cast<const uint8_t *>(&chunk->data()[22])};
 
     // addr3 goes up to byte 30 so before we can use it, make sure we know we've got the data
     addr3 = reinterpret_cast<const uint8_t *>(&chunk->data()[24]);
 
-    packinfo->sequence_number = sequence->sequence;
-    packinfo->frag_number = sequence->frag;
+    packinfo->sequence_number = sequence.sequence();
+    packinfo->frag_number = sequence.frag();
 
     // Rip apart management frames
-    if (fc->type == packet_management) {
+    if (fc.type() == packet_management) {
         packinfo->type = packet_management;
         in_pack->common_info.type = packet_basic_mgmt;
 
@@ -1016,13 +1008,13 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             return 0;
         }
 
-        const fixed_parameters *fixparm = NULL;
+        std::optional<dot11_fixed_parameters> fixparm;
 
         // Association and reassociation frames have no timestamp or beacon interval; their
         // body starts directly with the capability field
         const char *capability = nullptr;
 
-        switch (fc->subtype) {
+        switch (fc.subtype()) {
             case 0:
                 if (chunk->length() < 36) {
                     packinfo->corrupt = 1;
@@ -1066,7 +1058,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 capability = &chunk->data()[24];
                 packinfo->header_offset = 24 + 6;
 
-                if (fc->subtype == 1)
+                if (fc.subtype() == 1)
                     packinfo->subtype = packet_sub_association_resp;
                 else
                     packinfo->subtype = packet_sub_reassociation_resp;
@@ -1117,7 +1109,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->distrib = distrib_to;
 
                 packinfo->header_offset = 24;
-                fixparm = NULL;
+                fixparm.reset();
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1140,7 +1132,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                fixparm.emplace(reinterpret_cast<const uint8_t *>(&chunk->data()[24]));
                 packinfo->header_offset = 24 + 12;
 
                 packinfo->subtype = packet_sub_probe_resp;
@@ -1169,7 +1161,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                fixparm.emplace(reinterpret_cast<const uint8_t *>(&chunk->data()[24]));
                 packinfo->header_offset = 24 + 12;
 
                 packinfo->subtype = packet_sub_beacon;
@@ -1191,7 +1183,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                                "driver attack");
                 }
 
-                packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
+                packinfo->beacon_interval = fixparm->beacon;
 
                 packinfo->ietag_csum =
                     crc32_fast(chunk->data() + packinfo->header_offset,
@@ -1209,7 +1201,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     return 0;
                 }
 
-                fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
+                fixparm.emplace(reinterpret_cast<const uint8_t *>(&chunk->data()[24]));
                 packinfo->header_offset = 24 + 12;
 
                 packinfo->subtype = packet_sub_atim;
@@ -1231,7 +1223,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->subtype = packet_sub_disassociation;
 
                 packinfo->header_offset = 24;
-                fixparm = NULL;
+                fixparm.reset();
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1260,7 +1252,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->subtype = packet_sub_authentication;
 
                 packinfo->header_offset = 24;
-                fixparm = NULL;
+                fixparm.reset();
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1279,7 +1271,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->subtype = packet_sub_deauthentication;
 
                 packinfo->header_offset = 24;
-                fixparm = NULL;
+                fixparm.reset();
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1315,11 +1307,11 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 // fixed parameters field, handle it all here; the body starts with
                 // the category code after the 24 byte header
                 packinfo->header_offset = 24;
-                fixparm = NULL;
+                fixparm.reset();
 
                 // Action frames can be encrypted; we can't do anything with them if they are.
 
-                if (!fc->wep) {
+                if (!fc.wep()) {
                     membuf pack_membuf((char *) &chunk->data()[packinfo->header_offset],
                                        (char *) &(chunk->data()[chunk->length()]));
                     std::istream pack_stream(&pack_membuf);
@@ -1434,7 +1426,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
 
                 packinfo->subtype = packet_sub_action_noack;
 
-                fixparm = nullptr;
+                fixparm.reset();
 
                 packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
                 packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
@@ -1459,29 +1451,25 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             }
         }
 
-        if (fixparm != nullptr) {
+        if (fixparm.has_value()) {
             // Set the transmitter info
-            packinfo->ess = fixparm->ess;
-            packinfo->ibss = fixparm->ibss;
+            packinfo->ess = fixparm->ess();
+            packinfo->ibss = fixparm->ibss();
 
             // Pull the fixparm ibss info
-            if (fixparm->ess == 0 && fixparm->ibss == 1) {
+            if (fixparm->ess() == 0 && fixparm->ibss() == 1) {
                 packinfo->distrib = distrib_adhoc;
             }
 
             // Pull the fixparm timestamp
-#ifdef WORDS_BIGENDIAN
-            packinfo->timestamp = kis_swap64(fixparm->timestamp);
-#else
             packinfo->timestamp = fixparm->timestamp;
-#endif
         }
 
-    } else if (fc->type == packet_data) {
+    } else if (fc.type() == packet_data) {
         packinfo->type = packet_data;
         in_pack->common_info.type = packet_basic_data;
 
-        switch (fc->subtype) {
+        switch (fc.subtype()) {
             case 0:
                 packinfo->subtype = packet_sub_data;
                 break;
@@ -1610,7 +1598,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         }
 
         // WEP/Protected on data frames means encrypted, not WEP, sometimes
-        if (fc->wep) {
+        if (fc.wep()) {
             bool alt_crypt = false;
 
             // We can't really know if it's WPA1 or WPA2 from just a data frame so
@@ -1759,7 +1747,7 @@ eap_end:
             ;
 
         }
-    } else if (fc->type == packet_extension) {
+    } else if (fc.type() == packet_extension) {
         try {
             packinfo->s1g.parse(chunk.get());
         } catch (...) {
@@ -2932,7 +2920,7 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
 
     // printf("debug - decryptwep size len %u offt %u\n", in_chunk->length, in_packinfo->header_offset);
     // Bail on size check
-    if (in_packinfo->header_offset < sizeof(frame_control) ||
+    if (in_packinfo->header_offset < dot11_frame_control::wire_len ||
         in_chunk->length() < in_packinfo->header_offset ||
         in_chunk->length() - in_packinfo->header_offset <= 8)
         return NULL;
@@ -3026,8 +3014,7 @@ std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(const std::shared_ptr<d
     }
 
     // Remove the privacy flag in the mangled data
-    auto fc = reinterpret_cast<frame_control *>(&manglebuf[0]);
-    fc->wep = 0;
+    manglebuf[1] &= ~dot11_frame_control::wep_byte1_mask;
 
     manglechunk = std::make_shared<kis_datachunk>();
     manglechunk->dlt = KDLT_IEEE802_11;

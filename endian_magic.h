@@ -21,6 +21,8 @@
 
 #include "config.h"
 
+#include "wire_order.h"
+
 // Byteswap magic
 #ifdef WORDS_BIGENDIAN
 
@@ -117,46 +119,14 @@
         (uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
 })
 
-// Extract magic, also cribbed from tcpdump/ethereal
-#define kis_extractLE16(x) \
-	((uint16_t)((uint16_t)*((const uint8_t *)(x) + 1) << 8 | \
- 	(uint16_t)*((const uint8_t *)(x) + 0))) 
+// Extract from wire bytes; any pointer type, the caller checks the length
+#define kis_extractLE16(x) kismet::load_le<uint16_t>(reinterpret_cast<const uint8_t *>(x))
+#define kis_extractLE32(x) kismet::load_le<uint32_t>(reinterpret_cast<const uint8_t *>(x))
+#define kis_extractLE64(x) kismet::load_le<uint64_t>(reinterpret_cast<const uint8_t *>(x))
 
-#define kis_extractLE32(x) \
-	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 1) << 24 | \
-	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 0) << 16 | \
-	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 3) << 8 | \
- 	(uint32_t)*((const uint8_t *)(x) + 2)))))))
-
-#define kis_extractLE64(x) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 1) << 56 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 0) << 48 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 3) << 40 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 2) << 32 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 5) << 24 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 4) << 16 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 7) << 8 | \
- 	(uint64_t)*((const uint8_t *)(x) + 6)))))))))))))))
-
-#define kis_extractBE16(x) \
-	((uint16_t)((uint16_t)*((const uint8_t *)(x) + 0) << 8 | \
- 	(uint16_t)*((const uint8_t *)(x) + 1))) 
-
-#define kis_extractBE32(x) \
-	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 0) << 24 | \
-	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 1) << 16 | \
-	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 2) << 8 | \
- 	(uint32_t)*((const uint8_t *)(x) + 3)))))))
-
-#define kis_extractBE64(x) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 0) << 56 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 1) << 48 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 2) << 40 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 3) << 32 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 4) << 24 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 5) << 16 | \
-	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 6) << 8 | \
- 	(uint64_t)*((const uint8_t *)(x) + 7)))))))))))))))
+#define kis_extractBE16(x) kismet::load_be<uint16_t>(reinterpret_cast<const uint8_t *>(x))
+#define kis_extractBE32(x) kismet::load_be<uint32_t>(reinterpret_cast<const uint8_t *>(x))
+#define kis_extractBE64(x) kismet::load_be<uint64_t>(reinterpret_cast<const uint8_t *>(x))
 
 #endif
 	
