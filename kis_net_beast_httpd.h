@@ -286,6 +286,7 @@ protected:
     std::string redirect_unknown_target_;
 
     // Yes, these are stored in ram.  yes, I'm ok with this.
+    kis_mutex admin_login_mutex;
     std::string admin_username, admin_password;
     bool global_login_config;
 
@@ -322,9 +323,13 @@ public:
     boost::beast::http::request<boost::beast::http::string_body>& request() { return request_; }
     boost::beast::http::verb& verb() { return verb_; }
 
-    // Return remote stream address
+    // Return remote stream address, or empty if the peer is already gone
     std::string remote_address() const {
-        return stream_.socket().remote_endpoint().address().to_string();
+        boost::system::error_code ec;
+        auto ep = stream_.socket().remote_endpoint(ec);
+        if (ec)
+            return "";
+        return ep.address().to_string();
     }
 
     // Raw tcp stream, under any TLS layer; write responses with write_timeout
@@ -751,8 +756,12 @@ public:
     virtual void close();
 
     virtual std::string remote_address() {
-        return with_ws([](auto& ws) {
-                return boost::beast::get_lowest_layer(ws).socket().remote_endpoint().address().to_string();
+        return with_ws([](auto& ws) -> std::string {
+                boost::system::error_code ec;
+                auto ep = boost::beast::get_lowest_layer(ws).socket().remote_endpoint(ec);
+                if (ec)
+                    return "";
+                return ep.address().to_string();
             });
     }
 

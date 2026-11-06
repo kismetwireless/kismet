@@ -1067,6 +1067,59 @@ std::string kis_strerror_r(int errnum) {
     return r;
 }
 
+bool write_private_file(const std::string& path, const std::string& data, std::string& err) {
+    std::vector<char> tmpl(path.begin(), path.end());
+    for (auto c : std::string{".XXXXXX"})
+        tmpl.push_back(c);
+    tmpl.push_back('\0');
+
+    int fd = mkostemp(tmpl.data(), O_CLOEXEC);
+    if (fd < 0) {
+        err = kis_strerror_r(errno);
+        return false;
+    }
+
+    const std::string tmp{tmpl.data()};
+
+    auto fail = [&](int e) {
+        err = kis_strerror_r(e);
+        close(fd);
+        unlink(tmp.c_str());
+        return false;
+    };
+
+    if (fchmod(fd, 0600) != 0)
+        return fail(errno);
+
+    size_t off = 0;
+    while (off < data.size()) {
+        ssize_t w = write(fd, data.data() + off, data.size() - off);
+        if (w < 0) {
+            if (errno == EINTR)
+                continue;
+            return fail(errno);
+        }
+        off += static_cast<size_t>(w);
+    }
+
+    if (fsync(fd) != 0)
+        return fail(errno);
+
+    if (close(fd) != 0) {
+        err = kis_strerror_r(errno);
+        unlink(tmp.c_str());
+        return false;
+    }
+
+    if (rename(tmp.c_str(), path.c_str()) != 0) {
+        err = kis_strerror_r(errno);
+        unlink(tmp.c_str());
+        return false;
+    }
+
+    return true;
+}
+
 double ts_to_double(struct timeval ts) {
     return (double) ts.tv_sec + (double) ((double) ts.tv_usec / (double) 1000000);
 }

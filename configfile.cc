@@ -351,20 +351,20 @@ int config_file::parse_opt_override(const std::string path, bool glob_path) {
 int config_file::save_config(const char *in_fname) {
     kis_lock_guard<kis_mutex> lk(config_locker, "config_file save_config");
 
-    FILE *wf = NULL;
-
-    if ((wf = fopen(in_fname, "w")) == NULL) {
-        _MSG_ERROR("Could not write config file {} - {}", in_fname, kis_strerror_r(errno));
-        return -1;
-    }
-
+    std::string text;
     for (auto x = config_map.begin(); x != config_map.end(); ++x) {
         for (unsigned int y = 0; y < x->second.size(); y++) {
-            fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].value.c_str());
+            text += fmt::format("{}={}\n", x->first, x->second[y].value);
         }
     }
 
-    fclose(wf);
+    // Saved configs can hold the web login, so only the user may read them
+    std::string err;
+    if (!write_private_file(in_fname, text, err)) {
+        _MSG_ERROR("Could not write config file {} - {}", in_fname, err);
+        return -1;
+    }
+
     return 1;
 }
 

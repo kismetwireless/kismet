@@ -318,6 +318,8 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
 
+                kis_lock_guard<kis_mutex> lk(admin_login_mutex, "httpd check_setup_ok");
+
                 if (global_login_config) {
                     con->set_status(406);
                     os << "Login configured in global config\n";
@@ -361,6 +363,10 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     return;
                 }
 
+                // Held from the check through the save, so two first-run requests can't
+                // both see no login and race to set it
+                kis_lock_guard<kis_mutex> lk(admin_login_mutex, "httpd set_password");
+
                 if (admin_password != "") {
                     if (!con->login_valid() || con->login_role() != LOGON_ROLE) {
                         con->set_status(boost::beast::http::status::forbidden);
@@ -376,6 +382,13 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 if (u_k == con->http_variables().end() || p_k == con->http_variables().end()) {
                     con->set_status(boost::beast::http::status::bad_request);
                     os << "Missing username or password in request\n";
+                    return;
+                }
+
+                // An empty password would leave the server open to the next first-run request
+                if (u_k->second.empty() || p_k->second.empty()) {
+                    con->set_status(boost::beast::http::status::bad_request);
+                    os << "Username and password can not be empty\n";
                     return;
                 }
 
@@ -953,6 +966,8 @@ void kis_net_beast_httpd::set_admin_login(const std::string& username, const std
     config_file user_httpd_config;
     user_httpd_config.parse_config(user_config_path);
 
+    kis_lock_guard<kis_mutex> lk(admin_login_mutex, "httpd set_admin_login");
+
     admin_username = username;
     admin_password = password;
 
@@ -964,6 +979,7 @@ void kis_net_beast_httpd::set_admin_login(const std::string& username, const std
 
 bool kis_net_beast_httpd::check_admin_login(const std::string& username, const std::string& password) {
     constant_time_string_compare_ne compare;
+    kis_lock_guard<kis_mutex> lk(admin_login_mutex, "httpd check_admin_login");
     return !compare(username, admin_username) && !compare(password, admin_password);
 }
 
@@ -1350,16 +1366,10 @@ void kis_net_beast_httpd::store_auth() {
 
     auto sessiondb_file =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", "%h/.kismet/session.db");
-    FILE *sf = fopen(sessiondb_file.c_str(), "w");
-
-    if (sf == NULL) {
-        _MSG_ERROR("(HTTPD) Could not write session data file: {}",
-                kis_strerror_r(errno));
-        return;
-    }
-
-    fmt::print(sf, "{}", ((nlohmann::json) vec).dump());
-    fclose(sf);
+    // The tokens are logins, so only the user may read them
+    std::string err;
+    if (!write_private_file(sessiondb_file, ((nlohmann::json) vec).dump(), err))
+        _MSG_ERROR("(HTTPD) Could not write session data file: {}", err);
 }
 
 void kis_net_beast_httpd::load_auth() {

@@ -273,7 +273,12 @@ kis_external_tcp::~kis_external_tcp() {
 }
 
 std::string kis_external_tcp::remote_addresss() {
-    return tcpsocket_.remote_endpoint().address().to_string();
+    // A peer that reset before we got here makes the throwing overload end the server
+    boost::system::error_code ec;
+    auto ep = tcpsocket_.remote_endpoint(ec);
+    if (ec)
+        return "";
+    return ep.address().to_string();
 }
 
 void kis_external_tcp::start_read() {

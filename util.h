@@ -428,6 +428,10 @@ struct membuf : public std::streambuf {
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
 std::string kis_strerror_r(int errnum);
 
+// Replace a file with data readable only by the user, via a temp file and rename so a
+// crash never leaves half a file and a planted link isn't followed; false and err on failure
+bool write_private_file(const std::string& path, const std::string& data, std::string& err);
+
 double ts_to_double(struct timeval ts);
 double ts_now_to_double();
 

@@ -391,7 +391,8 @@ void range_tracker::add(const std::string& kind, const std::shared_ptr<kis_packe
 
     const time_t now = reported.tv.tv_sec != 0 ? reported.tv.tv_sec : in_pack->ts.tv_sec;
     const time_t dt = now - prev_time;
-    if (dt < 0 || dt > max_gap)
+    // A helper can send any time; the hour slots below assume it isn't negative
+    if (now <= 0 || dt < 0 || dt > max_gap)
         return;
 
     const double jump = distance_m(prev_lat, prev_lon, reported.lat, reported.lon);
