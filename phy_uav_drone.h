@@ -21,6 +21,9 @@
 #define __PHY_UAV_DRONE_H__
 
 #include <array>
+#include <atomic>
+#include <shared_mutex>
+#include <unordered_set>
 
 #include "trackedelement.h"
 #include "trackedlocation.h"
@@ -747,6 +750,16 @@ protected:
     void handle_remoteid(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<uav_remoteid_packinfo>& rid, const std::shared_ptr<kis_packet>& in_pack);
 
+    // Wi-Fi devices which have sent Remote ID keep the UAV type on packets without it, such
+    // as repeated beacons the Wi-Fi phy doesn't re-parse and types as an AP
+    void add_remoteid_wifi(const mac_addr& mac);
+    void retype_remoteid_wifi(const std::shared_ptr<kis_tracked_device_info>& devinfo);
+
+    static constexpr size_t max_remoteid_wifi = 4096;
+    std::shared_mutex remoteid_wifi_mutex;
+    std::unordered_set<mac_addr> remoteid_wifi_macs;
+    std::atomic<bool> remoteid_wifi_any{false};
+
     kis_mutex uav_mutex;
 
     std::shared_ptr<packet_chain> packetchain;
@@ -761,6 +774,7 @@ protected:
     std::shared_ptr<tracker_element_vector> manuf_match_vec;
 
     std::shared_ptr<tracker_element_string> dji_manuf;
+    std::shared_ptr<tracker_element_string> devtype_uav, devtype_dji;
 };
 
 #endif
