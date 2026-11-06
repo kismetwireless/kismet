@@ -17,6 +17,7 @@
 */
 
 #include "btle_battery.h"
+#include "wire_order.h"
 
 namespace btle_battery {
 
@@ -64,23 +65,27 @@ void set_main_from_parts(info& out) {
 }
 
 bool decode_apple_proximity(const uint8_t *p, size_t plen, info& out) {
-    size_t offt = 0;
+    kismet::wire_reader r{p, plen};
 
-    while (offt + 2 <= plen) {
-        uint8_t type = p[offt];
-        uint8_t tlv_len = p[offt + 1];
-        const uint8_t *v = p + offt + 2;
+    while (true) {
+        const auto type = r.u8();
+        const auto tlv_len = r.u8();
 
-        if (tlv_len > plen - offt - 2)
+        if (!type || !tlv_len)
+            break;
+
+        const auto tlv = r.take(*tlv_len);
+
+        if (!tlv)
             return false;
 
-        offt += 2 + tlv_len;
-
-        if (type != apple_proximity_type)
+        if (*type != apple_proximity_type)
             continue;
 
-        if (tlv_len < 6)
+        if (tlv->size() < 6)
             return false;
+
+        const uint8_t *v = tlv->data();
 
         const bool flipped = (v[3] & 0x20) == 0;
         const uint8_t lo = v[4] & 0x0F;
@@ -105,18 +110,19 @@ bool decode_fast_pair(const uint8_t *p, size_t plen, info& out) {
     if (plen <= 3)
         return false;
 
-    size_t offt = 1;
+    kismet::wire_reader r{p, plen};
+    r.skip(1);
 
-    while (offt < plen) {
-        const uint8_t field_len = p[offt] >> 4;
-        const uint8_t field_type = p[offt] & 0x0F;
-        offt++;
+    while (const auto hdr = r.u8()) {
+        const uint8_t field_len = *hdr >> 4;
+        const uint8_t field_type = *hdr & 0x0F;
+        const auto field = r.take(field_len);
 
-        if (field_len > plen - offt)
+        if (!field)
             return false;
 
         if ((field_type == 3 || field_type == 4) && field_len >= 1 && field_len <= 3) {
-            const uint8_t *b = p + offt;
+            const uint8_t *b = field->data();
 
             out = info{};
             out.source = "fast_pair";
@@ -134,8 +140,6 @@ bool decode_fast_pair(const uint8_t *p, size_t plen, info& out) {
 
             return out.main.known || out.case_.known;
         }
-
-        offt += field_len;
     }
 
     return false;
@@ -149,18 +153,24 @@ bool decode_bthome(const uint8_t *p, size_t plen, info& out) {
     if ((p[0] & 0x01) || (p[0] >> 5) != 2)
         return false;
 
-    size_t offt = 1;
+    kismet::wire_reader r{p, plen};
+    r.skip(1);
+    auto id = r.u8();
 
     /* Packet id */
-    if (p[offt] == 0x00)
-        offt += 2;
+    if (id == 0x00) {
+        r.skip(1);
+        id = r.u8();
+    }
 
-    if (offt + 2 > plen || p[offt] != 0x01)
+    const auto pct = r.u8();
+
+    if (id != 0x01 || !pct)
         return false;
 
     out = info{};
     out.source = "bthome";
-    out.main = percent_level(p[offt + 1]);
+    out.main = percent_level(*pct);
     return out.main.known;
 }
 

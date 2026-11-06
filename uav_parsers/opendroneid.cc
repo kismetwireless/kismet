@@ -19,6 +19,7 @@
 #include <cstring>
 
 #include "opendroneid.h"
+#include "wire_order.h"
 
 namespace odid {
 
@@ -188,8 +189,9 @@ bool decode_service_info(const uint8_t *data, size_t len, uint8_t& counter,
     if (len < 1 + message_len)
         return false;
 
-    counter = data[0];
-    return decode_messages(data + 1, len - 1, out);
+    kismet::wire_reader r{data, len};
+    counter = *r.u8();
+    return decode_messages(r.rest().data(), r.remaining(), out);
 }
 
 }
@@ -244,20 +246,25 @@ bool decode_messages(const uint8_t *data, size_t len, std::vector<message>& out)
     }
 
     /* Pack: header, message size, count, then count messages; packs don't nest */
-    size_t msg_sz = data[1];
-    size_t count = data[2];
+    kismet::wire_reader r{data, len};
+    r.skip(1);
+    const size_t msg_sz = *r.u8();
+    const size_t count = *r.u8();
 
     if (msg_sz != message_len || count == 0 || count > max_pack_messages)
         return false;
 
-    if (len < 3 + (count * message_len))
+    auto msgs = r.take(count * message_len);
+
+    if (!msgs)
         return false;
 
+    kismet::wire_reader mr{*msgs};
     bool any = false;
 
-    for (size_t i = 0; i < count; i++) {
+    while (auto mb = mr.take(message_len)) {
         message m;
-        if (decode_message(data + 3 + (i * message_len), message_len, m)) {
+        if (decode_message(mb->data(), mb->size(), m)) {
             out.push_back(m);
             any = true;
         }
@@ -268,78 +275,80 @@ bool decode_messages(const uint8_t *data, size_t len, std::vector<message>& out)
 
 bool decode_ble_service_data(const uint8_t *data, size_t len, uint8_t& counter,
         std::vector<message>& out) {
-    if (data == nullptr || len < 3)
+    kismet::wire_reader r{data, len};
+
+    if (r.le<uint16_t>() != ble_service_uuid || r.u8() != app_code)
         return false;
 
-    if (le16(data) != ble_service_uuid || data[2] != app_code)
-        return false;
-
-    return decode_service_info(data + 3, len - 3, counter, out);
+    return decode_service_info(r.rest().data(), r.remaining(), counter, out);
 }
 
 bool decode_wifi_vendor_ie(const uint8_t *data, size_t len, uint8_t& counter,
         std::vector<message>& out) {
-    if (data == nullptr || len < 1 || data[0] != wifi_oui_type)
+    kismet::wire_reader r{data, len};
+
+    if (r.u8() != wifi_oui_type)
         return false;
 
-    return decode_service_info(data + 1, len - 1, counter, out);
+    return decode_service_info(r.rest().data(), r.remaining(), counter, out);
 }
 
 bool decode_nan_attributes(const uint8_t *data, size_t len, uint8_t& counter,
         std::vector<message>& out) {
-    if (data == nullptr)
-        return false;
-
     /* Attributes are id, 16 bit length, body */
-    size_t pos = 0;
-    while (pos + 3 <= len) {
-        uint8_t attr_id = data[pos];
-        size_t attr_len = le16(data + pos + 1);
-        const uint8_t *attr = data + pos + 3;
+    kismet::wire_reader r{data, len};
 
-        if (attr_len > len - pos - 3)
+    while (true) {
+        const auto attr_id = r.u8();
+        const auto attr_len = r.le<uint16_t>();
+
+        if (!attr_id || !attr_len)
+            break;
+
+        const auto attr = r.take(*attr_len);
+
+        if (!attr)
             return false;
 
-        pos += 3 + attr_len;
-
         /* Service Descriptor Attribute */
-        if (attr_id != 0x03 || attr_len < 9)
+        if (*attr_id != 0x03 || attr->size() < 9)
             continue;
 
-        if (std::memcmp(attr, nan_service_id, sizeof(nan_service_id)) != 0)
+        if (std::memcmp(attr->data(), nan_service_id, sizeof(nan_service_id)) != 0)
             continue;
 
         /* Service ID, instance ID, requestor instance ID, service control */
-        uint8_t control = attr[8];
-        size_t off = 9;
+        const uint8_t control = (*attr)[8];
+        kismet::wire_reader ar{attr->subspan(9)};
 
         /* Optional fields in order: binding bitmap, matching filter, service
-         * response filter, service info */
-        if (control & 0x40)
-            off += 2;
+         * response filter, service info.  A field running past the attribute fails
+         * the list where a later length byte is needed, else skips the attribute. */
+        bool overrun = (control & 0x40) && !ar.skip(2);
 
-        if (control & 0x04) {
-            if (off >= attr_len)
+        for (const uint8_t filter_bit : { 0x04, 0x08 }) {
+            if (!(control & filter_bit))
+                continue;
+            const auto flen = overrun ? std::nullopt : ar.u8();
+            if (!flen)
                 return false;
-            off += 1 + attr[off];
+            overrun = !ar.skip(*flen);
         }
 
-        if (control & 0x08) {
-            if (off >= attr_len)
-                return false;
-            off += 1 + attr[off];
-        }
-
-        if (!(control & 0x10) || off >= attr_len)
+        if (!(control & 0x10) || overrun)
             continue;
 
-        size_t info_len = attr[off];
-        off++;
+        const auto info_len = ar.u8();
 
-        if (info_len > attr_len - off)
+        if (!info_len)
+            continue;
+
+        const auto info = ar.take(*info_len);
+
+        if (!info)
             return false;
 
-        return decode_service_info(attr + off, info_len, counter, out);
+        return decode_service_info(info->data(), info->size(), counter, out);
     }
 
     return false;

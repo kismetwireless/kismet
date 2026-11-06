@@ -20,6 +20,7 @@
 #include <cstring>
 
 #include "btle_sensor.h"
+#include "wire_order.h"
 
 namespace btle_sensor {
 
@@ -195,34 +196,41 @@ bool decode_xiaomi(const uint8_t *p, size_t plen, info& out) {
     if (plen < 5)
         return false;
 
-    const uint16_t fc = le16(p);
+    kismet::wire_reader r{p, plen};
+    const uint16_t fc = *r.le<uint16_t>();
 
     /* Encrypted, mesh, before v2, or no objects */
     if ((fc & 0x0008) || (fc & 0x0080) || (fc >> 12) < 2 || !(fc & 0x0040))
         return false;
 
-    size_t offt = 5;
-
-    if (fc & 0x0010)
-        offt += 6;
+    /* Product id, frame counter, then an optional MAC and capability byte(s); past
+     * the end means there are no objects */
+    r.skip(3);
+    bool overrun = (fc & 0x0010) && !r.skip(6);
 
     if (fc & 0x0020) {
-        if (offt >= plen)
+        const auto cap = overrun ? std::nullopt : r.u8();
+        if (!cap)
             return false;
-        if (p[offt] & 0x20)
-            offt++;
-        offt++;
+        if (*cap & 0x20)
+            overrun = !r.skip(1);
     }
 
-    while (offt <= plen && plen - offt >= 3) {
-        const uint16_t id = le16(p + offt);
-        const uint8_t olen = p[offt + 2];
-        const uint8_t *v = p + offt + 3;
+    while (!overrun) {
+        const auto id_r = r.le<uint16_t>();
+        const auto olen_r = r.u8();
 
-        if (olen > plen - offt - 3)
+        if (!id_r || !olen_r)
             break;
 
-        offt += 3 + olen;
+        const auto obj = r.take(*olen_r);
+
+        if (!obj)
+            break;
+
+        const uint16_t id = *id_r;
+        const uint8_t olen = *olen_r;
+        const uint8_t *v = obj->data();
 
         if (id == 0x1004 && olen == 2) {
             set_temperature(out, (int16_t) le16(v) / 10.0);
@@ -284,26 +292,29 @@ bool decode_bthome(const uint8_t *p, size_t plen, info& out) {
     if ((p[0] & 0x01) || (p[0] >> 5) != 2)
         return false;
 
-    size_t offt = 1;
+    kismet::wire_reader r{p, plen};
+    r.skip(1);
 
-    while (offt < plen) {
-        const uint8_t id = p[offt++];
+    while (const auto id_r = r.u8()) {
+        const uint8_t id = *id_r;
         size_t olen = bthome_lengths[id];
 
         if (olen == 0)
             break;
 
         if (olen == bthome_variable) {
-            if (offt >= plen)
+            const auto vlen = r.u8();
+            if (!vlen)
                 break;
-            olen = p[offt++];
+            olen = *vlen;
         }
 
-        if (olen > plen - offt)
+        const auto obj = r.take(olen);
+
+        if (!obj)
             break;
 
-        const uint8_t *v = p + offt;
-        offt += olen;
+        const uint8_t *v = obj->data();
 
         switch (id) {
             case 0x02:
