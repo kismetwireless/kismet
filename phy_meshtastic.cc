@@ -250,8 +250,15 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
 
     auto mesh_frame = reinterpret_cast<const meshtastic_frame_t *>(packdata->data());
 
-    auto src_mac = mesh_to_mac(mesh_frame->source_id);
-    auto dst_mac = mesh_to_mac(mesh_frame->dest_id);
+    // Node ids are little-endian on the air
+    const auto mesh_bytes = reinterpret_cast<const uint8_t *>(packdata->data());
+    const auto source_id =
+        kismet::load_le<uint32_t>(mesh_bytes + offsetof(meshtastic_frame_t, source_id));
+    const auto dest_id =
+        kismet::load_le<uint32_t>(mesh_bytes + offsetof(meshtastic_frame_t, dest_id));
+
+    auto src_mac = mesh_to_mac(source_id);
+    auto dst_mac = mesh_to_mac(dest_id);
 
     if (in_pack->signal_info.data_ok) {
         in_pack->common_info.common_info_ok = true;
@@ -288,7 +295,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     if (new_device) {
         basedev->set_manuf(mphy->generic_manuf);
         basedev->set_tracker_type_string(mphy->devicetracker->get_cached_devicetype("Meshtastic"));
-        basedev->set_devicename(fmt::format("Meshtastic !{:08X}", mesh_frame->source_id));
+        basedev->set_devicename(fmt::format("Meshtastic !{:08X}", source_id));
     }
 
     auto meshdev = basedev->get_sub_as<tracked_meshtastic_node>(mphy->mesh_node_id);
@@ -300,7 +307,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     }
 
     if (new_mesh) {
-        meshdev->set_nodeid(fmt::format("!{:08X}", mesh_frame->source_id));
+        meshdev->set_nodeid(fmt::format("!{:08X}", source_id));
     }
 
     const auto payload =

@@ -333,7 +333,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
             // Convert endian state
             ppigps->fields_present = kis_htole32(ppigps->fields_present);
-            ppigps->pfh_datalen = kis_htole32(ppigps->pfh_datalen);
+            ppigps->pfh_datalen = kis_htole16(ppigps->pfh_datalen);
             ppigps->gps_len = kis_htole16(ppigps->gps_len);
             //Advance ppi cursor for other PPI tags.
             ppi_pos += gps_tagsize;

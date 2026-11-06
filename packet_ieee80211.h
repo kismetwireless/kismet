@@ -29,6 +29,7 @@
 #endif
 
 #include "macaddr.h"
+#include "wire_order.h"
 
 #ifndef SSID_SIZE
 #define SSID_SIZE 32
@@ -336,94 +337,84 @@ typedef struct {
 // L2 encryption mask
 #define crypt_l2_mask        0xFBFA
 
-// Deciphering by casting.  This is bad, and non portable, and we need to not
-// do it in the future but for now it'll work until we redo it with bitmanip
-#ifdef WORDS_BIGENDIAN
-// Byte ordering for bigendian systems.  Bitwise strcts are so funky.
-typedef struct {
-    unsigned short subtype : 4;
-    unsigned short type : 2;
-    unsigned short version : 2;
+// 802.11 header fields, decoded from their little-endian wire bytes
+struct dot11_frame_control {
+    static constexpr std::size_t wire_len = 2;
 
-    unsigned short order : 1;
-    unsigned short wep : 1;
-    unsigned short more_data : 1;
-    unsigned short power_management : 1;
+    uint16_t raw;
 
-    unsigned short retry : 1;
-    unsigned short more_fragments : 1;
-    unsigned short from_ds : 1;
-    unsigned short to_ds : 1;
-} __attribute__ ((packed)) frame_control;
+    explicit constexpr dot11_frame_control(const uint8_t *p) :
+        raw{kismet::load_le<uint16_t>(p)} { }
 
-typedef struct {
-    unsigned short frag : 12;
-    unsigned short sequence : 4;
-} __attribute__ ((packed)) wireless_fragseq;
+    constexpr unsigned int version() const { return raw & 0x03; }
+    constexpr unsigned int type() const { return (raw >> 2) & 0x03; }
+    constexpr unsigned int subtype() const { return (raw >> 4) & 0x0f; }
+    constexpr bool to_ds() const { return raw & 0x0100; }
+    constexpr bool from_ds() const { return raw & 0x0200; }
+    constexpr bool more_fragments() const { return raw & 0x0400; }
+    constexpr bool retry() const { return raw & 0x0800; }
+    constexpr bool power_management() const { return raw & 0x1000; }
+    constexpr bool more_data() const { return raw & 0x2000; }
+    constexpr bool wep() const { return raw & 0x4000; }
+    constexpr bool order() const { return raw & 0x8000; }
 
-typedef struct {
+    // Protected bit in the second frame control byte
+    static constexpr uint8_t wep_byte1_mask = 0x40;
+};
+
+struct dot11_fragseq {
+    uint16_t raw;
+
+    explicit constexpr dot11_fragseq(const uint8_t *p) :
+        raw{kismet::load_le<uint16_t>(p)} { }
+
+    constexpr unsigned int frag() const { return raw & 0x0f; }
+    constexpr unsigned int sequence() const { return raw >> 4; }
+};
+
+// Beacon / probe response fixed parameters
+struct dot11_fixed_parameters {
+    static constexpr std::size_t wire_len = 12;
+
     uint64_t timestamp;
+    uint16_t beacon;
+    uint16_t capability;
 
-    // This field must be converted to host-endian before being used
-    unsigned int beacon : 16;
+    explicit constexpr dot11_fixed_parameters(const uint8_t *p) :
+        timestamp{kismet::load_le<uint64_t>(p)},
+        beacon{kismet::load_le<uint16_t>(p + 8)},
+        capability{kismet::load_le<uint16_t>(p + 10)} { }
 
-    unsigned short agility : 1;
-    unsigned short pbcc : 1;
-    unsigned short short_preamble : 1;
-    unsigned short wep : 1;
+    constexpr bool ess() const { return capability & 0x0001; }
+    constexpr bool ibss() const { return capability & 0x0002; }
+    constexpr bool wep() const { return capability & 0x0010; }
+    constexpr bool short_preamble() const { return capability & 0x0020; }
+    constexpr bool pbcc() const { return capability & 0x0040; }
+    constexpr bool agility() const { return capability & 0x0080; }
+};
 
-    unsigned short unused2 : 1;
-    unsigned short unused1 : 1;
-    unsigned short ibss : 1;
-    unsigned short ess : 1;
+namespace dot11_wire_test {
+    constexpr uint8_t fc_beacon[2] = {0x80, 0x00};
+    constexpr uint8_t fc_data_tods_prot[2] = {0x08, 0x41};
+    static_assert(dot11_frame_control(fc_beacon).type() == 0);
+    static_assert(dot11_frame_control(fc_beacon).subtype() == 8);
+    static_assert(dot11_frame_control(fc_data_tods_prot).type() == 2);
+    static_assert(dot11_frame_control(fc_data_tods_prot).to_ds());
+    static_assert(!dot11_frame_control(fc_data_tods_prot).from_ds());
+    static_assert(dot11_frame_control(fc_data_tods_prot).wep());
 
-    unsigned int coordinator : 8;
+    // sequence 0x123, fragment 4
+    constexpr uint8_t fs[2] = {0x34, 0x12};
+    static_assert(dot11_fragseq(fs).frag() == 4);
+    static_assert(dot11_fragseq(fs).sequence() == 0x123);
 
-} __attribute__ ((packed)) fixed_parameters;
-
-#else
-// And 802.11 packet frame header
-typedef struct {
-    unsigned short version : 2;
-    unsigned short type : 2;
-    unsigned short subtype : 4;
-
-    unsigned short to_ds : 1;
-    unsigned short from_ds : 1;
-    unsigned short more_fragments : 1;
-    unsigned short retry : 1;
-
-    unsigned short power_management : 1;
-    unsigned short more_data : 1;
-    unsigned short wep : 1;
-    unsigned short order : 1;
-} __attribute__ ((packed)) frame_control;
-
-typedef struct {
-    unsigned short frag : 4;
-    unsigned short sequence : 12;
-} __attribute__ ((packed)) wireless_fragseq;
-
-typedef struct {
-    uint64_t timestamp;
-
-    // This field must be converted to host-endian before being used
-    unsigned int beacon : 16;
-
-    unsigned short ess : 1;
-    unsigned short ibss : 1;
-    unsigned short unused1 : 1;
-    unsigned short unused2 : 1;
-
-    unsigned short wep : 1;
-    unsigned short short_preamble : 1;
-    unsigned short pbcc : 1;
-    unsigned short agility : 1;
-
-    unsigned int coordinator : 8;
-} __attribute__ ((packed)) fixed_parameters;
-
-#endif
+    constexpr uint8_t fp[12] = {1, 2, 3, 4, 5, 6, 7, 8, 0x64, 0x00, 0x11, 0x04};
+    static_assert(dot11_fixed_parameters(fp).timestamp == 0x0807060504030201ULL);
+    static_assert(dot11_fixed_parameters(fp).beacon == 100);
+    static_assert(dot11_fixed_parameters(fp).ess());
+    static_assert(!dot11_fixed_parameters(fp).ibss());
+    static_assert(dot11_fixed_parameters(fp).wep());
+}
 
 
 #endif

@@ -37,6 +37,7 @@
 
 #include "util.h"
 #include "fmt.h"
+#include "wire_order.h"
 
 // UUID Generation
 // From e2fstools, Theodore Ts'o
@@ -124,11 +125,9 @@ public:
         clock_seq |= 0x8000;
         time_mid = (uint16_t) clock_mid;
         time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
-#ifdef LITTLE_ENDIAN
-        get_random_bytes(reinterpret_cast<uint8_t *>(&node), 6);
-#else
-        get_random_bytes(reinterpret_cast<uint8_t *>(&node) + 2, 6);
-#endif
+        uint8_t node_b[8] = {0};
+        get_random_bytes(node_b, 6);
+        node = kismet::load_le<uint64_t>(node_b);
         error = 0;
         hash = gen_hash();
     }
@@ -147,11 +146,9 @@ public:
         clock_seq |= 0x8000;
         time_mid = (uint16_t) clock_mid;
         time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
-#ifdef LITTLE_ENDIAN
-        memcpy(reinterpret_cast<uint8_t *>(&node), in_node, 6);
-#else
-        memcpy(reinterpret_cast<uint8_t *>(&node) + 2, in_node, 6);
-#endif
+        uint8_t node_b[8] = {0};
+        memcpy(node_b, in_node, 6);
+        node = kismet::load_le<uint64_t>(node_b);
         error = 0;
         hash = gen_hash();
     }
