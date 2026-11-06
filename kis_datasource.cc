@@ -1589,11 +1589,14 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
         msg = std::string(mpack_node_data(msg_n), msg_len);
     }
 
+    // List reports use 0 for success; a failure carries its reason in the msg
     if (code != 0) {
-        _MSG_ERROR("Kismet datasource got malformed v3 LISTREPORT");
+        if (msg.empty())
+            msg = "capture tool could not list interfaces";
         trigger_error(msg);
         set_int_source_error_reason(msg);
-        handle_interfaces_report_v3_callback(report_seqno, 1, lock, ifaces);
+        handle_interfaces_report_v3_callback(report_seqno, code, lock, ifaces);
+        return;
     }
 
     std::string version;
