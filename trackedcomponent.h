@@ -823,6 +823,8 @@ class tracker_component : public tracker_element_map {
             return cvar; \
         } \
         inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
+            if (cvar == in) \
+                return; \
             if (cvar != nullptr) { \
                 /* in may be shared between objects; only write the id if it differs */ \
                 if (in->get_id() != cvar->get_id()) \

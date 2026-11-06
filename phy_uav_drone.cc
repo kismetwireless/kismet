@@ -180,6 +180,9 @@ kis_uav_phy::kis_uav_phy(int in_phyid) :
     dji_manuf =
         Globalreg::globalreg->manufdb->make_manuf("DJI");
 
+    devtype_uav = devicetracker->get_cached_devicetype("Drone / UAV");
+    devtype_dji = devicetracker->get_cached_devicetype("DJI UAV");
+
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
     packetchain->register_handler(kis_uav_phy::common_classifier, this, CHAINPOS_TRACKER, 65535);
@@ -245,10 +248,19 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             if (basedev == nullptr || basedev->get_macaddr() != remoteid->device_mac)
                 continue;
 
-            kis_device_lock dlk(basedev, false);
-            uavphy->handle_remoteid(basedev, remoteid, in_pack);
+            {
+                kis_device_lock dlk(basedev, false);
+                uavphy->handle_remoteid(basedev, remoteid, in_pack);
+            }
+
+            if (dot11info != nullptr)
+                uavphy->add_remoteid_wifi(remoteid->device_mac);
+
             break;
         }
+    } else if (dot11info != nullptr && devinfo != nullptr &&
+            uavphy->remoteid_wifi_any.load(std::memory_order_relaxed)) {
+        uavphy->retype_remoteid_wifi(devinfo);
     }
 
     // Handle JSON packets from droneid rf
@@ -334,7 +346,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             kis_device_lock dlk(basedev, false);
 
             basedev->set_manuf(uavphy->dji_manuf);
-            basedev->set_tracker_type_string(uavphy->devicetracker->get_cached_devicetype("DJI UAV"));
+            basedev->set_tracker_type_string(uavphy->devtype_dji);
             basedev->set_devicename(fmt::format("{}-{}", dev_type, serial_no));
 
             auto uavdev = basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
@@ -541,6 +553,41 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
     return 1;
 }
 
+void kis_uav_phy::add_remoteid_wifi(const mac_addr& mac) {
+    {
+        std::shared_lock lk(remoteid_wifi_mutex);
+        if (remoteid_wifi_macs.contains(mac))
+            return;
+    }
+
+    std::unique_lock lk(remoteid_wifi_mutex);
+    if (remoteid_wifi_macs.size() >= max_remoteid_wifi)
+        return;
+    remoteid_wifi_macs.insert(mac);
+    remoteid_wifi_any.store(true, std::memory_order_relaxed);
+}
+
+void kis_uav_phy::retype_remoteid_wifi(const std::shared_ptr<kis_tracked_device_info>& devinfo) {
+    std::array<kis_tracked_device_base *, 4> found{};
+    size_t nfound = 0;
+
+    {
+        std::shared_lock lk(remoteid_wifi_mutex);
+        for (const auto& di : devinfo->devrefs) {
+            if (di.second != nullptr && nfound < found.size() &&
+                    remoteid_wifi_macs.contains(di.second->get_macaddr()))
+                found[nfound++] = di.second.get();
+        }
+    }
+
+    // devinfo holds the devices for the rest of the packet
+    for (size_t i = 0; i < nfound; i++) {
+        kis_device_lock dlk(found[i], false);
+        if (found[i]->get_sub_as<uav_tracked_device>(uav_device_id) != nullptr)
+            found[i]->set_tracker_type_string(devtype_uav);
+    }
+}
+
 void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>& basedev,
         const std::shared_ptr<uav_remoteid_packinfo>& rid, const std::shared_ptr<kis_packet>& in_pack) {
     auto uavdev = basedev->get_sub_as<uav_tracked_device>(uav_device_id);
@@ -556,7 +603,7 @@ void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>
         return;
 
     // Every packet, since the Wi-Fi phy re-types beaconing devices as access points
-    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Drone / UAV"));
+    basedev->set_tracker_type_string(devtype_uav);
 
     // Announce once the first UAS ID arrives; location messages often come first
     auto uas_id = [&rec]() -> std::string {
