@@ -3431,7 +3431,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* Extract model: everything before the first non-alnum after letters+digits */
         int mi = 0;
         while (fw_buf[mi] && mi < 20 &&
-               (isalnum(fw_buf[mi]) || fw_buf[mi] == '-'))
+               (isalnum((unsigned char) fw_buf[mi]) || fw_buf[mi] == '-'))
             mi++;
         snprintf(model_buf, sizeof(model_buf), "Quectel %.*s", mi, fw_buf);
         local->modem_model = strdup(model_buf);

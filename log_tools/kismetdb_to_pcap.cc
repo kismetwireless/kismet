@@ -118,7 +118,7 @@ bool string_case_cmp(const std::string& a, const std::string& b) {
         return false;
 
     for (size_t i = 0; i < a.size(); i++) {
-        if (tolower(a[i]) != tolower(b[i]))
+        if (tolower(static_cast<unsigned char>(a[i])) != tolower(static_cast<unsigned char>(b[i])))
             return false;
     }
 
