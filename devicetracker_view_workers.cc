@@ -276,7 +276,7 @@ bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<k
 
     auto icasesearch = [](const std::string& haystack, const std::string& needle) -> bool {
         auto pos = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                [](char ch1, char ch2) -> bool { 
+                [](unsigned char ch1, unsigned char ch2) -> bool {
                     return std::toupper(ch1) == std::toupper(ch2);
                 });
         return (pos != haystack.end());

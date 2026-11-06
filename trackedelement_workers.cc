@@ -251,7 +251,7 @@ bool tracker_element_icasestringmatch_worker::match_element(std::shared_ptr<trac
 
     auto icasesearch = [](const std::string& haystack, const std::string& needle) -> bool {
         auto pos = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                [](char ch1, char ch2) -> bool { 
+                [](unsigned char ch1, unsigned char ch2) -> bool {
                     return std::toupper(ch1) == std::toupper(ch2);
                 });
         return (pos != haystack.end());

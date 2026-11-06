@@ -471,10 +471,10 @@ std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen) {
 }
 
 int x_to_i(char x) {
-    if (isxdigit(x)) {
+    if (isxdigit(static_cast<unsigned char>(x))) {
         if (x <= '9')
             return x - '0';
-        return toupper(x) - 'A' + 10;
+        return toupper(static_cast<unsigned char>(x)) - 'A' + 10;
     }
 
     return -1;
@@ -1243,7 +1243,7 @@ void thread_set_process_name(const std::string& name) { }
 bool iequals(const std::string& a, const std::string& b) {
     return std::equal(a.begin(), a.end(),
             b.begin(), b.end(),
-            [](char a, char b) { return ::tolower(a) == ::tolower(b); });
+            [](unsigned char a, unsigned char b) { return ::tolower(a) == ::tolower(b); });
 }
 
 uint64_t human_to_freq_khz(const std::string &s) {
