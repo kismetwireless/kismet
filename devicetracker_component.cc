@@ -469,7 +469,8 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, time_t tv
     } else {
         auto seenby_r = static_cast<kis_tracked_seenby_data *>(seenby_iter->second.get());
 
-        seenby_r->set_last_time(tv_sec);
+        seenby_r->set_if_earlier_first_time(tv_sec);
+        seenby_r->set_if_lt_last_time(tv_sec);
         seenby_r->inc_num_packets();
 
         if (frequency > 0)

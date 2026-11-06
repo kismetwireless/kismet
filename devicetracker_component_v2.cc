@@ -378,7 +378,11 @@ void kis_tracked_signal_data_v2::filtered_as_json(std::ostream& os, json_adapter
 
 void kis_tracked_seenby_data_v2::inc_seenby(uint64_t frequency, uint64_t time,
         const kis_tracked_signal_data_v2& signal) {
-    last_time_ = time;
+    // Packets can be handled out of order; keep the earliest and latest
+    if (time != 0 && (first_time_ == 0 || time < first_time_))
+        first_time_ = time;
+    if (time > last_time_)
+        last_time_ = time;
     num_packets_++;
     freq_khz_map_[frequency]++;
     signal_data_ = signal;
@@ -475,7 +479,7 @@ kis_tracked_device_base_v2::~kis_tracked_device_base_v2() {
 void kis_tracked_device_base_v2::reset() {
     internal_id_ = 0;
     key_ = {};
-    mac_addr_ = {};
+    mac_addr_ = ::mac_addr{};
     phyname_ = {};
     phyid_ = 0;
 

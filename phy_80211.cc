@@ -2623,6 +2623,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             ssid = bssid_dot11->get_last_adv_ssid();
 
             if (ssid != nullptr) {
+                ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
                 ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
             }
 
@@ -2706,6 +2707,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             }
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
+            ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
             ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
         }
 
@@ -3091,6 +3093,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
         ssid = dot11dev->get_last_adv_ssid();
 
         if (ssid != nullptr) {
+            ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
             ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
             if (dot11info->subtype == packet_sub_s1g_beacon) {
@@ -3385,6 +3388,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
             }
         }
     } else if (ssid != nullptr) {
+        ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
         ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
     }
 
@@ -3412,6 +3416,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
     auto lbr = dot11dev->get_last_beaconed_ssid_record();
     lbr->set(ssid);
 
+    ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
     ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     // Update MFP
@@ -3815,6 +3820,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         ssid = dot11dev->get_last_adv_ssid();
 
         if (ssid != nullptr) {
+            ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
             ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
             if (dot11info->subtype == packet_sub_beacon) {
@@ -4127,6 +4133,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             }
         }
     } else {
+        ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
         ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
     }
 
@@ -4148,6 +4155,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     auto lbr = dot11dev->get_last_beaconed_ssid_record();
     lbr->set(ssid);
 
+    ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
     ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     // Update MFP
@@ -4651,6 +4659,7 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
                 probessid = std::static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
             }
 
+            probessid->set_if_earlier_first_time(in_pack->ts.tv_sec);
             probessid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
             // Add the location data, if any
@@ -4957,6 +4966,7 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
         client_record->set_first_time(in_pack->ts.tv_sec);
     }
 
+    client_record->set_if_earlier_first_time(in_pack->ts.tv_sec);
     client_record->set_if_lt_last_time(in_pack->ts.tv_sec);
 
     clientdot11->set_last_bssid(bssiddev->get_macaddr());

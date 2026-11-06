@@ -441,7 +441,7 @@ void range_tracker::add(const std::string& kind, const std::shared_ptr<kis_packe
 
 void range_tracker::add_hull(range_record& rec, double lat, double lon, time_t now) {
     rec.hull_samples++;
-    if (rec.first_time == 0)
+    if (rec.first_time == 0 || (now != 0 && now < rec.first_time))
         rec.first_time = now;
     rec.last_time = std::max(rec.last_time, now);
 
@@ -508,7 +508,7 @@ void range_tracker::add_hull(range_record& rec, double lat, double lon, time_t n
 void range_tracker::add_to(range_record& rec, size_t bin, double dist, const kis_gps_packinfo& heard,
         const kis_gps_packinfo& reported, double sig, time_t now) {
     rec.samples++;
-    if (rec.first_time == 0)
+    if (rec.first_time == 0 || (now != 0 && now < rec.first_time))
         rec.first_time = now;
     rec.last_time = std::max(rec.last_time, now);
 

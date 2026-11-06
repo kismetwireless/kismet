@@ -183,7 +183,9 @@ public:
 	void set_datasource_alias(std::shared_ptr<kis_datasource> src);
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __ProxySetIfEarlier(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
@@ -527,7 +529,7 @@ public:
     void add_basic_crypt(uint64_t in) { (*basic_crypt_set) |= in; }
 
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
-    __ProxySetIfLess(first_time, uint64_t, uint64_t, first_time);
+    __ProxySetIfEarlier(first_time, uint64_t, uint64_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __ProxySetIfLess(last_time, uint64_t, uint64_t, last_time);
 
