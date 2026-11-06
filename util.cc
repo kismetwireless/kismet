@@ -1008,21 +1008,11 @@ int string_to_bool(const std::string& s, int dvalue) {
 }
 
 int string_to_int(const std::string& s) {
-    int r;
-
-    if (sscanf(s.c_str(), "%d", &r) != 1)
-        throw(std::runtime_error("not an integer"));
-
-    return r;
+    return string_to_n<int>(s);
 }
 
 unsigned int string_to_uint(const std::string& s) {
-    unsigned int r;
-
-    if (sscanf(s.c_str(), "%u", &r) != 1)
-        throw(std::runtime_error("not an unsigned integer"));
-
-    return r;
+    return string_to_n<unsigned int>(s);
 }
 
 std::string string_append(const std::string& s, const std::string& a, const std::string& d) {

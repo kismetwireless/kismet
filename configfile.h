@@ -97,26 +97,34 @@ public:
     unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);
     unsigned long int fetch_opt_ulong(const std::string& in_key, unsigned long dvalue);
 
-    // New C++ api; fetch an opt as a dynamic type derived via '>>' assignment; will throw
-    // std::runtime_error if the type can not be converted.  If the key is not found, the
-    // default value is used.
+    // New C++ api; fetch an opt as a type parsed by string_to_n.  If the key is not found,
+    // or its value is not entirely a valid T, the default value is used; an invalid value
+    // is reported, like a bad boolean, instead of stopping the server.
     template<typename T>
     T fetch_opt_as(const std::string& in_key, const T& dvalue) {
-        kis_lock_guard<kis_mutex> lk(config_locker);
+        config_entity ent{"", ""};
 
-        auto ki = config_map.find(str_lower(in_key));
+        {
+            kis_lock_guard<kis_mutex> lk(config_locker);
 
-        if (ki == config_map.end())
-            return dvalue;
+            auto ki = config_map.find(str_lower(in_key));
 
-        std::stringstream ss(ki->second[0].value);
-        T conv_value;
-        ss >> conv_value;
+            if (ki == config_map.end())
+                return dvalue;
 
-        if (ss.fail())
-            throw std::runtime_error(fmt::format("could not coerce content of key {}", in_key));
+            ent = ki->second[0];
+        }
 
-        return conv_value;
+        if constexpr (std::is_same_v<T, std::string>) {
+            return ent.value;
+        } else {
+            try {
+                return string_to_n<T>(ent.value);
+            } catch (const std::runtime_error&) {
+                report_invalid_number(in_key, ent, fmt::format("{}", dvalue));
+                return dvalue;
+            }
+        }
     }
 
 	int fetch_opt_dirty(const std::string& in_key);
@@ -175,6 +183,9 @@ protected:
     };
 
 	void calculate_file_checksum();
+
+    void report_invalid_number(const std::string& in_key, const config_entity& ent,
+            const std::string& dvalue);
 
     // Optional included file, don't error if it's not found
     int parse_opt_include(const std::string path,

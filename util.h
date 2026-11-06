@@ -39,6 +39,7 @@
 #include <string.h>
 
 #include <atomic>
+#include <charconv>
 #include <string>
 #include <map>
 #include <vector>
@@ -190,25 +191,58 @@ int string_to_opts(const std::string& in_line, const std::string& in_sep, std::v
 void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
+// Parse all of s, apart from surrounding whitespace, as a T or throw std::runtime_error.
+// Integers allow one leading '+' and, in base 16, a 0x prefix; '-' on an unsigned type,
+// trailing text and out-of-range values are errors.  Other types use their operator>>.
 template<typename T>
-T string_to_n(const std::string& s, std::ios_base&(*base)(std::ios_base &) = nullptr) {
-    std::stringstream ss(s);
-    T t;
+T string_to_n(std::string_view s, int base = 10) {
+    constexpr std::string_view ws{" \t\r\n\v\f"};
+    const auto first = s.find_first_not_of(ws);
+    const auto trimmed = first == std::string_view::npos ? std::string_view{} :
+        s.substr(first, s.find_last_not_of(ws) - first + 1);
 
-    if (base != nullptr)
-        ss >> base;
+    if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool> &&
+            !std::is_same_v<T, char> && !std::is_same_v<T, signed char> &&
+            !std::is_same_v<T, unsigned char>) {
+        auto v = trimmed;
+        bool prefixed = false;
 
-    ss >> t;
+        if (v.starts_with('+')) {
+            v.remove_prefix(1);
+            prefixed = true;
+        }
 
-    if (ss.fail())
-        throw std::runtime_error(fmt::format("unable to parse string value '{}' as {}", s,
-                    typeid(T).name()));
+        if (base == 16 && (v.starts_with("0x") || v.starts_with("0X"))) {
+            v.remove_prefix(2);
+            prefixed = true;
+        }
 
-    return t;
+        T t{};
+        const auto [end, ec] = std::from_chars(v.data(), v.data() + v.size(), t, base);
+
+        if (!v.empty() && !(prefixed && v.starts_with('-')) && ec == std::errc{} &&
+                end == v.data() + v.size())
+            return t;
+    } else {
+        std::istringstream ss{std::string{trimmed}};
+        T t;
+
+        if (base == 16)
+            ss >> std::hex;
+
+        if (ss >> t) {
+            ss >> std::ws;
+            if (ss.eof())
+                return t;
+        }
+    }
+
+    throw std::runtime_error(fmt::format("unable to parse string value '{}' as {}", s,
+                typeid(T).name()));
 }
 
 template<typename T>
-T string_to_n_dfl(const std::string& s, T dvalue) {
+T string_to_n_dfl(std::string_view s, T dvalue) {
     try {
         return string_to_n<T>(s);
     } catch (const std::exception& e) {

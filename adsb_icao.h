@@ -118,7 +118,7 @@ public:
 
     std::shared_ptr<tracked_adsb_icao> lookup_icao(uint32_t icao);
     std::shared_ptr<tracked_adsb_icao> lookup_icao(const std::string& icao) {
-        return lookup_icao(string_to_n<uint32_t>(icao, std::hex));
+        return lookup_icao(string_to_n<uint32_t>(icao, 16));
     }
 
     struct icao_data {
