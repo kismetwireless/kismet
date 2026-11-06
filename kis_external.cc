@@ -1066,13 +1066,12 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
 #endif
 
     if (protocol_version == 3) {
-        char *data = NULL;
-        size_t size;
+        mpack_growable_buf buf;
         mpack_writer_t writer;
 
         const auto json_str = ss.str();
 
-        mpack_writer_init_growable(&writer, &data, &size);
+        mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
         mpack_build_map(&writer);
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_EVT_EVENT_FIELD_EVENT);
@@ -1080,18 +1079,12 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
         mpack_complete_map(&writer);
 
         if (mpack_writer_destroy(&writer) != mpack_ok) {
-            if (data != nullptr) {
-                free(data);
-            }
-
             _MSG_ERROR("Kismet external interface failed serializing v3 event");
             trigger_error("failed to serialize v3 EVENT");
             return;
         }
 
-        send_packet_v3(KIS_EXTERNAL_V3_EVT_EVENT, 0, 1, data, size);
-
-        free(data);
+        send_packet_v3(KIS_EXTERNAL_V3_EVT_EVENT, 0, 1, buf.data, buf.size);
     }
 
     return;
@@ -1413,11 +1406,10 @@ unsigned int kis_external_interface::send_http_request_v3(uint32_t in_http_seque
         const std::string& in_uri, const std::string& in_method,
         std::map<std::string, std::string> in_vardata) {
 
-    char *data = NULL;
-    size_t size;
+    mpack_growable_buf buf;
     mpack_writer_t writer;
 
-    mpack_writer_init_growable(&writer, &data, &size);
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
     mpack_build_map(&writer);
 
@@ -1445,28 +1437,21 @@ unsigned int kis_external_interface::send_http_request_v3(uint32_t in_http_seque
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         _MSG_ERROR("Kismet external interface failed serializing v3 HTTPREQ");
         trigger_error("failed to serialize v3 HTTPREQ");
         return -1;
     }
 
-    send_packet_v3(KIS_EXTERNAL_V3_WEB_REQUEST, 0, 1, data, size);
-
-    free(data);
+    send_packet_v3(KIS_EXTERNAL_V3_WEB_REQUEST, 0, 1, buf.data, buf.size);
 
     return 1;
 }
 
 unsigned int kis_external_interface::send_http_auth_v3(const std::string& in_cookie) {
-    char *data = NULL;
-    size_t size;
+    mpack_growable_buf buf;
     mpack_writer_t writer;
 
-    mpack_writer_init_growable(&writer, &data, &size);
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
 
     mpack_build_map(&writer);
 
@@ -1476,18 +1461,12 @@ unsigned int kis_external_interface::send_http_auth_v3(const std::string& in_coo
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
-        if (data != nullptr) {
-            free(data);
-        }
-
         _MSG_ERROR("Kismet external interface failed serializing v3 HTTPAUTH");
         trigger_error("failed to serialize v3 HTTPAUTH");
         return -1;
     }
 
-    send_packet_v3(KIS_EXTERNAL_V3_WEB_AUTHRESP, 0, 1, data, size);
-
-    free(data);
+    send_packet_v3(KIS_EXTERNAL_V3_WEB_AUTHRESP, 0, 1, buf.data, buf.size);
 
     return 1;
 }

@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <memory>
 #include <string>
 
 #ifdef HAVE_LIBPCRE1
@@ -1068,6 +1069,15 @@ std::string kis_strerror_r(int errnum) {
         return fmt::format("Unknown error: {}", errnum);
 
     return r;
+}
+
+std::optional<std::string> realpath_string(const std::string& path) {
+    std::unique_ptr<char, decltype(&free)> rp{realpath(path.c_str(), nullptr), &free};
+
+    if (rp == nullptr)
+        return std::nullopt;
+
+    return std::string{rp.get()};
 }
 
 bool write_private_file(const std::string& path, const std::string& data, std::string& err) {

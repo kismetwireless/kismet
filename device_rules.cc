@@ -445,12 +445,11 @@ public:
 
     // Every file read, includes too, has to resolve inside dir; for plugin rules
     void confine_to(const std::string& dir) {
-        char *rp = realpath(dir.c_str(), nullptr);
-        if (rp == nullptr)
+        const auto rp = realpath_string(dir);
+        if (!rp)
             throw devicerules::parse_error("can't resolve the directory '" + dir + "': " +
                     kis_strerror_r(errno), 0, 0);
-        confine = rp;
-        free(rp);
+        confine = *rp;
         if (confine.empty() || confine.back() != '/')
             confine += "/";
     }
@@ -531,12 +530,8 @@ public:
 
 private:
     bool inside_confine(const std::string& path) const {
-        char *rp = realpath(path.c_str(), nullptr);
-        if (rp == nullptr)
-            return false;
-        bool ok = std::string_view{rp}.substr(0, confine.size()) == confine;
-        free(rp);
-        return ok;
+        const auto rp = realpath_string(path);
+        return rp && rp->starts_with(confine);
     }
 
     static constexpr size_t max_dir_files = 256;
@@ -586,9 +581,7 @@ private:
             if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode))
                 throw devicerules::parse_error("device rules file '" + path + "' isn't a regular file", 0, 0);
 
-            char *rp = realpath(path.c_str(), nullptr);
-            real = rp != nullptr ? rp : path;
-            free(rp);
+            real = realpath_string(path).value_or(path);
 
             if (!loaded.insert(real).second) {
                 _MSG_INFO("Device rules file '{}' is already loaded, skipping it", path);
