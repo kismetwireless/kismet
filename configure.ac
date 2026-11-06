@@ -1654,6 +1654,9 @@ if test x"$want_usbwifi" = x"auto"; then
     elif test x"$have_usb" != x"yes"; then
         want_usbwifi=no
         usbwifi_reason="libusb-1.0 not found"
+    elif test x"$ac_cv_c_bigendian" = x"yes"; then
+        want_usbwifi=no
+        usbwifi_reason="kcompat supports little-endian hosts only"
     else
         want_usbwifi=yes
     fi
@@ -1662,6 +1665,9 @@ fi
 if test x"$want_usbwifi" = x"yes"; then
     if test x"$have_usb" != "xyes"; then
         AC_MSG_ERROR([libusb-1.0 required for userspace USB Wi-Fi support])
+    fi
+    if test x"$ac_cv_c_bigendian" = x"yes"; then
+        AC_MSG_ERROR([userspace USB Wi-Fi support needs a little-endian host])
     fi
     BUILD_CAPTURE_USBWIFI=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_USBWIFI)"
