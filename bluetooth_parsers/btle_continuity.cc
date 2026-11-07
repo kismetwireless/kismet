@@ -30,8 +30,6 @@ namespace {
 constexpr uint16_t apple_company_id = 0x004C;
 
 constexpr uint8_t ibeacon_type = 0x02;
-constexpr uint8_t proximity_pairing_type = 0x07;
-constexpr uint8_t findmy_type = 0x12;
 
 /* HomeKit types carry the length in the low 5 bits */
 constexpr uint8_t hap_length_mask = 0x1F;
@@ -50,6 +48,11 @@ constexpr size_t homekit_min_len = 13;
 constexpr size_t airplay_target_min_len = 6;
 constexpr size_t airprint_min_len = 22;
 constexpr size_t tethering_source_min_len = 6;
+/* Prefix and model ID */
+constexpr size_t proximity_pairing_min_len = 3;
+/* The separated and near owner frames */
+constexpr size_t findmy_separated_len = 0x19;
+constexpr size_t findmy_near_owner_len = 0x02;
 
 constexpr char hexdigits[] = "0123456789abcdef";
 
@@ -240,7 +243,7 @@ bool decode_manuf_data(const uint8_t *data, size_t len, info& out) {
         if (!tlv)
             break;
 
-        if (type == ibeacon_type || type == proximity_pairing_type || type == findmy_type)
+        if (type == ibeacon_type)
             continue;
 
         const uint8_t *v = tlv->data();
@@ -266,6 +269,12 @@ bool decode_manuf_data(const uint8_t *data, size_t len, info& out) {
             case msg_type::tethering_source:
                 ok = decode_tethering_source(v, vlen, out.tethering_source);
                 break;
+            case msg_type::proximity_pairing:
+                ok = vlen >= proximity_pairing_min_len;
+                break;
+            case msg_type::findmy:
+                ok = vlen == findmy_separated_len || vlen == findmy_near_owner_len;
+                break;
             default:
                 ok = is_presence_type(type);
                 break;
@@ -288,6 +297,8 @@ const char *type_str(msg_type t) {
             return "airdrop";
         case msg_type::homekit:
             return "homekit";
+        case msg_type::proximity_pairing:
+            return "proximity_pairing";
         case msg_type::hey_siri:
             return "hey_siri";
         case msg_type::airplay_target:
@@ -308,6 +319,8 @@ const char *type_str(msg_type t) {
             return "nearby_info";
         case msg_type::homekit_encrypted:
             return "homekit_encrypted";
+        case msg_type::findmy:
+            return "findmy";
         default:
             return "unknown";
     }

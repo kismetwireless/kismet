@@ -80,8 +80,21 @@ export function serviceLabeler(kismet) {
 }
 
 export function registerBtAdv(kismet) {
-    const { ui, format } = kismet;
+    const { ui, format, icons } = kismet;
     const api = kismet.api;
+
+    // A plain apple (the fruit) for devices sending Apple Continuity messages
+    icons.define('apple', '<path d="M12 9c1.5-1.2 3-1.5 4.5-1.5 2.5 0 4 2.2 4 5.2 0 4.3-3.2 8.8-6 8.8-1 0-1.6-.5-2.5-.5s-1.5.5-2.5.5c-2.8 0-6-4.5-6-8.8 0-3 1.5-5.2 4-5.2 1.5 0 3 .3 4.5 1.5z"/>' +
+        '<path d="M12 9c0-2.5.2-4.5.8-6.5"/><path d="M12.4 6.2C13.5 3.8 17 2.8 20 3.6c-1 2.6-4.5 3.6-7.6 2.6z"/>');
+    const continuityFields = sources.map((s, i) =>
+        [`${s}/${s}.adv/bluetooth.adv.continuity/bluetooth.adv.continuity.seen_types`, `continuity${i}`]);
+    ui.deviceIcons.add({
+        id: 'apple_continuity', priority: -5,
+        fields: continuityFields,
+        match: (row) => (continuityFields.some(([, name]) => row[name]) ?
+            icons.icon('apple', 'Apple Continuity') : null),
+    });
+
     const mono = (v) => kismet.dom.el('span', { class: 'mono' }, String(v));
     const yesno = (v) => (v ? 'Yes' : 'No');
     const words = (v) => {
@@ -256,7 +269,7 @@ export function registerBtAdv(kismet) {
             { title: 'LE features', field: f('le_features'), hideEmpty: true, format: mono },
             {
                 group: 'Apple Continuity', show: has('continuity'),
-                help: 'Messages Apple devices broadcast for Handoff, AirDrop, Nearby, HomeKit and setup.',
+                help: 'Messages Apple devices broadcast for Handoff, AirDrop, Nearby, HomeKit, setup, AirPods pairing and Find My.',
                 fields: [
                     { title: 'Messages', field: sub('continuity', 'messages'), hideEmpty: true },
                     { title: 'Activity', field: sub('continuity', 'activity'), hideEmpty: true, format: words },

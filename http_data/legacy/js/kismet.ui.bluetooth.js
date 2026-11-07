@@ -163,6 +163,8 @@ kismet_ui.AddDeviceDetail("bluetooth", "Bluetooth", 0, {
 });
 
 kismet_ui.AddHiddenDeviceColumn({'field': 'btle.device/btle.device.tracker/btle.device.tracker.type'});
+kismet_ui.AddHiddenDeviceColumn({'field': ['btle.device/btle.device.adv/bluetooth.adv.continuity/bluetooth.adv.continuity.seen_types', 'btle_continuity']});
+kismet_ui.AddHiddenDeviceColumn({'field': ['bluetooth.device/bluetooth.device.adv/bluetooth.adv.continuity/bluetooth.adv.continuity.seen_types', 'bt_continuity']});
 
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'BTLE') {
@@ -172,6 +174,13 @@ kismet_ui.AddDeviceIcon((row) => {
         if (typeof(tracker) === 'string' && tracker.length > 0)
             return '<i class="fa fa-magnifying-glass-location"></i>';
     }
+
+    // Apple Continuity: a plain apple (the fruit)
+    if (row['original_data']['btle_continuity'] || row['original_data']['bt_continuity'])
+        return '<svg height="1em" width="1em" style="vertical-align: -0.125em;" viewBox="0 0 24 24" fill="none" ' +
+            'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M12 9c1.5-1.2 3-1.5 4.5-1.5 2.5 0 4 2.2 4 5.2 0 4.3-3.2 8.8-6 8.8-1 0-1.6-.5-2.5-.5s-1.5.5-2.5.5c-2.8 0-6-4.5-6-8.8 0-3 1.5-5.2 4-5.2 1.5 0 3 .3 4.5 1.5z"/>' +
+            '<path d="M12 9c0-2.5.2-4.5.8-6.5"/><path d="M12.4 6.2C13.5 3.8 17 2.8 20 3.6c-1 2.6-4.5 3.6-7.6 2.6z"/></svg>';
 
     if (row['original_data']['kismet.device.base.phyname'] === 'Bluetooth' ||
         row['original_data']['kismet.device.base.phyname'] === 'BTLE') {

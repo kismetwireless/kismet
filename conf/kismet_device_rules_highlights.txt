@@ -67,6 +67,19 @@ rule ais-emergency {
     view "AIS Emergency"
 }
 
+# Bluetooth
+
+# Apple devices sending Continuity messages (Nearby, Handoff, AirDrop, AirPods
+# pairing, Find My...), over BTLE or Bluetooth.  These are common, so the web UI
+# leaves their row color off until it's turned on.
+rule apple-continuity {
+    description "Apple Continuity devices"
+    when exists(btle.device/btle.device.adv/bluetooth.adv.continuity) or
+        exists(bluetooth.device/bluetooth.device.adv/bluetooth.adv.continuity)
+    tag "apple continuity"
+    view "Apple Continuity Devices"
+}
+
 # Any phy
 
 # Drones Kismet recognizes, on any phy
