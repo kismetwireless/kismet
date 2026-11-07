@@ -175,14 +175,19 @@ int diag_native_decode(uint16_t log_code, const uint8_t *payload, size_t payload
  * it GATED it.
  *
  * *refused is true exactly when the leg refuses this record (version gate,
- * layout/truncation decline), and false for a completed parse, whatever its
- * row count. The two would otherwise collapse into the same 0 return, and the
- * census would count a refused record as decoded rather than dropped.
+ * layout/truncation decline, or an exception the shim caught), and false for
+ * a completed parse, whatever its row count. The two would otherwise collapse
+ * into the same 0 return, and the census would count a refused record as
+ * decoded rather than dropped.
  *
  * *gated is true when the parse completed but the record, by its structure,
- * can never yield an observation: today a 0xB0C0 on any channel other than
- * BCCH-DL-SCH (PCCH paging, the CCCH/DCCH channels). An idle UE logs mostly
- * paging, so without this the census reads a healthy 0xB0C0 leg as silent.
+ * can never yield an observation: today a 0xB0C0 on a channel other than
+ * BCCH-DL-SCH (PCCH paging, the CCCH/DCCH channels, or a value the version's
+ * table doesn't name when it does name BCCH-DL-SCH, such as the MIB), or a
+ * BCCH-DL-SCH SystemInformation (SIB2+) message. An unnamed channel on a
+ * version whose table lacks BCCH-DL-SCH is not gated, since it may be a
+ * SIB1. An idle UE logs mostly paging, so without this the census reads a
+ * healthy 0xB0C0 leg as silent.
  * Never true together with *refused. The leg's own observations still come
  * back; the caller decides what a gated record with rows means.
  *

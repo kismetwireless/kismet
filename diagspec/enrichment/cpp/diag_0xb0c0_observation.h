@@ -80,9 +80,14 @@ struct CellObservation {
 // returned vector is untouched.
 enum class Decline {
     kNone = 0,        // the walk completed — `out` is the answer
-    kNotSib1Channel,  // channel_name() != "BCCH-DL-SCH"
+    kNotSib1Channel,  // a named channel other than "BCCH-DL-SCH", or an unnamed
+                      // one on a version whose table names BCCH-DL-SCH
+    kUnknownChannel,  // unnamed channel_type on a version whose table doesn't name
+                      // BCCH-DL-SCH, so it may be a SIB1
+    kSystemInfo,      // a BCCH-DL-SCH SystemInformation message (SIB2+), not a SIB1;
+                      // only on the sib_mask header layout
     kEmptyPdu,        // msg_data() was empty (no SIB1 to decode)
-    kNotSib1,         // decode_sib1_cell_access returned false (SIB2+, or not a SIB)
+    kNotSib1,         // decode_sib1_cell_access returned false (not a SIB1)
     kEmptyPlmn,       // a SIB1 decoded, with no PLMN in cellAccessRelatedInfo
     kThrew,           // the Kaitai / UPER walk threw; the catch answered
     kTruncated,       // header_size + msg_length > the payload (parse refused)

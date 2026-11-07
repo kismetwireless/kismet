@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "diag_inventory.h"
 #include "diag_native_decode.h"
 
 typedef struct {
@@ -926,21 +927,19 @@ static bool check_lte_meas_neighbours(void) {
     return ok;
 }
 
-/* 0xB17F decode: one v0x05 record is one cell with rsrp/rsrq/rssi;
- * a search-mode record (earfcn 0) emits nothing. Payload built by the harness
- * that captured the b17f_enriched_rssi serialization string, with RSRQ in bits
- * 0..9 of u32@20 as the v13 layout has it (raw 0x138 -> -10.5;
- * earlier it sat in bits 20..29, the pre-v13 reading). */
 /* The census gate on 0xB0C0 (diag_native_decode_ex's *gated). An idle UE
  * logs mostly paging on 0xB0C0, and a paging message can never yield a cell,
  * so a leg that reports such a record merely "decoded, emitted nothing" makes
  * the census call a healthy decoder silent. Gated is: the parse completed AND
- * the channel is not BCCH-DL-SCH. Everything else -- a SIB1, a BCCH record
- * with nothing in it, a refusal -- must stay ungated, or the gate would hide a
- * broken SIB1 decoder.
+ * the channel is not BCCH-DL-SCH, or the BCCH-DL-SCH message is a
+ * SystemInformation (SIB2+). A channel value the version's table can't name
+ * counts as not BCCH-DL-SCH when the table names BCCH-DL-SCH elsewhere.
+ * Everything else -- a SIB1, a BCCH record with nothing in it, an unnamed
+ * channel on a version whose table lacks BCCH-DL-SCH, a refusal -- must stay
+ * ungated, or the gate would hide a broken SIB1 decoder.
  *
- * Both records are synthetic: a v20 header with PCI 1 and EARFCN 100
- * (bytes 4..7, little-endian) and a zero frame number.
+ * Both records are synthetic: a v20 header with PCI 1 (u16, bytes 4..5) and
+ * EARFCN 100 (u32, bytes 6..9), little-endian, and a zero frame number.
  *
  * PCCH: byte[12] = 5 = PCCH, carrying a paging record with a zero S-TMSI. */
 static const char *kHex_b0c0_v20_pcch =
@@ -956,28 +955,59 @@ typedef struct {
     int want_rows;        /* -1: any n >= 1 */
     bool want_refused;
     bool want_gated;
+    int set_at;           /* byte to overwrite with set_val, -1 for none */
+    uint8_t set_val;
 } gated_case_t;
 
 static bool check_b0c0_gated(void) {
     static const gated_case_t cases[] = {
-        {"pcch_paging",         NULL, 0,  0, false, true},
-        {"dl_dcch_release",     NULL, 0,  0, false, true},
-        {"ul_dcch_report",      NULL, 0,  0, false, true},
-        {"bcch_sib1_v20",       NULL, 0, -1, false, false},
-        {"bcch_sib1_v27",       NULL, 0, -1, false, false},
-        {"bcch_empty_pdu",      NULL, 0,  0, false, false},
-        {"pcch_truncated",      NULL, 3,  0, true,  false},
+        {"pcch_paging",         NULL, 0,  0, false, true,  -1, 0},
+        {"dl_dcch_release",     NULL, 0,  0, false, true,  -1, 0},
+        {"ul_dcch_report",      NULL, 0,  0, false, true,  -1, 0},
+        {"bcch_sib1_v20",       NULL, 0, -1, false, false, -1, 0},
+        {"bcch_sib1_v27",       NULL, 0, -1, false, false, -1, 0},
+        {"bcch_empty_pdu",      NULL, 0,  0, false, false, -1, 0},
+        {"pcch_truncated",      NULL, 3,  0, true,  false, -1, 0},
+        /* The v20 SIB1 with its PDU's first byte made a SystemInformation
+         * (c1.systemInformation, bits 00): SIB2+, never an identity. */
+        {"bcch_system_info",    NULL, 0,  0, false, true,  19, 0x00},
+        /* The same SIB1 under version 13, whose table has no BCCH-DL-SCH
+         * entry: it may be a SIB1 the leg can't decode, so the census must
+         * keep seeing it. */
+        {"sib1_v13_unmapped",   NULL, 0,  0, false, false,  0, 0x0D},
+        /* Channel values the table doesn't name, on versions whose tables do
+         * name BCCH-DL-SCH (v20 at 2, v27 at 3): v20 channel 1 (the MIB) and
+         * channel 3, and v27 channel 1, can't be a SIB1. */
+        {"mib_v20_chan1",       NULL, 0,  0, false, true,  12, 0x01},
+        {"v20_chan3",           NULL, 0,  0, false, true,  12, 0x03},
+        {"v27_chan1",           NULL, 0,  0, false, true,  14, 0x01},
+        /* The 53-byte v27 SIB1 cut to 19 and 20 bytes: too short for the
+         * sib_mask, so the mask's low half reads as msg_length 2 and the "PDU"
+         * is the mask's zero high half. Not a SystemInformation; ungated. */
+        {"v27_trunc_19",        NULL, 34, 0, false, false, -1, 0},
+        {"v27_trunc_20",        NULL, 33, 0, false, false, -1, 0},
+        /* Cut inside the non-v20 length field: the header overruns the
+         * record, so it is refused before msg_length is ever read. */
+        {"v27_trunc_16",        NULL, 37, 0, true,  false, -1, 0},
     };
     const char *hex[] = {kHex_b0c0_v20_pcch, kHex_b0c0_v20_release,
                          kHex_b0c0_v20_report_meas_id_1, kHex_b0c0_ident_eg25g_v20,
                          kHex_b0c0_ident_rm520ngl, kHex_b0c0_v20_bcch_empty,
-                         kHex_b0c0_v20_pcch};
+                         kHex_b0c0_v20_pcch, kHex_b0c0_ident_eg25g_v20,
+                         kHex_b0c0_ident_eg25g_v20, kHex_b0c0_ident_eg25g_v20,
+                         kHex_b0c0_ident_eg25g_v20, kHex_b0c0_ident_rm520ngl,
+                         kHex_b0c0_ident_rm520ngl, kHex_b0c0_ident_rm520ngl,
+                         kHex_b0c0_ident_rm520ngl};
+    _Static_assert(sizeof(hex) / sizeof(hex[0]) == sizeof(cases) / sizeof(cases[0]),
+                   "one fixture per case");
     bool ok = true;
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         const gated_case_t *c = &cases[i];
         uint8_t buf[512];
         size_t len = unhex(hex[i], buf, sizeof(buf));
         len = len > c->trim ? len - c->trim : 0;
+        if (c->set_at >= 0 && (size_t) c->set_at < len)
+            buf[c->set_at] = c->set_val;
         diag_native_obs_t got[MAX_OBS];
         bool refused = !c->want_refused, gated = !c->want_gated;
         int n = diag_native_decode_ex(0xB0C0, buf, len, got, MAX_OBS, &refused, &gated);
@@ -1013,6 +1043,74 @@ static bool check_b0c0_gated(void) {
     return ok;
 }
 
+/* The census over a stream of 0xB0C0 records, tallied the way native_tap_cb
+ * tallies them: an idle UE's paging plus one MIB (v20 channel 1) is a healthy
+ * leg, not a silent one; a key whose SIB1 decodes emitted nothing still is. */
+static void census_feed(diag_inventory_t *inv, const uint8_t *buf, size_t len) {
+    diag_native_obs_t got[MAX_OBS];
+    bool refused = false, gated = false;
+    int n = diag_native_decode_ex(0xB0C0, buf, len, got, MAX_OBS, &refused, &gated);
+    if (gated && n <= 0)
+        diag_inventory_record_gated(inv, 0xB0C0, buf[0]);
+    else
+        diag_inventory_record(inv, 0xB0C0, buf[0], refused ? 0 : 1,
+                              n > 0 ? (uint64_t) n : 0, 0);
+}
+
+static bool census_silent_total(diag_inventory_t *inv, int want) {
+    char line[4096];
+    char needle[64];
+    int w = diag_inventory_wire(inv, 1.0, line, sizeof(line));
+    snprintf(needle, sizeof(needle), "\"silent_total\":%d,", want);
+    if (w < 0 || (size_t) w >= sizeof(line) || strstr(line, needle) == NULL) {
+        printf("  FAIL b0c0_census: want silent_total %d in %s\n", want,
+               w < 0 ? "(no line)" : line);
+        return false;
+    }
+    return true;
+}
+
+static bool check_b0c0_census(void) {
+    bool ok = true;
+    uint8_t pcch[64], mib[128];
+    size_t plen = unhex(kHex_b0c0_v20_pcch, pcch, sizeof(pcch));
+    size_t mlen = unhex(kHex_b0c0_ident_eg25g_v20, mib, sizeof(mib));
+    mib[12] = 0x01;
+
+    diag_inventory_t *inv = diag_inventory_new(0, 0);
+    if (inv == NULL) {
+        printf("  FAIL b0c0_census: no inventory\n");
+        return false;
+    }
+    for (int i = 0; i < 21; i++)
+        census_feed(inv, pcch, plen);
+    ok &= census_silent_total(inv, 0);
+    census_feed(inv, mib, mlen);
+    ok &= census_silent_total(inv, 0);
+    diag_inventory_free(inv);
+
+    /* A SIB1 that decodes but finds no identity is a silence: v20 SIB1 with
+     * its PDU's first byte made a messageClassExtension (bit 0 set) never
+     * gates. */
+    uint8_t ext[128];
+    size_t elen = unhex(kHex_b0c0_ident_eg25g_v20, ext, sizeof(ext));
+    ext[19] = 0x80;
+    inv = diag_inventory_new(0, 0);
+    if (inv == NULL)
+        return false;
+    for (int i = 0; i < 21; i++)
+        census_feed(inv, pcch, plen);
+    census_feed(inv, ext, elen);
+    ok &= census_silent_total(inv, 1);
+    diag_inventory_free(inv);
+    return ok;
+}
+
+/* 0xB17F decode: one v0x05 record is one cell with rsrp/rsrq/rssi;
+ * a search-mode record (earfcn 0) emits nothing. Payload built by the harness
+ * that captured the b17f_enriched_rssi serialization string, with RSRQ in bits
+ * 0..9 of u32@20 as the v13 layout has it (raw 0x138 -> -10.5;
+ * earlier it sat in bits 20..29, the pre-v13 reading). */
 static bool check_b17f_decode(void) {
     static const char *hex =
         "05000000d007000010060000f2040000000000003801000000f00900000000000000000000000000";
@@ -1902,6 +2000,7 @@ int main(void) {
     ok &= check_sib1_map_contract();
     ok &= check_lte_meas_neighbours();
     ok &= check_b0c0_gated();
+    ok &= check_b0c0_census();
     ok &= check_b17f_decode();
     ok &= check_serialize();
     ok &= check_cell_config_and_beams();

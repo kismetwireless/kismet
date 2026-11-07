@@ -2497,6 +2497,8 @@ static struct cf_params_gps *last_gps_params(local_diag_t *local,
     return gps;
 }
 
+/* 1 when the line reached the ring, 0 when the full ring dropped it, -1 on a
+ * send error. */
 static int emit_observation(kis_capture_handler_t *caph, local_diag_t *local,
                             const char *line) {
     struct timeval tv;
@@ -2520,8 +2522,9 @@ static int emit_observation(kis_capture_handler_t *caph, local_diag_t *local,
     if (r == 0) {
         diag_stats_on_obs_dropped(&local->stats);
         report_ring_drop(caph, local, "cell observation");
+        return 0;
     }
-    return 0;
+    return 1;
 }
 
 /* What the tap callback needs to do its job.
@@ -2611,7 +2614,8 @@ static void native_census_tally(native_tap_ctx_t *ctx, const diag_log_record_t *
 }
 
 /* Count one record its leg parsed and set aside for a benign reason (a GNSS
- * record from a receiver with no fix, a 0xB0C0 paging or CCCH/DCCH message):
+ * record from a receiver with no fix, a 0xB0C0 paging, CCCH/DCCH or SIB2+
+ * SystemInformation message):
  * decoded, not emitted, and not a silence (diag_inventory_record_gated). Same
  * cadence check as native_census_tally. */
 static void native_census_gated(native_tap_ctx_t *ctx, const diag_log_record_t *rec) {
@@ -2855,9 +2859,10 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
      * nothing"). The census then counts it dropped. */
     bool refused = false;
     /* gated: the leg parsed the record and it structurally cannot yield an
-     * observation (a 0xB0C0 on PCCH or a CCCH/DCCH channel). The census counts
-     * it gated, not silent -- unless it emitted anyway (a MeasurementReport's
-     * neighbour rows below), when it is an ordinary decode. */
+     * observation (a 0xB0C0 on PCCH or a CCCH/DCCH channel, or a SIB2+
+     * SystemInformation). The census counts it gated, not silent -- unless it
+     * produced rows anyway (a MeasurementReport's neighbour rows below), when
+     * it is an ordinary decode: rows that then fail to serialize are a silence. */
     bool gated = false;
     int n = diag_native_decode_ex(rec->log_code, rec->payload, rec->payload_len,
                                   obs, DIAG_NATIVE_TAP_MAX_OBS, &refused, &gated);
@@ -2915,14 +2920,17 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
                 local->native_tap.emit_truncated++;
                 continue;
             }
-            census_emitted++;
-            if (emit_observation(ctx->caph, local, jbuf) == 0)
+            /* Only a line that reached the ring counts as emitted; a ring
+             * drop is counted by emit_observation's stats. */
+            if (emit_observation(ctx->caph, local, jbuf) > 0) {
+                census_emitted++;
                 local->native_tap.emitted++;
+            }
         }
     } else {
         local->native_tap.declined++;
     }
-    if (gated && census_emitted == 0)
+    if (gated && n <= 0)
         native_census_gated(ctx, rec);
     else
         native_census_tally(ctx, rec, refused ? 0 : 1, census_emitted);

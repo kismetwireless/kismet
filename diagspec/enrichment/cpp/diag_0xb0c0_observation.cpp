@@ -52,6 +52,8 @@ const char* decline_name(Decline d) {
     switch (d) {
         case Decline::kNone:           return "none";
         case Decline::kNotSib1Channel: return "not_sib1_channel";
+        case Decline::kUnknownChannel: return "unknown_channel";
+        case Decline::kSystemInfo:     return "system_info";
         case Decline::kEmptyPdu:       return "empty_pdu";
         case Decline::kNotSib1:        return "not_sib1";
         case Decline::kEmptyPlmn:      return "empty_plmn";
@@ -98,7 +100,10 @@ std::vector<CellObservation> observations(const std::string& payload,
         // A declared PDU that overruns the record is a truncated payload, which
         // the parse refuses. The .ksy clamps msg_data to empty there,
         // so without this test the record would read as a parsed non-SIB1.
-        if (static_cast<size_t>(rec.header_size()) + rec.msg_length() > payload.size()) {
+        // The header is checked first: when it overruns the record, the
+        // non-v20 msg_length was never read and must not be used.
+        const size_t hdr = static_cast<size_t>(rec.header_size());
+        if (hdr > payload.size() || hdr + rec.msg_length() > payload.size()) {
             note(why, Decline::kTruncated);
             return out;
         }
@@ -106,9 +111,17 @@ std::vector<CellObservation> observations(const std::string& payload,
         // Gate part 1: channel NAME must be BCCH-DL-SCH (resolved off the
         // per-version channel_type enum, not the raw integer, since v20 and the
         // non-v20 path encode BCCH-DL-SCH under different values).
-        const std::string chan =
-            diag_0xb0c0_enrich::channel_name(rec.version(), rec.channel_type());
-        if (chan != kSib1Channel) {
+        const uint8_t ver = rec.version();
+        const uint8_t ct = rec.channel_type();
+        if (!diag_0xb0c0_enrich::channel_known(ver, ct)) {
+            // An unnamed value (BCCH-BCH, MCCH, a channel no join pinned) can
+            // be BCCH-DL-SCH only when the table doesn't already name that
+            note(why, diag_0xb0c0_enrich::version_names_channel(ver, kSib1Channel)
+                          ? Decline::kNotSib1Channel
+                          : Decline::kUnknownChannel);
+            return out;
+        }
+        if (diag_0xb0c0_enrich::channel_name(ver, ct) != kSib1Channel) {
             note(why, Decline::kNotSib1Channel);
             return out;
         }
@@ -121,10 +134,22 @@ std::vector<CellObservation> observations(const std::string& payload,
             return out;
         }
 
+        // BCCH-DL-SCH-MessageType is c1 (bit 0 clear) choosing systemInformation
+        // (bit 1 clear) or systemInformationBlockType1: a SystemInformation
+        // message carries SIB2+, never a cell identity.  Only trusted when the
+        // header used the sib_mask layout: a non-v20 record too short for the
+        // mask reads the mask's low half as msg_length, and the "PDU" is then
+        // the mask's zero high half.  A real SystemInformation is never one byte.
+        const bool mask_layout = ver == 20 || rec.nonv20_has_mask();
+        if (mask_layout && pdu.size() >= 2 &&
+                (static_cast<uint8_t>(pdu[0]) & 0xC0) == 0x00) {
+            note(why, Decline::kSystemInfo);
+            return out;
+        }
+
         // Gate part 2: the PDU must decode as a SIB1 with a non-empty PLMN list —
-        // the emit condition. A BCCH-DL-SCH carrying a SystemInformation (SIB2+)
-        // container returns false here (not SIB1), so no identity cell is
-        // emitted.
+        // the emit condition. A messageClassExtension or a SIB1 that won't
+        // decode returns false here, so no identity cell is emitted.
         std::vector<uint8_t> msg(pdu.begin(), pdu.end());
         diagspec::lte_rrc::Sib1CellIdentity sib1;
         if (!diagspec::lte_rrc::decode_sib1_cell_access(msg, sib1)) {

@@ -16,6 +16,7 @@
 // can be linked into another program.
 #include <cstdint>
 #include <cstdio>
+#include <map>
 #include <string>
 #include <vector>
 #include "diag_0xb0c0_enrich.h"
@@ -31,18 +32,34 @@ namespace diag_0xb0c0_enrich {
 // its own byte[12] enum; every other version has its own oracle-pinned enum
 // (there is NO single non-v20 map). An unmapped value falls back to an honest
 // hex string, "0x%02X" (upper-case, two hex digits).
+// The version's channel table, or null when no table covers the version.
+static const std::map<int, std::string>* channel_table(uint8_t version) {
+    if (version == 20)
+        return &diagspec::lte_rrc::v20_channel_names();
+    const auto& byver = diagspec::lte_rrc::nonv20_channel_names();
+    auto vit = byver.find(version);
+    return vit != byver.end() ? &vit->second : nullptr;
+}
+
+bool channel_known(uint8_t version, uint8_t ct) {
+    const auto* t = channel_table(version);
+    return t != nullptr && t->find(ct) != t->end();
+}
+
+bool version_names_channel(uint8_t version, const std::string& name) {
+    const auto* t = channel_table(version);
+    if (t == nullptr)
+        return false;
+    for (const auto& kv : *t)
+        if (kv.second == name)
+            return true;
+    return false;
+}
+
 std::string channel_name(uint8_t version, uint8_t ct) {
-    if (version == 20) {
-        const auto& v20 = diagspec::lte_rrc::v20_channel_names();
-        auto it = v20.find(ct);
-        if (it != v20.end()) return it->second;
-    } else {
-        const auto& byver = diagspec::lte_rrc::nonv20_channel_names();
-        auto vit = byver.find(version);
-        if (vit != byver.end()) {
-            auto it = vit->second.find(ct);
-            if (it != vit->second.end()) return it->second;
-        }
+    if (const auto* t = channel_table(version)) {
+        auto it = t->find(ct);
+        if (it != t->end()) return it->second;
     }
     // honest hex fallback: "0x" + two upper-case hex digits
     char buf[8];

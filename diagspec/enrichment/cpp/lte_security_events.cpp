@@ -71,7 +71,9 @@ void rrc_record(State& state, const std::string& payload, std::vector<Event>& ou
     try {
         kaitai::kstream ks(payload);
         diag_0xb0c0_t rec(&ks);
-        if (static_cast<size_t>(rec.header_size()) + rec.msg_length() > payload.size())
+        // Header first: past it the non-v20 msg_length is never read
+        const size_t hdr = static_cast<size_t>(rec.header_size());
+        if (hdr > payload.size() || hdr + rec.msg_length() > payload.size())
             return;
         chan = diag_0xb0c0_enrich::channel_name(rec.version(), rec.channel_type());
         pdu = rec.msg_data();
