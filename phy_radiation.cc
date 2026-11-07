@@ -74,6 +74,11 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
                 [this](int) -> int {
                     auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
                     auto lg = kis_lock_guard<kis_mutex>(rad_mutex);
+
+                    // Nothing to report until a radiation sensor has sent something
+                    if (geiger_counters->size() == 0)
+                        return 1;
+
                     if (kismetdb != nullptr) {
                         struct timeval tv;
                         gettimeofday(&tv, nullptr);
