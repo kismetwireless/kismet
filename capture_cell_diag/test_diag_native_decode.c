@@ -931,6 +931,88 @@ static bool check_lte_meas_neighbours(void) {
  * that captured the b17f_enriched_rssi serialization string, with RSRQ in bits
  * 0..9 of u32@20 as the v13 layout has it (raw 0x138 -> -10.5;
  * earlier it sat in bits 20..29, the pre-v13 reading). */
+/* The census gate on 0xB0C0 (diag_native_decode_ex's *gated). An idle UE
+ * logs mostly paging on 0xB0C0, and a paging message can never yield a cell,
+ * so a leg that reports such a record merely "decoded, emitted nothing" makes
+ * the census call a healthy decoder silent. Gated is: the parse completed AND
+ * the channel is not BCCH-DL-SCH. Everything else -- a SIB1, a BCCH record
+ * with nothing in it, a refusal -- must stay ungated, or the gate would hide a
+ * broken SIB1 decoder.
+ *
+ * Both records are synthetic: a v20 header with PCI 1 and EARFCN 100
+ * (bytes 4..7, little-endian) and a zero frame number.
+ *
+ * PCCH: byte[12] = 5 = PCCH, carrying a paging record with a zero S-TMSI. */
+static const char *kHex_b0c0_v20_pcch =
+    "140e30000100640000000000050000000007004002" "0000000000";
+/* BCCH-DL-SCH: byte[12] = 2, with msg_length 0. */
+static const char *kHex_b0c0_v20_bcch_empty =
+    "140e3000010064000000000002020000000000";
+
+typedef struct {
+    const char *name;
+    const char *hex;
+    size_t trim;          /* bytes cut off the end (a truncated record) */
+    int want_rows;        /* -1: any n >= 1 */
+    bool want_refused;
+    bool want_gated;
+} gated_case_t;
+
+static bool check_b0c0_gated(void) {
+    static const gated_case_t cases[] = {
+        {"pcch_paging",         NULL, 0,  0, false, true},
+        {"dl_dcch_release",     NULL, 0,  0, false, true},
+        {"ul_dcch_report",      NULL, 0,  0, false, true},
+        {"bcch_sib1_v20",       NULL, 0, -1, false, false},
+        {"bcch_sib1_v27",       NULL, 0, -1, false, false},
+        {"bcch_empty_pdu",      NULL, 0,  0, false, false},
+        {"pcch_truncated",      NULL, 3,  0, true,  false},
+    };
+    const char *hex[] = {kHex_b0c0_v20_pcch, kHex_b0c0_v20_release,
+                         kHex_b0c0_v20_report_meas_id_1, kHex_b0c0_ident_eg25g_v20,
+                         kHex_b0c0_ident_rm520ngl, kHex_b0c0_v20_bcch_empty,
+                         kHex_b0c0_v20_pcch};
+    bool ok = true;
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        const gated_case_t *c = &cases[i];
+        uint8_t buf[512];
+        size_t len = unhex(hex[i], buf, sizeof(buf));
+        len = len > c->trim ? len - c->trim : 0;
+        diag_native_obs_t got[MAX_OBS];
+        bool refused = !c->want_refused, gated = !c->want_gated;
+        int n = diag_native_decode_ex(0xB0C0, buf, len, got, MAX_OBS, &refused, &gated);
+        bool rows_ok = c->want_rows < 0 ? n >= 1 : n == c->want_rows;
+        if (!rows_ok || refused != c->want_refused || gated != c->want_gated) {
+            printf("  FAIL b0c0_gated %s: n=%d refused=%d gated=%d, want n=%d "
+                   "refused=%d gated=%d\n", c->name, n, (int) refused, (int) gated,
+                   c->want_rows, (int) c->want_refused, (int) c->want_gated);
+            ok = false;
+        }
+    }
+
+    /* Another code never gates, and the NULL out-params stay NULL-safe. */
+    uint8_t pcch[64];
+    size_t plen = unhex(kHex_b0c0_v20_pcch, pcch, sizeof(pcch));
+    diag_native_obs_t got[MAX_OBS];
+    bool gated = true;
+    (void) diag_native_decode_ex(0xB192, pcch, plen, got, MAX_OBS, NULL, &gated);
+    if (gated) {
+        printf("  FAIL b0c0_gated: 0xB192 reported gated\n");
+        ok = false;
+    }
+    if (diag_native_decode_ex(0xB0C0, pcch, plen, got, MAX_OBS, NULL, NULL) != 0) {
+        printf("  FAIL b0c0_gated: NULL refused/gated changed the row count\n");
+        ok = false;
+    }
+    gated = true;
+    if (diag_native_decode_ex(0x1234, pcch, plen, got, MAX_OBS, NULL, &gated) != -1 ||
+            gated) {
+        printf("  FAIL b0c0_gated: a code with no leg must return -1, ungated\n");
+        ok = false;
+    }
+    return ok;
+}
+
 static bool check_b17f_decode(void) {
     static const char *hex =
         "05000000d007000010060000f2040000000000003801000000f00900000000000000000000000000";
@@ -1819,6 +1901,7 @@ int main(void) {
     ok &= check_gnss_tracker_contract();
     ok &= check_sib1_map_contract();
     ok &= check_lte_meas_neighbours();
+    ok &= check_b0c0_gated();
     ok &= check_b17f_decode();
     ok &= check_serialize();
     ok &= check_cell_config_and_beams();

@@ -2611,9 +2611,9 @@ static void native_census_tally(native_tap_ctx_t *ctx, const diag_log_record_t *
 }
 
 /* Count one record its leg parsed and set aside for a benign reason (a GNSS
- * record from a receiver with no fix): decoded, not emitted, and not a
- * silence (diag_inventory_record_gated). Same cadence check as
- * native_census_tally. */
+ * record from a receiver with no fix, a 0xB0C0 paging or CCCH/DCCH message):
+ * decoded, not emitted, and not a silence (diag_inventory_record_gated). Same
+ * cadence check as native_census_tally. */
 static void native_census_gated(native_tap_ctx_t *ctx, const diag_log_record_t *rec) {
     local_diag_t *local = ctx->local;
     if (local->native_inv == NULL)
@@ -2854,8 +2854,13 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
     /* refused: the leg declined the record as malformed (not "decoded, found
      * nothing"). The census then counts it dropped. */
     bool refused = false;
+    /* gated: the leg parsed the record and it structurally cannot yield an
+     * observation (a 0xB0C0 on PCCH or a CCCH/DCCH channel). The census counts
+     * it gated, not silent -- unless it emitted anyway (a MeasurementReport's
+     * neighbour rows below), when it is an ordinary decode. */
+    bool gated = false;
     int n = diag_native_decode_ex(rec->log_code, rec->payload, rec->payload_len,
-                                  obs, DIAG_NATIVE_TAP_MAX_OBS, &refused);
+                                  obs, DIAG_NATIVE_TAP_MAX_OBS, &refused, &gated);
     /* A 0xB0C0 MeasurementReport's neighbour rows, appended after the
      * record's own observations. They are joined against the measConfig state
      * diag_native_sib1_learn just updated, so they need the map;
@@ -2917,7 +2922,10 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
     } else {
         local->native_tap.declined++;
     }
-    native_census_tally(ctx, rec, refused ? 0 : 1, census_emitted);
+    if (gated && census_emitted == 0)
+        native_census_gated(ctx, rec);
+    else
+        native_census_tally(ctx, rec, refused ? 0 : 1, census_emitted);
 }
 
 /* Populate the half of the stats contract diag_stats.c does not own:
