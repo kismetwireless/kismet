@@ -1207,6 +1207,142 @@ protected:
     uint16_t location_id;
 };
 
+// Control frames naming a known device; added on the first one, so devices never
+// addressed by a control frame don't carry it
+class dot11_tracked_ctrl : public tracker_component {
+public:
+    dot11_tracked_ctrl() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_tracked_ctrl(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_tracked_ctrl(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    dot11_tracked_ctrl(const dot11_tracked_ctrl *p) :
+        tracker_component{p} {
+        __ImportField(rts_sent, p);
+        __ImportField(bar_sent, p);
+        __ImportField(ba_sent, p);
+        __ImportField(ndpa_sent, p);
+        __ImportField(pspoll_sent, p);
+        __ImportField(ack_rx, p);
+        __ImportField(cts_rx, p);
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+        __ImportField(control_only, p);
+
+        reserve_fields(nullptr);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("dot11_tracked_ctrl");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>(this);
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __ProxyIncDec(rts_sent, uint64_t, uint64_t, rts_sent);
+    __ProxyIncDec(bar_sent, uint64_t, uint64_t, bar_sent);
+    __ProxyIncDec(ba_sent, uint64_t, uint64_t, ba_sent);
+    __ProxyIncDec(ndpa_sent, uint64_t, uint64_t, ndpa_sent);
+    __ProxyIncDec(pspoll_sent, uint64_t, uint64_t, pspoll_sent);
+    __ProxyIncDec(ack_rx, uint64_t, uint64_t, ack_rx);
+    __ProxyIncDec(cts_rx, uint64_t, uint64_t, cts_rx);
+    __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __Proxy(control_only, uint8_t, bool, bool, control_only);
+
+protected:
+    virtual void register_fields() override {
+        register_field("dot11.ctrl.rts_sent", "RTS frames sent", &rts_sent);
+        register_field("dot11.ctrl.bar_sent", "block ACK requests sent", &bar_sent);
+        register_field("dot11.ctrl.ba_sent", "block ACKs sent", &ba_sent);
+        register_field("dot11.ctrl.ndpa_sent", "NDP announcements sent", &ndpa_sent);
+        register_field("dot11.ctrl.pspoll_sent", "PS-Polls sent", &pspoll_sent);
+        register_field("dot11.ctrl.ack_rx", "ACKs addressed to the device", &ack_rx);
+        register_field("dot11.ctrl.cts_rx", "CTS frames addressed to the device", &cts_rx);
+        register_field("dot11.ctrl.first_time", "first control frame naming the device", &first_time);
+        register_field("dot11.ctrl.last_time", "last control frame naming the device", &last_time);
+        register_field("dot11.ctrl.control_only",
+                "no data frames seen from or to the device as of its last control frame; its "
+                "traffic is likely at a rate or stream count the capture can't decode",
+                &control_only);
+    }
+
+    std::shared_ptr<tracker_element_uint64> rts_sent;
+    std::shared_ptr<tracker_element_uint64> bar_sent;
+    std::shared_ptr<tracker_element_uint64> ba_sent;
+    std::shared_ptr<tracker_element_uint64> ndpa_sent;
+    std::shared_ptr<tracker_element_uint64> pspoll_sent;
+    std::shared_ptr<tracker_element_uint64> ack_rx;
+    std::shared_ptr<tracker_element_uint64> cts_rx;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint8> control_only;
+};
+
+// Stations of a BSS seen only as the peer of its AP in control frames: addresses that were
+// not a known device when the frame was seen.  Times are capture times, so a replayed capture
+// keeps its count; the count is of stations within the window before the newest one.  Fixed
+// size; the oldest entry is replaced.
+struct dot11_ctrl_peers {
+    static constexpr size_t max_peers = 64;
+    static constexpr time_t window = 300;
+
+    std::array<std::pair<mac_addr, time_t>, max_peers> peers{};
+    size_t num = 0;
+    time_t newest = 0;
+
+    // Returns the stations within the window of the newest
+    unsigned int seen(const mac_addr& mac, time_t ts) {
+        newest = std::max(newest, ts);
+
+        size_t oldest = 0;
+        bool found = false;
+
+        for (size_t i = 0; i < num; i++) {
+            if (peers[i].first == mac) {
+                peers[i].second = std::max(peers[i].second, ts);
+                found = true;
+                break;
+            }
+
+            if (peers[i].second < peers[oldest].second)
+                oldest = i;
+        }
+
+        if (!found) {
+            if (num < max_peers)
+                peers[num++] = {mac, ts};
+            else
+                peers[oldest] = {mac, ts};
+        }
+
+        unsigned int n = 0;
+
+        for (size_t i = 0; i < num; i++)
+            if (newest - peers[i].second < window)
+                n++;
+
+        return n;
+    }
+};
+
 // Bitset of top-level device types for easy sorting/browsing
 #define DOT11_DEVICE_TYPE_UNKNOWN           0
 // This device has beaconed
@@ -1390,6 +1526,10 @@ public:
             __ImportId(last_beaconed_ssid_record_id, p);
             __ImportId(last_probed_ssid_record_id, p);
 
+            __ImportId(ctrl_activity_id, p);
+            __ImportId(ctrl_only_stations_id, p);
+            __ImportId(ctrl_only_stations_last_id, p);
+
             reserve_fields(nullptr);
         }
 
@@ -1517,6 +1657,22 @@ public:
         return *csa_state_;
     }
     dot11_csa_state *csa_state_if_any() { return csa_state_.get(); }
+
+    __ProxyDynamicTrackable(ctrl_activity, dot11_tracked_ctrl, ctrl_activity, ctrl_activity_id);
+
+    // Records a control-only peer of the BSSID and updates its count; the list is allocated
+    // with the first one.  Caller holds the device lock.
+    void ctrl_peer_seen(const mac_addr& mac, time_t ts) {
+        if (ctrl_peers_ == nullptr)
+            ctrl_peers_ = std::make_unique<dot11_ctrl_peers>();
+        set_ctrl_only_stations(ctrl_peers_->seen(mac, ts));
+        set_ctrl_only_stations_last(ctrl_peers_->newest);
+    }
+    __ProxyDynamic(ctrl_only_stations, uint32_t, unsigned int, unsigned int, ctrl_only_stations,
+            ctrl_only_stations_id);
+    __ProxyDynamic(ctrl_only_stations_last, uint64_t, time_t, time_t, ctrl_only_stations_last,
+            ctrl_only_stations_last_id);
+
     std::shared_ptr<dot11_advertised_ssid> get_last_adv_ssid() {
         return last_adv_ssid;
     }
@@ -1743,6 +1899,20 @@ protected:
         last_probed_ssid_record_id =
             register_dynamic_field("dot11.device.last_probed_ssid_record",
                     "last probed ssid, complete record", &last_probed_ssid_record);
+
+        ctrl_activity_id =
+            register_dynamic_field("dot11.device.ctrl_activity",
+                    "control frames naming the device", &ctrl_activity);
+        ctrl_only_stations_id =
+            register_dynamic_field("dot11.device.ctrl_only_stations",
+                    "stations of this BSS seen only in control frames with the AP, within 5 "
+                    "minutes (capture time) of the newest one; likely clients whose own frames "
+                    "the capture can't decode",
+                    &ctrl_only_stations);
+        ctrl_only_stations_last_id =
+            register_dynamic_field("dot11.device.ctrl_only_stations_last",
+                    "capture time of the newest station seen only in control frames with the AP",
+                    &ctrl_only_stations_last);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -1917,6 +2087,15 @@ protected:
 
     uint16_t last_probed_ssid_record_id;
     std::shared_ptr<tracker_element_alias> last_probed_ssid_record;
+
+    std::shared_ptr<dot11_tracked_ctrl> ctrl_activity;
+    uint16_t ctrl_activity_id;
+
+    std::unique_ptr<dot11_ctrl_peers> ctrl_peers_;
+    std::shared_ptr<tracker_element_uint32> ctrl_only_stations;
+    uint16_t ctrl_only_stations_id;
+    std::shared_ptr<tracker_element_uint64> ctrl_only_stations_last;
+    uint16_t ctrl_only_stations_last_id;
 };
 
 #endif

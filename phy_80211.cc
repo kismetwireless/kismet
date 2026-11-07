@@ -858,6 +858,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
     link_randomized =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_link_randomized", false);
+
+    track_control =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_track_control", true);
     if (link_randomized)
         alias_linker = std::make_unique<randomized_alias_linker>(
                 randomized_alias_linker::params{60, 30, 64, "timing", 600});
@@ -1760,13 +1763,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             d11phy->packet_dot11_ie_dissector(in_pack.get(), dot11info.get());
 
     } else if (dot11info->type == packet_phy) {
-        // Phy packets are so often bogus that we just ignore them for now; if we enable
-        // creating devices from them, even on "good" cards like the ath9k we get a flood of
-        // garbage
-        //
-        // If we WERE going to process them, it would go here, and we'd start looking for
-        // source and dest where we could find them
+        // Control frames are so often bogus that they never create devices; even on "good"
+        // cards like the ath9k that gives a flood of garbage.  They're only counted on
+        // devices already known.
         in_pack->common_info.type = packet_basic_phy;
+
+        if (d11phy->track_control)
+            d11phy->handle_control_activity(in_pack.get(), dot11info.get());
     } else if (dot11info->type == packet_data) {
         in_pack->common_info.type = packet_basic_data;
 
@@ -4858,6 +4861,117 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
             handle_randomized_alias(basedev, dot11dev, in_pack, dot11info);
     }
 
+}
+
+void kis_80211_phy::handle_control_activity(kis_packet *in_pack, const dot11_packinfo *dot11info) {
+    // RTS, BAR, Block ACK, NDP announcement and PS-Poll name both sides; ACK and CTS only
+    // the receiver, and their signal is the sender's, not the receiver's
+    bool pair = true;
+
+    switch (dot11info->subtype) {
+        case packet_sub_rts:
+        case packet_sub_block_ack_req:
+        case packet_sub_block_ack:
+        case packet_sub_vht_ndp:
+        case packet_sub_pspoll:
+            break;
+        case packet_sub_ack:
+        case packet_sub_cts:
+            pair = false;
+            break;
+        default:
+            return;
+    }
+
+    auto usable = [](const mac_addr& m) {
+        return m != Globalreg::globalreg->empty_mac &&
+            !m.bitwise_and(Globalreg::globalreg->multicast_mac);
+    };
+
+    const auto& ta = dot11info->source_mac;
+    const auto& ra = dot11info->dest_mac;
+
+    const bool ta_ok = pair && usable(ta);
+    const bool ra_ok = usable(ra);
+
+    if (pair && ta == ra)
+        return;
+
+    std::shared_ptr<kis_tracked_device_base> ta_dev, ra_dev;
+
+    if (ta_ok)
+        ta_dev = devicetracker->fetch_device(device_key(fetch_phyname_hash(), ta));
+    if (ra_ok)
+        ra_dev = devicetracker->fetch_device(device_key(fetch_phyname_hash(), ra));
+
+    const time_t ts = in_pack->ts.tv_sec;
+
+    auto count = [&](const std::shared_ptr<kis_tracked_device_base>& dev, auto&& inc) {
+        kis_device_lock lk(dev, false);
+
+        auto d11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+        if (d11 == nullptr)
+            return;
+
+        auto ctrl = d11->get_ctrl_activity();
+        if (ctrl == nullptr)
+            return;
+
+        if (ctrl->get_first_time() == 0)
+            ctrl->set_first_time(ts);
+        ctrl->set_last_time(ts);
+        inc(*ctrl);
+        ctrl->set_control_only(dev->get_data_packets() == 0);
+    };
+
+    if (ta_dev != nullptr) {
+        count(ta_dev, [&](dot11_tracked_ctrl& c) {
+            switch (dot11info->subtype) {
+                case packet_sub_rts: c.inc_rts_sent(1); break;
+                case packet_sub_block_ack_req: c.inc_bar_sent(1); break;
+                case packet_sub_block_ack: c.inc_ba_sent(1); break;
+                case packet_sub_vht_ndp: c.inc_ndpa_sent(1); break;
+                case packet_sub_pspoll: c.inc_pspoll_sent(1); break;
+                default: break;
+            }
+        });
+    }
+
+    if (!pair && ra_dev != nullptr) {
+        count(ra_dev, [&](dot11_tracked_ctrl& c) {
+            if (dot11info->subtype == packet_sub_ack)
+                c.inc_ack_rx(1);
+            else
+                c.inc_cts_rx(1);
+        });
+    }
+
+    // An AP exchanging frames with an address that isn't a known device has a station we
+    // can't hear directly.  Only a verified FCS counts here; a corrupt address would
+    // otherwise look like a new station.
+    if (!pair || !ta_ok || !ra_ok || !in_pack->crc_ok || !in_pack->checksum_valid)
+        return;
+
+    std::shared_ptr<kis_tracked_device_base> ap_dev;
+    const mac_addr *peer = nullptr;
+
+    if (ta_dev != nullptr && ra_dev == nullptr) {
+        ap_dev = ta_dev;
+        peer = &ra;
+    } else if (ra_dev != nullptr && ta_dev == nullptr) {
+        ap_dev = ra_dev;
+        peer = &ta;
+    } else {
+        return;
+    }
+
+    kis_device_lock lk(ap_dev, false);
+
+    auto d11 = ap_dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+    if (d11 == nullptr || !(d11->get_type_set() & DOT11_DEVICE_TYPE_BEACON_AP))
+        return;
+
+    d11->ctrl_peer_seen(*peer, in_pack->ts.tv_sec);
 }
 
 void kis_80211_phy::handle_randomized_alias(const std::shared_ptr<kis_tracked_device_base>& basedev,

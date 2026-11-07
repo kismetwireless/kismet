@@ -775,6 +775,15 @@ void kis_80211_phy::hidedata_truncate(kis_packet* in_pack, const std::shared_ptr
     chunk->set_data(chunk->substr(0, packinfo->header_offset));
 }
 
+// The TA of an RTS, NDP announcement, BAR or Block ACK sets the group bit when it signals
+// bandwidth; the station's address is the same without it
+static mac_addr dot11_ctrl_ta(const uint8_t *addr) {
+    uint8_t ta[PHY80211_MAC_LEN];
+    memcpy(ta, addr, PHY80211_MAC_LEN);
+    ta[0] &= 0xFE;
+    return mac_addr(ta, PHY80211_MAC_LEN);
+}
+
 int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
     if (in_pack->error) {
         return 0;
@@ -891,7 +900,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->source_mac = dot11_ctrl_ta(addr1);
 
         } else if (fc.subtype() == 8) {
             packinfo->subtype = packet_sub_block_ack_req;
@@ -903,7 +912,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->source_mac = dot11_ctrl_ta(addr1);
 
         } else if (fc.subtype() == 9) {
             packinfo->subtype = packet_sub_block_ack;
@@ -914,19 +923,22 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 return 0;
             }
 
-            packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->dest_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = dot11_ctrl_ta(addr1);
+
         } else if (fc.subtype() == 10) {
             packinfo->subtype = packet_sub_pspoll;
 
-            if (addr0 == NULL) {
+            // RA is the BSSID, TA the station
+            if (addr0 == NULL || addr1 == NULL) {
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
 
-            packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
 
         } else if (fc.subtype() == 11) {
             packinfo->subtype = packet_sub_rts;
@@ -938,7 +950,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->source_mac = dot11_ctrl_ta(addr1);
 
         } else if (fc.subtype() == 12) {
             packinfo->subtype = packet_sub_cts;
