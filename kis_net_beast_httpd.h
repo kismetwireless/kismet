@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <future>
 #include <list>
 #include <regex>
@@ -246,7 +247,17 @@ protected:
     std::unordered_map<std::string, unsigned int> conn_by_addr_;
     time_t conn_limit_warned_;
 
+    // Sockets of running connections, so stopping can wake them and wait for them to finish
+    // before the globals their handlers use are torn down
+    std::unordered_map<kis_net_beast_conn_slot *, int> conn_fds_;
+    std::condition_variable_any conn_cv_;
+    bool conns_stopping_;
+
     friend class kis_net_beast_conn_slot;
+
+    // Removed before the socket closes, so stopping never touches a reused fd
+    void attach_connection_fd(kis_net_beast_conn_slot *slot, int fd);
+    void detach_connection_fd(kis_net_beast_conn_slot *slot);
 
     // A slot for a new connection from addr, or nullptr when over a limit
     std::unique_ptr<kis_net_beast_conn_slot> claim_connection(const std::string& addr);
