@@ -665,14 +665,15 @@ static std::string cached_uuid_string(const uuid& u) {
 }
 
 // Prepare a cached insert on first use; the caller holds the statement's mutex and a
-// writer guard, so the database can't close underneath it
-sqlite3_stmt *kis_database_logfile::prepare_cached(sqlite3_stmt *& stmt, const char *sql) {
+// writer guard, so the database can't close underneath it.  On failure the error is
+// returned for the caller to report once it has released the mutex.
+sqlite3_stmt *kis_database_logfile::prepare_cached(sqlite3_stmt *& stmt, const char *sql,
+        std::string& err) {
     if (stmt != nullptr)
         return stmt;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        _MSG_ERROR("kis_database_logfile unable to prepare database insert in {}: {}",
-                ds_dbfile, sqlite3_errmsg(db));
+        err = sqlite3_errmsg(db);
         sqlite3_finalize(stmt);
         stmt = nullptr;
     }
@@ -1241,7 +1242,8 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
             tagstr += tag.first;
         }
 
-        kis_lock_guard<kis_mutex> stmt_lk(packet_stmt_mutex, "kismetdb log_packet");
+        std::string err;
+        kis_unique_lock<kis_mutex> stmt_lk(packet_stmt_mutex, "kismetdb log_packet");
 
         auto stmt = prepare_cached(packet_stmt,
             "INSERT INTO packets "
@@ -1253,9 +1255,13 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
             "datasource, "
             "dlt, packet, "
             "error, tags, datarate, hash, packetid) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            err);
 
         if (stmt == nullptr) {
+            stmt_lk.unlock();
+            _MSG_ERROR("kis_database_logfile unable to prepare database insert for packets "
+                    "in {}: {}", ds_dbfile, err);
             close_log();
             return -1;
         }
@@ -1308,14 +1314,17 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         bool ok = sqlite3_step(stmt) == SQLITE_DONE;
 
         if (!ok)
-            _MSG("kis_database_logfile unable to insert packet in " +
-                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            err = sqlite3_errmsg(db);
 
         // Drop the references to our buffers before they go away
         sqlite3_reset(stmt);
         sqlite3_clear_bindings(stmt);
 
+        stmt_lk.unlock();
+
         if (!ok) {
+            _MSG_ERROR("kis_database_logfile unable to insert packet in {}: {}",
+                    ds_dbfile, err);
             close_log();
             return -1;
         }
@@ -1368,7 +1377,8 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
     std::string macstring = devmac.mac_to_string();
     std::string uuidstring = cached_uuid_string(datasource_uuid);
 
-    kis_lock_guard<kis_mutex> stmt_lk(data_stmt_mutex, "kismetdb log_data");
+    std::string err;
+    kis_unique_lock<kis_mutex> stmt_lk(data_stmt_mutex, "kismetdb log_data");
 
     auto stmt = prepare_cached(data_stmt,
         "INSERT INTO data "
@@ -1378,9 +1388,13 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
         "reported_lat, reported_lon, reported_alt, reported_speed, reported_heading, "
         "datasource, "
         "type, json, signal) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        err);
 
     if (stmt == nullptr) {
+        stmt_lk.unlock();
+        _MSG_ERROR("kis_database_logfile unable to prepare database insert for data "
+                "in {}: {}", ds_dbfile, err);
         close_log();
         return -1;
     }
@@ -1410,13 +1424,15 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
     bool ok = sqlite3_step(stmt) == SQLITE_DONE;
 
     if (!ok)
-        _MSG("kis_database_logfile unable to insert data in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        err = sqlite3_errmsg(db);
 
     sqlite3_reset(stmt);
     sqlite3_clear_bindings(stmt);
 
+    stmt_lk.unlock();
+
     if (!ok) {
+        _MSG_ERROR("kis_database_logfile unable to insert data in {}: {}", ds_dbfile, err);
         close_log();
         return -1;
     }

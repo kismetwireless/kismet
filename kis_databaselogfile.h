@@ -223,7 +223,7 @@ protected:
     kis_mutex data_stmt_mutex;
     sqlite3_stmt *data_stmt;
 
-    sqlite3_stmt *prepare_cached(sqlite3_stmt *& stmt, const char *sql);
+    sqlite3_stmt *prepare_cached(sqlite3_stmt *& stmt, const char *sql, std::string& err);
     void finalize_cached();
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
