@@ -342,6 +342,9 @@ protected:
 
         buf = std::shared_ptr<char>(new char[buf_sz + 4], std::default_delete<char[]>());
 
+        // Option padding would otherwise carry uninitialized heap into the file and streams
+        memset(buf.get(), 0, buf_sz + 4);
+
         idb = reinterpret_cast<pcapng_idb *>(buf.get());
 
         idb->block_type = PCAPNG_IDB_BLOCK_TYPE;
