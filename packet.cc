@@ -65,11 +65,9 @@ kis_packet::kis_packet() {
     signal_info.reset();
 }
 
-kis_packet::~kis_packet() {
-    try {
-        mutex.unlock();
-    } catch (...) { }
-}
+// The packet lock is only held by scoped guards that keep the packet alive, so it's never
+// held here; unlocking a mutex we don't own is undefined
+kis_packet::~kis_packet() = default;
 
 void kis_packet::reset() {
     assignment_id = 0;
