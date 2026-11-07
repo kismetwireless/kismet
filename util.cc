@@ -1070,7 +1070,8 @@ std::optional<std::string> realpath_string(const std::string& path) {
     return std::string{rp.get()};
 }
 
-bool write_private_file(const std::string& path, const std::string& data, std::string& err) {
+bool write_file_atomic(const std::string& path, const std::string& data, mode_t mode,
+        std::string& err) {
     std::vector<char> tmpl(path.begin(), path.end());
     for (auto c : std::string{".XXXXXX"})
         tmpl.push_back(c);
@@ -1091,7 +1092,7 @@ bool write_private_file(const std::string& path, const std::string& data, std::s
         return false;
     };
 
-    if (fchmod(fd, 0600) != 0)
+    if (fchmod(fd, mode) != 0)
         return fail(errno);
 
     size_t off = 0;
@@ -1120,7 +1121,21 @@ bool write_private_file(const std::string& path, const std::string& data, std::s
         return false;
     }
 
+    // The rename itself is only durable once the directory is synced
+    auto slash = path.find_last_of('/');
+    auto dir = slash == std::string::npos ? std::string{"."} :
+        (slash == 0 ? std::string{"/"} : path.substr(0, slash));
+    int dfd = open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (dfd >= 0) {
+        fsync(dfd);
+        close(dfd);
+    }
+
     return true;
+}
+
+bool write_private_file(const std::string& path, const std::string& data, std::string& err) {
+    return write_file_atomic(path, data, 0600, err);
 }
 
 double ts_to_double(struct timeval ts) {

@@ -48,6 +48,7 @@
 #include "fmt.h"
 #include "kis_httpd_ssl.h"
 #include "messagebus.h"
+#include "util.h"
 
 namespace {
 
@@ -176,31 +177,9 @@ std::string read_file(const std::string& path) {
 
 // Replace a file atomically, with the given mode, never following a link
 void write_file(const std::string& path, const std::string& data, mode_t mode) {
-    auto tmp = path + ".tmp";
-    unlink(tmp.c_str());
-    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, mode);
-    if (fd < 0)
-        throw std::runtime_error(fmt::format("could not write {}: {}", tmp, strerror(errno)));
-    size_t off = 0;
-    while (off < data.size()) {
-        auto w = write(fd, data.data() + off, data.size() - off);
-        if (w < 0) {
-            if (errno == EINTR)
-                continue;
-            auto err = errno;
-            close(fd);
-            unlink(tmp.c_str());
-            throw std::runtime_error(fmt::format("could not write {}: {}", tmp, strerror(err)));
-        }
-        off += static_cast<size_t>(w);
-    }
-    fsync(fd);
-    close(fd);
-    if (rename(tmp.c_str(), path.c_str()) < 0) {
-        auto err = errno;
-        unlink(tmp.c_str());
-        throw std::runtime_error(fmt::format("could not write {}: {}", path, strerror(err)));
-    }
+    std::string err;
+    if (!write_file_atomic(path, data, mode, err))
+        throw std::runtime_error(fmt::format("could not write {}: {}", path, err));
 }
 
 pkey_ptr make_key() {
