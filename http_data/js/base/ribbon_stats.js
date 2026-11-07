@@ -1,6 +1,6 @@
 // The standard stats in the top ribbon.  All of them are fed by the eventbus
 // websocket; only the datasource and alert counts load a starting value over
-// HTTP.
+// HTTP, and load it again whenever the websocket reconnects.
 
 export function register(kismet) {
     const { ui, eventbus, api, format, rrd, dom, icons } = kismet;
@@ -97,10 +97,44 @@ export function register(kismet) {
             const show = () => {
                 dom.replace(v.value, count ? el('span', { class: 'badge alert' }, format.count(count)) : '0');
             };
-            api.get('alerts/wrapped/last-time/0/alerts.json')
-                .then((r) => { count += (r['kismet.alert.list'] ?? []).length; show(); })
-                .catch(() => { v.value.textContent = '?'; });
-            return eventbus.subscribe('ALERT', ['kismet.alert.hash'], () => { count++; show(); });
+            const timeOf = (a) => a['kismet.alert.timestamp'] ?? 0;
+
+            // Loaded again after every reconnect, since alerts raised while the connection
+            // was down (or a restarted server) leave the running count wrong.  Live alerts
+            // that arrive during the load count only if they're newer than the list.
+            let pending = null;
+            let generation = 0;
+            async function load() {
+                const gen = ++generation;
+                pending = [];
+                try {
+                    const r = await api.get('alerts/wrapped/last-time/0/alerts.json');
+                    if (gen !== generation)
+                        return;
+                    const list = r['kismet.alert.list'] ?? [];
+                    const newest = list.reduce((t, a) => Math.max(t, timeOf(a)), 0);
+                    count = list.length + pending.filter((t) => t > newest).length;
+                    show();
+                } catch {
+                    if (gen === generation)
+                        v.value.textContent = '?';
+                } finally {
+                    if (gen === generation)
+                        pending = null;
+                }
+            }
+
+            const stop = eventbus.subscribe('ALERT', ['kismet.alert.timestamp'], (e) => {
+                if (pending) {
+                    pending.push(timeOf(e));
+                    return;
+                }
+                count++;
+                show();
+            });
+            const stopState = eventbus.onState((up) => up && load());
+            load();
+            return () => { stop(); stopState(); generation++; };
         },
     });
 
