@@ -264,6 +264,27 @@ static void test_qgpsloc(void) {
     n = cellat_qgpsloc_nmea("\r\n+CME ERROR: 516\r\n", out, sizeof(out));
     CHECK(n == 1 && all_cs_ok(out, 1) && strncmp(out, "$GNGGA,,,,,,0,", 14) == 0,
           "516 is a no-fix GGA");
+    n = cellat_qgpsloc_nmea("\r\n+CME ERROR: Not fixed now\r\n", out, sizeof(out));
+    CHECK(n == 1 && all_cs_ok(out, 1) && strncmp(out, "$GNGGA,,,,,,0,", 14) == 0,
+          "verbose not fixed now (AT+CMEE=2) is a no-fix GGA");
+
+    /* <mode> 0 ranges: minutes under 60, nothing past 90 or 180 */
+    CHECK(cellat_qgpsloc_nmea("+QGPSLOC: 123519.000,9000.0000N,18000.0000W,0.9,545.4,3,,0.0,0.0,230394,08",
+                              out, sizeof(out)) == 3, "mode 0 at exactly 90 N, 180 W");
+    CHECK(cellat_qgpsloc_nmea("+QGPSLOC: 123519.000,4860.0000N,01131.0000E,0.9,545.4,3,,0.0,0.0,230394,08",
+                              out, sizeof(out)) == 0, "mode 0 with 60 minutes");
+    CHECK(cellat_qgpsloc_nmea("+QGPSLOC: 123519.000,9000.0001N,01131.0000E,0.9,545.4,3,,0.0,0.0,230394,08",
+                              out, sizeof(out)) == 0, "mode 0 latitude past 90");
+    CHECK(cellat_qgpsloc_nmea("+QGPSLOC: 123519.000,4807.0380N,18100.0000E,0.9,545.4,3,,0.0,0.0,230394,08",
+                              out, sizeof(out)) == 0, "mode 0 longitude past 180");
+
+    /* A sentence that does not fit leaves nothing of itself behind */
+    n = cellat_qgpsloc_nmea("+QGPSLOC: 123519.000,48.11730,11.51667,0.9,545.4,3,84.4,41.5,22.4,230394,08",
+                            out, sizeof(out));
+    size_t gga_len = (size_t)(strstr(out, "\r\n") + 2 - out);
+    n = cellat_qgpsloc_nmea("+QGPSLOC: 123519.000,48.11730,11.51667,0.9,545.4,3,84.4,41.5,22.4,230394,08",
+                            out, gga_len + 20);
+    CHECK(n == 1 && strlen(out) == gga_len, "room for the GGA only: the GGA and nothing more");
 
     /* Everything else is nothing */
     CHECK(cellat_qgpsloc_nmea("+CME ERROR: 505", out, sizeof(out)) == 0, "505 (GNSS off)");

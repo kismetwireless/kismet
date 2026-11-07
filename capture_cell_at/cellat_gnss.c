@@ -162,7 +162,7 @@ static int numeric_field(const char *s, int empty_ok) {
 
 /* <mode> 0 coordinate: "4807.0380N" -> "4807.0380", 'N'. deg_digits is 2 for
  * a latitude and 3 for a longitude. */
-static int coord_mode0(const char *s, int deg_digits, const char *hemis,
+static int coord_mode0(const char *s, int deg_digits, long max_deg, const char *hemis,
                        char *out, size_t outsz, char *hemi) {
     size_t len = strlen(s);
     if (len < 2 || strchr(hemis, s[len - 1]) == NULL || len - 1 >= outsz)
@@ -174,6 +174,20 @@ static int coord_mode0(const char *s, int deg_digits, const char *hemis,
         if (s + i != dot && (s[i] < '0' || s[i] > '9'))
             return 0;
     }
+
+    /* Whole minutes under 60, and nothing past max_deg itself */
+    long deg = 0;
+    int min_zero = 1;
+    for (int i = 0; i < deg_digits; i++)
+        deg = deg * 10 + (s[i] - '0');
+    for (size_t i = (size_t)deg_digits; i < len - 1; i++) {
+        if (s[i] != '0' && s[i] != '.')
+            min_zero = 0;
+    }
+    if ((s[deg_digits] - '0') * 10 + (s[deg_digits + 1] - '0') >= 60 ||
+        deg > max_deg || (deg == max_deg && !min_zero))
+        return 0;
+
     memcpy(out, s, len - 1);
     out[len - 1] = '\0';
     *hemi = s[len - 1];
@@ -225,7 +239,7 @@ static int coord_mode2(const char *s, int deg_digits, long max_deg, const char *
 
 static int coord(const char *s, int deg_digits, long max_deg, const char *hemis,
                  char *out, size_t outsz, char *hemi) {
-    return coord_mode0(s, deg_digits, hemis, out, outsz, hemi) ||
+    return coord_mode0(s, deg_digits, max_deg, hemis, out, outsz, hemi) ||
            coord_mode2(s, deg_digits, max_deg, hemis, out, outsz, hemi);
 }
 
@@ -235,8 +249,11 @@ static int put_sentence(char *out, size_t outsz, size_t *pos, const char *body) 
     for (const char *p = body; *p; p++)
         sum ^= (unsigned char)*p;
     int n = snprintf(out + *pos, outsz - *pos, "$%s*%02X\r\n", body, sum);
-    if (n < 0 || (size_t)n >= outsz - *pos || (size_t)n - 2 >= CELLAT_NMEA_LINE_MAX)
+    if (n < 0 || (size_t)n >= outsz - *pos || (size_t)n - 2 >= CELLAT_NMEA_LINE_MAX) {
+        /* Drop what snprintf left of it */
+        out[*pos] = '\0';
         return 0;
+    }
     *pos += (size_t)n;
     return 1;
 }
@@ -256,7 +273,9 @@ int cellat_qgpsloc_nmea(const char *resp, char *out, size_t outsz) {
         e += strlen("+CME ERROR:");
         while (*e == ' ')
             e++;
-        if (strncmp(e, "516", 3) == 0 && (e[3] < '0' || e[3] > '9'))
+        /* "Not fixed now", as numeric (AT+CMEE=1) or verbose (=2) errors word it */
+        if ((strncmp(e, "516", 3) == 0 && (e[3] < '0' || e[3] > '9')) ||
+            strncasecmp(e, "Not fixed now", 13) == 0)
             return put_sentence(out, outsz, &pos, "GNGGA,,,,,,0,,,,,,,,") ? 1 : 0;
         return 0;
     }

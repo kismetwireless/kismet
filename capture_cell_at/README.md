@@ -778,10 +778,16 @@ example, may expose only `/dev/mhi_DUN`, `mhi_DIAG` and `mhi_QMI0`. When no NMEA
 port is found, or with `gpsport=at`, cellat asks `AT+QGPSLOC=0` on the AT port
 once a second, between its cell queries, and passes the answer on as NMEA
 sentences (GGA, plus RMC when there is a speed and GSA when there is a 2D/3D
-mode). `+CME ERROR: 516` (not fixed now) becomes a no-fix GGA, so the GPS reads
-as connected with no fix, as it does for an NMEA port. The position is the
-modem's own GGA position and is just as good. It costs one AT exchange a second,
-and arrives at most once a second.
+mode). `+CME ERROR: 516` (not fixed now, or its verbose form) becomes a no-fix
+GGA, so the GPS reads as connected with no fix, as it does for an NMEA port. The
+position is the modem's own GGA position and is just as good. It costs one AT
+exchange a second, and arrives at most once a second. After 10 polls in a row
+with no answer cellat warns and asks every 30 seconds until the GNSS answers
+again; a bare `ERROR` (the modem's errors set to `AT+CMEE=0`, or the GNSS turned
+off by something else) counts as no answer. The polls get no RawAT rows unless
+`debug=true`; the positions go to the GPS, as an NMEA port's do. A full
+scan (`AT+QSCAN`, `AT+CSURVC`) holds the AT port, so the position stops for its
+length and the GPS may go stale.
 
 The sentences feed a `cellmodem` GPS of that name in Kismet, a GPS that is idle
 until its source opens and goes idle again when it closes. It can be declared
