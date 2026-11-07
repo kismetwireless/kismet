@@ -1421,10 +1421,10 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     const auto& dest = in_pack->common_info.dest;
 
     // ZIGBEEWEAKKEY alerts to raise once the device list is unlocked
-    std::vector<std::string> weak_key_alerts;
+    std::vector<censor::marked_string> weak_key_alerts;
 
     // A THREADJOINABLE alert to raise once the device list is unlocked, with its PAN and state
-    std::string thread_join_alert;
+    censor::marked_string thread_join_alert;
     uint16_t thread_join_pan = 0;
     auto thread_join = thread_join_state::unknown;
 
@@ -1457,7 +1457,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
         if (source_kis_802154 == NULL) {
             _MSG_INFO(
-                "Detected new 802.15.4 device {}", source.mac_to_string());
+                "Detected new 802.15.4 device {}", source);
             source_kis_802154 = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_802154_tracked_device>(mphy->kis_802154_device_entry_id);
             source_dev->insert(source_kis_802154);
 
@@ -1595,20 +1595,20 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                     }
 
                     if (bit == pk::weak_key_clear_transport)
-                        weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} sent "
+                        weak_key_alerts.push_back(censor::format("Zigbee device {} on PAN 0x{:04x} sent "
                                     "a Transport Key command without APS security: the {} key{} "
                                     "is in the clear to anyone who received it",
-                                    source.mac_to_string(), src_pan, pi->exposed_key_type,
+                                    source, src_pan, pi->exposed_key_type,
                                     exposed_value));
                     else if (bit == pk::weak_key_aps)
-                        weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} "
+                        weak_key_alerts.push_back(censor::format("Zigbee device {} on PAN 0x{:04x} "
                                     "secures APS frames with the publicly known link key {}{}",
-                                    source.mac_to_string(), src_pan, pi->aps_key_name, exposed));
+                                    source, src_pan, pi->aps_key_name, exposed));
                     else
-                        weak_key_alerts.push_back(fmt::format("Zigbee device {} on PAN 0x{:04x} "
+                        weak_key_alerts.push_back(censor::format("Zigbee device {} on PAN 0x{:04x} "
                                     "secures NWK frames with the publicly known network key {}{}; "
                                     "anyone can decrypt the network's traffic",
-                                    source.mac_to_string(), src_pan, pi->nwk_key_name,
+                                    source, src_pan, pi->nwk_key_name,
                                     mphy->show_keys ? " (" + pi->nwk_key + ")" : ""));
                 }
             }
@@ -1710,12 +1710,14 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
                     mphy->alert_threadjoin_ref >= 0 && mphy->thread_alert_due(src_pan, pi->thread_join)) {
                 thread_join_pan = src_pan;
                 thread_join = pi->thread_join;
-                thread_join_alert = fmt::format("Thread network {}{} on PAN 0x{:04x} is accepting {}: "
-                        "router {} says so in its {}", pi->network_name.empty() ? "(unnamed)" :
-                        "'" + pi->network_name + "'", pi->ext_pan_id.empty() ? "" :
-                        " (extended PAN ID " + pi->ext_pan_id + ")", src_pan,
+                const auto net_name = pi->network_name.empty() ? censor::marked_string{"(unnamed)"} :
+                    censor::format("'{}'", censor::ssid(pi->network_name));
+                const auto ext_pan = pi->ext_pan_id.empty() ? censor::marked_string{} :
+                    censor::format(" (extended PAN ID {})", censor::ident(pi->ext_pan_id));
+                thread_join_alert = censor::format("Thread network {}{} on PAN 0x{:04x} is accepting {}: "
+                        "router {} says so in its {}", net_name, ext_pan, src_pan,
                         pi->thread_join == thread_join_state::any ? "any new device" :
-                        "the new devices its commissioner lists", source.mac_to_string(),
+                        "the new devices its commissioner lists", source,
                         pi->beacon ? "beacon" : "Discovery Response");
             }
         }
@@ -1828,7 +1830,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     }
 
     // Not raised (the rate limit): due again with the next frame that shows it
-    if (!thread_join_alert.empty() &&
+    if (!thread_join_alert.plain().empty() &&
             mphy->alertracker->raise_alert(mphy->alert_threadjoin_ref, in_pack.get(), mac_addr{},
                 source, dest, mac_addr{}, in_pack->common_info.channel, thread_join_alert) != 1)
         mphy->unmark_thread_alert(thread_join_pan, thread_join);

@@ -1202,7 +1202,7 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     if (!bind_blob_checked(device_stmt, spos++, streamstring, SQLITE_TRANSIENT)) {
         sqlite3_finalize(device_stmt);
         _MSG_ERROR("kis_database_logfile skipping device {}, its {} byte record is too large "
-                "for the database", macstring, streamstring.length());
+                "for the database", d->get_macaddr(), streamstring.length());
         return 0;
     }
 
@@ -1215,7 +1215,7 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
 
     if (step_r == SQLITE_TOOBIG) {
         sqlite3_finalize(device_stmt);
-        _MSG_ERROR("kis_database_logfile skipping device {}, its {} byte record is too large for the database", macstring, streamstring.length());
+        _MSG_ERROR("kis_database_logfile skipping device {}, its {} byte record is too large for the database", d->get_macaddr(), streamstring.length());
         return 0;
     }
 

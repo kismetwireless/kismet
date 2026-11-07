@@ -97,43 +97,59 @@ alert_tracker::alert_tracker() : lifetime_global() {
     httpd->register_route("/alerts/definitions", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(alert_defs_vec, alert_mutex));
 
-    httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(alert_backlog_vec, alert_mutex));
+    // The alerts endpoints, and marked versions under /alerts/marked/ whose records add
+    // kismet.alert.text_marked for the web UI's censoring
+    for (const auto marked : {false, true}) {
+        const std::string pfx = marked ? "/alerts/marked" : "/alerts";
 
-    httpd->register_route("/alerts/alerts_view", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    return alert_dt_endpoint(con);
+        if (marked)
+            httpd->register_route(pfx + "/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
+                    std::make_shared<kis_net_web_tracked_endpoint>(
+                        [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                            auto ret = std::make_shared<tracker_element_vector>();
+                            for (const auto& ai : *alert_backlog_vec)
+                                ret->push_back(std::static_pointer_cast<tracked_alert>(ai)->marked_view());
+                            return ret;
+                        }, alert_mutex));
+        else
+            httpd->register_route(pfx + "/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
+                    std::make_shared<kis_net_web_tracked_endpoint>(alert_backlog_vec, alert_mutex));
+
+        httpd->register_route(pfx + "/alerts_view", {"GET", "POST"}, httpd->RO_ROLE, {},
+                std::make_shared<kis_net_web_function_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                        return alert_dt_endpoint(con, marked);
+                    }));
+
+        httpd->register_route(pfx + "/by-id/:alertid/alert", {"GET", "POST"}, httpd->RO_ROLE, {},
+                std::make_shared<kis_net_web_tracked_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                        auto hash_k = con->uri_params().find(":alertid");
+                        auto hash = string_to_n<uint32_t>(hash_k->second);
+
+                        for (const auto& ai : *alert_backlog_vec) {
+                            auto a = std::static_pointer_cast<tracked_alert>(ai);
+
+                            if (a->get_hash() == hash)
+                                return marked ? a->marked_view() : a;
+                        }
+
+                        con->set_status(404);
+                        return std::make_shared<tracker_element_map>();
+                    }, alert_mutex));
+
+        httpd->register_route(pfx + "/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
+                std::make_shared<kis_net_web_tracked_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    return last_alerts_endpoint(con, false, marked);
                 }));
 
-    httpd->register_route("/alerts/by-id/:alertid/alert", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
-                    auto hash_k = con->uri_params().find(":alertid");
-                    auto hash = string_to_n<uint32_t>(hash_k->second);
-
-                    for (const auto& ai : *alert_backlog_vec) {
-                        auto a = std::static_pointer_cast<tracked_alert>(ai);
-
-                        if (a->get_hash() == hash)
-                            return a;
-                    }
-
-                    con->set_status(404);
-                    return std::make_shared<tracker_element_map>();
-                }, alert_mutex));
-
-    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
-                return last_alerts_endpoint(con, false);
-            }));
-
-    httpd->register_route("/alerts/wrapped/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
-            {}, std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
-                return last_alerts_endpoint(con, true);
-            }));
+        httpd->register_route(pfx + "/wrapped/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
+                {}, std::make_shared<kis_net_web_tracked_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    return last_alerts_endpoint(con, true, marked);
+                }));
+    }
 
 #ifdef PRELUDE
     prelude_alerts = Globalreg::globalreg->kismet_config->fetch_opt_bool("prelude_alerts", true);
@@ -324,13 +340,13 @@ int alert_tracker::potential_alert(int in_ref) {
 
 int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest,
-        mac_addr other, const std::string& in_channel, const std::string& in_text) {
+        mac_addr other, const std::string& in_channel, const censor::marked_string& in_text) {
     return raise_alert(in_ref, in_pack.get(), bssid, source, dest, other, in_channel, in_text);
 }
 
 int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest,
-        mac_addr other, const std::string& in_channel, const std::string& in_text) {
+        mac_addr other, const std::string& in_channel, const censor::marked_string& in_text) {
 
     kis_unique_lock<kis_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_alert");
 
@@ -379,7 +395,9 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
 
     info->channel = in_channel;
 
-    info->text = in_text;
+    info->text = in_text.plain();
+    if (in_text.has_spans())
+        info->text_marked = in_text.marked();
 
     if (gpstracker != nullptr) {
 		gpstracker->get_best_location(info->gps);
@@ -425,14 +443,14 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
 #endif
 
     // Send the text info
-    _MSG(info->header + " " + info->text, MSGFLAG_ALERT);
+    _MSG(censor::format("{} {}", info->header, in_text), MSGFLAG_ALERT);
 
     return 1;
 }
 
 int alert_tracker::raise_one_shot(const std::string& in_header,
         const std::string& in_class, kis_alert_severity in_severity,
-        const std::string& in_text, int in_phy) {
+        const censor::marked_string& in_text, int in_phy) {
     kis_unique_lock<kis_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_one_shot");
 
     kis_alert_info info;
@@ -450,7 +468,9 @@ int alert_tracker::raise_one_shot(const std::string& in_header,
 
     info.channel = "";
 
-    info.text = in_text;
+    info.text = in_text.plain();
+    if (in_text.has_spans())
+        info.text_marked = in_text.marked();
 
     lock.lock();
 
@@ -470,11 +490,11 @@ int alert_tracker::raise_one_shot(const std::string& in_header,
 #ifdef PRELUDE
     // Send alert to Prelude
     if (prelude_alerts)
-        raise_prelude_one_shot(in_header, in_text);
+        raise_prelude_one_shot(in_header, info.text);
 #endif
 
     // Send the text info
-    _MSG(info.header + " " + info.text, MSGFLAG_ALERT);
+    _MSG(censor::format("{} {}", info.header, in_text), MSGFLAG_ALERT);
 
     return 1;
 }
@@ -720,7 +740,8 @@ int alert_tracker::find_activated_alert(std::string in_header) {
 }
 
 std::shared_ptr<tracker_element>
-alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool wrap) {
+alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool wrap,
+        bool marked) {
 
     std::shared_ptr<tracker_element> transmit;
     std::shared_ptr<tracker_element_map> wrapper;
@@ -755,7 +776,10 @@ alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connecti
         for (const auto& i : *alert_backlog_vec) {
             auto ai = std::static_pointer_cast<tracked_alert>(i);
             if (since_time < ai->get_timestamp()) {
-                msgvec->push_back(ai);
+                if (marked)
+                    msgvec->push_back(ai->marked_view());
+                else
+                    msgvec->push_back(ai);
             }
         }
     }
@@ -886,7 +910,7 @@ void alert_tracker::raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_con
     os << "Alert raised\n";
 }
 
-void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool marked) {
     std::ostream os(&con->response_stream());
 
     auto summary_vec = std::vector<SharedElementSummary>{};
@@ -1060,9 +1084,13 @@ void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connec
             });
     }
 
-    // Summarize into the output element
+    // Summarize into the output element; search and sort use the plain text
     for (auto i = si; i != ei; ++i) {
-        output_alerts_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
+        if (marked)
+            output_alerts_elem->push_back(summarize_tracker_element(
+                        std::static_pointer_cast<tracked_alert>(*i)->marked_view(), summary_vec, rename_map));
+        else
+            output_alerts_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
     }
 
     // If the transmit wasn't assigned to a wrapper...

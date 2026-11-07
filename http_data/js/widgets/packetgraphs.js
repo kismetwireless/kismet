@@ -9,6 +9,7 @@
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
+import * as censor from '../core/censor.js';
 import * as rrd from '../core/rrd.js';
 import * as clock from '../core/clock.js';
 import * as format from '../core/format.js';
@@ -211,7 +212,7 @@ export function openPackets() {
                     api.get('packetchain/packet_stats.json'),
                     api.post('datasource/all_sources.json', { fields: [`${ds}.uuid`, `${ds}.name`, `${ds}.running`, `${ds}.error`,
                         `${ds}.error_reason`, `${ds}.type_driver/${ds}.driver.description`, rrdField] }),
-                    api.get(`alerts/wrapped/last-time/${since}/alerts.json`).catch(() => null),
+                    api.get(api.marked(`alerts/wrapped/last-time/${since}/alerts.json`)).catch(() => null),
                 ]);
                 const now = clock.isKnown() ? clock.now() : undefined;
                 const at = now ?? Date.now() / 1000;
@@ -227,7 +228,7 @@ export function openPackets() {
                 const names = new Map(sources.map((s) => [s[`${ds}.uuid`], s[`${ds}.name`] || s[`${ds}.uuid`]]));
                 const alertMarks = (alerts?.['kismet.alert.list'] ?? []).map((a) => ({
                     t: a['kismet.alert.timestamp'], color: 'var(--warn)',
-                    label: `${a['kismet.alert.header']}: ${(a['kismet.alert.text'] ?? '').slice(0, 80)}`,
+                    label: `${a['kismet.alert.header']}: ${Array.from(censor.alertText(a)).slice(0, 80).join('')}`,
                 }));
                 const sourceMarks = sourceEvents.map((e) => ({ t: e.t, uuid: e.uuid, what: e.what, color: e.color,
                     label: `${names.get(e.uuid) ?? 'Data source'} ${e.what}` }));

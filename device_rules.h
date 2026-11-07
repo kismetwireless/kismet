@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "censor.h"
 #include "devicerules/dr_core.h"
 #include "devicetracker.h"
 #include "devicetracker_view.h"
@@ -184,7 +185,7 @@ public:
         // Rule the view belongs to
         std::string rule;
         // Alert text, when this change raises one
-        std::string alert;
+        censor::marked_string alert;
         mac_addr mac;
     };
 
@@ -271,9 +272,9 @@ protected:
 
     // Alerts held back by the rate limit, raised as it allows
     kis_mutex alert_mutex;
-    std::deque<std::pair<mac_addr, std::string>> alert_backlog;
+    std::deque<std::pair<mac_addr, censor::marked_string>> alert_backlog;
     size_t alert_backlog_max;
-    void raise_or_hold(const mac_addr& mac, const std::string& text);
+    void raise_or_hold(const mac_addr& mac, const censor::marked_string& text);
     void drain_alerts();
 
     struct pass_state;

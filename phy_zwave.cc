@@ -188,8 +188,8 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     }
 
     if (newzdev && basedev != NULL) {
-        _MSG("Detected new Z-Wave device '" + basedev->get_devicename() + "'",
-                MSGFLAG_INFO);
+        _MSG(censor::format("Detected new Z-Wave device '{}'",
+                    censor::name(basedev->get_devicename())), MSGFLAG_INFO);
     }
 
     return true;

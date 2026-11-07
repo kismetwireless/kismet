@@ -21,6 +21,11 @@
 // addresses and coordinates by their pattern, and the learned names wherever
 // they appear, in tables, messages or alerts.  Text drawn on a canvas goes
 // through text().
+//
+// Messages and alerts come from the server's marked endpoints, with the parts
+// that identify something marked by kind (SOH kind STX value ETX); marked()
+// drops the markers and censors those parts by their kind, and learns the
+// names in them.
 
 import * as settings from './settings.js';
 
@@ -109,6 +114,12 @@ function learnValue(key, v) {
         v = String(v);
     if (typeof v !== 'string')
         return;
+    if (markedField.test(key)) {
+        for (const p of parseMarked(v) ?? [])
+            if (nameKinds.has(p.kind) && p.text.trim() && !macOnly.test(p.text.trim()))
+                remember(p.text.trim());
+        return;
+    }
     v = v.trim();
     // MAC addresses are caught by their pattern; a bare number only once it's
     // long enough not to be any other count on the page
@@ -183,6 +194,79 @@ export function text(s) {
         out = maskNames(out);
     return out;
 }
+
+// Marked text: SOH kind STX value ETX around each identifying part
+const SOH = '\u0001';
+const STX = '\u0002';
+const ETX = '\u0003';
+const markedField = /_marked$/;
+const kindToken = /^[a-z]{1,8}$/;
+const nameKinds = new Set(['ssid', 'name', 'id']);
+
+// [{ text, kind }] with kind null for the unmarked parts, or null if it isn't
+// well formed
+export function parseMarked(s) {
+    if (typeof s !== 'string')
+        return null;
+    const parts = [];
+    let i = 0;
+    while (i < s.length) {
+        const open = s.indexOf(SOH, i);
+        const plain = s.slice(i, open < 0 ? s.length : open);
+        if (plain.includes(STX) || plain.includes(ETX))
+            return null;
+        if (plain)
+            parts.push({ text: plain, kind: null });
+        if (open < 0)
+            break;
+        const mid = s.indexOf(STX, open + 1);
+        const close = mid < 0 ? -1 : s.indexOf(ETX, mid + 1);
+        if (close < 0)
+            return null;
+        const kind = s.slice(open + 1, mid);
+        const text = s.slice(mid + 1, close);
+        if (!kindToken.test(kind) || text.includes(SOH) || text.includes(STX))
+            return null;
+        parts.push({ text, kind });
+        i = close + 1;
+    }
+    return parts;
+}
+
+// A marked part, censored for its kind; a kind this page doesn't know is hidden
+function censorPart(t, kind) {
+    switch (kind) {
+        case 'mac':
+            return options.macs ? t.replace(macPattern, (m, a, sep, b, c) =>
+                options.full ? ['XX', 'XX', 'XX', 'XX', 'XX', 'XX'].join(sep) : [a, b, c, 'XX', 'XX', 'XX'].join(sep)) : t;
+        case 'key':
+            return options.macs ? t.replace(keyPattern, (m, phy) => `${phy}_XXXXXXXX`) : t;
+        case 'ssid':
+        case 'name':
+            return options.names ? mask(t) : t;
+        case 'id':
+        case 'ip':
+            return options.names ? 'X'.repeat(Array.from(t).length) : t;
+        case 'loc':
+            return options.locations ? t.replace(coordPattern, (m, deg) => options.full ? 'XX.XXXXX' : `${deg}.XXXXX`) : t;
+        default:
+            return 'X'.repeat(Array.from(t).length);
+    }
+}
+
+// The text to show for a marked field, or the plain field from a server
+// without marked endpoints (the page watcher censors that by pattern)
+export function marked(markedText, plain) {
+    if (typeof markedText !== 'string')
+        return plain ?? '';
+    const parts = parseMarked(markedText);
+    if (!parts)
+        return active ? '[hidden: unreadable text]' : markedText.replace(/[\u0001-\u0003]/g, '');
+    return parts.map((p) => (p.kind !== null && active ? censorPart(p.text, p.kind) : p.text)).join('');
+}
+
+export const messageText = (m) => marked(m['kismet.messagebus.message_marked'], m['kismet.messagebus.message_string']);
+export const alertText = (a) => marked(a['kismet.alert.text_marked'], a['kismet.alert.text']);
 
 const attrs = ['title', 'aria-label', 'placeholder'];
 

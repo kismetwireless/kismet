@@ -1585,8 +1585,8 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
 
         if (out[r] && rd.alert)
             changes.push_back(pending_change{dev, nullptr, "",
-                    fmt::format("Device {} ({}) matched device rule '{}'", dev->get_macaddr(),
-                            dev->get_commonname(), rd.name),
+                    censor::format("Device {} ({}) matched device rule '{}'", dev->get_macaddr(),
+                            censor::name(dev->get_commonname()), rd.name),
                     dev->get_macaddr()});
     }
 
@@ -1659,7 +1659,7 @@ void device_rules::apply_changes(std::vector<pending_change>& changes) {
                 c.view->remove_device_direct(c.device);
         }
 
-        if (!c.alert.empty() && alert_ref >= 0)
+        if (!c.alert.plain().empty() && alert_ref >= 0)
             raise_or_hold(c.mac, c.alert);
     }
 
@@ -1686,7 +1686,7 @@ bool device_rules::wants_view(const std::shared_ptr<kis_tracked_device_base>& de
     return std::find(matched->begin(), matched->end(), rule) != matched->end();
 }
 
-void device_rules::raise_or_hold(const mac_addr& mac, const std::string& text) {
+void device_rules::raise_or_hold(const mac_addr& mac, const censor::marked_string& text) {
     auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
     kis_lock_guard<kis_mutex> lk(alert_mutex, "device_rules raise_or_hold");

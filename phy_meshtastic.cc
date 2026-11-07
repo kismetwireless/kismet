@@ -387,7 +387,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
             switch (*port) {
                 case meshtastic_portnum::text_message:
                     _MSG_INFO("Meshtastic \"{}\" ({}) on channel \"{}\": {}",
-                            basedev->get_most_apt_name(), meshdev->get_nodeid(),
+                            censor::name(basedev->get_most_apt_name()), censor::ident(meshdev->get_nodeid()),
                             chan_name, std::string(subcontent.data(), subcontent.length()));
                     chan.add_message(meshdev->get_nodeid(), subcontent);
                     break;
@@ -402,7 +402,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
                     break;
                 default:
                     _MSG_DEBUG("Meshtastic \"{}\" ({}) not handling message on port {} ({})",
-                            basedev->get_most_apt_name(), meshdev->get_nodeid(),
+                            censor::name(basedev->get_most_apt_name()), censor::ident(meshdev->get_nodeid()),
                             portnum_to_string(*port), static_cast<int>(*port));
                     break;
             }
@@ -419,7 +419,8 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
     }
 
     if (new_device) {
-        _MSG_INFO("Detected new Meshtastic Lora device {} ({})", basedev->get_most_apt_name(), meshdev->get_nodeid());
+        _MSG_INFO("Detected new Meshtastic Lora device {} ({})", censor::name(basedev->get_most_apt_name()),
+                censor::ident(meshdev->get_nodeid()));
     }
 
     return 1;

@@ -478,7 +478,8 @@ protected:
     // command may be the only frame that shows its key.
     struct weak_key_alert {
         mac_addr source, dest;
-        std::string channel, text;
+        std::string channel;
+        censor::marked_string text;
     };
 
     int alert_weakkey_ref;

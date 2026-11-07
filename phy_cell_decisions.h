@@ -65,6 +65,7 @@
 #include <string>
 #include <vector>
 
+#include "censor.h"
 #include "nlohmann/json.hpp"
 
 namespace cell_decisions {
@@ -461,12 +462,13 @@ inline constexpr const char *alert_identity_noauth = "CELLIDREQNOAUTH";
 
 struct security_alert_t {
     const char *alert;
-    std::string text;
+    censor::marked_string text;
 };
 
 /* The alerts one CellSecurity record raises; none for a record that is
  * malformed or reports nothing alert-worthy. Only the known enumerated values
- * and range-checked numbers reach the text. */
+ * and range-checked numbers reach the text, with the cell's identity marked
+ * for the web UI's censoring. */
 std::vector<security_alert_t> security_alerts(const nlohmann::json& j);
 
 }  // namespace cell_decisions

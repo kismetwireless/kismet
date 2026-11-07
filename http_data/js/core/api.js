@@ -44,6 +44,29 @@ export function linkUrl(path) {
     return u;
 }
 
+// The marked version of a message, alert, or event bus endpoint, whose messages
+// and alerts mark the parts that identify something, for censoring; plain once
+// the server turns out not to have them
+const markedRoot = /^(alerts|messagebus|eventbus)\//;
+const markedPath = /^(alerts|messagebus|eventbus)\/marked\//;
+let noMarked = false;
+
+export function marked(path) {
+    return noMarked ? path : path.replace(markedRoot, '$1/marked/');
+}
+
+// Find out whether the server has the marked endpoints, after a marked
+// websocket didn't open
+export async function probeMarked() {
+    if (noMarked)
+        return;
+    try {
+        await request(marked('messagebus/last-time/9999999999/messages.json'), { noAuthEvent: true });
+    } catch {
+        // Unreachable; asked again next time
+    }
+}
+
 // Websocket URL for a path, e.g. wsUrl('eventbus/events.ws')
 export function wsUrl(path) {
     const u = linkUrl(path);
@@ -78,6 +101,12 @@ async function request(path, options = {}) {
     if (response.status === 401 && !options.noAuthEvent)
         for (const fn of authListeners)
             fn();
+
+    // An older server without the marked endpoints
+    if (response.status === 404 && markedPath.test(path)) {
+        noMarked = true;
+        return request(path.replace(markedPath, '$1/'), options);
+    }
 
     if (!response.ok)
         throw new ApiError(response.status, await errorText(response));

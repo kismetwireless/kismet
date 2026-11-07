@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <string>
 
+#include "censor.h"
 #include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_gps.h"
@@ -110,6 +111,8 @@ public:
     mac_addr other;
     std::string channel;
     std::string text;
+    // The text with identifying parts marked (censor.h), when it has any
+    std::string text_marked;
 
 	kis_gps_packinfo gps;
 };
@@ -121,7 +124,7 @@ public:
     std::vector<std::shared_ptr<kis_alert_info>> alert_vec;
 };
 
-class tracked_alert : public tracker_component {
+class tracked_alert : public tracker_component, public censor::marked_view_source {
 public:
     tracked_alert() :
         tracker_component() {
@@ -172,6 +175,7 @@ public:
             __ImportField(frequency, p);
             __ImportField(location, p);
             __ImportField(hash, p);
+            __ImportId(text_marked_id, p);
 
             reserve_fields(nullptr);
         }
@@ -207,6 +211,17 @@ public:
     __Proxy(frequency, double, double, double, frequency);
 
     __Proxy(text, std::string, std::string, std::string, text);
+    __ProxyDynamic(text_marked, std::string, std::string, std::string, text_marked, text_marked_id);
+
+    // The alert with the marked text added, for the marked endpoints; shares this record's
+    // fields, which don't change once the alert is raised
+    virtual std::shared_ptr<tracker_element> marked_view() override {
+        // Non-owning: the fields are only read while the view is built
+        auto r = std::make_shared<tracked_alert>(get_id(),
+                std::shared_ptr<tracker_element_map>(std::shared_ptr<tracker_element_map>{}, this));
+        r->set_text_marked(marked.empty() ? get_text() : marked);
+        return r;
+    }
 
     __ProxyTrackable(location, kis_tracked_location_triplet, location);
 
@@ -227,6 +242,7 @@ public:
         set_other_mac(info->other);
         set_channel(info->channel);
         set_text(info->text);
+        marked = info->text_marked;
 
         // calculate hash from some attributes that should be, in total, unique
         set_hash(adler32_checksum(fmt::format("{} {} {} {} {} {} {} {} {}",
@@ -287,6 +303,9 @@ protected:
         register_field("kismet.alert.channel", "Phy-specific channel", &channel);
         register_field("kismet.alert.frequency", "Frequency (khz)", &frequency);
         register_field("kismet.alert.text", "Alert text", &text);
+        text_marked_id =
+            register_dynamic_field("kismet.alert.text_marked",
+                    "Alert text with identifying text marked, for censoring", &text_marked);
         register_field("kismet.alert.location", "location", &location);
     }
 
@@ -305,6 +324,11 @@ protected:
     std::shared_ptr<tracker_element_double> frequency;
     std::shared_ptr<tracker_element_string> text;
     std::shared_ptr<kis_tracked_location_triplet> location;
+
+    std::shared_ptr<tracker_element_string> text_marked;
+    uint16_t text_marked_id;
+
+    std::string marked;
 };
 
 
@@ -490,18 +514,19 @@ public:
     // Will an alert succeed?
     int potential_alert(int in_ref);
 
-    // Raise an alert ...
+    // Raise an alert; text from censor::format keeps its marked spans, a plain string has
+    // marker bytes escaped
     int raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
-                   const std::string& in_channel, const std::string& in_text);
+                   const std::string& in_channel, const censor::marked_string& in_text);
 
     int raise_alert(int in_ref, kis_packet* in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
-                   const std::string& in_channel, const std::string& in_text);
+                   const std::string& in_channel, const censor::marked_string& in_text);
 
     // Raise a one-shot communications alert
     int raise_one_shot(const std::string& in_header, const std::string& in_class,
-            kis_alert_severity in_severity, const std::string& in_text, int in_phy);
+            kis_alert_severity in_severity, const censor::marked_string& in_text, int in_phy);
 
     // parse an alert config string
     int parse_alert_str(std::string alert_str, std::string *ret_name,
@@ -575,9 +600,11 @@ protected:
     void define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
-    std::shared_ptr<tracker_element> last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool wrap);
+    // The marked versions return each alert's marked view
+    std::shared_ptr<tracker_element> last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con,
+            bool wrap, bool marked);
 
-    void alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    void alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool marked);
 };
 
 #endif

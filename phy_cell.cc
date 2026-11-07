@@ -547,14 +547,14 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
         celldev->set_cell_cqi(-1);
 
         if (is_full_identity) {
-            _MSG_INFO("Detected new cell {} {}", rat, cell_key);
+            _MSG_INFO("Detected new cell {} {}", rat, censor::ident(cell_key));
         } else {
             if (band_num > 0)
                 _MSG_INFO("Detected new cell (partial) {} PCI {} B{} {} {}",
-                          rat, pci, band_num, cell_decisions::arfcn_label(rat), earfcn);
+                          rat, censor::ident(pci), band_num, cell_decisions::arfcn_label(rat), earfcn);
             else
                 _MSG_INFO("Detected new cell (partial) {} PCI {} {} {}",
-                          rat, pci, cell_decisions::arfcn_label(rat), earfcn);
+                          rat, censor::ident(pci), cell_decisions::arfcn_label(rat), earfcn);
         }
     }
 
@@ -661,7 +661,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
                 // same reason. Say so once per key.
                 _MSG_INFO("Cell PCI promotion: {} is claimed by more than one "
                           "full-identity cell (PCI reuse); no identity link will "
-                          "be made for this PCI+ARFCN", promo.map_key);
+                          "be made for this PCI+ARFCN", censor::ident(promo.map_key));
             } else {
                 pci_to_full_identity[promo.map_key] = basedev->get_key();
 
@@ -693,7 +693,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
                             _MSG_INFO("Cell PCI promotion: full identity {} found "
                                       "PCI-only peer device but it has no cell "
                                       "record; identity not stamped",
-                                      promo.map_key);
+                                      censor::ident(promo.map_key));
                         }
                     }
 
@@ -722,7 +722,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
                         // update_common_device. Surface it if it happens.
                         _MSG_INFO("Cell PCI promotion: partial found full-identity "
                                   "peer {} but it has no cell record; identity "
-                                  "not stamped", promo.map_key);
+                                  "not stamped", censor::ident(promo.map_key));
                     }
                 }
 

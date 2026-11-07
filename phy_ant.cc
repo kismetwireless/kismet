@@ -201,7 +201,7 @@ int kis_ant_phy::classifier_ant(CHAINCALL_PARMS) {
 
     if (ant == nullptr) {
         _MSG_INFO("Detected new {} {}, device number {}, network {:02X}:{:02X}", kind,
-                in_pack->common_info.source.mac_to_string(), pi->device_number,
+                in_pack->common_info.source, censor::ident(pi->device_number),
                 pi->network >> 8, pi->network & 0xff);
         ant = Globalreg::globalreg->entrytracker->get_shared_instance_as<ant_tracked_device>(aphy->ant_device_entry_id);
         device->insert(ant);

@@ -364,13 +364,13 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         add_aqi(json, rtlholder);
 
     if (newrtl && commondev != NULL) {
-        std::string info = "Detected new RF sensor device '" + commondev->get_model() + "'";
+        auto info = censor::format("Detected new RF sensor device '{}'", commondev->get_model());
 
         if (commondev->get_rtlid() != "") 
-            info += " ID " + commondev->get_rtlid();
+            info = censor::format("{} ID {}", info, censor::ident(commondev->get_rtlid()));
 
         if (commondev->get_subchannel() != "0")
-            info += " Channel " + commondev->get_subchannel();
+            info = censor::format("{} Channel {}", info, commondev->get_subchannel());
 
         _MSG(info, MSGFLAG_INFO);
     }

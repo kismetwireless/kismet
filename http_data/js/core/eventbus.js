@@ -54,9 +54,12 @@ export function connect() {
     if (socket)
         return;
 
-    socket = new WebSocket(api.wsUrl('eventbus/events.ws'));
+    // The marked event bus, so messages and alerts carry their marked text
+    socket = new WebSocket(api.wsUrl(api.marked('eventbus/events.ws')));
+    let opened = false;
 
     socket.addEventListener('open', () => {
+        opened = true;
         retryDelay = 500;
         setConnected(true);
         for (const [topic, t] of topics) {
@@ -70,6 +73,8 @@ export function connect() {
     socket.addEventListener('close', () => {
         socket = null;
         setConnected(false);
+        if (!opened)
+            api.probeMarked();
         setTimeout(connect, retryDelay);
         retryDelay = Math.min(retryDelay * 2, 10000);
     });
