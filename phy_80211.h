@@ -576,6 +576,10 @@ protected:
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
+    // Count control frames on the known devices they name, and the stations an AP is
+    // seen with only in control frames; called with no device locks held
+    void handle_control_activity(kis_packet *in_pack, const dot11_packinfo *dot11info);
+
     // Link the randomized addresses one client cycles through, by matching probe
     // requests; called with no device locks held
     void handle_randomized_alias(const std::shared_ptr<kis_tracked_device_base>& basedev,
@@ -676,6 +680,8 @@ protected:
 
     bool link_randomized;
     std::unique_ptr<randomized_alias_linker> alias_linker;
+
+    bool track_control;
 
     int signal_too_loud_threshold;
 

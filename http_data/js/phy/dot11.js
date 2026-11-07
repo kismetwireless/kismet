@@ -138,6 +138,14 @@ export function register(kismet) {
         match: (row) => !!row.pmkid,
     });
 
+    ui.rowHighlights.add({
+        id: 'dot11_control_only', name: 'Seen only in control frames', priority: 40,
+        description: 'Wi-Fi devices with control frames but no data frames, usually traffic the capture can\'t decode',
+        defaultColor: '#868e96', defaultEnabled: false,
+        fields: [['dot11.device/dot11.device.ctrl_activity/dot11.ctrl.control_only', 'control_only']],
+        match: (row) => !!row.control_only,
+    });
+
     ui.phyColors.add({ id: phy, title: 'Wi-Fi', color: '#8ce99a' });
 
     ui.deviceColumns.add({
@@ -160,6 +168,16 @@ export function register(kismet) {
         sortField: 'dot11.device/dot11.device.num_associated_clients',
         filterKind: 'number',
         render: (row) => row['dot11.device.num_associated_clients'] || '',
+    });
+
+    ui.deviceColumns.add({
+        id: 'wifi_ctrl_stations', title: 'Hidden stations', priority: 106, group: 'Wi-Fi', width: '6.5em', align: 'right',
+        description: 'Stations an access point exchanged control frames with that aren\'t known devices, within 5 minutes of the newest one',
+        fields: ['dot11.device/dot11.device.ctrl_only_stations'],
+        sortField: 'dot11.device/dot11.device.ctrl_only_stations',
+        filterKind: 'number',
+        filterNames: ['hidden'],
+        render: (row) => row['dot11.device.ctrl_only_stations'] || '',
     });
 
     ui.deviceColumns.add({
@@ -378,6 +396,7 @@ function registerDetails(kismet) {
     const as = 'dot11.advertisedssid';
     const ps = 'dot11.probedssid';
     const cl = 'dot11.client';
+    const ctl = 'dot11.ctrl';
     const loc = 'kismet.common.location';
 
     const deviceLink = (key, text) => el('a', { href: '#', onclick: (e) => {
@@ -1048,6 +1067,33 @@ function registerDetails(kismet) {
                         help: 'How much data this device has sent.' },
                     { title: 'Retried data', field: `${d}/${d}.datasize_retry`, format: format.size,
                         help: 'How much data was sent again after being lost.' },
+                ],
+            },
+
+            {
+                group: 'Control frames',
+                show: (dev) => hasKeys(api.field(dev, `${d}/${d}.ctrl_activity`)) ||
+                    api.field(dev, `${d}/${d}.ctrl_only_stations`) !== undefined,
+                help: 'Control frames (RTS, CTS, ACK, block ACK, NDP announcement, PS-Poll) that named this device.  They\'re sent at a basic rate, so they can be heard when the device\'s own data is at a rate or stream count the capture can\'t decode, or comes from a station out of range.  Control frames never create devices; they\'re only counted on devices already seen.',
+                fields: [
+                    { title: 'Activity', field: `${d}/${d}.ctrl_activity/${ctl}.control_only`,
+                        show: (v) => !!v, format: () => 'Seen only in control frames',
+                        help: 'No data frames from or to this device had been seen as of its last control frame.  Its traffic is likely at a rate or stream count the capture can\'t decode.' },
+                    { title: 'Control-only stations', field: `${d}/${d}.ctrl_only_stations`,
+                        show: (v) => v !== undefined, format: count,
+                        help: 'Stations this access point exchanged control frames with that aren\'t known devices: likely clients whose own frames the capture can\'t decode, or that are out of range.  It counts the stations seen within 5 minutes of the newest one, by capture time, so it holds its last value when they stop; see the time of the newest below.  Only frames with a verified checksum count, and at most 64 are kept.' },
+                    { title: 'Newest control-only station', field: `${d}/${d}.ctrl_only_stations_last`, hideZero: true, format: format.time },
+                    { title: 'RTS sent', field: `${d}/${d}.ctrl_activity/${ctl}.rts_sent`, hideZero: true, format: count },
+                    { title: 'Block ACK requests sent', field: `${d}/${d}.ctrl_activity/${ctl}.bar_sent`, hideZero: true, format: count },
+                    { title: 'Block ACKs sent', field: `${d}/${d}.ctrl_activity/${ctl}.ba_sent`, hideZero: true, format: count },
+                    { title: 'NDP announcements sent', field: `${d}/${d}.ctrl_activity/${ctl}.ndpa_sent`, hideZero: true, format: count,
+                        help: 'Sent before beamforming sounding, usually by access points.' },
+                    { title: 'PS-Polls sent', field: `${d}/${d}.ctrl_activity/${ctl}.pspoll_sent`, hideZero: true, format: count,
+                        help: 'A client in power save asking its access point for buffered frames.' },
+                    { title: 'ACKs received', field: `${d}/${d}.ctrl_activity/${ctl}.ack_rx`, hideZero: true, format: count },
+                    { title: 'CTS received', field: `${d}/${d}.ctrl_activity/${ctl}.cts_rx`, hideZero: true, format: count },
+                    { title: 'First control frame', field: `${d}/${d}.ctrl_activity/${ctl}.first_time`, hideZero: true, format: format.time },
+                    { title: 'Last control frame', field: `${d}/${d}.ctrl_activity/${ctl}.last_time`, hideZero: true, format: format.time },
                 ],
             },
 
