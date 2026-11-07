@@ -86,6 +86,30 @@ int cellat_qgps_outport(const char *resp, char *out, size_t outsz);
  * 0, or -1 when at_path is not a wwan AT node */
 int cellat_gnss_wwan_nmea(const char *at_path, char *out, size_t outsz);
 
+/* A modem with no NMEA port (a PCIe/MHI modem may expose none) is polled with
+ * this on its AT port instead, once per CELLAT_QGPSLOC_INTERVAL_MS. After
+ * CELLAT_QGPSLOC_MISS_MAX polls in a row with no usable answer, once per
+ * CELLAT_QGPSLOC_BACKOFF_MS until it answers again. */
+#define CELLAT_QGPSLOC_CMD "AT+QGPSLOC=0"
+#define CELLAT_QGPSLOC_INTERVAL_MS 1000
+#define CELLAT_QGPSLOC_MISS_MAX 10
+#define CELLAT_QGPSLOC_BACKOFF_MS 30000
+
+/* The longest output of cellat_qgpsloc_nmea: three sentences */
+#define CELLAT_QGPSLOC_NMEA_MAX (3 * (CELLAT_NMEA_LINE_MAX + 2) + 1)
+
+/* An AT+QGPSLOC reply as NMEA sentences for the server's decoder, CR LF after
+ * each, so they travel the same CellNMEA path as an NMEA port's:
+ *   GGA  position, altitude, satellites, HDOP
+ *   RMC  speed and course, when the reply has a speed
+ *   GSA  2D or 3D, when the reply has a fix mode
+ * The latitude and longitude may be in the <mode> 0 form (ddmm.mmmmN, quoted
+ * from the modem's own GGA) or the <mode> 2 form ((-)dd.ddddd). "+CME ERROR:
+ * 516" or its verbose "Not fixed now" becomes a GGA with quality 0, which keeps
+ * the GPS connected with no fix, as a receiver's no-fix sentences do. Returns the
+ * number of sentences written, 0 for any other reply. */
+int cellat_qgpsloc_nmea(const char *resp, char *out, size_t outsz);
+
 #ifdef __cplusplus
 }
 #endif

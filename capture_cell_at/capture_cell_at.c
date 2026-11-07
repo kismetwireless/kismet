@@ -222,6 +222,10 @@ typedef struct {
      * in the session's .kismet and nowhere else. */
     kis_capture_handler_t *caph;
 
+    /* Set around an exchange that gets no RawAT row: the GNSS AT polls, whose
+     * answers feed the cellmodem GPS as an NMEA port's sentences do */
+    int rawat_quiet;
+
     /* The modem's own identity: AT+CGMI / +CGMM / +CGMR / +CGSN as read
      * at open, verbatim. Sent once per capture as a ModemIdentity record and
      * used as the source's hardware label. Distinct from modem_model, which
@@ -305,10 +309,14 @@ typedef struct {
      * (cellat_gnss.h). The thread touches only gnss_fd, the counters and
      * caph's send ring, never the AT port. */
     int           gnss_wanted;
-    char          gnss_port_opt[512];     /* gpsport=; "" = find it */
+    char          gnss_port_opt[512];     /* gpsport=; "" = find it; "at" = AT+QGPSLOC */
     char          gnss_port[512];
     int           gnss_fd;
     int           gnss_we_enabled;        /* AT+QGPS=1 was ours: AT+QGPSEND at close */
+    int           gnss_atpoll;            /* no NMEA port: poll AT+QGPSLOC in the AT loop */
+    unsigned long gnss_atpoll_last_ms;
+    unsigned long gnss_atpoll_interval_ms;
+    int           gnss_atpoll_misses;     /* polls in a row with no usable answer */
     char          gnss_outport_orig[16];  /* outport we changed from; "" = untouched */
     pthread_t     gnss_thread;
     int           gnss_thread_live;
@@ -480,7 +488,7 @@ static int at_command_t_ex(local_cell_t *local, const char *cmd, char *resp_buf,
      * start on both clocks before the (possibly multi-second) command so
      * ts_mono_ns marks when the command left the host; when the response
      * landed is at_command_log's to report, in `tm`. */
-    int want_record = (local->caph != NULL);
+    int want_record = (local->caph != NULL && !local->rawat_quiet);
     if (want_record) {
         gettimeofday(&tv0, NULL);
         t0 = now_mono_ns();
@@ -4330,9 +4338,20 @@ static void cellat_gnss_start(local_cell_t *local, kis_capture_handler_t *caph) 
         return;
     }
 
+    /* No NMEA port (a PCIe/MHI modem may expose none), or gpsport=at: the
+     * position is read with AT+QGPSLOC on the AT port, in the poll loop, so it
+     * takes turns with the cell queries rather than racing them */
+    int asked_at = strcasecmp(local->gnss_port_opt, "at") == 0;
+    int use_at = asked_at ||
+        cellat_gnss_find_port(local, local->gnss_port, sizeof(local->gnss_port)) != 0;
+
     if (state == 0) {
         char port[16];
-        n = at_command_t(local, "AT+QGPSCFG=\"outport\"", resp, sizeof(resp), 2000);
+
+        /* The NMEA outport only matters to an NMEA port reader, and the modem may
+         * keep the setting across power cycles: leave it alone for AT polling */
+        n = use_at ? 0 : at_command_t(local, "AT+QGPSCFG=\"outport\"", resp,
+                                      sizeof(resp), 2000);
         if (n > 0 && cellat_qgps_outport(resp, port, sizeof(port)) == 0 &&
             strcmp(port, "none") == 0) {
             n = at_command_t(local, "AT+QGPSCFG=\"outport\",\"usbnmea\"", resp,
@@ -4353,10 +4372,24 @@ static void cellat_gnss_start(local_cell_t *local, kis_capture_handler_t *caph) 
         }
     }
 
-    if (cellat_gnss_find_port(local, local->gnss_port, sizeof(local->gnss_port)) != 0) {
-        snprintf(msg, sizeof(msg), "%s: gps=: found no NMEA port beside %s; name it "
-                 "with gpsport=<path>", who, local->device_path);
-        cf_send_warning(caph, msg);
+    if (use_at) {
+        local->gnss_atpoll = 1;
+        local->gnss_atpoll_last_ms = 0;
+        local->gnss_atpoll_interval_ms = CELLAT_QGPSLOC_INTERVAL_MS;
+        local->gnss_atpoll_misses = 0;
+        snprintf(local->gnss_port, sizeof(local->gnss_port), "%s", local->device_path);
+        if (asked_at)
+            snprintf(msg, sizeof(msg), "%s: reading the modem's GNSS with %s on %s, "
+                     "every %d ms (gpsport=at)%s", who, CELLAT_QGPSLOC_CMD,
+                     local->device_path, CELLAT_QGPSLOC_INTERVAL_MS,
+                     local->gnss_we_enabled ? " (GNSS turned on; off at close)" : "");
+        else
+            snprintf(msg, sizeof(msg), "%s: gps=: found no NMEA port beside %s; reading "
+                     "the modem's GNSS with %s on the AT port instead, every %d ms. "
+                     "Name an NMEA port with gpsport=<path> to read it there%s", who,
+                     local->device_path, CELLAT_QGPSLOC_CMD, CELLAT_QGPSLOC_INTERVAL_MS,
+                     local->gnss_we_enabled ? " (GNSS turned on; off at close)" : "");
+        cf_send_message(caph, msg, MSGFLAG_INFO);
         return;
     }
 
@@ -4383,10 +4416,52 @@ static void cellat_gnss_start(local_cell_t *local, kis_capture_handler_t *caph) 
     cf_send_message(caph, msg, MSGFLAG_INFO);
 }
 
+/* One AT+QGPSLOC poll: its reply as NMEA sentences, sent as one CellNMEA
+ * record, the same record an NMEA port's reader sends. An answer that is
+ * neither a position nor "not fixed now" sends nothing, and enough of them in
+ * a row slow the polls down until the GNSS answers again. */
+static void cellat_gnss_atpoll(local_cell_t *local) {
+    static cellat_nmea_t n;    /* one capture thread per helper */
+    char resp[512], nmea[CELLAT_QGPSLOC_NMEA_MAX], msg[STATUS_MAX];
+    size_t used = 0;
+    const char *who = local->name ? local->name : "cellat";
+
+    local->rawat_quiet = !local->debug;
+    int r = at_command_t(local, CELLAT_QGPSLOC_CMD, resp, sizeof(resp), 1000);
+    local->rawat_quiet = 0;
+
+    if (r <= 0 || cellat_qgpsloc_nmea(resp, nmea, sizeof(nmea)) == 0) {
+        if (local->gnss_atpoll_misses < CELLAT_QGPSLOC_MISS_MAX &&
+            ++local->gnss_atpoll_misses == CELLAT_QGPSLOC_MISS_MAX) {
+            local->gnss_atpoll_interval_ms = CELLAT_QGPSLOC_BACKOFF_MS;
+            snprintf(msg, sizeof(msg), "%s: gps=: no usable answer to %s in %d tries "
+                     "(last: %.80s); asking every %d s until the GNSS answers", who,
+                     CELLAT_QGPSLOC_CMD, CELLAT_QGPSLOC_MISS_MAX,
+                     r > 0 ? resp : "no answer", CELLAT_QGPSLOC_BACKOFF_MS / 1000);
+            if (local->caph != NULL)
+                cf_send_warning(local->caph, msg);
+        }
+        return;
+    }
+
+    if (local->gnss_atpoll_misses >= CELLAT_QGPSLOC_MISS_MAX && local->caph != NULL) {
+        snprintf(msg, sizeof(msg), "%s: gps=: the GNSS answers %s again", who,
+                 CELLAT_QGPSLOC_CMD);
+        cf_send_message(local->caph, msg, MSGFLAG_INFO);
+    }
+    local->gnss_atpoll_misses = 0;
+    local->gnss_atpoll_interval_ms = CELLAT_QGPSLOC_INTERVAL_MS;
+
+    cellat_nmea_init(&n);
+    cellat_nmea_feed(&n, nmea, strlen(nmea), &used);
+    cellat_gnss_send(local, &n);
+}
+
 /* Stop the reader, then leave the GNSS as it was found. */
 static void cellat_gnss_stop(local_cell_t *local) {
     char resp[256], cmd[64];
 
+    local->gnss_atpoll = 0;
     if (local->gnss_thread_live) {
         __atomic_store_n(&local->gnss_stop, 1, __ATOMIC_RELEASE);
         pthread_join(local->gnss_thread, NULL);
@@ -4918,6 +4993,15 @@ void capture_thread(kis_capture_handler_t *caph) {
                 }
             }
 
+            did_work = 1;
+        }
+
+        /* --- The modem's GNSS over AT, when it has no NMEA port --- */
+        if (local->gnss_atpoll &&
+            (now - local->gnss_atpoll_last_ms) >= local->gnss_atpoll_interval_ms) {
+
+            local->gnss_atpoll_last_ms = now;
+            cellat_gnss_atpoll(local);
             did_work = 1;
         }
 

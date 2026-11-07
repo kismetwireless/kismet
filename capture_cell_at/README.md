@@ -525,7 +525,7 @@ Append options to the source definition after a colon:
 | `sierracnd` | `true`, `false` | `false` | Sierra only: unlock the advanced AT commands (`AT!ENTERCND`, default password) at open. Without it, a modem that keeps `AT!GSTATUS?` / `AT!LTEINFO?` locked reports less. |
 | `usb` | `auto`, `force`, `off` | `auto` | Modems reached over libusb. See [4e](#4e-modems-with-no-host-driver-usb). |
 | `gps` | a GPS name, `true`, `false` | `false` | Quectel: use the modem's GNSS as a Kismet GPS. `true` names the GPS after the source. See [4g](#4g-the-modems-gnss-as-a-kismet-gps). |
-| `gpsport` | a `/dev/tty*` path, or `usb:BUS-ADDR:IF` | *(found from the AT port)* | The modem's NMEA port, when it is not found. |
+| `gpsport` | a `/dev/tty*` path, `usb:BUS-ADDR:IF`, or `at` | *(found from the AT port)* | The modem's NMEA port, when it is not found. `at` reads the position with `AT+QGPSLOC` on the AT port instead; that is also what happens when no NMEA port is found. |
 | `channel` | a lock channel (`LTE`, `LTE-B66`, …) | `AUTO` | Kismet's own option: lock at bring-up. Only on a lock-capable modem, with `bandlock=true`. |
 
 **An option that is not in this table is ignored, and cellat says so.**
@@ -776,6 +776,22 @@ RM500Q and RM520N-GL), the libusb `nmea` interface for a `usb:` port, or
 otherwise. The port is read by its own thread, so the GNSS never waits on an AT
 exchange, nor an AT exchange on the GNSS, and a GNSS failure is a warning while
 the cell capture goes on. At close the GNSS is put back as it was found.
+
+A modem with no NMEA port is read over AT instead. A PCIe modem on MHI, for
+example, may expose only `/dev/mhi_DUN`, `mhi_DIAG` and `mhi_QMI0`. When no NMEA
+port is found, or with `gpsport=at`, cellat asks `AT+QGPSLOC=0` on the AT port
+once a second, between its cell queries, and passes the answer on as NMEA
+sentences (GGA, plus RMC when there is a speed and GSA when there is a 2D/3D
+mode). `+CME ERROR: 516` (not fixed now, or its verbose form) becomes a no-fix
+GGA, so the GPS reads as connected with no fix, as it does for an NMEA port. The
+position is the modem's own GGA position and is just as good. It costs one AT
+exchange a second, and arrives at most once a second. After 10 polls in a row
+with no answer cellat warns and asks every 30 seconds until the GNSS answers
+again; a bare `ERROR` (the modem's errors set to `AT+CMEE=0`, or the GNSS turned
+off by something else) counts as no answer. The polls get no RawAT rows unless
+`debug=true`; the positions go to the GPS, as an NMEA port's do. A full
+scan (`AT+QSCAN`, `AT+CSURVC`) holds the AT port, so the position stops for its
+length and the GPS may go stale.
 
 The sentences feed a `cellmodem` GPS of that name in Kismet, a GPS that is idle
 until its source opens and goes idle again when it closes. It can be declared
