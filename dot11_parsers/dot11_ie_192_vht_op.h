@@ -42,7 +42,7 @@ public:
         return m_parsed;
     }
 
-    enum ch_channel_width {
+    enum ch_channel_width : uint8_t {
         ch_20_40 = 0,
         ch_80 = 1,
         ch_160 = 2,

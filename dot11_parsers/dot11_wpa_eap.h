@@ -37,7 +37,7 @@ public:
     class dot1x_eap_packet;
     class dot1x_key;
 
-    enum dot1x_type_e {
+    enum dot1x_type_e : uint8_t {
         dot1x_type_eap_packet = 0x00,
         dot1x_type_eap_key = 0x03
     };
@@ -99,7 +99,7 @@ public:
         class dot1x_key_common;
         class eapol_key_rsn;
 
-        enum dot1x_key_type_e {
+        enum dot1x_key_type_e : uint8_t {
             dot1x_key_type_eapol_rsn = 0x02
         };
 
@@ -187,7 +187,7 @@ public:
                 return m_wpa_key_data;
             }
 
-            enum eapol_key_descriptor_version {
+            enum eapol_key_descriptor_version : uint8_t {
                 eapol_key_rc4_md5 = 0x01,
                 eapol_key_aes_sha1 = 0x02,
                 eapol_key_aes_cmac = 0x03,
@@ -253,14 +253,14 @@ public:
         class eapol_content_common;
         class eapol_extended_wpa_wps;
 
-        enum eapol_type_e {
+        enum eapol_type_e : uint8_t {
             eapol_type_request = 0x1,
             eapol_type_response = 0x2,
             eapol_type_success = 0x3,
             eapol_type_failure = 0x4
         };
 
-        enum eapol_expanded_type_e {
+        enum eapol_expanded_type_e : uint8_t {
             eapol_expanded_wfa_wps = 0xFE
         };
 
@@ -320,11 +320,11 @@ public:
             class eapol_wpa_field;
             typedef std::vector<std::shared_ptr<eapol_wpa_field> > shared_eapol_wpa_field_vector;
 
-            enum eapol_wpa_field_vendortype_e {
+            enum eapol_wpa_field_vendortype_e : uint32_t {
                 eapol_wpa_field_vendortype_simpleconfig = 0x1
             };
 
-            enum eapol_wpa_field_opcode_e {
+            enum eapol_wpa_field_opcode_e : uint8_t {
                 eapol_wpa_field_opcode_wsc_start = 0x01,
                 eapol_wpa_field_opcode_wsc_ack = 0x02,
                 eapol_wpa_field_opcode_wsc_nack = 0x03,
@@ -402,7 +402,7 @@ public:
                 class eapol_field_connection_type_flags;
                 class eapol_field_config_methods;
 
-                enum eapol_wpa_field_type_e {
+                enum eapol_wpa_field_type_e : uint16_t {
                     wpa_field_type_auth_flags = 0x1004,
                     wpa_field_type_authenticator = 0x1005,
                     wpa_field_type_connection_flags = 0x100d,
@@ -517,7 +517,7 @@ public:
 
                 class eapol_field_message_type : public eapol_field_common {
                 public:
-                    enum messagetype_e {
+                    enum messagetype_e : uint8_t {
                         eapol_messagetype_m1 = 0x04,
                         eapol_messagetype_m2 = 0x05,
                         eapol_messagetype_m2d = 0x06,

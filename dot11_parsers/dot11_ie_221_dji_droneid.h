@@ -55,7 +55,7 @@ public:
     class dji_subcommand_flight_reg;
     class dji_subcommand_flight_purpose;
 
-    enum e_dji_subcommand_type {
+    enum e_dji_subcommand_type : uint8_t {
         subcommand_unknwon = 0,
         subcommand_flightreg = 0x10,
         subcommand_flightpurpose = 0x11

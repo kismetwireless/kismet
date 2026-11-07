@@ -228,27 +228,16 @@ public:
 
     template<typename T>
     std::shared_ptr<T> new_packet_component() {
-        // pools protect their internal state; we only have to protect creating the pool
-        // or changing how packet IDs are mapped
+        // One pool per component type, made on first use; pools protect their own state,
+        // and pooled objects outliving the pool are simply deleted
+        static const auto pool = [] {
+            auto p = std::make_shared<shared_object_pool<T>>();
+            p->set_max(1024);
+            p->set_reset([](T *c) { c->reset(); });
+            return p;
+        }();
 
-        auto lk = std::shared_lock(packetcomp_mutex);
-
-        auto p = component_pool_map.find(typeid(T).hash_code());
-
-        if (p != component_pool_map.end()) {
-            return std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire();
-        } else {
-            lk.unlock();
-
-            auto ulk = std::unique_lock(packetcomp_mutex);
-
-            auto pool = std::make_shared<shared_object_pool<T>>();
-            pool->set_max(1024);
-            pool->set_reset([](T *c) { c->reset(); });
-            component_pool_map.insert({typeid(T).hash_code(), pool});
-
-            return pool->acquire();
-        }
+        return pool->acquire();
     }
 
 protected:
@@ -374,8 +363,6 @@ protected:
 
     // Packet & data component pools
     shared_object_pool<kis_packet> packet_pool;
-
-    ankerl::unordered_dense::map<size_t, std::shared_ptr<void>> component_pool_map;
 
     // Next unique packet number
     std::atomic<uint64_t> unique_packet_no;

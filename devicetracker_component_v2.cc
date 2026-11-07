@@ -91,20 +91,9 @@ uint32_t device_key_v2::gen_pkey(const std::string_view& phy) {
 }
 
 uint64_t device_key_v2::gen_spkey(uuid s_uuid, const std::string& phy) {
-    uint64_t uuid32 = adler32_checksum((const char *) s_uuid.hash, sizeof(std::size_t));
+    uint64_t uuid32 = adler32_checksum(reinterpret_cast<const char *>(&s_uuid.hash), sizeof(s_uuid.hash));
     uint64_t phy32 = gen_pkey(phy);
     return (uuid32 << 32) | phy32;
-}
-
-bool operator <(const device_key_v2& x, const device_key_v2& y) {
-    if (x.spkey_ == y.spkey_)
-        return x.dkey_ < y.dkey_;
-
-    return x.spkey_ < y.spkey_;
-}
-
-bool operator ==(const device_key_v2& x, const device_key_v2& y) {
-    return (x.spkey_ == y.spkey_ && x.dkey_ == y.dkey_);
 }
 
 auto fmt::formatter<device_key_v2>::format(const device_key_v2& k, format_context& ctx) const -> format_context::iterator {

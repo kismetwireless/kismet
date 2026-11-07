@@ -19,6 +19,7 @@
 #ifndef __DEVICETRACKER_COMPONENT_V2__
 #define __DEVICETRACKER_COMPONENT_V2__
 
+#include <compare>
 #include <string>
 
 #include <memory>
@@ -74,12 +75,17 @@ protected:
     uint64_t spkey_, dkey_;
     bool error_;
 
-    friend bool operator <(const device_key_v2& x, const device_key_v2& y);
-    friend bool operator ==(const device_key_v2& x, const device_key_v2& y);
+    friend bool operator==(const device_key_v2& x, const device_key_v2& y) {
+        return x.spkey_ == y.spkey_ && x.dkey_ == y.dkey_;
+    }
+
+    friend std::strong_ordering operator<=>(const device_key_v2& x, const device_key_v2& y) {
+        if (auto c = x.spkey_ <=> y.spkey_; c != 0)
+            return c;
+        return x.dkey_ <=> y.dkey_;
+    }
 };
 
-bool operator <(const device_key_v2& x, const device_key_v2& y);
-bool operator ==(const device_key_v2& x, const device_key_v2& y);
 std::ostream& operator<<(std::ostream& os, const device_key_v2& k);
 std::istream& operator>>(std::istream& is, device_key_v2& k);
 
