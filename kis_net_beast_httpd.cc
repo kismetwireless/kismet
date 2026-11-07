@@ -31,6 +31,7 @@
 #include <sstream>
 
 #include <ftw.h>
+#include <sys/socket.h>
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -99,6 +100,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     max_connections_per_addr_{128},
     conn_count_{0},
     conn_limit_warned_{0},
+    conns_stopping_{false},
     ssl_acceptor{Globalreg::globalreg->io} {
 
     route_mutex.set_name("kis_net_beast_httpd route vector");
@@ -695,6 +697,16 @@ int kis_net_beast_httpd::stop_httpd() {
         }
     }
 
+    // Wake every open connection, including long-lived websockets, and wait for them to finish
+    std::unique_lock<kis_mutex> lk(conn_mutex);
+    conns_stopping_ = true;
+
+    for (const auto& [s, fd] : conn_fds_)
+        ::shutdown(fd, SHUT_RDWR);
+
+    if (!conn_cv_.wait_for(lk, std::chrono::seconds(5), [this] { return conn_count_ == 0; }))
+        _MSG_ERROR("{} HTTP connection(s) still open after stopping the web server", conn_count_);
+
     return 1;
 }
 
@@ -706,7 +718,16 @@ public:
         addr{addr} { }
 
     ~kis_net_beast_conn_slot() {
+        httpd->detach_connection_fd(this);
         httpd->release_connection(addr);
+    }
+
+    void attach(int fd) {
+        httpd->attach_connection_fd(this, fd);
+    }
+
+    void detach() {
+        httpd->detach_connection_fd(this);
     }
 
     kis_net_beast_conn_slot(const kis_net_beast_conn_slot&) = delete;
@@ -744,11 +765,28 @@ std::unique_ptr<kis_net_beast_conn_slot> kis_net_beast_httpd::claim_connection(c
     return std::unique_ptr<kis_net_beast_conn_slot>(new kis_net_beast_conn_slot(shared_from_this(), addr));
 }
 
+void kis_net_beast_httpd::attach_connection_fd(kis_net_beast_conn_slot *slot, int fd) {
+    kis_lock_guard<kis_mutex> lk(conn_mutex, "beast_httpd attach_connection_fd");
+
+    conn_fds_[slot] = fd;
+
+    // Accepted just as the server stopped; end it straight away
+    if (conns_stopping_)
+        ::shutdown(fd, SHUT_RDWR);
+}
+
+void kis_net_beast_httpd::detach_connection_fd(kis_net_beast_conn_slot *slot) {
+    kis_lock_guard<kis_mutex> lk(conn_mutex, "beast_httpd detach_connection_fd");
+    conn_fds_.erase(slot);
+}
+
 void kis_net_beast_httpd::release_connection(const std::string& addr) {
     kis_lock_guard<kis_mutex> lk(conn_mutex, "beast_httpd release_connection");
 
     if (conn_count_ > 0)
         conn_count_--;
+
+    conn_cv_.notify_all();
 
     auto ai = conn_by_addr_.find(addr);
     if (ai != conn_by_addr_.end()) {
@@ -813,6 +851,8 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                     tcp_socket = boost::beast::tcp_stream(std::move(socket))]() mutable {
                     thread_set_process_name("BEAST");
 
+                    slot->attach(tcp_socket.socket().native_handle());
+
                     while (tcp_socket.socket().is_open()) {
                         // Associate the socket
                         auto conn =
@@ -830,6 +870,8 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                     } catch (...) {
                         ;
                     }
+
+                    slot->detach();
                 });
 
             conthread.detach();
@@ -872,6 +914,8 @@ void kis_net_beast_httpd::handle_ssl_connection(const boost::system::error_code&
             std::thread conthread([this, tls, ctx = ssl_ctx, slot = std::move(slot)]() mutable {
                     thread_set_process_name("BEAST-TLS");
 
+                    slot->attach(boost::beast::get_lowest_layer(*tls).socket().native_handle());
+
                     // The handshake runs on the socket's strand so a stalled client times out
                     auto hs_promise = std::make_shared<std::promise<boost::system::error_code>>();
                     auto hs_future = hs_promise->get_future();
@@ -897,6 +941,8 @@ void kis_net_beast_httpd::handle_ssl_connection(const boost::system::error_code&
 
                     // Plain HTTP to the HTTPS port, or a client that doesn't trust the certificate
                     if (hs_ec) {
+                        slot->detach();
+
                         try {
                             boost::beast::get_lowest_layer(*tls).socket().close();
                         } catch (...) {
@@ -918,6 +964,8 @@ void kis_net_beast_httpd::handle_ssl_connection(const boost::system::error_code&
                     } catch (...) {
                         ;
                     }
+
+                    slot->detach();
                 });
 
             conthread.detach();

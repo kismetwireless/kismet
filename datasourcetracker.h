@@ -26,6 +26,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include "globalregistry.h"
@@ -496,6 +497,12 @@ protected:
 
     // Buffer sizes
     size_t tcp_buffer_sz;
+
+    // Staggered launch groups for configured sources; stopped and joined before shutdown
+    // closes the sources, and declared last so they're gone before anything they use
+    std::mutex launch_threads_mutex;
+    std::vector<std::jthread> launch_threads;
+    void stop_launch_threads();
 
     friend class datasource_tracker_remote_server;
 };

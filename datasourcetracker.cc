@@ -23,7 +23,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
+#include <mutex>
+#include <stop_token>
 
 #include <string_view>
 
@@ -412,6 +416,8 @@ datasource_tracker::datasource_tracker() :
 }
 
 datasource_tracker::~datasource_tracker() {
+    stop_launch_threads();
+
     Globalreg::globalreg->remove_global("DATASOURCETRACKER");
 
     if (completion_cleanup_id >= 0)
@@ -1340,60 +1346,73 @@ void datasource_tracker::launch_configured_sources() {
             });
     };
 
+    // Each group waits for its turn, and stops waiting or launching once shutdown starts
+    auto launch_group = [this, launch_func, simul_open_delay](std::stop_token st,
+            const std::vector<std::string> group_vec, unsigned int gn, bool staggered) {
+        if (gn > 0) {
+            std::mutex m;
+            std::condition_variable_any cv;
+            std::unique_lock lk(m);
+            cv.wait_for(lk, st, std::chrono::seconds(gn * simul_open_delay), [] { return false; });
+        }
+
+        if (st.stop_requested())
+            return;
+
+        if (staggered)
+            _MSG_INFO("Launching local source group {}", gn + 1);
+
+        for (const auto& i : group_vec) {
+            if (st.stop_requested())
+                return;
+            launch_func(this, i);
+        }
+    };
+
+    std::lock_guard lk(launch_threads_mutex);
+
     if (stagger_thresh == 0 || src_vec.size() <= stagger_thresh) {
-        auto source_t = std::thread([launch_func](datasource_tracker *dst,
-                    const std::vector<std::string>& src_vec) {
-                for (auto i : src_vec) {
-                    launch_func(dst, i);
-                }
-                }, this, src_vec);
-        source_t.detach();
+        launch_threads.emplace_back(launch_group, src_vec, 0, false);
     } else {
         std::vector<std::string> work_vec;
         unsigned int group_number = 0;
 
-        for (auto i : src_vec) {
+        for (const auto& i : src_vec) {
             work_vec.push_back(i);
 
             if (work_vec.size() > simul_open) {
-                // Pass a copy of the work vec so that we can immediately clear it
-                auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
-                            const std::vector<std::string> src_vec, unsigned int gn) {
-
-                    // All the threads launch more or less at once, so each thread sleeps for
-                    // its allocated amount of time before launching the vector
-                    sleep(gn * simul_open_delay);
-                    _MSG_INFO("Launching local source group {}", gn + 1);
-
-                    for (auto i : src_vec) {
-                        launch_func(dst, i);
-                    }
-                }, this, work_vec, group_number);
-                launch_t.detach();
-
+                launch_threads.emplace_back(launch_group, work_vec, group_number, true);
                 work_vec.clear();
                 group_number++;
             }
         }
 
-        // Launch the last of the group
-        auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
-                    const std::vector<std::string> src_vec, unsigned int gn) {
+        if (!work_vec.empty())
+            launch_threads.emplace_back(launch_group, work_vec, group_number, true);
+    }
+}
 
-                    sleep(gn * simul_open_delay);
-                    _MSG_INFO("Launching local source group {}", gn);
+void datasource_tracker::stop_launch_threads() {
+    std::lock_guard lk(launch_threads_mutex);
 
-                    for (auto i : src_vec) {
-                        launch_func(dst, i);
-                    }
-                }, this, work_vec, group_number);
-                launch_t.detach();
+    for (auto& t : launch_threads)
+        t.request_stop();
+
+    for (auto& t : launch_threads) {
+        // A launch which itself ends up shutting down the server can't wait on itself
+        if (t.get_id() == std::this_thread::get_id())
+            t.detach();
+        else if (t.joinable())
+            t.join();
     }
 
-    return;
+    launch_threads.clear();
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
+    // Nothing new opens once shutdown starts
+    stop_launch_threads();
+
     std::vector<std::shared_ptr<kis_datasource>> sources;
 
     {
