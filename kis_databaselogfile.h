@@ -38,9 +38,14 @@
 #include "config.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
+#include <thread>
+#include <vector>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -106,7 +111,7 @@ public:
     virtual time_t get_last_device_log_ts() { return last_device_log; }
 
     // Log a packet
-    virtual int log_packet(const kis_packet* in_packet);
+    virtual int log_packet(const std::shared_ptr<kis_packet>& in_packet);
 
     // Log data that isn't a packet; this is a slightly more clunky API because we
     // can't derive the data from the simple packet interface.  GPS may be null,
@@ -216,24 +221,81 @@ protected:
 
     int packet_handler_id;
 
-    // Packet and data inserts are prepared once and reused; writers run in parallel, so
-    // each statement is held from bind through reset.  close_log() finalizes them.
-    kis_mutex packet_stmt_mutex;
+    // Position for a row, zeros when there's no usable fix
+    struct db_gps {
+        bool ok;
+        double lat, lon, alt, speed, heading;
+
+        db_gps(const kis_gps_packinfo *gps = nullptr);
+    };
+
+    // A data table row; type and json are views into storage the caller keeps alive
+    struct db_data_row {
+        struct timeval ts;
+        std::string phystring;
+        std::string macstring;
+        std::string uuidstring;
+        db_gps gps, reported_gps;
+        std::string_view type;
+        std::string_view json;
+        int signal;
+    };
+
+    // A packet waiting for the writer thread.  Everything is formatted by the packet thread;
+    // the frame and any data blob are referenced, not copied, so the row holds the packet.
+    struct db_packet_row {
+        std::shared_ptr<kis_packet> packet;
+        std::shared_ptr<kis_datachunk> chunk;
+        std::shared_ptr<packet_component> data_comp;
+
+        struct timeval ts;
+        std::string phystring, macstring, deststring, transstring;
+        std::string uuidstring, tagstr;
+        double frequency;
+        db_gps gps, reported_gps;
+        uint64_t original_len;
+        int signal;
+        int error;
+        double datarate;
+        uint32_t hash;
+        uint64_t packet_no;
+
+        bool has_data;
+        db_data_row data;
+    };
+
+    // Packet threads queue rows and one writer thread inserts them; contending for the single
+    // connection per packet costs more than the insert itself.  A full queue blocks the
+    // packet threads instead of dropping packets.
+    static constexpr size_t packet_queue_max = 4096;
+    std::mutex packet_queue_mutex;
+    std::condition_variable packet_queue_cv;
+    std::condition_variable packet_space_cv;
+    std::vector<db_packet_row> packet_queue;
+    bool packet_writer_stop;
+    // The log whose writer thread this is, if any
+    static thread_local kis_database_logfile *packet_writer_log;
+    // Serializes starting and joining the writer
+    std::mutex packet_writer_mutex;
+    std::thread packet_writer;
+
+    void packet_writer_run();
+    void stop_packet_writer();
+
+    // Inserts reuse prepared statements.  packet_stmt is only used by the writer thread;
+    // data_stmt is shared with log_data, so it's held from bind through reset.  Both need a
+    // writer guard, and close_log() finalizes them.
     sqlite3_stmt *packet_stmt;
     kis_mutex data_stmt_mutex;
     sqlite3_stmt *data_stmt;
 
     sqlite3_stmt *prepare_cached(sqlite3_stmt *& stmt, const char *sql, std::string& err);
-
-    // log_data for a caller already holding a writer guard; taking the shared lifetime lock
-    // again on the same thread could deadlock behind a waiting close
-    int log_data_locked(const kis_gps_packinfo *gps,
-            const kis_layer1_packinfo *l1info,
-            const struct timeval& tv,
-            const std::string& phystring, const mac_addr& devmac, const uuid& datasource_uuid,
-            const std::string& type, const std::string& json,
-            const kis_gps_packinfo *reported_gps);
     void finalize_cached();
+
+    // Insert rows; the caller holds a writer guard.  Returns 1 on success, 0 when the row
+    // was skipped, and -1 after a failure that closes the log.
+    int insert_packet(const db_packet_row& row);
+    int insert_data(const db_data_row& row);
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
     // commit state we run a 10 second transaction commit loop

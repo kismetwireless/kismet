@@ -126,11 +126,11 @@ kis_database_logfile::kis_database_logfile():
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
     transaction_mutex.set_name("kis_database_logfile_transaction");
-    packet_stmt_mutex.set_name("kis_database_logfile_packet_stmt");
     data_stmt_mutex.set_name("kis_database_logfile_data_stmt");
 
     packet_stmt = nullptr;
     data_stmt = nullptr;
+    packet_writer_stop = false;
 
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
@@ -154,6 +154,7 @@ kis_database_logfile::kis_database_logfile():
 }
 
 thread_local kis_database_logfile *kis_database_logfile::current_writer = nullptr;
+thread_local kis_database_logfile *kis_database_logfile::packet_writer_log = nullptr;
 
 kis_database_logfile::~kis_database_logfile() {
     eventbus->remove_listener(message_evt_id);
@@ -578,6 +579,26 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     // Register the log after we have all the filters set and the mutex unlocked
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
         _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
+
+        {
+            std::lock_guard<std::mutex> wlk(packet_writer_mutex);
+
+            if (packet_writer.joinable() && packet_writer_log != this)
+                packet_writer.join();
+
+            {
+                std::lock_guard<std::mutex> qlk(packet_queue_mutex);
+                packet_writer_stop = false;
+                packet_queue.reserve(packet_queue_max);
+            }
+
+            packet_writer = std::thread([this]() {
+                packet_writer_log = this;
+                thread_set_process_name("kismetdb writer");
+                packet_writer_run();
+            });
+        }
+
         std::shared_ptr<packet_chain> packetchain =
             Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
@@ -585,7 +606,7 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         packet_handler_id =
             packetchain->register_handler([](void *auxdata, const std::shared_ptr<kis_packet>& packet) -> int {
 					auto dbl = reinterpret_cast<kis_database_logfile *>(auxdata);
-                    return dbl->log_packet(packet.get());
+                    return dbl->log_packet(packet);
                 }, this, CHAINPOS_LOGGING, -100);
     } else {
         packet_handler_id = -1;
@@ -629,6 +650,9 @@ void kis_database_logfile::close_log() {
 
     if (packetchain != NULL && packet_handler_id >= 0)
         packetchain->remove_handler(packet_handler_id, CHAINPOS_LOGGING);
+
+    // Write what's already queued
+    stop_packet_writer();
 
     // Wait for anything still using the database, then close it
     std::unique_lock<std::shared_mutex> lifetime_lk(db_lifetime_mutex);
@@ -683,7 +707,6 @@ sqlite3_stmt *kis_database_logfile::prepare_cached(sqlite3_stmt *& stmt, const c
 
 // Called with the lifetime lock held exclusively, so no writer is using the statements
 void kis_database_logfile::finalize_cached() {
-    kis_lock_guard<kis_mutex> plk(packet_stmt_mutex, "kismetdb finalize packet");
     kis_lock_guard<kis_mutex> dlk(data_stmt_mutex, "kismetdb finalize data");
 
     sqlite3_finalize(packet_stmt);
@@ -705,13 +728,22 @@ static bool bind_blob_checked(sqlite3_stmt *stmt, int pos, std::string_view s,
 }
 
 // Bind a gps record's position, or zeros if there's no usable one
-static void bind_gps(sqlite3_stmt *stmt, int& pos, const kis_gps_packinfo *gps) {
-    bool ok = gps != nullptr && gps->gps_info_ok;
-    sqlite3_bind_double(stmt, pos++, ok ? gps->lat : 0);
-    sqlite3_bind_double(stmt, pos++, ok ? gps->lon : 0);
-    sqlite3_bind_double(stmt, pos++, ok ? gps->alt : 0);
-    sqlite3_bind_double(stmt, pos++, ok ? gps->speed : 0);
-    sqlite3_bind_double(stmt, pos++, ok ? gps->heading : 0);
+kis_database_logfile::db_gps::db_gps(const kis_gps_packinfo *gps) :
+    ok{gps != nullptr && gps->gps_info_ok},
+    lat{ok ? gps->lat : 0},
+    lon{ok ? gps->lon : 0},
+    alt{ok ? gps->alt : 0},
+    speed{ok ? gps->speed : 0},
+    heading{ok ? gps->heading : 0} { }
+
+// A template so it can take the protected db_gps
+template <typename G>
+static void bind_gps(sqlite3_stmt *stmt, int& pos, const G& gps) {
+    sqlite3_bind_double(stmt, pos++, gps.lat);
+    sqlite3_bind_double(stmt, pos++, gps.lon);
+    sqlite3_bind_double(stmt, pos++, gps.alt);
+    sqlite3_bind_double(stmt, pos++, gps.speed);
+    sqlite3_bind_double(stmt, pos++, gps.heading);
 }
 
 int kis_database_logfile::database_upgrade_db() {
@@ -1201,22 +1233,10 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     return 1;
 }
 
-int kis_database_logfile::log_packet(const kis_packet* in_pack) {
+int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack) {
     if (!db_enabled) {
         return 0;
     }
-
-    db_writer_guard writer_lk(this);
-    if (!db_enabled)
-        return 0;
-
-    std::string phystring;
-    std::string macstring;
-    std::string deststring;
-    std::string transstring;
-    std::string keystring;
-    std::string sourceuuidstring;
-    double frequency;
 
     if (in_pack->duplicate && !log_duplicate_packets)
         return 0;
@@ -1224,7 +1244,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     if (in_pack->filtered)
         return 0;
 
-    if (packet_mac_filter->filter_packet(in_pack)) {
+    if (packet_mac_filter->filter_packet(in_pack.get())) {
         return 0;
     }
 
@@ -1233,174 +1253,285 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
     auto metablob = in_pack->fetch<packet_metablob>(pack_comp_metablob);
     auto jsonblob = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
 
+    if (chunk == nullptr && metablob == nullptr && jsonblob == nullptr)
+        return 0;
+
+    if (in_pack->common_info.common_info_ok &&
+            in_pack->common_info.type == packet_basic_data && !log_data_packets)
+        return 0;
+
+    db_packet_row row;
+
     kis_phy_handler *phyh = NULL;
 
-    // Packets are no longer a 1:1 with a device
-    keystring = "0";
-
     if (in_pack->common_info.common_info_ok) {
-        if (in_pack->common_info.type == packet_basic_data && !log_data_packets)
-            return 0;
-
         phyh = devicetracker->fetch_phy_handler(in_pack->common_info.phyid);
-        macstring = in_pack->common_info.source.mac_to_string();
-        deststring = in_pack->common_info.dest.mac_to_string();
-        transstring = in_pack->common_info.transmitter.mac_to_string();
-        frequency = in_pack->common_info.freq_khz;
+        row.macstring = in_pack->common_info.source.mac_to_string();
+        row.deststring = in_pack->common_info.dest.mac_to_string();
+        row.transstring = in_pack->common_info.transmitter.mac_to_string();
+        row.frequency = in_pack->common_info.freq_khz;
     } else {
-        macstring = "00:00:00:00:00:00";
-        deststring = "00:00:00:00:00:00";
-        transstring = "00:00:00:00:00:00";
-        frequency = 0;
+        row.macstring = "00:00:00:00:00:00";
+        row.deststring = "00:00:00:00:00:00";
+        row.transstring = "00:00:00:00:00:00";
+        row.frequency = 0;
     }
 
     if (phyh == NULL)
-        phystring = "Unknown";
+        row.phystring = "Unknown";
     else
-        phystring = phyh->fetch_phy_name();
-
+        row.phystring = phyh->fetch_phy_name();
 
     if (datasrc != NULL) {
-        sourceuuidstring = cached_uuid_string(datasrc->ref_source->get_source_uuid());
+        row.uuidstring = cached_uuid_string(datasrc->ref_source->get_source_uuid());
     } else {
-        sourceuuidstring = "00000000-0000-0000-0000-000000000000";
+        row.uuidstring = "00000000-0000-0000-0000-000000000000";
     }
+
+    row.packet = in_pack;
+    row.ts = in_pack->ts;
 
     // Log into the PACKET table if we're a loggable packet (ie, have a link frame)
     if (chunk != nullptr) {
-        std::string tagstr;
+        row.chunk = chunk;
 
         for (const auto& tag : in_pack->tag_map) {
-            if (!tagstr.empty())
-                tagstr += ' ';
-            tagstr += tag.first;
+            if (!row.tagstr.empty())
+                row.tagstr += ' ';
+            row.tagstr += tag.first;
         }
 
-        std::string err;
-        kis_unique_lock<kis_mutex> stmt_lk(packet_stmt_mutex, "kismetdb log_packet");
-
-        auto stmt = prepare_cached(packet_stmt,
-            "INSERT INTO packets "
-            "(ts_sec, ts_usec, phyname, "
-            "sourcemac, destmac, transmac, devkey, frequency, "
-            "lat, lon, alt, speed, heading, "
-            "reported_lat, reported_lon, reported_alt, reported_speed, reported_heading, "
-            "packet_len, packet_full_len, signal, "
-            "datasource, "
-            "dlt, packet, "
-            "error, tags, datarate, hash, packetid) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            err);
-
-        if (stmt == nullptr) {
-            stmt_lk.unlock();
-            _MSG_ERROR("kis_database_logfile unable to prepare database insert for packets "
-                    "in {}: {}", ds_dbfile, err);
-            close_log();
-            return -1;
-        }
-
-        // Every parameter is bound on every insert, and the bound buffers outlive the
-        // step, so they don't need to be copied
-        int sql_pos = 1;
-
-        sqlite3_bind_int64(stmt, sql_pos++, in_pack->ts.tv_sec);
-        sqlite3_bind_int64(stmt, sql_pos++, in_pack->ts.tv_usec);
-
-        sqlite3_bind_text(stmt, sql_pos++, phystring.c_str(), phystring.length(), SQLITE_STATIC);
-        sqlite3_bind_text(stmt, sql_pos++, macstring.c_str(), macstring.length(), SQLITE_STATIC);
-        sqlite3_bind_text(stmt, sql_pos++, deststring.c_str(), deststring.length(), SQLITE_STATIC);
-        sqlite3_bind_text(stmt, sql_pos++, transstring.c_str(), transstring.length(), SQLITE_STATIC);
-        sqlite3_bind_text(stmt, sql_pos++, keystring.c_str(), keystring.length(), SQLITE_STATIC);
-        sqlite3_bind_double(stmt, sql_pos++, frequency);
-
-        // Where kismet was, then where the device said it was
-        bind_gps(stmt, sql_pos, &in_pack->gps_info);
-        bind_gps(stmt, sql_pos, &in_pack->reported_gps);
-
-        sqlite3_bind_int64(stmt, sql_pos++, chunk->length());
-        sqlite3_bind_int64(stmt, sql_pos++, in_pack->original_len);
-
-        if (in_pack->signal_info.data_ok) {
-            sqlite3_bind_int(stmt, sql_pos++, in_pack->signal_info.signal_dbm);
-        } else {
-            sqlite3_bind_int(stmt, sql_pos++, 0);
-        }
-
-        sqlite3_bind_text(stmt, sql_pos++, sourceuuidstring.c_str(),
-                sourceuuidstring.length(), SQLITE_STATIC);
-
-        sqlite3_bind_int(stmt, sql_pos++, chunk->dlt);
-        if (!bind_blob_checked(stmt, sql_pos++, *chunk, SQLITE_STATIC)) {
-            sqlite3_reset(stmt);
-            sqlite3_clear_bindings(stmt);
-            stmt_lk.unlock();
-            _MSG_ERROR("kis_database_logfile skipping a {} byte packet, too large for the "
-                    "database", chunk->length());
-            return 0;
-        }
-
-        sqlite3_bind_int(stmt, sql_pos++, in_pack->error);
-
-        sqlite3_bind_text(stmt, sql_pos++, tagstr.c_str(), tagstr.length(), SQLITE_STATIC);
-
-        if (in_pack->signal_info.data_ok)
-            sqlite3_bind_double(stmt, sql_pos++, in_pack->signal_info.datarate / 10);
-        else
-            sqlite3_bind_double(stmt, sql_pos++, 0);
-
-        sqlite3_bind_int(stmt, sql_pos++, in_pack->hash);
-        sqlite3_bind_int64(stmt, sql_pos++, in_pack->packet_no);
-
-        auto r = sqlite3_step(stmt);
-
-        if (r != SQLITE_DONE)
-            err = sqlite3_errmsg(db);
-
-        // Drop the references to our buffers before they go away
-        sqlite3_reset(stmt);
-        sqlite3_clear_bindings(stmt);
-
-        stmt_lk.unlock();
-
-        if (r == SQLITE_TOOBIG) {
-            _MSG_ERROR("kis_database_logfile skipping a {} byte packet, too large for the "
-                    "database", chunk->length());
-            return 0;
-        } else if (r != SQLITE_DONE) {
-            _MSG_ERROR("kis_database_logfile unable to insert packet in {}: {}",
-                    ds_dbfile, err);
-            close_log();
-            return -1;
-        }
+        row.gps = db_gps(&in_pack->gps_info);
+        row.reported_gps = db_gps(&in_pack->reported_gps);
+        row.original_len = in_pack->original_len;
+        row.signal = in_pack->signal_info.data_ok ? in_pack->signal_info.signal_dbm : 0;
+        row.error = in_pack->error;
+        row.datarate = in_pack->signal_info.data_ok ? in_pack->signal_info.datarate / 10 : 0;
+        row.hash = in_pack->hash;
+        row.packet_no = in_pack->packet_no;
     }
 
     // If the packet has a metablob record, log that; if the packet ONLY has meta data we should only get a 'data'
     // record; if the packet has both, we'll get both a 'packet' and a 'data' record.
-    if (metablob != nullptr) {
-        mac_addr smac("00:00:00:00:00:00");
-        uuid puuid;
+    row.has_data = metablob != nullptr || jsonblob != nullptr;
+
+    if (row.has_data) {
+        auto& d = row.data;
+
+        d.ts = in_pack->ts;
+        d.phystring = row.phystring;
 
         if (in_pack->common_info.common_info_ok)
-            smac = in_pack->common_info.source;
+            d.macstring = in_pack->common_info.source.mac_to_string();
+        else
+            d.macstring = "00:00:00:00:00:00";
 
         if (datasrc != nullptr)
-            puuid = datasrc->ref_source->get_source_uuid();
+            d.uuidstring = row.uuidstring;
+        else
+            d.uuidstring = cached_uuid_string(uuid());
 
-        log_data_locked(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
-                metablob->meta_type, metablob->meta_data, &in_pack->reported_gps);
-    } else if (jsonblob != nullptr) {
-        mac_addr smac("00:00:00:00:00:00");
-        uuid puuid;
+        d.gps = db_gps(&in_pack->gps_info);
+        d.reported_gps = db_gps(&in_pack->reported_gps);
+        d.signal = in_pack->signal_info.data_ok ? in_pack->signal_info.signal_dbm : 0;
 
-        if (in_pack->common_info.common_info_ok)
-            smac = in_pack->common_info.source;
+        if (metablob != nullptr) {
+            d.type = metablob->meta_type;
+            d.json = metablob->meta_data;
+            row.data_comp = metablob;
+        } else {
+            d.type = jsonblob->type;
+            d.json = jsonblob->json_string;
+            row.data_comp = jsonblob;
+        }
+    }
 
-        if (datasrc != nullptr)
-            puuid = datasrc->ref_source->get_source_uuid();
+    bool was_empty;
 
-        log_data_locked(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
-                jsonblob->type, jsonblob->json_string, &in_pack->reported_gps);
+    {
+        std::unique_lock<std::mutex> lk(packet_queue_mutex);
+
+        packet_space_cv.wait(lk, [this] {
+            return packet_queue.size() < packet_queue_max || packet_writer_stop;
+        });
+
+        if (packet_writer_stop)
+            return 0;
+
+        was_empty = packet_queue.empty();
+        packet_queue.push_back(std::move(row));
+    }
+
+    // The writer only sleeps on an empty queue
+    if (was_empty)
+        packet_queue_cv.notify_one();
+
+    return 1;
+}
+
+void kis_database_logfile::packet_writer_run() {
+    std::vector<db_packet_row> batch;
+    batch.reserve(packet_queue_max);
+
+    // After a failure closes the log, queued rows are dropped
+    bool failed = false;
+
+    while (true) {
+        {
+            std::unique_lock<std::mutex> lk(packet_queue_mutex);
+
+            packet_queue_cv.wait(lk, [this] {
+                return !packet_queue.empty() || packet_writer_stop;
+            });
+
+            // Stopped, and everything queued has been written
+            if (packet_queue.empty())
+                return;
+
+            batch.swap(packet_queue);
+        }
+
+        packet_space_cv.notify_all();
+
+        if (!failed) {
+            db_writer_guard writer_lk(this);
+
+            if (db == nullptr)
+                failed = true;
+
+            for (const auto& row : batch) {
+                if (failed)
+                    break;
+
+                if (insert_packet(row) < 0)
+                    failed = true;
+                else if (row.has_data && insert_data(row.data) < 0)
+                    failed = true;
+            }
+        }
+
+        // Releases the packets
+        batch.clear();
+    }
+}
+
+// Lets the writer finish what's queued and waits for it, unless called from the writer itself
+// (closing the log after a failed insert); the next close joins it then.
+void kis_database_logfile::stop_packet_writer() {
+    auto signal_stop = [this]() {
+        {
+            std::lock_guard<std::mutex> lk(packet_queue_mutex);
+            packet_writer_stop = true;
+        }
+
+        packet_queue_cv.notify_all();
+        packet_space_cv.notify_all();
+    };
+
+    // Another close may hold the writer mutex while it joins us
+    if (packet_writer_log == this) {
+        signal_stop();
+        return;
+    }
+
+    std::lock_guard<std::mutex> wlk(packet_writer_mutex);
+
+    signal_stop();
+
+    if (packet_writer.joinable())
+        packet_writer.join();
+}
+
+int kis_database_logfile::insert_packet(const db_packet_row& row) {
+    if (row.chunk == nullptr)
+        return 1;
+
+    std::string err;
+
+    auto stmt = prepare_cached(packet_stmt,
+        "INSERT INTO packets "
+        "(ts_sec, ts_usec, phyname, "
+        "sourcemac, destmac, transmac, devkey, frequency, "
+        "lat, lon, alt, speed, heading, "
+        "reported_lat, reported_lon, reported_alt, reported_speed, reported_heading, "
+        "packet_len, packet_full_len, signal, "
+        "datasource, "
+        "dlt, packet, "
+        "error, tags, datarate, hash, packetid) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        err);
+
+    if (stmt == nullptr) {
+        _MSG_ERROR("kis_database_logfile unable to prepare database insert for packets "
+                "in {}: {}", ds_dbfile, err);
+        close_log();
+        return -1;
+    }
+
+    // Packets are no longer a 1:1 with a device
+    static constexpr std::string_view keystring{"0"};
+
+    // Every parameter is bound on every insert, and the bound buffers outlive the
+    // step, so they don't need to be copied
+    int sql_pos = 1;
+
+    sqlite3_bind_int64(stmt, sql_pos++, row.ts.tv_sec);
+    sqlite3_bind_int64(stmt, sql_pos++, row.ts.tv_usec);
+
+    sqlite3_bind_text(stmt, sql_pos++, row.phystring.c_str(), row.phystring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, row.macstring.c_str(), row.macstring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, row.deststring.c_str(), row.deststring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, row.transstring.c_str(), row.transstring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, keystring.data(), keystring.length(), SQLITE_STATIC);
+    sqlite3_bind_double(stmt, sql_pos++, row.frequency);
+
+    // Where kismet was, then where the device said it was
+    bind_gps(stmt, sql_pos, row.gps);
+    bind_gps(stmt, sql_pos, row.reported_gps);
+
+    sqlite3_bind_int64(stmt, sql_pos++, row.chunk->length());
+    sqlite3_bind_int64(stmt, sql_pos++, row.original_len);
+
+    sqlite3_bind_int(stmt, sql_pos++, row.signal);
+
+    sqlite3_bind_text(stmt, sql_pos++, row.uuidstring.c_str(), row.uuidstring.length(), SQLITE_STATIC);
+
+    sqlite3_bind_int(stmt, sql_pos++, row.chunk->dlt);
+    if (!bind_blob_checked(stmt, sql_pos++, *row.chunk, SQLITE_STATIC)) {
+        sqlite3_reset(stmt);
+        sqlite3_clear_bindings(stmt);
+        _MSG_ERROR("kis_database_logfile skipping a {} byte packet, too large for the "
+                "database", row.chunk->length());
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, sql_pos++, row.error);
+
+    sqlite3_bind_text(stmt, sql_pos++, row.tagstr.c_str(), row.tagstr.length(), SQLITE_STATIC);
+
+    sqlite3_bind_double(stmt, sql_pos++, row.datarate);
+
+    sqlite3_bind_int(stmt, sql_pos++, row.hash);
+    sqlite3_bind_int64(stmt, sql_pos++, row.packet_no);
+
+    auto r = sqlite3_step(stmt);
+
+    if (r != SQLITE_DONE)
+        err = sqlite3_errmsg(db);
+
+    // Drop the references to our buffers before they go away
+    sqlite3_reset(stmt);
+    sqlite3_clear_bindings(stmt);
+
+    if (r == SQLITE_TOOBIG) {
+        _MSG_ERROR("kis_database_logfile skipping a {} byte packet, too large for the "
+                "database", row.chunk->length());
+        return 0;
+    } else if (r != SQLITE_DONE) {
+        _MSG_ERROR("kis_database_logfile unable to insert packet in {}: {}",
+                ds_dbfile, err);
+        close_log();
+        return -1;
     }
 
     return 1;
@@ -1415,26 +1546,32 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
     if (!db_enabled)
         return 0;
 
+    db_data_row row;
+
+    row.ts = tv;
+    row.phystring = phystring;
+    row.macstring = devmac.mac_to_string();
+    row.uuidstring = cached_uuid_string(datasource_uuid);
+    row.gps = db_gps(gps);
+    row.reported_gps = db_gps(reported_gps);
+    row.type = type;
+    row.json = json;
+    row.signal = (l1info != nullptr && l1info->data_ok) ? l1info->signal_dbm : 0;
+
     db_writer_guard writer_lk(this);
-
-    return log_data_locked(gps, l1info, tv, phystring, devmac, datasource_uuid, type, json,
-            reported_gps);
-}
-
-int kis_database_logfile::log_data_locked(const kis_gps_packinfo* gps,
-        const kis_layer1_packinfo *l1info,
-        const struct timeval& tv, const std::string& phystring, const mac_addr& devmac,
-        const uuid& datasource_uuid, const std::string& type, const std::string& json,
-        const kis_gps_packinfo *reported_gps) {
 
     if (!db_enabled)
         return 0;
 
-    std::string macstring = devmac.mac_to_string();
-    std::string uuidstring = cached_uuid_string(datasource_uuid);
+    return insert_data(row);
+}
+
+int kis_database_logfile::insert_data(const db_data_row& row) {
+    if (db == nullptr)
+        return 0;
 
     std::string err;
-    kis_unique_lock<kis_mutex> stmt_lk(data_stmt_mutex, "kismetdb log_data");
+    kis_unique_lock<kis_mutex> stmt_lk(data_stmt_mutex, "kismetdb insert_data");
 
     auto stmt = prepare_cached(data_stmt,
         "INSERT INTO data "
@@ -1457,32 +1594,28 @@ int kis_database_logfile::log_data_locked(const kis_gps_packinfo* gps,
 
     int sql_pos = 1;
 
-    sqlite3_bind_int64(stmt, sql_pos++, tv.tv_sec);
-    sqlite3_bind_int64(stmt, sql_pos++, tv.tv_usec);
+    sqlite3_bind_int64(stmt, sql_pos++, row.ts.tv_sec);
+    sqlite3_bind_int64(stmt, sql_pos++, row.ts.tv_usec);
 
-    sqlite3_bind_text(stmt, sql_pos++, phystring.c_str(), phystring.length(), SQLITE_STATIC);
-    sqlite3_bind_text(stmt, sql_pos++, macstring.c_str(), macstring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, row.phystring.c_str(), row.phystring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, row.macstring.c_str(), row.macstring.length(), SQLITE_STATIC);
 
-    bind_gps(stmt, sql_pos, gps);
-    bind_gps(stmt, sql_pos, reported_gps);
+    bind_gps(stmt, sql_pos, row.gps);
+    bind_gps(stmt, sql_pos, row.reported_gps);
 
-    sqlite3_bind_text(stmt, sql_pos++, uuidstring.c_str(), uuidstring.length(), SQLITE_STATIC);
+    sqlite3_bind_text(stmt, sql_pos++, row.uuidstring.c_str(), row.uuidstring.length(), SQLITE_STATIC);
 
-    if (!bind_text_checked(stmt, sql_pos++, type, SQLITE_STATIC) ||
-            !bind_text_checked(stmt, sql_pos++, json, SQLITE_STATIC)) {
+    if (!bind_text_checked(stmt, sql_pos++, row.type, SQLITE_STATIC) ||
+            !bind_text_checked(stmt, sql_pos++, row.json, SQLITE_STATIC)) {
         sqlite3_reset(stmt);
         sqlite3_clear_bindings(stmt);
         stmt_lk.unlock();
         _MSG_ERROR("kis_database_logfile skipping a {} byte data record, too large for the "
-                "database", type.length() + json.length());
+                "database", row.type.length() + row.json.length());
         return 0;
     }
 
-    if (l1info != nullptr && l1info->data_ok) {
-        sqlite3_bind_int(stmt, sql_pos++, l1info->signal_dbm);
-    } else {
-        sqlite3_bind_int(stmt, sql_pos++, 0);
-    }
+    sqlite3_bind_int(stmt, sql_pos++, row.signal);
 
     auto r = sqlite3_step(stmt);
 
@@ -1496,7 +1629,7 @@ int kis_database_logfile::log_data_locked(const kis_gps_packinfo* gps,
 
     if (r == SQLITE_TOOBIG) {
         _MSG_ERROR("kis_database_logfile skipping a {} byte data record, too large for the "
-                "database", type.length() + json.length());
+                "database", row.type.length() + row.json.length());
         return 0;
     } else if (r != SQLITE_DONE) {
         _MSG_ERROR("kis_database_logfile unable to insert data in {}: {}", ds_dbfile, err);
