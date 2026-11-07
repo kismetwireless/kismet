@@ -583,7 +583,7 @@ void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map
     if (e != NULL) {
         // If we're inheriting, it's our responsibility to kick submaps with
         // complex types as well; since they're not themselves complex objects
-        for (auto s : *seenby_map) {
+        for (auto& s : *seenby_map) {
             // Build a proper seenby record for each item in the list
             auto sbd = 
                 std::make_shared<kis_tracked_seenby_data>(seenby_val_id, 

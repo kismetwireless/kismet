@@ -221,24 +221,9 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
         return 1;
     }
 
-    union {
-        int8_t    i8;
-        int16_t    i16;
-        u_int8_t    u8;
-        u_int16_t    u16;
-        u_int32_t    u32;
-        u_int64_t    u64;
-    } u;
-    union {
-        int8_t        i8;
-        int16_t        i16;
-        u_int8_t    u8;
-        u_int16_t    u16;
-        u_int32_t    u32;
-        u_int64_t    u64;
-    } u2;
-
-    u2.u64 = 0;
+    // Field values as read; signed fields are converted where they're used
+    uint64_t val = 0;
+    uint16_t val2 = 0;
 
     const struct ieee80211_radiotap_header *hdr;
     u_int32_t present, next_present;
@@ -333,21 +318,21 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                 case IEEE80211_RADIOTAP_DBM_ANTNOISE:
                     if (!field_fits(1, 1))
                         break;
-                    u.u8 = *iter++;
+                    val = *iter++;
                     break;
                 case IEEE80211_RADIOTAP_DBM_TX_POWER:
                     if (!field_fits(1, 1))
                         break;
-                    u.i8 = *iter++;
+                    val = *iter++;
                     break;
                 case IEEE80211_RADIOTAP_CHANNEL:
                     if (!field_fits(2, 4))
                         break;
 
-                    u.u16 = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(u.u16);
-                    u2.u16 = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(u2.u16);
+                    val = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(uint16_t);
+                    val2 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(uint16_t);
                     break;
                 case IEEE80211_RADIOTAP_FHSS:
                 case IEEE80211_RADIOTAP_LOCK_QUALITY:
@@ -356,32 +341,32 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     if (!field_fits(2, 2))
                         break;
 
-                    u.u16 = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(u.u16);
+                    val = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(uint16_t);
                     break;
                 case IEEE80211_RADIOTAP_TSFT:
                     if (!field_fits(8, 8))
                         break;
 
-                    u.u64 = EXTRACT_LE_64BITS(iter);
-                    iter += sizeof(u.u64);
+                    val = EXTRACT_LE_64BITS(iter);
+                    iter += sizeof(uint64_t);
                     break;
 #if defined(SYS_OPENBSD)
                 case IEEE80211_RADIOTAP_RSSI:
                     if (!field_fits(1, 2))
                         break;
-                    u.u8 = EXTRACT_LE_8BITS(iter);
-                    iter += sizeof(u.u8);
-                    u2.u8 = EXTRACT_LE_8BITS(iter);
-                    iter += sizeof(u2.u8);
+                    val = EXTRACT_LE_8BITS(iter);
+                    iter += sizeof(uint8_t);
+                    val2 = EXTRACT_LE_8BITS(iter);
+                    iter += sizeof(uint8_t);
                     break;
 #else
                 case IEEE80211_RADIOTAP_RX_FLAGS:
                     if (!field_fits(2, 2))
                         break;
 
-                    u.u16 = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(u.u16);
+                    val = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(uint16_t);
                     break;
                 case IEEE80211_RADIOTAP_VHT:
                     /* TODO actually handle this data */
@@ -424,38 +409,38 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
                     in_pack->signal_info.data_ok = true;
-                    in_pack->signal_info.freq_khz = (double) u.u16 * 1000;
+                    in_pack->signal_info.freq_khz = (double) static_cast<uint16_t>(val) * 1000;
 
                     // handle broken drivers reporting s1g wrong
-                    if (IEEE80211_IS_CHAN_S1G(u2.u16) && in_pack->signal_info.freq_khz > 1e6) {
+                    if (IEEE80211_IS_CHAN_S1G(val2) && in_pack->signal_info.freq_khz > 1e6) {
                         in_pack->signal_info.freq_khz /= 10;
                     }
 
-                    if (IEEE80211_IS_CHAN_S1G(u2.u16))
+                    if (IEEE80211_IS_CHAN_S1G(val2))
                         in_pack->signal_info.carrier = carrier_80211ah;
-                    else if (IEEE80211_IS_CHAN_FHSS(u2.u16))
+                    else if (IEEE80211_IS_CHAN_FHSS(val2))
                         in_pack->signal_info.carrier = carrier_80211fhss;
-                    else if (IEEE80211_IS_CHAN_A(u2.u16))
+                    else if (IEEE80211_IS_CHAN_A(val2))
                         in_pack->signal_info.carrier = carrier_80211a;
-                    else if (IEEE80211_IS_CHAN_BPLUS(u2.u16))
+                    else if (IEEE80211_IS_CHAN_BPLUS(val2))
                         in_pack->signal_info.carrier = carrier_80211bplus;
-                    else if (IEEE80211_IS_CHAN_B(u2.u16))
+                    else if (IEEE80211_IS_CHAN_B(val2))
                         in_pack->signal_info.carrier = carrier_80211b;
-                    else if (IEEE80211_IS_CHAN_PUREG(u2.u16))
+                    else if (IEEE80211_IS_CHAN_PUREG(val2))
                         in_pack->signal_info.carrier = carrier_80211g;
-                    else if (IEEE80211_IS_CHAN_G(u2.u16))
+                    else if (IEEE80211_IS_CHAN_G(val2))
                         in_pack->signal_info.carrier = carrier_80211g;
-                    else if (IEEE80211_IS_CHAN_T(u2.u16))
+                    else if (IEEE80211_IS_CHAN_T(val2))
                         in_pack->signal_info.carrier = carrier_80211a;/*XXX*/
                     else
                         in_pack->signal_info.carrier = carrier_unknown;
-                    if ((u2.u16 & IEEE80211_CHAN_CCK) == IEEE80211_CHAN_CCK)
+                    if ((val2 & IEEE80211_CHAN_CCK) == IEEE80211_CHAN_CCK)
                         in_pack->signal_info.encoding = encoding_cck;
-                    else if ((u2.u16 & IEEE80211_CHAN_OFDM) == IEEE80211_CHAN_OFDM)
+                    else if ((val2 & IEEE80211_CHAN_OFDM) == IEEE80211_CHAN_OFDM)
                         in_pack->signal_info.encoding = encoding_ofdm;
-                    else if ((u2.u16 & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
+                    else if ((val2 & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
                         in_pack->signal_info.encoding = encoding_dynamiccck;
-                    else if ((u2.u16 & IEEE80211_CHAN_GFSK) == IEEE80211_CHAN_GFSK)
+                    else if ((val2 & IEEE80211_CHAN_GFSK) == IEEE80211_CHAN_GFSK)
                         in_pack->signal_info.encoding = encoding_gfsk;
                     else
                         in_pack->signal_info.encoding = encoding_unknown;
@@ -463,26 +448,26 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                 case IEEE80211_RADIOTAP_RATE:
                     /* strip basic rate bit & convert to kismet units */
                     in_pack->signal_info.data_ok = true;
-                    in_pack->signal_info.datarate = ((float) (u.u8 &~ 0x80) / 2) * 10;
+                    in_pack->signal_info.datarate = ((float) (static_cast<uint8_t>(val) &~ 0x80) / 2) * 10;
                     break;
                 case IEEE80211_RADIOTAP_ANTENNA:
-                    record_antenna = u.u8;
+                    record_antenna = static_cast<uint8_t>(val);
                     break;
                 case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-                    record_signal = u.i8;
+                    record_signal = static_cast<int8_t>(static_cast<uint8_t>(val));
                     signal_present = true;
                     break;
                 case IEEE80211_RADIOTAP_DBM_ANTNOISE:
                     in_pack->signal_info.data_ok = true;
                     in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
-                    in_pack->signal_info.noise_dbm = u.i8;
+                    in_pack->signal_info.noise_dbm = static_cast<int8_t>(static_cast<uint8_t>(val));
                     break;
                 case IEEE80211_RADIOTAP_FLAGS:
-                    if (u.u8 & IEEE80211_RADIOTAP_F_FCS) {
+                    if (val & IEEE80211_RADIOTAP_F_FCS) {
                         fcs_cut = 4;
                     }
 
-                    if (u.u8 & IEEE80211_RADIOTAP_F_BADFCS) {
+                    if (val & IEEE80211_RADIOTAP_F_BADFCS) {
                         fcs_flag_invalid = true;
                     }
 
@@ -492,7 +477,7 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     /* Convert to Kismet units...  No reason to use RSSI units
                      * here since we know the conversion factor */
                     radioheader->signal_type = kis_l1_signal_type_dbm;
-                    radioheader->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
+                    radioheader->signal_dbm = int((float(static_cast<uint8_t>(val)) / float(static_cast<uint8_t>(val2)) * 255));
                     break;
 #endif
                 default:

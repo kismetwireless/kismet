@@ -1387,15 +1387,15 @@ public:
         return value.load(order);
     }
 
-    void set(const N in, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+    void set(const N in, std::memory_order order = std::memory_order_seq_cst) noexcept {
         value.store(in, order);
     }
 
-    const N fetch_add(N val, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+    const N fetch_add(N val, std::memory_order order = std::memory_order_seq_cst) noexcept {
         return value.fetch_add(val, order);
     }
 
-    const N fetch_sub(N val, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+    const N fetch_sub(N val, std::memory_order order = std::memory_order_seq_cst) noexcept {
         return value.fetch_sub(val, order);
     }
 
@@ -2474,6 +2474,10 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 // Resolved field ID path
 std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path,
         shared_tracker_element elem);
+
+// Resolve a '/' separated field path to ids once, for paths applied to many elements; empty
+// when any field is unknown
+std::vector<int> resolve_tracker_element_path(const std::string& in_path);
 
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.

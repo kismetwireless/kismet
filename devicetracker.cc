@@ -577,7 +577,7 @@ device_tracker::device_tracker() :
 
                     kis_lock_guard<kis_mutex> mlk(macdevice_mutex, "macdevice add endpoint");
 
-                    for (auto mi : mac_list) {
+                    for (const auto& mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
 
                         if (ek != macdevice_alert_conf_map.end())
@@ -629,7 +629,7 @@ device_tracker::device_tracker() :
 
                     kis_lock_guard<kis_mutex> mlk(macdevice_mutex, "macdevice remove endpoint");
 
-                    for (auto mi : mac_list) {
+                    for (const auto& mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
 
                         if (ek != macdevice_alert_conf_map.end()) {
@@ -668,7 +668,7 @@ device_tracker::device_tracker() :
 
                     kis_lock_guard<kis_mutex> mlk(macdevice_mutex, "macdevice list endpoint");
 
-                    for (auto mi : macdevice_alert_conf_map) {
+                    for (const auto& mi : macdevice_alert_conf_map) {
                         if ((mi.second & type_set))
                             ret->push_back(std::make_shared<tracker_element_mac_addr>(mi.first));
                     }

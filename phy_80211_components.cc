@@ -117,7 +117,7 @@ void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
 
     allowed_macs_vec->clear();
 
-    for (auto i : mvec) {
+    for (const auto& i : mvec) {
         auto e =
             std::make_shared<tracker_element_mac_addr>(allowed_mac_id, i);
         allowed_macs_vec->push_back(e);
@@ -455,7 +455,7 @@ void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_ent
     auto d11dvec = get_tracker_dot11d_vec();
     d11dvec->clear();
 
-    for (auto x : vec) {
+    for (const auto& x : vec) {
         auto ri =
             Globalreg::globalreg->entrytracker->get_shared_instance_as<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
         ri->set_startchan(x.startchan);

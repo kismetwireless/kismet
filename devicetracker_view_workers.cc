@@ -45,6 +45,7 @@ device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in
     int err_offt;
 
     target = in_target;
+    target_path = resolve_tracker_element_path(in_target);
 
     re = pcre_compile(in_regex.c_str(), 0, &compile_error, &err_offt, NULL);
 
@@ -82,6 +83,7 @@ device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in
     match_data = NULL;
 
     target = in_target;
+    target_path = resolve_tracker_element_path(in_target);
 
     re = pcre2_compile((PCRE2_SPTR8) in_regex.c_str(),
        PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, NULL);
@@ -154,7 +156,7 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
     bool matched = false;
 
     for (const auto& i : filter_vec) {
-        auto fields = get_tracker_element_multi_path(i->target, device);
+        auto fields = get_tracker_element_multi_path(i->target_path, device);
 
         for (const auto& fi : fields) {
             std::string val;

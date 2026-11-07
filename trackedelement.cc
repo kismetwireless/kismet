@@ -18,8 +18,10 @@
 
 #include "config.h"
 
-#include <vector>
+#include <span>
 #include <stdexcept>
+#include <type_traits>
+#include <vector>
 
 #include "util.h"
 
@@ -383,13 +385,9 @@ template<> std::string get_tracker_value(const shared_tracker_element& e) {
     if (e->is_stringable())
         return e->as_string();
 
-#ifdef TE_TYPE_SAFETY
     const auto es = fmt::format("invalid trackedelement access id {}, cannot use a {} "
             "as a string", e->get_id(), e->get_type_as_string());
     throw std::runtime_error(es);
-#endif
-
-    return "";
 }
 
 template<> uint8_t get_tracker_value(const shared_tracker_element& e) {
@@ -909,6 +907,112 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
     return next_elem;
 }
 
+namespace {
+    constexpr int path_skip = -2;
+
+    // Field id of one path component; empty names are skipped, and an unknown name or a
+    // negative id ends the path
+    int path_component_id(const std::string& pe) {
+        if (pe.empty())
+            return path_skip;
+
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe[0] == '#' ? pe.substr(1) : pe);
+
+        return id == 0 ? -1 : id;
+    }
+
+    constexpr int path_component_id(int pe) {
+        return pe < 0 ? -1 : pe;
+    }
+
+    template<typename T>
+    void multi_path_into(std::span<const T> path, shared_tracker_element elem,
+            std::vector<shared_tracker_element>& out);
+
+    template<typename C, typename T>
+    void multi_path_each(tracker_element *c, std::span<const T> rest,
+            std::vector<shared_tracker_element>& out) {
+        for (const auto& i : *static_cast<C *>(c)) {
+            if constexpr (std::is_same_v<C, tracker_element_vector>)
+                multi_path_into(rest, i, out);
+            else
+                multi_path_into(rest, i.second, out);
+        }
+    }
+
+    // Containers in the middle of a path are expanded, and the rest of the path is found in
+    // every element of them
+    template<typename T>
+    void multi_path_into(std::span<const T> path, shared_tracker_element elem,
+            std::vector<shared_tracker_element>& out) {
+        if (path.empty() || elem == nullptr)
+            return;
+
+        if (elem->get_type() == tracker_type::tracker_alias)
+            elem = static_cast<tracker_element_alias *>(elem.get())->get();
+
+        shared_tracker_element next_elem;
+
+        for (size_t x = 0; x < path.size(); x++) {
+            auto id = path_component_id(path[x]);
+
+            if (id == path_skip)
+                continue;
+
+            if (id < 0)
+                return;
+
+            auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
+
+            if (cur_map == nullptr)
+                return;
+
+            next_elem = cur_map->get_sub(id);
+
+            if (next_elem == nullptr)
+                return;
+
+            if (x + 1 == path.size())
+                break;
+
+            auto rest = path.subspan(x + 1);
+
+            switch (next_elem->get_type()) {
+                case tracker_type::tracker_vector:
+                    multi_path_each<tracker_element_vector>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_int_map:
+                    multi_path_each<tracker_element_int_map>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_string_map:
+                    multi_path_each<tracker_element_string_map>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_mac_map:
+                    multi_path_each<tracker_element_mac_map>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_macfilter_map:
+                    multi_path_each<tracker_element_macfilter_map>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_double_map:
+                    multi_path_each<tracker_element_double_map>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_hashkey_map:
+                    multi_path_each<tracker_element_hashkey_map>(next_elem.get(), rest, out);
+                    return;
+                case tracker_type::tracker_uuid_map:
+                    multi_path_each<tracker_element_uuid_map>(next_elem.get(), rest, out);
+                    return;
+                default:
+                    break;
+            }
+        }
+
+        // A path of only empty names resolves to nothing
+        if (next_elem != nullptr)
+            out.push_back(std::move(next_elem));
+    }
+}
+
 std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path,
         shared_tracker_element elem) {
     return get_tracker_element_multi_path(str_tokenize(in_path, "/"), elem);
@@ -916,291 +1020,33 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::st
 
 std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path,
         shared_tracker_element elem) {
-
     std::vector<shared_tracker_element> ret;
-
-    if (in_path.size() < 1)
-        return ret;
-
-    if (elem == nullptr)
-        return ret;
-
-    shared_tracker_element next_elem = NULL;
-
-    bool complex_fulfilled = false;
-
-    // Descend down the alias trail
-    if (elem->get_type() == tracker_type::tracker_alias)
-        elem = static_cast<tracker_element_alias *>(elem.get())->get();
-
-    for (auto x = in_path.begin(); x != in_path.end(); ++x) {
-        // Skip empty path element
-        if (x->length() == 0)
-            continue;
-
-        uint16_t id;
-
-        if ((*x)[0] == '#') {
-            id = Globalreg::globalreg->entrytracker->get_field_id(x->substr(1, x->length() - 1));
-        } else {
-            id = Globalreg::globalreg->entrytracker->get_field_id(*x);
-        }
-
-        if (id == 0) {
-            return ret;
-        }
-
-        auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
-
-        if (cur_map == nullptr)
-            return ret;
-
-        next_elem = cur_map->get_sub(id);
-
-        if (next_elem == nullptr) {
-            return ret;
-        }
-
-        // If we're at the termination of the path, we just return the
-        // object.  If we're in the middle of a path, we iterate over the
-        // contents of the container, and find the rest of the path in it
-        if (x != std::next(in_path.end(), -1)) {
-            auto type = next_elem->get_type();
-
-            if (type == tracker_type::tracker_vector) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_vector *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_int_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_int_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_string_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_string_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_mac_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_mac_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_macfilter_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_macfilter_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_double_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_double_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_hashkey_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_hashkey_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_uuid_map) {
-                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
-
-                for (const auto& i : *static_cast<tracker_element_uuid_map *>(next_elem.get())) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            }
-        }
-    }
-
-    if (!complex_fulfilled)
-        ret.push_back(next_elem);
-
+    multi_path_into(std::span<const std::string>(in_path), std::move(elem), ret);
     return ret;
 }
 
 std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path,
         shared_tracker_element elem) {
-
     std::vector<shared_tracker_element> ret;
+    multi_path_into(std::span<const int>(in_path), std::move(elem), ret);
+    return ret;
+}
 
-    if (in_path.size() < 1)
-        return ret;
+std::vector<int> resolve_tracker_element_path(const std::string& in_path) {
+    std::vector<int> ret;
 
-    if (elem == nullptr)
-        return ret;
+    for (const auto& pe : str_tokenize(in_path, "/")) {
+        auto id = path_component_id(pe);
 
-    shared_tracker_element next_elem = nullptr;
+        if (id == path_skip)
+            continue;
 
-    // Descend down the alias trail
-    if (elem->get_type() == tracker_type::tracker_alias)
-        elem = static_cast<tracker_element_alias *>(elem.get())->get();
+        // An unknown field matches nothing, as it would when looked up per element
+        if (id < 0)
+            return {};
 
-    bool complex_fulfilled = false;
-    for (auto x = in_path.begin(); x != in_path.end(); ++x) {
-        int id = *x;
-
-        if (id < 0) {
-            return ret;
-        }
-
-        auto cur_map = path_as_map(next_elem == nullptr ? elem.get() : next_elem.get());
-
-        if (cur_map == nullptr)
-            return ret;
-
-        next_elem = cur_map->get_sub(id);
-
-        if (next_elem == nullptr) {
-            return ret;
-        }
-
-        // If we're at the termination of the path, we just return the
-        // object.  If we're in the middle of a path, we iterate over the
-        // contents of the container, and find the rest of the path in it
-        if (x != std::next(in_path.end(), -1)) {
-            auto type = next_elem->get_type();
-
-            if (type == tracker_type::tracker_vector) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_vector>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_int_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_int_map>(next_elem);
-
-                for (const auto &i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_string_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_string_map>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_mac_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_mac_map>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_macfilter_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_macfilter_map>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_double_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_double_map>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_hashkey_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_hashkey_map>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            } else if (type == tracker_type::tracker_uuid_map) {
-                std::vector<int> sub_path(std::next(x, 1), in_path.end());
-
-                auto cn = std::static_pointer_cast<tracker_element_uuid_map>(next_elem);
-
-                for (const auto& i : *cn) {
-                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
-                    ret.insert(ret.end(), subret.begin(), subret.end());
-                }
-
-                complex_fulfilled = true;
-                break;
-            }
-        }
+        ret.push_back(id);
     }
-
-    if (!complex_fulfilled)
-        ret.push_back(next_elem);
 
     return ret;
 }

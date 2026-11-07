@@ -1014,7 +1014,7 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
             btle_dev->set_random_address_type(rtype);
     }
 
-    for (auto ad : *decode.advertised_data()) {
+    for (const auto& ad : *decode.advertised_data()) {
         if (decode.pdu_type() == decode.pdu_adv_ind() ||
                 decode.pdu_type() == decode.pdu_adv_scan_ind()) {
             if (ad->length() > 31) {
