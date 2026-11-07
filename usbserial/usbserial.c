@@ -585,11 +585,11 @@ static int submit_locked(usbserial_dev_t *dev, struct libusb_transfer *t) {
  * DIAG transfer carries: up to and including the first frame's closing flag.
  *
  * A leading flag goes out alone.  It is the resync a DIAG client writes on open,
- * and the frame queued behind it must not ride in the same transfer: an SDX62
- * userspace diag-router (an RM520N-GL over MHI, an Inseego FX3100) drops a whole
- * write that begins with a lone 0x7e, the frame in it included, while it answers
- * the flag and the frame sent separately.  A modem that wants the flush still
- * gets it, one transfer earlier.  A modem that drops it loses an empty frame. */
+ * and the frame queued behind it must not ride in the same transfer: SDX6x
+ * userspace diag-router firmware stops decoding a write at an empty frame, so
+ * one that begins with a lone 0x7e loses the frame after it.  The host tty
+ * drivers already send the flag in its own write.  A modem that wants the flush
+ * still gets it, one transfer earlier.  A modem that drops it loses an empty frame. */
 static size_t diag_xfer_len(const uint8_t *q, size_t qsize, size_t head, size_t len) {
     size_t i;
 
