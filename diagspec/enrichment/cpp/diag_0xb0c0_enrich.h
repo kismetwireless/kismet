@@ -23,6 +23,13 @@ namespace diag_0xb0c0_enrich {
 // "0x%02X" (upper-case, two hex digits).
 std::string channel_name(uint8_t version, uint8_t ct);
 
+// True when the version's table names channel_type `ct` (channel_name() then
+// returns a name, not the hex fallback).
+bool channel_known(uint8_t version, uint8_t ct);
+
+// True when the version's table maps some channel_type to `name`.
+bool version_names_channel(uint8_t version, const std::string& name);
+
 // Derived logic: sib_mask bit N (1..31) set <=> SIB N present. bit0 unused.
 std::vector<int> sibs_present(uint32_t sib_mask);
 

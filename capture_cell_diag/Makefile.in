@@ -332,14 +332,18 @@ $(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
 # PREVIOUS selftest binary ran against the old legs and read green.
 DIAGSPEC_HDRS = $(wildcard ../diagspec/enrichment/cpp/*.h ../diagspec/generated/cpp/*.h)
 $(TEST_NATIVE_BIN):	test_diag_native_decode.c diag_native_decode.cpp diag_native_decode.h \
+			diag_inventory.c diag_inventory.h \
 			$(DIAGSPEC_SRCS) $(DIAGSPEC_HDRS)
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c test_diag_native_decode.c \
 		    -o test_diag_native_decode.c.o
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c diag_inventory.c \
+		    -o test_diag_native_inventory.c.o
 		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -c diag_native_decode.cpp \
 		    -o diag_native_decode.cpp.o
 		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. \
 		    -o $(TEST_NATIVE_BIN) test_diag_native_decode.c.o \
-		    diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS)
+		    test_diag_native_inventory.c.o \
+		    diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS) -lm
 
 $(TEST_HDLC_BIN):	diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_HDLC_SELFTEST -o $(TEST_HDLC_BIN) \
@@ -431,7 +435,7 @@ $(TEST_LOGSTREAM_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
 endif
 
 clean:
-	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o diag_native_decode.cpp.o
+	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o test_diag_native_inventory.c.o diag_native_decode.cpp.o
 	@-rm -f $(MONITOR_BIN)
 	@-rm -f $(PROBE_BIN)
 	@-rm -f $(TEST_CLOCKANCHOR_BIN)

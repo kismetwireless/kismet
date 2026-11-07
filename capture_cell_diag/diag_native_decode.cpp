@@ -157,13 +157,13 @@ extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
     if (payload == nullptr)
         return 0;
 
-    const std::string blob(reinterpret_cast<const char *>(payload), payload_len);
     size_t n = 0;
 
     // A leg is not expected to throw -- each one already guards its own record
     // -- but this shim is the C/C++ boundary, and an exception escaping into a C
     // caller is undefined behaviour, not a caught error. Contain it here.
     try {
+        const std::string blob(reinterpret_cast<const char *>(payload), payload_len);
         switch (log_code) {
             case 0x512F: {
                 // GSM System Information Type 3 -> one identity, never serving.
@@ -220,10 +220,13 @@ extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
                 auto cells = diag_0xb0c0_observation::observations(blob, &why);
                 if (refused != nullptr)
                     *refused = diag_0xb0c0_observation::is_refusal(why);
-                // Not a SIB1 channel: the parse completed (version and length
-                // were already accepted) and the record cannot carry identity.
+                // A non-SIB1 channel, or a SystemInformation (SIB2+) message:
+                // the parse completed and the record cannot carry identity.  An
+                // unnamed channel on a version whose table lacks BCCH-DL-SCH
+                // isn't gated; it may be a SIB1 the census should keep reporting.
                 if (gated != nullptr)
-                    *gated = (why == diag_0xb0c0_observation::Decline::kNotSib1Channel);
+                    *gated = (why == diag_0xb0c0_observation::Decline::kNotSib1Channel ||
+                              why == diag_0xb0c0_observation::Decline::kSystemInfo);
                 for (const auto& c : cells) {
                     if (n >= max_obs) break;
                     init_obs(&out_obs[n], "LTE", 0xB0C0);
@@ -357,7 +360,12 @@ extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
                 return -1;
         }
     } catch (...) {
-        return 0;                        // malformed record -> no observations
+        // Whatever escaped the leg, the record was not decoded: refused
+        if (refused != nullptr)
+            *refused = true;
+        if (gated != nullptr)
+            *gated = false;
+        return 0;
     }
 
     return static_cast<int>(n);
