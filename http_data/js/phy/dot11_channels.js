@@ -3,7 +3,7 @@
 // over the 20 MHz channels it covers, the way Wi-Fi channels are laid out on
 // the air.  DFS channels, the UNII sub-bands, and 6 GHz preferred scanning
 // channels are marked, and each 20 MHz channel shows how many devices Kismet
-// heard there in the last minute.
+// heard there in the last minute, and its share of retried frames.
 //
 // Channels are the source's own strings (as linuxwifi and the other Wi-Fi
 // drivers list them): "6", "6HT20", "36HT40+", "40HT40-", "36VHT80",
@@ -158,7 +158,7 @@ export function registerChannelPicker(kismet, isWifiSource) {
 
     // Device counts per frequency, shared by every open picker, read every few
     // seconds while one is showing
-    const activity = { byMhz: new Map(), users: 0, timer: null, at: 0 };
+    const activity = { byMhz: new Map(), retryByMhz: new Map(), users: 0, timer: null, at: 0 };
     async function readActivity() {
         if (activity.users === 0)
             return;
@@ -167,12 +167,20 @@ export function registerChannelPicker(kismet, isWifiSource) {
                 const r = await api.get('channels/channels.json');
                 const now = clock.isKnown() ? clock.now() : undefined;
                 const next = new Map();
+                const nextRetry = new Map();
+                const sum = (v) => rrd.history(v, now).reduce((a, x) => a + x, 0);
                 for (const rec of Object.values(r['kismet.channeltracker.frequency_map'] ?? {})) {
                     const khz = rec['kismet.channelrec.frequency'];
-                    if (khz)
-                        next.set(Math.round(khz / 1000), rrd.recent(rec['kismet.channelrec.device_rrd'], now, 60, 'max'));
+                    if (!khz)
+                        continue;
+                    const mhz = Math.round(khz / 1000);
+                    next.set(mhz, rrd.recent(rec['kismet.channelrec.device_rrd'], now, 60, 'max'));
+                    const frames = sum(rec['kismet.channelrec.retry_frames_rrd']);
+                    if (frames)
+                        nextRetry.set(mhz, { pct: 100 * sum(rec['kismet.channelrec.retry_rrd']) / frames, noise: rec['kismet.channelrec.noise'] === true });
                 }
                 activity.byMhz = next;
+                activity.retryByMhz = nextRetry;
                 activity.at = Date.now();
             } catch {
                 // keep the last reading
@@ -373,7 +381,7 @@ export function registerChannelPicker(kismet, isWifiSource) {
                 otherWrap.hidden = unplaced.length === 0;
             }
 
-            function cellTitle(b, on, devices) {
+            function cellTitle(b, on, devices, retry) {
                 const i = b.info;
                 if (i.band === 'other')
                     return b.chans[0];
@@ -384,6 +392,10 @@ export function registerChannelPicker(kismet, isWifiSource) {
                     parts.push('preferred scanning channel');
                 if (devices !== undefined)
                     parts.push(`${format.count(devices)} device${devices === 1 ? '' : 's'} heard in the last minute`);
+                if (retry)
+                    parts.push(`${retry.pct.toFixed(retry.pct < 10 ? 1 : 0)}% of frames retried in the last minute`);
+                if (retry?.noise)
+                    parts.push('possible interference: many retries from several transmitters');
                 parts.push(st.mode === 'lock' ? 'click to lock to it' : on ? 'click to stop hopping on it' : 'click to hop on it too');
                 return parts.join('\n');
             }
@@ -407,14 +419,16 @@ export function registerChannelPicker(kismet, isWifiSource) {
                         b.node.classList.toggle('on', on);
                         b.node.classList.toggle('pending', state.pending && on);
                         b.node.classList.toggle('lock', state.mode === 'lock');
-                        let devices;
+                        let devices, retry;
                         if (b.act) {
                             devices = activity.byMhz.get(center(b.info.band, b.info.primary));
+                            retry = activity.retryByMhz.get(center(b.info.band, b.info.primary));
                             const v = devices ?? 0;
                             b.act.style.height = v ? `${Math.max(12, Math.round(100 * v / maxAct))}%` : '0';
                             b.act.style.opacity = v ? '1' : '0';
                         }
-                        b.node.title = cellTitle(b, on, devices);
+                        b.node.classList.toggle('noisy', retry?.noise === true);
+                        b.node.title = cellTitle(b, on, devices, retry);
                     }
                     for (const [band, e] of bandEls) {
                         const inBand = blocks.filter((b) => b.info.band === band);

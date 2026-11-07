@@ -2,12 +2,17 @@
 // per 20 MHz channel, grouped by band; the newest time at the top.  The top
 // block is the last minute a second per row, the block under it the last
 // hour a minute per row, so a burst shows at once and a pattern over the hour.
+// A strip under the channel numbers shows the share of data and management
+// frames that were retries over the last minute, marking channels the server
+// flags as possibly noisy: many retries from several transmitters.
 
 import { center, isDfs, isPsc } from './dot11_channels.js';
 
 const ch5 = [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161, 165];
 const gutter = 54;
 const head = 38;
+const strip = 14;
+const top1 = head + strip;
 const secRow = 3;
 const minRow = 4;
 const gap = 12;
@@ -26,7 +31,9 @@ export function registerAirspace(kismet) {
             node.classList.add('as');
             node.append(summary, scroller, tip, el('div', { class: 'cg-hint muted' },
                 'Packets heard on each channel; darker is busier.  A hopping source hears each channel only part of the time, ' +
-                'so compare channels it visits equally.'));
+                'so compare channels it visits equally.  The strip under the channel numbers is the share of frames that were ' +
+                'retries in the last minute; a channel outlined there is retrying across several transmitters, which can mean ' +
+                'interference Kismet can\'t decode.'));
 
             let freqs = new Map();      // MHz -> channel record
             let timer = null;
@@ -65,6 +72,18 @@ export function registerAirspace(kismet) {
                 return rrd.history(rec['kismet.channelrec.packets_rrd'], now, span);
             }
 
+            // Retries over the last minute -> { pct, frames, noise, rec } or null
+            function retries(mhz) {
+                const rec = freqs.get(mhz);
+                if (!rec)
+                    return null;
+                const now = clock.isKnown() ? clock.now() : undefined;
+                const sum = (name) => rrd.history(rec[name], now).reduce((a, v) => a + v, 0);
+                const frames = sum('kismet.channelrec.retry_frames_rrd');
+                return { pct: frames ? 100 * sum('kismet.channelrec.retry_rrd') / frames : null, frames,
+                    noise: rec['kismet.channelrec.noise'] === true, rec };
+            }
+
             function draw() {
                 const width = scroller.clientWidth;
                 if (!width || !columns.length)
@@ -72,11 +91,12 @@ export function registerAirspace(kismet) {
                 const bands = [...new Set(columns.map((c) => c.band))];
                 const cw = Math.max(10, (width - gutter - gap * (bands.length - 1) - 4) / columns.length);
                 const w = gutter + cw * columns.length + gap * (bands.length - 1) + 4;
-                const top2 = head + 60 * secRow + 18;
+                const top2 = top1 + 60 * secRow + 18;
                 const h = top2 + 60 * minRow + 6;
                 const c = dom.scaleCanvas(canvas, w, h);
                 const col = (name) => theme.themeColor(name) || '#888';
                 const accent = col('--accent'), muted = col('--muted'), text = col('--text'), warn = col('--warn'), border = col('--border');
+                const error = col('--error');
 
                 // x of each column, with a gap between bands
                 let x = gutter;
@@ -118,17 +138,40 @@ export function registerAirspace(kismet) {
                     }
                 });
 
+                // retry strip: darker is more retries, 50% and up is full
+                c.font = '8.5px system-ui, sans-serif';
+                columns.forEach((cc, i) => {
+                    const rt = retries(cc.mhz);
+                    if (!r || r.pct === null)
+                        return;
+                    const y = head, sh = strip - 3;
+                    c.globalAlpha = 0.1 + 0.9 * Math.min(1, r.pct / 50);
+                    c.fillStyle = r.noise ? error : warn;
+                    c.fillRect(xs[i] + 0.5, y, cw - 1, sh);
+                    c.globalAlpha = 1;
+                    if (r.noise) {
+                        c.strokeStyle = error;
+                        c.lineWidth = 1.5;
+                        c.strokeRect(xs[i] + 1, y + 0.5, cw - 2, sh - 1);
+                    }
+                    if (cw >= 18) {
+                        c.fillStyle = text;
+                        c.fillText(`${Math.round(r.pct)}`, xs[i] + cw / 2, y + sh - 2.5);
+                    }
+                });
+
                 // time axis
                 c.textAlign = 'right';
                 c.fillStyle = muted;
                 c.font = '10px system-ui, sans-serif';
-                c.fillText('now', gutter - 6, head + 8);
-                c.fillText('-30s', gutter - 6, head + 30 * secRow + 4);
-                c.fillText('-1m', gutter - 6, head + 60 * secRow);
+                c.fillText('retry %', gutter - 6, head + 9);
+                c.fillText('now', gutter - 6, top1 + 8);
+                c.fillText('-30s', gutter - 6, top1 + 30 * secRow + 4);
+                c.fillText('-1m', gutter - 6, top1 + 60 * secRow);
                 c.fillText('-30m', gutter - 6, top2 + 30 * minRow + 4);
                 c.fillText('-1h', gutter - 6, top2 + 60 * minRow);
                 c.textAlign = 'left';
-                c.fillText('▲ the last minute, a second per row     ▼ the last hour, a minute per row', gutter, head + 60 * secRow + 13);
+                c.fillText('▲ the last minute, a second per row     ▼ the last hour, a minute per row', gutter, top1 + 60 * secRow + 13);
 
                 const block = (data, top, rowH, lmax) => {
                     columns.forEach((cc, i) => {
@@ -151,7 +194,7 @@ export function registerAirspace(kismet) {
                     }
                 };
                 const d0 = (data) => Math.max(1, ...data.map((d) => d.length));
-                block(sec, head, secRow, ls);
+                block(sec, top1, secRow, ls);
                 block(hour, top2, minRow, lh);
             }
 
@@ -166,10 +209,14 @@ export function registerAirspace(kismet) {
                 const busiest = [...ranked].sort((a, b) => b.t - a.t).slice(0, 3).filter((r) => r.t > 0);
                 const quiet24 = [1, 6, 11].map((n) => ranked.find((r) => r.cc.band === '2.4' && r.cc.n === n)).filter(Boolean).sort((a, b) => a.t - b.t)[0];
                 const quiet5 = ranked.filter((r) => r.cc.band === '5' && !isDfs(r.cc.mhz)).sort((a, b) => a.t - b.t)[0];
+                const noisy = ranked.filter((r) => freqs.get(r.cc.mhz)['kismet.channelrec.noise'] === true);
                 replace(summary, el('p', {},
                     busiest.length ? `Busiest over the hour: ${busiest.map((r) => `${named(r.cc)} (${format.count(Math.round(r.t * 60))} packets)`).join(', ')}.  ` : '',
                     quiet24 ? `Quietest of 1, 6 and 11: ${quiet24.cc.n}.  ` : '',
-                    quiet5 ? `Quietest 5 GHz channel without radar rules: ${quiet5.cc.n}.` : ''));
+                    quiet5 ? `Quietest 5 GHz channel without radar rules: ${quiet5.cc.n}.` : ''),
+                noisy.length ? el('p', { class: 'warn-text' },
+                    `Possible interference on ${noisy.map((r) => named(r.cc)).join(', ')}: ` +
+                    'many frames there are retries, from several transmitters.') : null);
             }
 
             async function read() {
@@ -201,23 +248,35 @@ export function registerAirspace(kismet) {
                 const mx = ev.clientX - r.left, my = ev.clientY - r.top;
                 const i = layout.xs.findIndex((x0) => mx >= x0 && mx < x0 + layout.cw);
                 let span = null, k = -1;
-                if (my >= head && my < head + 60 * secRow) {
+                if (my >= top1 && my < top1 + 60 * secRow) {
                     span = 'minute';
-                    k = Math.floor((my - head) / secRow);
+                    k = Math.floor((my - top1) / secRow);
                 } else if (my >= layout.top2 && my < layout.top2 + 60 * minRow) {
                     span = 'hour';
                     k = Math.floor((my - layout.top2) / minRow);
                 }
-                if (i < 0 || !span) {
+                const onStrip = my >= head && my < top1;
+                if (i < 0 || (!span && !onStrip)) {
                     tip.hidden = true;
                     return;
                 }
                 const cc = columns[i];
-                const d = series(cc.mhz, span)?.slice(0, -1) ?? [];
-                const v = d[d.length - 1 - k] ?? 0;
-                const when = span === 'minute' ? `${k + 1} s ago` : `${k + 1} min ago`;
-                replace(tip, el('b', {}, `Channel ${cc.n}`), el('div', {}, `${cc.mhz} MHz${cc.band === '5' && isDfs(cc.mhz) ? ', DFS' : ''}`),
-                    el('div', {}, `${when}: ${format.count(Math.round(v * 10) / 10)} packets${span === 'hour' ? '/s on average' : ''}`));
+                const lines = [el('b', {}, `Channel ${cc.n}`), el('div', {}, `${cc.mhz} MHz${cc.band === '5' && isDfs(cc.mhz) ? ', DFS' : ''}`)];
+                if (span) {
+                    const d = series(cc.mhz, span)?.slice(0, -1) ?? [];
+                    const v = d[d.length - 1 - k] ?? 0;
+                    const when = span === 'minute' ? `${k + 1} s ago` : `${k + 1} min ago`;
+                    lines.push(el('div', {}, `${when}: ${format.count(Math.round(v * 10) / 10)} packets${span === 'hour' ? '/s on average' : ''}`));
+                }
+                const rt = retries(cc.mhz);
+                if (rt?.pct != null)
+                    lines.push(el('div', {}, `Retries in the last minute: ${rt.pct.toFixed(rt.pct < 10 ? 1 : 0)}% of ${format.count(rt.frames)} frames`));
+                if (rt?.noise) {
+                    const rec = rt.rec;
+                    lines.push(el('div', { class: 'warn-text' }, `Possible interference: ${Math.round(rec['kismet.channelrec.noise_retry_pct'] ?? 0)}% retries ` +
+                        `from ${format.count(rec['kismet.channelrec.noise_retry_tx'] ?? 0)} transmitters`));
+                }
+                replace(tip, ...lines);
                 tip.hidden = false;
                 const nr = node.getBoundingClientRect();
                 tip.style.left = `${Math.min(ev.clientX - nr.left + 14, nr.width - tip.offsetWidth - 8)}px`;

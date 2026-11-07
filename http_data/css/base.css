@@ -1691,6 +1691,7 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
 .wc-span[hidden] { display: none; }
 .wc-break { position: absolute; top: -2px; bottom: 0; background: repeating-linear-gradient(90deg, transparent 0 3px, var(--border) 3px 4px); opacity: 0.6; }
 .wc-cell.covered { background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+.wc-cell.noisy { border-color: var(--error); }
 
 /* Insights tab (js/base/insights.js, js/widgets/insights/) */
 .tab-body.insights { display: flex; flex-direction: column; min-height: 0; }
