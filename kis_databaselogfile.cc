@@ -1190,6 +1190,8 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert device in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        // An unfinalized statement keeps the database from closing
+        sqlite3_finalize(device_stmt);
         close_log();
         return -1;
     }
@@ -1595,6 +1597,8 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert datasource in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        // An unfinalized statement keeps the database from closing
+        sqlite3_finalize(datasource_stmt);
         close_log();
         return -1;
     }
@@ -1686,6 +1690,8 @@ int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_ale
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert alert in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        // An unfinalized statement keeps the database from closing
+        sqlite3_finalize(alert_stmt);
         close_log();
         return -1;
     }
@@ -1771,6 +1777,8 @@ int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& 
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert snapshot in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        // An unfinalized statement keeps the database from closing
+        sqlite3_finalize(snapshot_stmt);
         close_log();
         return -1;
     }
