@@ -77,6 +77,7 @@ rule apple-continuity {
     when exists(btle.device/btle.device.adv/bluetooth.adv.continuity) or
         exists(bluetooth.device/bluetooth.device.adv/bluetooth.adv.continuity)
     tag "apple continuity"
+    color "#c9f2c0"
     view "Apple Continuity Devices"
 }
 
