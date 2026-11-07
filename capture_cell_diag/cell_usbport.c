@@ -452,7 +452,10 @@ static void *bridge_thread(void *arg) {
 /* g_lock held. Whether this process's holder of the interface has closed its
  * fd: its bridge sees the hangup at once, its thread may not have yet. */
 static int holder_gone_locked(const usbport_bridge_t *b) {
-    struct pollfd pfd = { b->bfd, 0, 0 };
+    /* POLLIN, though only the hangup is wanted: macOS reports a closed peer's
+     * POLLHUP only alongside a requested event, and with none requested an
+     * immediate reopen in the same process failed with EWOULDBLOCK */
+    struct pollfd pfd = { b->bfd, POLLIN, 0 };
 
     if (b->closing)
         return 1;
