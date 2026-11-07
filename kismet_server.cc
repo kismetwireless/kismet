@@ -171,12 +171,22 @@ int plugins = 1;
 
 // One of our few globals in this file
 int glob_linewrap = 1;
-int glob_silent = 0;
+// Set by main once started, read by the eventbus thread
+std::atomic<int> glob_silent{0};
 
+// Filled by the eventbus thread, printed by main at shutdown
+std::mutex fatal_msg_mutex;
 std::list<std::string> fatal_msg_queue;
 
 void print_fatal_messages() {
-    for (auto m : fatal_msg_queue) {
+    std::list<std::string> msgs;
+
+    {
+        std::lock_guard<std::mutex> lk(fatal_msg_mutex);
+        msgs = fatal_msg_queue;
+    }
+
+    for (const auto& m : msgs) {
         if (glob_linewrap)
             fprintf(stderr, "%s", in_line_wrap(m, 7, 80).c_str());
         else
@@ -670,6 +680,7 @@ int main(int argc, char *argv[], char *envp[]) {
                 auto msg = std::static_pointer_cast<tracked_message>(msg_k->second);
 
                 if (msg->get_flags() & MSGFLAG_FATAL) {
+                    std::lock_guard<std::mutex> lk(fatal_msg_mutex);
                     fatal_msg_queue.push_back(fmt::format("FATAL - {}", msg->get_message()));
 
                     if (fatal_msg_queue.size() > 50)
