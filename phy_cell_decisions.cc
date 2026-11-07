@@ -185,7 +185,7 @@ uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn) {
  * test_earfcn_to_band_matches_the_helper_table sweeps 0..80000, so the server
  * and the DIAG path cannot label the same cell with different bands. */
 struct lte_band_row { uint32_t lo; uint32_t hi; int band; };
-static const lte_band_row kLteBands[] = {
+static constexpr lte_band_row kLteBands[] = {
         {    0,   599,  1}, {  600,  1199,  2}, { 1200,  1949,  3},
         { 1950,  2399,  4}, { 2400,  2649,  5}, { 2650,  2749,  6},
         { 2750,  3449,  7}, { 3450,  3799,  8}, { 3800,  4149,  9},
@@ -243,9 +243,16 @@ int label_band(const std::string& rat, int current, int incoming,
 
     /* Only LTE has a band table here; for anything else the newest report
      * names the device, as before. */
+    if (rat != "LTE")
+        return incoming;
+
+    /* Without a frequency there's no telling a second name for the carrier
+     * from a move, so keep the label rather than flip it per report. */
+    if (freq_khz == 0)
+        return current;
+
     uint64_t c_lo, c_hi, i_lo, i_hi;
-    if (rat != "LTE" || freq_khz == 0 ||
-            !lte_band_dl_khz(current, &c_lo, &c_hi) ||
+    if (!lte_band_dl_khz(current, &c_lo, &c_hi) ||
             !lte_band_dl_khz(incoming, &i_lo, &i_hi))
         return incoming;
 
