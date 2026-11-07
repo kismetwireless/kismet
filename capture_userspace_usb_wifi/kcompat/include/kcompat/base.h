@@ -59,6 +59,19 @@ typedef int16_t __s16;
 typedef int32_t __s32;
 typedef int64_t __s64;
 
+/* The 128 bit types the real <linux/types.h> provides, directly or through <asm/types.h>.
+ * libc headers include <linux/types.h> too and get this one: <signal.h> pulls in
+ * <asm/sigcontext.h>, which uses __u128 on arm64 and __vector128 on powerpc. */
+#ifdef __SIZEOF_INT128__
+typedef signed __int128 __s128 __attribute__((aligned(16)));
+typedef unsigned __int128 __u128 __attribute__((aligned(16)));
+#endif
+#ifdef __powerpc__
+typedef struct {
+    __u32 u[4];
+} __attribute__((aligned(16))) __vector128;
+#endif
+
 typedef uint16_t __le16;
 typedef uint32_t __le32;
 typedef uint64_t __le64;
