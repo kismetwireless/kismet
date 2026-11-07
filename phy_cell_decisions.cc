@@ -506,7 +506,7 @@ const std::vector<std::string>& prov_field_keys() {
     /* Verbatim from prov_contributed_fields in phy_cell.cc. */
     static const std::vector<std::string> keys = {
         "rat", "mcc", "mnc", "tac", "cell_id", "pci", "earfcn",
-        "band", "bandwidth", "rsrp", "rsrq", "sinr", "rssi",
+        "band", "bandwidth", "rsrp", "rsrq", "sinr", "snr", "rssi",
         "operator_name", "duplex", "cqi",
     };
     return keys;

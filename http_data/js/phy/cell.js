@@ -220,6 +220,7 @@ export function register(kismet) {
     filterHint('cell_rsrp', ['rsrp'], 'rsrp', numeric);
     filterHint('cell_rsrq', ['rsrq'], 'rsrq', numeric);
     filterHint('cell_sinr', ['sinr'], 'sinr', numeric);
+    filterHint('cell_snr', ['snr'], 'snr', numeric);
     filterHint('cell_cqi', ['cqi'], 'cqi', { filterKind: 'number', filterEmpty: -1 });
 
     const { el, replace } = dom;
@@ -302,6 +303,8 @@ export function register(kismet) {
                 help: 'Reference signal received quality, which counts interference and load; closer to 0 is better.' },
             { title: 'SINR', field: c('sinr'), hideZero: true, format: (v) => `${v} dB`,
                 help: 'Signal to interference and noise ratio; higher is better.' },
+            { title: 'SNR', field: c('snr'), hideZero: true, format: (v) => `${v} dB`,
+                help: 'Signal to noise ratio.  Unlike SINR it leaves out interference, so the two can differ widely.  Only some modems report it.' },
             { title: 'CQI', field: c('cqi'), show: (v) => typeof v === 'number' && v >= 0,
                 help: 'Channel quality indicator (0-15) a connected modem reported for the downlink; higher is better.  Only some Quectel modems report it.' },
             { title: 'RSRP range', value: (dev) => {

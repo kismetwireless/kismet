@@ -771,6 +771,11 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     if (sinr_j.is_number())
         celldev->set_cell_sinr(sinr_j.get<int16_t>());
 
+    // SNR is its own quantity, never folded into SINR
+    auto snr_j = json["snr"];
+    if (snr_j.is_number())
+        celldev->set_cell_snr(snr_j.get<int16_t>());
+
     auto rssi_j = json["rssi"];
     if (rssi_j.is_number())
         celldev->set_cell_rssi(rssi_j.get<int16_t>());

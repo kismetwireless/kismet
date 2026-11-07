@@ -64,6 +64,11 @@
  * example only; no registered NR +CPSI? line has been captured yet. Treat the
  * NR branches as manual-grounded, not measured.
  *
+ * 4. <RSSNR> IS AN SNR, NOT A SINR. It is the reference-signal SNR and counts
+ *    no interference, so it is emitted as "snr" and never as "sinr": the two
+ *    disagree by many dB in a loaded cell, and Quectel and Sierra parsers in
+ *    this tree emit a real SINR under that key.
+ *
  * GSM and WCDMA forms are deliberately NOT decoded. They have their own field
  * layouts and this source targets 4G/5G modems, so a GSM branch would be
  * untestable code carrying a guess.
@@ -207,11 +212,11 @@ static int parse_cpsi(const char *response, char json_out[][JSON_BUF_MAX],
         const char *mcc = NULL, *mnc = NULL;   /* as-broadcast digit strings */
         char mcc_buf[8] = "", mnc_buf[8] = "";
         long pci = 0, earfcn = 0, band = 0, bw = 0;
-        long rsrp = 0, rsrq = 0, sinr = 0, rssi = 0;
+        long rsrp = 0, rsrq = 0, snr = 0, rssi = 0;
         unsigned long cell_id = 0, tac = 0;
         long cell_dec = 0;
         int h_pci = 0, h_earfcn = 0, h_band = 0, h_bw = 0;
-        int h_rsrp = 0, h_rsrq = 0, h_sinr = 0, h_cell_id = 0, h_tac = 0;
+        int h_rsrp = 0, h_rsrq = 0, h_snr = 0, h_cell_id = 0, h_tac = 0;
         int h_rssi = 0;
         const char *rat = NULL;
         const char *obs_type = "serving";
@@ -250,7 +255,7 @@ static int parse_cpsi(const char *response, char json_out[][JSON_BUF_MAX],
             if (nf > 12)
                 h_rssi = parse_int(fields[12], &rssi);
             if (nf > 13)
-                h_sinr = parse_int(fields[13], &sinr);
+                h_snr = parse_int(fields[13], &snr);
             break;
 
         case CPSI_FORM_NR_SA:
@@ -270,7 +275,7 @@ static int parse_cpsi(const char *response, char json_out[][JSON_BUF_MAX],
             h_earfcn = parse_int(fields[6], &earfcn);
             h_rsrp = parse_int(fields[7], &rsrp);
             h_rsrq = parse_int(fields[8], &rsrq);
-            h_sinr = parse_int(fields[9], &sinr);
+            h_snr = parse_int(fields[9], &snr);
             break;
 
         case CPSI_FORM_NR_ENDC:
@@ -284,7 +289,7 @@ static int parse_cpsi(const char *response, char json_out[][JSON_BUF_MAX],
             h_earfcn = parse_int(fields[2], &earfcn);
             h_rsrq = parse_int(fields[3], &rsrq);
             h_rsrp = parse_int(fields[4], &rsrp);
-            h_sinr = parse_int(fields[5], &sinr);
+            h_snr = parse_int(fields[5], &snr);
             break;
 
         case CPSI_FORM_NONE:
@@ -302,9 +307,12 @@ static int parse_cpsi(const char *response, char json_out[][JSON_BUF_MAX],
             if (h_rsrq) rsrq /= pscale;
             if (h_rssi) rssi /= pscale;
         }
-        long sscale = snr_scale_of(sinr, h_sinr);
+        long sscale = snr_scale_of(snr, h_snr);
         if (sscale != 1)
-            sinr /= sscale;
+            snr /= sscale;
+
+        /* The shared builder's signal slots are SINR and RSSI, so SINR is
+         * passed as absent and the SNR is appended under its own key. */
 
         build_cell_json(json_out[obs_count], JSON_BUF_MAX,
                         rat, NULL,
@@ -313,8 +321,10 @@ static int parse_cpsi(const char *response, char json_out[][JSON_BUF_MAX],
                         tac, h_tac, earfcn, h_earfcn,
                         band, h_band, bw, h_bw,
                         rsrp, h_rsrp, rsrq, h_rsrq,
-                        sinr, h_sinr, rssi, h_rssi,
+                        0, 0, rssi, h_rssi,
                         obs_type, 1, NULL);
+        if (h_snr)
+            cell_json_add_long(json_out[obs_count], JSON_BUF_MAX, "snr", snr);
         obs_count++;
 
         line = strtok_r(NULL, "\n", &saveptr);

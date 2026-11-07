@@ -74,6 +74,24 @@ static void check_lacks(const char *json, const char *frag, const char *what) {
     }
 }
 
+/* An exact integer value for "key". check_has on "\"snr\":15" would also
+ * match an unscaled "snr":153, which is the very value the tenths rule must
+ * not let through. */
+static void check_long(const char *json, const char *key, long want,
+                       const char *what) {
+    char pat[64];
+    snprintf(pat, sizeof(pat), "\"%s\":", key);
+    const char *p = strstr(json, pat);
+    char *end = NULL;
+    long got = p ? strtol(p + strlen(pat), &end, 10) : 0;
+    if (p && end != p + strlen(pat) && (*end == ',' || *end == '}') && got == want) {
+        printf("  OK    %s\n", what);
+    } else {
+        printf("  FAIL  %s (expected %s%ld)\n     in: %s\n", what, pat, want, json);
+        g_fails++;
+    }
+}
+
 /* --- MEASURED. A SIM7600NA (LE20B01SIM7600NA), verbatim from an AT survey.
  *     RSRQ -125 / RSRP -987 / RSSI -663 are dBm x10. --- */
 static const char *CPSI_LTE_TENTHS =
@@ -127,6 +145,15 @@ static const char *CPSI_NOT_IN_ENDC =
     "+CPSI: NOT IN EN-DC CONNECTED MODE\n"
     "OK\n";
 
+/* --- SYNTHETIC. An LTE line whose tail stops after RSSI (PLMN 001-01,
+ *     TAC 0x1234, cell ID 0xABCDE1, PCI 1, EARFCN 100). The form gate accepts
+ *     it, so it must yield an observation with no SNR at all, rather than one
+ *     with an SNR of 0. --- */
+static const char *CPSI_LTE_NO_RSSNR =
+    "+CPSI: LTE,Online,001-01,0x1234,11259361,1,EUTRAN-BAND1,100,5,5,"
+    "-125,-987,-663\n"
+    "OK\n";
+
 /* --- MANUAL. SIM8200 §4.2.14 GSM example. Deliberately NOT decoded. --- */
 static const char *CPSI_GSM =
     "+CPSI: GSM,Online,460-00,0x182d,12401,27 EGSM 900,-64,2110,42-42\n"
@@ -159,7 +186,8 @@ int main(void) {
         check_has(obs[0], "\"rsrp\":-98", "rsrp -987 -> -98 dBm");
         check_has(obs[0], "\"rsrq\":-12", "rsrq -125 -> -12 dB (column BEFORE rsrp)");
         check_has(obs[0], "\"rssi\":-66", "rssi -663 -> -66 dBm");
-        check_has(obs[0], "\"sinr\":10", "rssnr 10 left alone -- in range for whole dB");
+        check_long(obs[0], "snr", 10, "rssnr 10 left alone -- in range for whole dB");
+        check_lacks(obs[0], "\"sinr\"", "rssnr is an SNR: no sinr key");
         check_has(obs[0], "\"observation_type\":\"serving\"", "serving");
     }
 
@@ -175,6 +203,7 @@ int main(void) {
         check_has(obs[0], "\"rssi\":-110", "rssi -110 NOT rescaled");
         check_has(obs[0], "\"band\":5", "band");
         check_has(obs[0], "\"cell_id\":187212754", "cell_id");
+        check_long(obs[0], "snr", 13, "rssnr 13 as snr");
     }
 
     printf("\n[3] EN-DC -- TWO scales in ONE response\n");
@@ -193,7 +222,10 @@ int main(void) {
         check_has(obs[1], "\"rsrq\":-11", "NR rsrq -11 (column BEFORE rsrp here)");
         check_has(obs[1], "\"pci\":257", "NR pci from fields[1]");
         check_has(obs[1], "\"earfcn\":629952", "NR arfcn/ssb");
-        check_has(obs[1], "\"sinr\":15", "rssnr 153 -> 15 dB (tenths, unlike rsrp)");
+        check_long(obs[1], "snr", 15, "rssnr 153 -> 15 dB (tenths, unlike rsrp)");
+        check_lacks(obs[1], "\"sinr\"", "EN-DC rssnr is an SNR: no sinr key");
+        check_long(obs[0], "snr", 13, "LTE anchor rssnr 13 as snr");
+        check_lacks(obs[0], "\"sinr\"", "LTE anchor: no sinr key");
         /* The EN-DC line carries no identity at all -- inventing one from the
          * SA layout's column positions is the failure this form invites. */
         check_lacks(obs[1], "\"mcc\"", "NR secondary carries no mcc");
@@ -218,6 +250,8 @@ int main(void) {
          * which is out of 3GPP range but silently emitted. */
         check_has(obs[0], "\"rsrp\":-92", "rsrp is the FIRST signal column here");
         check_has(obs[0], "\"rsrq\":-11", "rsrq is the SECOND");
+        check_long(obs[0], "snr", 15, "rssnr is the THIRD, as snr");
+        check_lacks(obs[0], "\"sinr\"", "SA rssnr is an SNR: no sinr key");
     }
 
     printf("\n[5] NO SERVICE -- a valid reply with nothing to report\n");
@@ -280,6 +314,15 @@ int main(void) {
          * forces the lossy MCC-block reconstruction downstream. */
         check_has(obs[0], "\"mcc\":\"310\"", "mcc as string");
         check_has(obs[0], "\"mnc\":\"01\"", "mnc keeps the leading zero (NOT 1)");
+    }
+
+    printf("\n[12] a reply without the RSSNR column carries no snr\n");
+    n = parse_cpsi(CPSI_LTE_NO_RSSNR, obs, MAX_OBS);
+    check(n == 1, "one observation parsed from the truncated tail");
+    if (n == 1) {
+        check_has(obs[0], "\"rssi\":-66", "rssi still read");
+        check_lacks(obs[0], "\"snr\"", "no snr key -- absent, not 0");
+        check_lacks(obs[0], "\"sinr\"", "and no sinr key");
     }
 
     printf("\n%s (%d failures)\n", g_fails ? "FAILED" : "PASSED", g_fails);
