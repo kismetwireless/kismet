@@ -386,15 +386,52 @@ protected:
 
     }
 
+    // An EPB built without the lock; the interface id is filled in when it's committed
+    struct pcapng_built_epb {
+        std::shared_ptr<packetchain_comp_datasource> datasrc;
+        unsigned int dlt;
+        std::shared_ptr<char> buf;
+        size_t sz;
+    };
+
     virtual int pcapng_write_packet(const std::shared_ptr<kis_packet>& in_packet,
             std::shared_ptr<kis_datachunk> in_data) {
-        kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
+        pcapng_built_epb epb;
 
+        if (!pcapng_build_epb(in_packet, in_data, epb))
+            return 0;
+
+        kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
+        return pcapng_commit_epb(epb);
+    }
+
+    // Look up or write the interface block, then append the packet; pcap_mutex must be held
+    // so the interface block always precedes the packets using it
+    int pcapng_commit_epb(pcapng_built_epb& in_epb) {
+        int ng_interface_id = pcapng_make_idb(in_epb.datasrc->ref_source, in_epb.dlt);
+
+        if (!block_until(in_epb.sz)) {
+            dropped_packets++;
+            return 0;
+        }
+
+        reinterpret_cast<pcapng_epb *>(in_epb.buf.get())->interface_id = ng_interface_id;
+
+        chainbuf->put_data(in_epb.buf, in_epb.sz);
+
+        log_size += in_epb.sz;
+
+        return 1;
+    }
+
+    // Everything but the interface id, which needs the lock; reads only the packet
+    bool pcapng_build_epb(const std::shared_ptr<kis_packet>& in_packet,
+            const std::shared_ptr<kis_datachunk>& in_data, pcapng_built_epb& ret) {
         auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
         auto jsoninfo = in_packet->fetch<kis_json_packinfo>(pack_comp_meta);
 
         if (datasrcinfo == nullptr) {
-            return 0;
+            return false;
         }
 
         // Bundle the json info into a single keyed entry including the type; do this with 
@@ -424,8 +461,6 @@ protected:
             frame_len = upper_pdu.length();
             frame_dlt = KDLT_WIRESHARK_UPPER_PDU;
         }
-
-        int ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, frame_dlt);
 
         std::shared_ptr<char> buf;
 
@@ -467,23 +502,20 @@ protected:
             buf_sz += PAD_TO_32BIT(sizeof(pcapng_epb_packetid_option_t));
         }
 
-        // Allocate 4 bytes larger to hold the final length
-        if (!block_until(buf_sz + 4)) {
-            dropped_packets++;
-            return 0;
-        }
-
         pcapng_epb *epb;
         pcapng_option *opt;
 
+        // Allocate 4 bytes larger to hold the final length.  Every header field is set and the
+        // frame is copied in, so only the frame padding and the options need zeroing.
         buf = std::shared_ptr<char>(new char[buf_sz + 4], std::default_delete<char[]>());
-        memset(buf.get(), 0x00, buf_sz + 4);
+        memset(buf.get() + sizeof(pcapng_epb_t) + frame_len, 0x00,
+                buf_sz + 4 - sizeof(pcapng_epb_t) - frame_len);
 
         epb = reinterpret_cast<pcapng_epb *>(buf.get());
 
         epb->block_type = PCAPNG_EPB_BLOCK_TYPE;
         epb->block_length = buf_sz + 4;
-        epb->interface_id = ng_interface_id;
+        epb->interface_id = 0;
 
         // Convert timestamp to 10e6 usec precision
         uint64_t conv_ts;
@@ -611,11 +643,12 @@ protected:
         auto end_sz = reinterpret_cast<uint32_t *>(buf.get() + buf_sz);
         *end_sz = buf_sz + 4;
 
-        chainbuf->put_data(buf, buf_sz + 4);
+        ret.datasrc = datasrcinfo;
+        ret.dlt = frame_dlt;
+        ret.buf = buf;
+        ret.sz = buf_sz + 4;
 
-        log_size += buf_sz + 4;
-
-        return 1;
+        return true;
     }
 
     virtual int pcapng_write_packet(int ng_interface_id, const struct timeval& ts, const std::string& in_data, size_t original_len) {
@@ -696,9 +729,13 @@ protected:
             return;
         }
 
+        pcapng_built_epb epb;
+        bool built = pcapng_build_epb(in_packet, target_datachunk, epb);
+
         kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf handle_packet");
 
-        pcapng_write_packet(in_packet, target_datachunk);
+        if (built)
+            pcapng_commit_epb(epb);
 
         log_packets++;
 
