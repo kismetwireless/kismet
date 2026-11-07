@@ -131,6 +131,14 @@ struct dot11_chan_switch {
     bool present() const { return src != source::none; }
 };
 
+// QBSS load (IE 11) of a beacon or probe response, read for every frame since it is left out of
+// the IE checksum
+struct dot11_qbss_load {
+    bool present = false;
+    uint16_t station_count = 0;
+    uint8_t channel_utilization = 0;
+};
+
 // Packet info decoded by the dot11 phy decoder
 // 
 // Injected into the packet chain and processed later into the device records
@@ -219,6 +227,7 @@ class dot11_packinfo : public packet_component {
             tx_power.reset();
             supported_channels.reset();
             chan_switch = dot11_chan_switch{};
+            qbss_load = dot11_qbss_load{};
             dot11r_mobility.reset();
             dot11vht.reset();
             dot11ht.reset();
@@ -350,6 +359,7 @@ class dot11_packinfo : public packet_component {
 
         // Parsed for every frame by the dissector, unlike the IE tags above
         dot11_chan_switch chan_switch;
+        dot11_qbss_load qbss_load;
         dot11_ie_54_mobility dot11r_mobility;
         dot11_ie_61_ht_op dot11ht;
         dot11_ie_192_vht_op dot11vht;

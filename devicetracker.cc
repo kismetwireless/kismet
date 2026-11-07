@@ -1646,7 +1646,7 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
             device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, nullptr, false);
         }
 
-        if (map_seenby_views)
+        if (map_seenby_views && !(in_flags & UCD_UPDATE_DEFER_VIEWS))
             update_view_device(device);
 
         if (sc != nullptr)
@@ -1968,7 +1968,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
     const auto views = get_view_snapshot();
 
     for (const auto& i : *views) {
-        auto vi = dynamic_cast<device_tracker_view *>(i.get());
+        auto vi = static_cast<device_tracker_view *>(i.get());
         vi->new_device(in_device);
     }
 }
@@ -1978,7 +1978,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
     const auto views = get_view_snapshot();
 
     for (const auto& i : *views) {
-        auto vi = dynamic_cast<device_tracker_view *>(i.get());
+        auto vi = static_cast<device_tracker_view *>(i.get());
         vi->update_device(in_device);
     }
 }
@@ -1988,7 +1988,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
     const auto views = get_view_snapshot();
 
     for (const auto& i : *views) {
-        auto vi = dynamic_cast<device_tracker_view *>(i.get());
+        auto vi = static_cast<device_tracker_view *>(i.get());
         vi->remove_device(in_device);
     }
 }

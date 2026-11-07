@@ -673,12 +673,20 @@ int kis_80211_phy::packet_dot11_assign_thread(kis_packet *in_pack) {
     return 1;
 }
 
-// Find a channel switch announcement (CSA 37 or ECSA 60) and the advertised channel (DS 3, or
-// the HT operation primary channel 61) in the IE tags of a beacon or probe response.  ECSA wins
-// over CSA since it carries the operating class.
-static void find_chan_switch(const uint8_t *ies, size_t len, dot11_chan_switch& cs) {
+// Walk the IE tags of a beacon or probe response for the channel switch announcement (CSA 37 or
+// ECSA 60; ECSA wins over CSA since it carries the operating class), the advertised channel (DS 3,
+// or the HT operation primary channel 61), and the QBSS load (11), and return the checksum the
+// classifier uses to skip unchanged tags.  The checksum leaves out the contents of the TIM (5),
+// which changes every beacon with the DTIM count and the buffered traffic, and of the QBSS load;
+// the TIM keeps only its number, since its length follows the traffic bitmap.  With neither
+// present it is the CRC of the whole tag list.
+static uint32_t walk_adv_ies(const uint8_t *ies, size_t len, dot11_chan_switch& cs,
+        dot11_qbss_load& qbss) {
     uint8_t ds_channel = 0, ht_channel = 0;
+    uint32_t csum = 0;
     size_t pos = 0;
+    // Start of the bytes not yet in the checksum
+    size_t run = 0;
 
     while (pos + 2 <= len) {
         const uint8_t tag = ies[pos];
@@ -705,10 +713,24 @@ static void find_chan_switch(const uint8_t *ies, size_t len, dot11_chan_switch& 
             cs.count = d[3];
         }
 
+        if (tag == 5 || tag == 11) {
+            csum = crc32_fast(ies + run, pos - run + (tag == 5 ? 1 : 2), csum);
+            run = pos + 2 + tag_len;
+
+            // Both versions start with the station count and the channel utilization
+            if (tag == 11 && (tag_len == 4 || tag_len == 5)) {
+                qbss.present = true;
+                qbss.station_count = d[0] | (d[1] << 8);
+                qbss.channel_utilization = d[2];
+            }
+        }
+
         pos += 2 + tag_len;
     }
 
     cs.cur_channel = ht_channel != 0 ? ht_channel : ds_channel;
+
+    return crc32_fast(ies + run, len - run, csum);
 }
 
 // hidedata: cut a data frame and the link frame it came from to the capture headers and the
@@ -1142,11 +1164,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
                 packinfo->ietag_csum =
-                    crc32_fast(chunk->data() + packinfo->header_offset,
-                                           chunk->length() - packinfo->header_offset);
-
-                find_chan_switch(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
-                        chunk->length() - packinfo->header_offset, packinfo->chan_switch);
+                    walk_adv_ies(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
+                        chunk->length() - packinfo->header_offset, packinfo->chan_switch,
+                        packinfo->qbss_load);
 
                 break;
 
@@ -1186,11 +1206,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->beacon_interval = fixparm->beacon;
 
                 packinfo->ietag_csum =
-                    crc32_fast(chunk->data() + packinfo->header_offset,
-                            chunk->length() - packinfo->header_offset);
-
-                find_chan_switch(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
-                        chunk->length() - packinfo->header_offset, packinfo->chan_switch);
+                    walk_adv_ies(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
+                        chunk->length() - packinfo->header_offset, packinfo->chan_switch,
+                        packinfo->qbss_load);
 
                 break;
 

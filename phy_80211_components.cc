@@ -313,7 +313,7 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.beaconrate", "beacon rate", &beaconrate);
     register_field("dot11.advertisedssid.beacons_sec", "beacons seen in past second", &beacons_sec);
     register_field("dot11.advertisedssid.ietag_checksum",
-            "checksum of all ie tags", &ietag_checksum);
+            "checksum of the ie tags, leaving out the contents of the TIM and QBSS load", &ietag_checksum);
 
     register_field("dot11.advertisedssid.wpa_mfp_required",
             "WPA management protection required", &wpa_mfp_required);

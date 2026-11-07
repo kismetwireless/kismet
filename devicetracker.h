@@ -198,6 +198,8 @@ public:
 // Update the location the device reports for itself, from the packet's
 // reported_gps, into the device's reported_location
 #define UCD_UPDATE_REPORTED_LOCATION    (1 << 9)
+// Skip the view update; the caller updates the views itself once it has finished with the device
+#define UCD_UPDATE_DEFER_VIEWS      (1 << 10)
 
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             const mac_addr& in_mac, kis_phy_handler *phy,
