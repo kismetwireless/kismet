@@ -26,7 +26,11 @@ const defaults = {
     'uav': '#f49e42',
     'quiet': '#adb5bd',
     'active': '#cee1ff',
+    'apple continuity': '#d0ebff',
 };
+
+// Tags on so many devices that their row color starts off
+const offByDefault = new Set(['apple continuity']);
 
 const colorRe = /^#[0-9a-fA-F]{6}$/;
 const highlightId = (tag) => `tag_${tag}`;
@@ -95,7 +99,7 @@ export function register(kismet) {
             now.add(highlightId(tag));
             const described = [...new Set(rulesFor(tag).map((rd) => rd.description).filter(Boolean))];
             ui.rowHighlights.add({
-                id: highlightId(tag), name: tag, tag, category: 'tag', priority: -1 + i / 1000, defaultEnabled: true,
+                id: highlightId(tag), name: tag, tag, category: 'tag', priority: -1 + i / 1000, defaultEnabled: !offByDefault.has(tag),
                 description: described.join('; '),
                 defaultColor: color ?? defaults[tag] ?? fallbackColor(tag),
                 fields: [tagsField],

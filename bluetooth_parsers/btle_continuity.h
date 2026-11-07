@@ -49,8 +49,9 @@
  *   Everything else is noted only as present.  AirDrop hashes of phone numbers and
  *   e-mail addresses, Handoff counters and payloads, the Tethering Target iCloud ID,
  *   Hey Siri and Magic Switch data, and every auth tag are never copied.  Proximity
- *   Pairing (0x07), Find My (0x12) and iBeacon (0x02) are handled elsewhere and
- *   skipped.
+ *   Pairing (0x07) and Find My (0x12) are decoded elsewhere and only noted here, at
+ *   the lengths those decoders take.  iBeacon (0x02), which beacons of every maker
+ *   send under Apple's ID, is skipped.
  */
 
 #include <cstddef>
@@ -64,6 +65,7 @@ enum class msg_type : uint8_t {
     airprint = 0x03,
     airdrop = 0x05,
     homekit = 0x06,
+    proximity_pairing = 0x07,
     hey_siri = 0x08,
     airplay_target = 0x09,
     airplay_source = 0x0A,
@@ -74,6 +76,7 @@ enum class msg_type : uint8_t {
     nearby_action = 0x0F,
     nearby_info = 0x10,
     homekit_encrypted = 0x11,
+    findmy = 0x12,
 };
 
 enum class activity_level : uint8_t {
