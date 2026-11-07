@@ -90,7 +90,7 @@ std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler(shared_co
 
     auto ret_vec = std::make_shared<tracker_element_vector>();
 
-    for (auto i : phy_handler_map) {
+    for (const auto& i : phy_handler_map) {
         auto tracked_phy =
             std::make_shared<tracker_element_map>(phy_phyentry_id);
 

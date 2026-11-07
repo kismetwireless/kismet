@@ -443,7 +443,7 @@ protected:
 
 	// Registered PHY types
 	int next_phy_id;
-    ankerl::unordered_dense::map<int, kis_phy_handler *> phy_handler_map;
+    ankerl::unordered_dense::map<int, std::unique_ptr<kis_phy_handler>> phy_handler_map;
     kis_shared_mutex phy_mutex;
 
     // New multimutex primitive

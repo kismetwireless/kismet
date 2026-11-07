@@ -23,12 +23,20 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <ctime>
+#include <memory>
 #include <mutex>
 
 #include "globalregistry.h"
 #include "logtracker.h"
 #include "pcapng_stream_futurebuf.h"
+
+// Closes the file it owns; use fclose(f.release()) where the close result matters
+struct pcapng_file_closer {
+    void operator()(FILE *f) const noexcept { fclose(f); }
+};
+using pcapng_unique_file = std::unique_ptr<FILE, pcapng_file_closer>;
 
 struct pcapng_logfile_accept_ftor {
     pcapng_logfile_accept_ftor(bool in_duplicate, bool in_data) :
@@ -108,7 +116,7 @@ protected:
 
     pcapng_stream_packetchain<pcapng_logfile_accept_ftor, pcapng_logfile_select_ftor> *pcapng;
     future_chainbuf *buffer;
-    FILE *pcapng_file;
+    pcapng_unique_file pcapng_file;
     std::thread stream_t;
 
     bool log_duplicate_packets;

@@ -38,7 +38,6 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder) {
     buffer = new future_chainbuf(4096, 1024);
     pcapng = nullptr;
-    pcapng_file = nullptr;
 
     log_duplicate_packets =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_duplicate_packets", true);
@@ -96,7 +95,7 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
     set_int_log_path(in_path);
     set_int_log_template(in_template);
 
-    pcapng_file = fopen(in_path.c_str(), "w");
+    pcapng_file.reset(fopen(in_path.c_str(), "w"));
 
     if (pcapng_file == nullptr) {
         _MSG_ERROR("Failed to open pcapng log '{}' - {}",
@@ -149,7 +148,7 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
                 auto sz = buffer->get(&data);
 
                 if (sz > 0) {
-                    if (fwrite(data, sz, 1, pcapng_file) == 0) {
+                    if (fwrite(data, sz, 1, pcapng_file.get()) == 0) {
                         _MSG_ERROR("Error writing to pcapng log '{}' - {}", get_log_path(),
                                 kis_strerror_r(errno));
                         writer_failed();
@@ -207,7 +206,7 @@ void kis_pcapng_logfile::rotate_log() {
 
     // Open the new file before swapping anything, so a failure leaves the current log
     // running instead of losing packets; rotation is retried after another max_size
-    auto new_file = fopen(logpath.c_str(), "w");
+    auto new_file = pcapng_unique_file(fopen(logpath.c_str(), "w"));
 
     if (new_file == nullptr) {
         _MSG_ERROR("Failed to open new pcapng log '{}' - {}; continuing to log to '{}'",
@@ -219,7 +218,6 @@ void kis_pcapng_logfile::rotate_log() {
 
     // Move the old buffer and file, replace with new
     auto old_buffer = buffer;
-    auto old_pcapng_file = pcapng_file;
     auto old_path = get_log_path();
 
     // Reset the buffer and pcap log; this will make a new SHB in the new buffer
@@ -234,7 +232,7 @@ void kis_pcapng_logfile::rotate_log() {
             // cancelled, so drop the empty file this rotation made
             if (closing) {
                 delete new_buffer;
-                fclose(new_file);
+                new_file.reset();
                 unlink(logpath.c_str());
                 return;
             }
@@ -255,10 +253,10 @@ void kis_pcapng_logfile::rotate_log() {
             continue;
         }
 
-        if (fwrite(data, sz, 1, old_pcapng_file) == 0) {
+        if (fwrite(data, sz, 1, pcapng_file.get()) == 0) {
             _MSG_ERROR("Error writing to pcapng log '{}' - {}", old_path, kis_strerror_r(errno));
             delete new_buffer;
-            fclose(new_file);
+            new_file.reset();
             unlink(logpath.c_str());
             writer_failed();
             return;
@@ -269,7 +267,7 @@ void kis_pcapng_logfile::rotate_log() {
 
     _MSG_INFO("Rotating to new pcapng log {}", logpath);
 
-    pcapng_file = new_file;
+    auto old_pcapng_file = std::exchange(pcapng_file, std::move(new_file));
     set_int_log_path(logpath);
     file_opened = std::chrono::steady_clock::now();
 
@@ -281,10 +279,10 @@ void kis_pcapng_logfile::rotate_log() {
         auto sz = old_buffer->get(&data);
 
         if (sz > 0) {
-            if (fwrite(data, sz, 1, old_pcapng_file) == 0) {
+            if (fwrite(data, sz, 1, old_pcapng_file.get()) == 0) {
                 _MSG_ERROR("Error writing to pcapng log '{}' - {}", old_path,
                         kis_strerror_r(errno));
-                fclose(old_pcapng_file);
+                old_pcapng_file.reset();
                 delete old_buffer;
                 writer_failed();
                 return;
@@ -295,7 +293,7 @@ void kis_pcapng_logfile::rotate_log() {
     }
 
     // Close the old file and remove the old buffer
-    if (fclose(old_pcapng_file) != 0)
+    if (fclose(old_pcapng_file.release()) != 0)
         _MSG_ERROR("Error closing pcapng log '{}' - {}", old_path, kis_strerror_r(errno));
     delete old_buffer;
 
@@ -340,10 +338,7 @@ void kis_pcapng_logfile::writer_failed() {
 
     buffer->cancel();
 
-    if (pcapng_file != nullptr)
-        fclose(pcapng_file);
-
-    pcapng_file = nullptr;
+    pcapng_file.reset();
 }
 
 void kis_pcapng_logfile::close_log() {
@@ -380,9 +375,6 @@ void kis_pcapng_logfile::close_log() {
         pcapng = nullptr;
     }
 
-    if (pcapng_file)
-        fclose(pcapng_file);
-
-    pcapng_file = nullptr;
+    pcapng_file.reset();
 }
 

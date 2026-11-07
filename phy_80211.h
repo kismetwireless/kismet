@@ -635,7 +635,7 @@ protected:
 
     // Map of wepkeys to BSSID (or bssid masks); filled at startup and read without locking
     // by packet threads, so it must not change once packets are being processed
-    std::map<mac_addr, dot11_wep_key *> wepkeys;
+    std::map<mac_addr, std::unique_ptr<dot11_wep_key>> wepkeys;
 
     // Generated WEP identity / base
     unsigned char wep_identity[256];

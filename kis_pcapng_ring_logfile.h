@@ -106,7 +106,7 @@ protected:
     std::shared_ptr<future_chainbuf> buffer;
     std::mutex buffer_mutex;
 
-    FILE *ring_file;
+    pcapng_unique_file ring_file;
     std::thread stream_t;
     std::thread prune_t;
 
