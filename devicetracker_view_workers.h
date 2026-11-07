@@ -88,6 +88,7 @@ public:
         ~pcre_filter();
 
         std::string target;
+        std::vector<int> target_path;
         pcre *re;
         pcre_extra *study;
 #elif defined(HAVE_LIBPCRE2)
@@ -95,6 +96,7 @@ public:
         ~pcre_filter();
 
         std::string target;
+        std::vector<int> target_path;
 
         pcre2_code *re;
         pcre2_match_data *match_data;

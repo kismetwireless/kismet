@@ -2475,6 +2475,10 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path,
         shared_tracker_element elem);
 
+// Resolve a '/' separated field path to ids once, for paths applied to many elements; empty
+// when any field is unknown
+std::vector<int> resolve_tracker_element_path(const std::string& in_path);
+
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.
 // The element type returned is the same as the type provided.  Can only be used to
