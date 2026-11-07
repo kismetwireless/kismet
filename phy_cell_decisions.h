@@ -238,8 +238,13 @@ int earfcn_to_band(uint32_t earfcn);
  * fuses both into one device. Taking the newest report made the label
  * depend on which observer spoke last. When both bands hold the carrier's
  * frequency, the one with the wider downlink wins, then the higher number,
- * so the label depends only on which bands were seen. Otherwise, and for
- * non-LTE RATs, `incoming` wins as before. */
+ * so the label depends only on which bands were seen. An LTE report with no
+ * frequency keeps `current`. Otherwise, and for non-LTE RATs, `incoming`
+ * wins as before.
+ *
+ * Only the band is chosen this way: the cell's ARFCN stays the newest
+ * report's, as WiGLE logs it, so a B4 label can sit beside a B66 EARFCN
+ * (66786) for the same carrier. */
 int label_band(const std::string& rat, int current, int incoming,
         uint64_t freq_khz);
 

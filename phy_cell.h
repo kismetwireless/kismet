@@ -223,7 +223,7 @@ protected:
         // Network
         register_field("cellular.cell.rat", "Radio Access Technology", &cell_rat);
         register_field("cellular.cell.duplex", "Duplex mode (FDD/TDD)", &cell_duplex);
-        register_field("cellular.cell.arfcn", "Absolute Radio Frequency Channel Number", &cell_arfcn);
+        register_field("cellular.cell.arfcn", "Absolute Radio Frequency Channel Number, as last reported (may be in a different band than cellular.cell.band)", &cell_arfcn);
         register_field("cellular.cell.band", "Band number (of the bands observers reported for this carrier, the widest)", &cell_band);
         register_field("cellular.cell.bandwidth", "Channel bandwidth MHz", &cell_bandwidth);
 
