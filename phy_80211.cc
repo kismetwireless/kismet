@@ -1378,13 +1378,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->bssid_dev =
                 d11phy->devicetracker->update_common_device(dot11info->bssid_mac, d11phy,
-                        in_pack, bflags, "Wi-Fi Device", dev_held);
+                        in_pack, bflags | UCD_UPDATE_DEFER_VIEWS, "Wi-Fi Device", dev_held);
         }
 
         if (dot11info->bssid_dev != nullptr) {
             dot11info->bssid_dot11 =
                 dot11info->bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->bssid_dot11 == NULL) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi access point {}",
@@ -1515,13 +1514,12 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->source_dev =
                 d11phy->devicetracker->update_common_device(dot11info->source_mac, d11phy,
-                        in_pack, bflags, "Wi-Fi Device", dev_held);
+                        in_pack, bflags | UCD_UPDATE_DEFER_VIEWS, "Wi-Fi Device", dev_held);
         }
 
         if (dot11info->source_dev != nullptr) {
             dot11info->source_dot11 =
                 dot11info->source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->source_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
@@ -1588,14 +1586,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             dot11info->dest_dev =
                 d11phy->devicetracker->update_common_device(dot11info->dest_mac, d11phy,
-                        in_pack, (UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
+                        in_pack, (UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS | UCD_UPDATE_DEFER_VIEWS),
                         "Wi-Fi Device (Inferred)", dev_held);
         }
 
         if (dot11info->dest_dev != nullptr) {
             dot11info->dest_dot11 =
                 dot11info->dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->dest_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->dest_dev->get_macaddr());
@@ -1841,8 +1838,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dot11info->bssid_dot11 =
                 dot11info->bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
 
-            std::stringstream newdevstr;
-
             if (dot11info->bssid_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->bssid_dev->get_macaddr());
 
@@ -1938,7 +1933,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->source_dev != nullptr) {
             dot11info->source_dot11 =
                 dot11info->source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->source_dot11 == NULL) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->source_dev->get_macaddr());
@@ -2033,7 +2027,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->dest_dev != nullptr) {
             dot11info->dest_dot11 =
                 dot11info->dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->dest_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dot11info->dest_dev->get_macaddr());
@@ -2102,7 +2095,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->transmit_dev != nullptr) {
             dot11info->transmit_dot11 =
                 dot11info->transmit_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->transmit_dot11 == NULL) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
@@ -2164,7 +2156,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->receive_dev != nullptr) {
             dot11info->receive_dot11 =
                 dot11info->receive_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-            std::stringstream newdevstr;
 
             if (dot11info->receive_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
@@ -2522,7 +2513,6 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto bssid_dot11 =
             bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-        std::stringstream newdevstr;
 
         if (bssid_dot11 == NULL) {
             _MSG_INFO("Detected new 802.11 Wi-Fi access point {}",
@@ -3828,6 +3818,14 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
             if (dot11info->subtype == packet_sub_beacon) {
                 ssid->inc_beacons_sec();
+            }
+
+            // The QBSS load isn't in the checksum; like the full parse, only beacons record it
+            if (dot11info->subtype == packet_sub_beacon && dot11info->qbss_load.present) {
+                ssid->set_dot11e_qbss(true);
+                ssid->set_dot11e_qbss_stations(dot11info->qbss_load.station_count);
+                ssid->set_dot11e_qbss_channel_load(
+                        dot11info->qbss_load.channel_utilization / 255.0 * 100.0);
             }
 
             ssidtracker->update_ssid_time(ssid->get_ssid_hash(), in_pack->ts.tv_sec);
