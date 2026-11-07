@@ -216,6 +216,16 @@ protected:
 
     int packet_handler_id;
 
+    // Packet and data inserts are prepared once and reused; writers run in parallel, so
+    // each statement is held from bind through reset.  close_log() finalizes them.
+    kis_mutex packet_stmt_mutex;
+    sqlite3_stmt *packet_stmt;
+    kis_mutex data_stmt_mutex;
+    sqlite3_stmt *data_stmt;
+
+    sqlite3_stmt *prepare_cached(sqlite3_stmt *& stmt, const char *sql);
+    void finalize_cached();
+
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
     // commit state we run a 10 second transaction commit loop
     kis_mutex transaction_mutex;
