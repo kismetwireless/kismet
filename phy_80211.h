@@ -27,6 +27,8 @@
 #include <time.h>
 #include <list>
 #include <map>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <atomic>
@@ -406,6 +408,68 @@ class dot11_packinfo : public packet_component {
 
 class packet_filter_mac_addr;
 
+// Addresses seen only in control frames with a known AP, waiting to be inferred as clients.
+// Bounded; the least recently seen address is dropped when it's full.
+class dot11_ctrl_candidates {
+public:
+    static constexpr size_t max_candidates = 4096;
+
+    // Counts a frame; true once the address has enough frames over enough time, when it
+    // also leaves the table so only one caller creates the device
+    bool seen(const mac_addr& mac, time_t ts, unsigned int min_frames, time_t min_span) {
+        std::lock_guard<std::mutex> lk(mutex);
+
+        auto i = index.find(mac);
+
+        if (i == index.end()) {
+            if (lru.size() >= max_candidates) {
+                index.erase(lru.back().mac);
+                lru.pop_back();
+                evicted++;
+            }
+
+            lru.push_front({mac, 0, ts, ts});
+            i = index.emplace(mac, lru.begin()).first;
+        } else {
+            lru.splice(lru.begin(), lru, i->second);
+        }
+
+        auto& e = *i->second;
+        e.count++;
+        e.first = std::min(e.first, ts);
+        e.last = std::max(e.last, ts);
+
+        if (e.count < min_frames || e.last - e.first < min_span)
+            return false;
+
+        lru.erase(i->second);
+        index.erase(i);
+        promoted++;
+        return true;
+    }
+
+    void stats(size_t& n, uint64_t& n_promoted, uint64_t& n_evicted) {
+        std::lock_guard<std::mutex> lk(mutex);
+        n = lru.size();
+        n_promoted = promoted;
+        n_evicted = evicted;
+    }
+
+private:
+    struct entry {
+        mac_addr mac;
+        unsigned int count;
+        time_t first;
+        time_t last;
+    };
+
+    std::mutex mutex;
+    std::list<entry> lru;
+    std::unordered_map<mac_addr, std::list<entry>::iterator> index;
+    uint64_t promoted = 0;
+    uint64_t evicted = 0;
+};
+
 class kis_80211_phy : public kis_phy_handler, public time_tracker_event {
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
@@ -578,7 +642,18 @@ protected:
 
     // Count control frames on the known devices they name, and the stations an AP is
     // seen with only in control frames; called with no device locks held
-    void handle_control_activity(kis_packet *in_pack, const dot11_packinfo *dot11info);
+    void handle_control_activity(const std::shared_ptr<kis_packet>& in_pack,
+            const dot11_packinfo *dot11info);
+
+    // Keeps an inferred client current from a control frame naming it; only the frames it
+    // sent carry its signal.  Called with no device locks held.
+    void refresh_inferred_client(const std::shared_ptr<kis_tracked_device_base>& dev,
+            const std::shared_ptr<kis_packet>& in_pack, const mac_addr& mac, bool sent);
+
+    // Creates a device for a station seen only in control frames with an AP, and links it to
+    // the AP as a client.  Called with no device locks held.
+    void promote_inferred_client(const std::shared_ptr<kis_packet>& in_pack, const mac_addr& mac,
+            bool sent, const std::shared_ptr<kis_tracked_device_base>& ap_dev, const mac_addr& ap_mac);
 
     // Link the randomized addresses one client cycles through, by matching probe
     // requests; called with no device locks held
@@ -682,6 +757,13 @@ protected:
     std::unique_ptr<randomized_alias_linker> alias_linker;
 
     bool track_control;
+
+    // Inferring clients from control frames: off by default, and only with track_control
+    bool infer_clients;
+    unsigned int infer_min_frames;
+    time_t infer_min_span;
+    dot11_ctrl_candidates ctrl_candidates;
+    std::shared_ptr<tracker_element_string> devtype_inferred_client;
 
     int signal_too_loud_threshold;
 

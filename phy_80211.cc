@@ -216,6 +216,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     devtype_adhoc = devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc");
     devtype_ap = devicetracker->get_cached_devicetype("Wi-Fi AP");
     devtype_client = devicetracker->get_cached_devicetype("Wi-Fi Client");
+    devtype_inferred_client = devicetracker->get_cached_devicetype("Wi-Fi Client (Inferred)");
     devtype_wds_dev = devicetracker->get_cached_devicetype("Wi-Fi WDS Device");
     devtype_wds = devicetracker->get_cached_devicetype("Wi-Fi WDS");
     devtype_wds_ap = devicetracker->get_cached_devicetype("Wi-Fi WDS AP");
@@ -861,6 +862,17 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
 
     track_control =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_track_control", true);
+
+    infer_clients = track_control &&
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_infer_clients", false);
+    infer_min_frames = std::max(2U, static_cast<unsigned int>(
+                Globalreg::globalreg->kismet_config->fetch_opt_uint("dot11_infer_min_frames", 10)));
+    infer_min_span = static_cast<time_t>(
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("dot11_infer_min_seconds", 10));
+
+    if (infer_clients)
+        _MSG_INFO("Inferring Wi-Fi clients seen only in control frames with an access point, "
+                "after {} frames over at least {} seconds", infer_min_frames, infer_min_span);
     if (link_randomized)
         alias_linker = std::make_unique<randomized_alias_linker>(
                 randomized_alias_linker::params{60, 30, 64, "timing", 600});
@@ -971,6 +983,46 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     }
 
                     return cl;
+                }));
+
+    httpd->register_route("/phy/phy80211/inferred_clients", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto ret = std::make_shared<tracker_element_map>();
+
+                    auto f_on = entrytracker->register_and_get_field_as<tracker_element_uint8>(
+                            "dot11.inferred.enabled", tracker_element_factory<tracker_element_uint8>(),
+                            "inferring clients from control frames is enabled");
+                    auto f_n = entrytracker->register_and_get_field_as<tracker_element_uint64>(
+                            "dot11.inferred.candidates", tracker_element_factory<tracker_element_uint64>(),
+                            "addresses waiting to be inferred as clients");
+                    auto f_max = entrytracker->register_and_get_field_as<tracker_element_uint64>(
+                            "dot11.inferred.max_candidates", tracker_element_factory<tracker_element_uint64>(),
+                            "most addresses kept waiting");
+                    auto f_promoted = entrytracker->register_and_get_field_as<tracker_element_uint64>(
+                            "dot11.inferred.promoted", tracker_element_factory<tracker_element_uint64>(),
+                            "addresses that became inferred clients");
+                    auto f_evicted = entrytracker->register_and_get_field_as<tracker_element_uint64>(
+                            "dot11.inferred.evicted", tracker_element_factory<tracker_element_uint64>(),
+                            "waiting addresses dropped because the table was full");
+
+                    size_t n;
+                    uint64_t promoted, evicted;
+                    ctrl_candidates.stats(n, promoted, evicted);
+
+                    f_on->set(infer_clients);
+                    f_n->set(n);
+                    f_max->set(dot11_ctrl_candidates::max_candidates);
+                    f_promoted->set(promoted);
+                    f_evicted->set(evicted);
+
+                    ret->insert(f_on);
+                    ret->insert(f_n);
+                    ret->insert(f_max);
+                    ret->insert(f_promoted);
+                    ret->insert(f_evicted);
+
+                    return ret;
                 }));
 
     httpd->register_route("/phy/phy80211/related-to/:key/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -1769,7 +1821,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         in_pack->common_info.type = packet_basic_phy;
 
         if (d11phy->track_control)
-            d11phy->handle_control_activity(in_pack.get(), dot11info.get());
+            d11phy->handle_control_activity(in_pack, dot11info.get());
     } else if (dot11info->type == packet_data) {
         in_pack->common_info.type = packet_basic_data;
 
@@ -4863,7 +4915,8 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
 
 }
 
-void kis_80211_phy::handle_control_activity(kis_packet *in_pack, const dot11_packinfo *dot11info) {
+void kis_80211_phy::handle_control_activity(const std::shared_ptr<kis_packet>& in_pack,
+        const dot11_packinfo *dot11info) {
     // RTS, BAR, Block ACK, NDP announcement and PS-Poll name both sides; ACK and CTS only
     // the receiver, and their signal is the sender's, not the receiver's
     bool pair = true;
@@ -4946,6 +4999,13 @@ void kis_80211_phy::handle_control_activity(kis_packet *in_pack, const dot11_pac
         });
     }
 
+    if (infer_clients) {
+        if (ta_dev != nullptr)
+            refresh_inferred_client(ta_dev, in_pack, ta, true);
+        if (ra_dev != nullptr)
+            refresh_inferred_client(ra_dev, in_pack, ra, false);
+    }
+
     // An AP exchanging frames with an address that isn't a known device has a station we
     // can't hear directly.  Only a verified FCS counts here; a corrupt address would
     // otherwise look like a new station.
@@ -4965,13 +5025,82 @@ void kis_80211_phy::handle_control_activity(kis_packet *in_pack, const dot11_pac
         return;
     }
 
-    kis_device_lock lk(ap_dev, false);
+    mac_addr ap_mac;
 
-    auto d11 = ap_dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
-    if (d11 == nullptr || !(d11->get_type_set() & DOT11_DEVICE_TYPE_BEACON_AP))
+    {
+        kis_device_lock lk(ap_dev, false);
+
+        auto d11 = ap_dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+        if (d11 == nullptr || !(d11->get_type_set() & DOT11_DEVICE_TYPE_BEACON_AP))
+            return;
+
+        d11->ctrl_peer_seen(*peer, ts);
+        ap_mac = ap_dev->get_macaddr();
+    }
+
+    // A station needs repeated frames over time, each with a verified FCS and a known AP,
+    // before it becomes a device; a bit-flipped address almost never manages both
+    if (infer_clients && ctrl_candidates.seen(*peer, ts, infer_min_frames, infer_min_span))
+        promote_inferred_client(in_pack, *peer, peer == &ta, ap_dev, ap_mac);
+}
+
+void kis_80211_phy::refresh_inferred_client(const std::shared_ptr<kis_tracked_device_base>& dev,
+        const std::shared_ptr<kis_packet>& in_pack, const mac_addr& mac, bool sent) {
+    {
+        kis_device_lock lk(dev, true);
+        if (dev->get_tracker_type_string() != devtype_inferred_client)
+            return;
+    }
+
+    unsigned int flags = UCD_UPDATE_EXISTING_ONLY | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS;
+    if (sent)
+        flags |= UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION;
+
+    devicetracker->update_common_device(mac, this, in_pack, flags, "Wi-Fi Client (Inferred)");
+}
+
+void kis_80211_phy::promote_inferred_client(const std::shared_ptr<kis_packet>& in_pack,
+        const mac_addr& mac, bool sent, const std::shared_ptr<kis_tracked_device_base>& ap_dev,
+        const mac_addr& ap_mac) {
+    unsigned int flags = UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS | UCD_UPDATE_DEFER_VIEWS;
+    if (sent)
+        flags |= UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION;
+
+    kis_device_lock held;
+    auto dev = devicetracker->update_common_device(mac, this, in_pack, flags,
+            "Wi-Fi Client (Inferred)", held);
+
+    if (dev == nullptr)
         return;
 
-    d11->ctrl_peer_seen(*peer, in_pack->ts.tv_sec);
+    // Seen directly by another thread in the meantime; it's a real device now
+    if (dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id) != nullptr) {
+        held.unlock();
+        devicetracker->update_view_device(dev);
+        return;
+    }
+
+    _MSG_INFO("Inferred 802.11 Wi-Fi client {} from control frames with access point {}",
+            mac, ap_mac);
+
+    auto d11 = std::make_shared<dot11_tracked_device>(dot11_builder.get());
+    dot11_tracked_device::attach_base_parent(d11, dev);
+    d11->bitset_type_set(DOT11_DEVICE_TYPE_INFERRED_WIRELESS);
+    d11->set_last_bssid(ap_mac);
+
+    auto key = dev->get_tracker_key();
+    held.unlock();
+    devicetracker->update_view_device(dev);
+
+    kis_device_lock lk(ap_dev, false);
+
+    auto ap_d11 = ap_dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+    if (ap_d11 == nullptr)
+        return;
+
+    auto clients = ap_d11->get_associated_client_map();
+    if (clients->find(mac) == clients->end())
+        clients->insert(mac, key);
 }
 
 void kis_80211_phy::handle_randomized_alias(const std::shared_ptr<kis_tracked_device_base>& basedev,
