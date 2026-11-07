@@ -60,9 +60,9 @@
 #include "packet_filter.h"
 #include "messagebus.h"
 
-// Kismetdb version
+// Kismetdb version; 12 adds the per-file KISMET.db_uuid
 
-#define KISMETDB_LOG_VERSION            11
+#define KISMETDB_LOG_VERSION            12
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;

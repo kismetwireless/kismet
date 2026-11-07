@@ -194,6 +194,12 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         return false;
     }
 
+    // The log record carries the same uuid as the file, so the logging
+    // endpoints identify the kismetdb on disk
+    auto dbuuid = database_get_db_uuid();
+    if (!dbuuid.error)
+        set_int_log_uuid(dbuuid);
+
     sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
 
     // Go into transactional mode where we only commit every 10 seconds

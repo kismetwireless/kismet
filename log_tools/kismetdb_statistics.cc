@@ -24,6 +24,7 @@
 #include <iostream>
 #include <tuple>
 
+#include <ctype.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -66,6 +67,35 @@ void print_help(char *argv) {
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
            " -j, --json                   Dump stats as a JSON dictionary\n");
+}
+
+// Per-file uuid from kismetdb v12 on; empty for older files or a malformed value
+static std::string get_db_uuid(sqlite3 *db) {
+    sqlite3_stmt *stmt = nullptr;
+    std::string ret;
+
+    if (sqlite3_prepare_v2(db, "SELECT db_uuid FROM KISMET", -1, &stmt, nullptr) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return ret;
+    }
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        auto t = sqlite3_column_text(stmt, 0);
+        auto l = sqlite3_column_bytes(stmt, 0);
+
+        if (t != nullptr && l == 36)
+            ret = std::string((const char *) t, l);
+    }
+
+    sqlite3_finalize(stmt);
+
+    for (size_t i = 0; i < ret.length(); i++) {
+        bool dash = (i == 8 || i == 13 || i == 18 || i == 23);
+        if (dash ? ret[i] != '-' : !isxdigit((unsigned char) ret[i]))
+            return "";
+    }
+
+    return ret;
 }
 
 int main(int argc, char *argv[]) {
@@ -160,10 +190,16 @@ int main(int argc, char *argv[]) {
         auto version_ret = version_query.run();
         auto db_version = sqlite3_column_as<int>(*version_ret, 0);
 
+        auto db_uuid = get_db_uuid(db);
+
         if (outputjson) {
             root["kismetdb_version"] = db_version;
+            if (db_uuid.length())
+                root["kismetdb_uuid"] = db_uuid;
         } else {
             fmt::print("  KismetDB version: {}\n", db_version);
+            if (db_uuid.length())
+                fmt::print("  KismetDB UUID: {}\n", db_uuid);
             fmt::print("\n");
         }
 
