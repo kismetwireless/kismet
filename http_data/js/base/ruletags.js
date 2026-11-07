@@ -26,7 +26,6 @@ const defaults = {
     'uav': '#f49e42',
     'quiet': '#adb5bd',
     'active': '#cee1ff',
-    'apple continuity': '#d0ebff',
 };
 
 // Tags on so many devices that their row color starts off
