@@ -142,21 +142,21 @@ export function registerAirspace(kismet) {
                 c.font = '8.5px system-ui, sans-serif';
                 columns.forEach((cc, i) => {
                     const rt = retries(cc.mhz);
-                    if (!r || r.pct === null)
+                    if (!rt || rt.pct === null)
                         return;
                     const y = head, sh = strip - 3;
-                    c.globalAlpha = 0.1 + 0.9 * Math.min(1, r.pct / 50);
-                    c.fillStyle = r.noise ? error : warn;
+                    c.globalAlpha = 0.1 + 0.9 * Math.min(1, rt.pct / 50);
+                    c.fillStyle = rt.noise ? error : warn;
                     c.fillRect(xs[i] + 0.5, y, cw - 1, sh);
                     c.globalAlpha = 1;
-                    if (r.noise) {
+                    if (rt.noise) {
                         c.strokeStyle = error;
                         c.lineWidth = 1.5;
                         c.strokeRect(xs[i] + 1, y + 0.5, cw - 2, sh - 1);
                     }
                     if (cw >= 18) {
                         c.fillStyle = text;
-                        c.fillText(`${Math.round(r.pct)}`, xs[i] + cw / 2, y + sh - 2.5);
+                        c.fillText(`${Math.round(rt.pct)}`, xs[i] + cw / 2, y + sh - 2.5);
                     }
                 });
 
