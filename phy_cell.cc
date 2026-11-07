@@ -535,9 +535,6 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
         }, KIS_DEVICE_BASICTYPE_AP);
     }
 
-    basedev->set_devicename(cell_decisions::device_name(derived, rat, pci,
-                earfcn, band_num));
-
     // Get or create cell tower sub-device
     auto celldev =
         basedev->get_sub_as<kis_cellular_tracked_cell>(cell_device_entry_id);
@@ -589,6 +586,18 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     }
     if (pci >= 0)
         celldev->set_cell_pci(pci);
+
+    // One carrier can arrive under two bands (B4 and B66) from two modems.
+    // Name and label it by a band that does not depend on which modem
+    // reported last; update_common_device above took this observation's
+    // channel as is, so put the label's back when they differ.
+    const int shown_band = cell_decisions::label_band(rat,
+            static_cast<int>(celldev->get_cell_band()), band_num, common.freq_khz);
+    if (shown_band > 0 && shown_band != band_num)
+        basedev->set_channel(cell_decisions::channel_string(rat, shown_band,
+                    have_earfcn, earfcn));
+    basedev->set_devicename(cell_decisions::device_name(derived, rat, pci,
+                earfcn, shown_band));
 
     celldev->set_cell_key(cell_key);
     celldev->set_cell_identity_level(is_full_identity ? "full" : "partial");
@@ -735,8 +744,8 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     if (have_earfcn)
         celldev->set_cell_arfcn(earfcn);
 
-    if (band_num > 0)
-        celldev->set_cell_band(band_num);
+    if (shown_band > 0)
+        celldev->set_cell_band(shown_band);
 
     auto bw_j = json["bandwidth"];
     if (bw_j.is_number())

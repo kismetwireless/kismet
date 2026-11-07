@@ -184,8 +184,8 @@ uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn) {
  * copy) for every EARFCN:
  * test_earfcn_to_band_matches_the_helper_table sweeps 0..80000, so the server
  * and the DIAG path cannot label the same cell with different bands. */
-int earfcn_to_band(uint32_t earfcn) {
-    struct { uint32_t lo; uint32_t hi; int band; } lte[] = {
+struct lte_band_row { uint32_t lo; uint32_t hi; int band; };
+static const lte_band_row kLteBands[] = {
         {    0,   599,  1}, {  600,  1199,  2}, { 1200,  1949,  3},
         { 1950,  2399,  4}, { 2400,  2649,  5}, { 2650,  2749,  6},
         { 2750,  3449,  7}, { 3450,  3799,  8}, { 3800,  4149,  9},
@@ -211,14 +211,57 @@ int earfcn_to_band(uint32_t earfcn) {
         {69466, 70315, 75}, {70316, 70365, 76}, {70366, 70545, 85},
         {70546, 70595, 87}, {70596, 70645, 88}, {70646, 70655, 103},
         {70656, 70705, 106}, {73386, 73485, 111},
-    };
-    for (size_t i = 0; i < sizeof(lte) / sizeof(lte[0]); i++) {
-        if (earfcn >= lte[i].lo && earfcn <= lte[i].hi)
-            return lte[i].band;
+};
+
+int earfcn_to_band(uint32_t earfcn) {
+    for (const auto& r : kLteBands) {
+        if (earfcn >= r.lo && earfcn <= r.hi)
+            return r.band;
     }
     return 0;
 }
 
+
+/* A band's downlink edges in kHz, from its first and last EARFCN. */
+static bool lte_band_dl_khz(int band, uint64_t *lo, uint64_t *hi) {
+    for (const auto& r : kLteBands) {
+        if (r.band == band) {
+            *lo = arfcn_to_khz("LTE", r.lo);
+            *hi = arfcn_to_khz("LTE", r.hi);
+            return *lo > 0 && *hi >= *lo;
+        }
+    }
+    return false;
+}
+
+int label_band(const std::string& rat, int current, int incoming,
+        uint64_t freq_khz) {
+    if (incoming <= 0)
+        return current;
+    if (current <= 0 || current == incoming)
+        return incoming;
+
+    /* Only LTE has a band table here; for anything else the newest report
+     * names the device, as before. */
+    uint64_t c_lo, c_hi, i_lo, i_hi;
+    if (rat != "LTE" || freq_khz == 0 ||
+            !lte_band_dl_khz(current, &c_lo, &c_hi) ||
+            !lte_band_dl_khz(incoming, &i_lo, &i_hi))
+        return incoming;
+
+    /* Two names for this carrier only if both bands hold its frequency. If
+     * not, the cell itself moved, and the newest report is the truth. */
+    if (freq_khz < c_lo || freq_khz > c_hi || freq_khz < i_lo || freq_khz > i_hi)
+        return incoming;
+
+    /* The wider downlink wins (B66 over B4, B25 over B2, B85 over B12);
+     * equal widths go to the higher band number. Both rules are a total
+     * order, so the label is the same whichever observer reported first. */
+    const uint64_t c_w = c_hi - c_lo, i_w = i_hi - i_lo;
+    if (i_w != c_w)
+        return i_w > c_w ? incoming : current;
+    return incoming > current ? incoming : current;
+}
 
 std::string carrier_token(const std::string& rat, uint32_t earfcn) {
     /* The 'f' marks a frequency in kHz and the 'e' a raw ARFCN. The tag is
@@ -391,9 +434,10 @@ cell_key_t derive_key(const std::string& rat, const plmn_t& plmn,
          * B12/B17/B85 overlap the same way.
          *
          * arfcn_to_khz() resolves both spellings to 2145000 -- the frequency
-         * is not in dispute, only the key. The reported
-         * band/EARFCN stay on the record as display fields; they are genuine
-         * per-vendor observation data, they just must not partition identity.
+         * is not in dispute, only the key. The reported EARFCN stays on the
+         * record as genuine per-vendor observation data; the band the device
+         * shows is chosen by label_band(), so it does not depend on which
+         * vendor reported last. Neither may partition identity.
          * Full-identity cells are unaffected: they key on MCC_MNC_TAC_ECI,
          * which is already band-agnostic.
          *
