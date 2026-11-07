@@ -39,7 +39,7 @@ public:
     class action_frame_common;
     class action_rmm;
 
-    enum category_code_type_e {
+    enum category_code_type_e : uint8_t {
         category_code_spectrum_management = 0,
         category_code_qos = 1,
         category_code_dls = 2,
@@ -83,7 +83,7 @@ public:
         m_tags_data.clear();
     }
 
-    enum rmm_action_type_e {
+    enum rmm_action_type_e : uint8_t {
         rmm_action_measurement_req = 0,
         rmm_action_measurement_report = 1,
         rmm_action_link_measurement_req = 2,

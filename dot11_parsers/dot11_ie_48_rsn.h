@@ -38,7 +38,7 @@ class dot11_ie_48_rsn {
 public:
     class dot11_ie_48_rsn_rsn_cipher {
     public:
-        enum rsn_cipher_type {
+        enum rsn_cipher_type : uint8_t {
             rsn_cipher_none = 0,
             rsn_wep_40 = 1,
             rsn_tkip = 2,
@@ -88,7 +88,7 @@ public:
 
     class dot11_ie_48_rsn_rsn_management {
     public:
-        enum rsn_management {
+        enum rsn_management : uint8_t {
             mgmt_none = 0,
             mgmt_1x = 1,
             mgmt_psk = 2,

@@ -100,7 +100,7 @@ protected:
 public:
     class wpa_v1_cipher {
     public:
-        enum wfa_wpa_cipher_e {
+        enum wfa_wpa_cipher_e : uint8_t {
             wfa_none = 0,
             wfa_wep_40 = 1,
             wfa_tkip = 2,
@@ -111,7 +111,7 @@ public:
             wfa_no_group = 7
         };
 
-        enum wfa_wpa_mgmt_e {
+        enum wfa_wpa_mgmt_e : uint8_t {
             wfa_mgmt_none = 0,
             wfa_mgmt_wpa = 1,
             wfa_mgmt_psk = 2,

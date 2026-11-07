@@ -98,21 +98,10 @@ uint32_t device_key::gen_pkey(std::string phy) {
 }
 
 uint64_t device_key::gen_spkey(uuid s_uuid, std::string phy) {
-    uint64_t uuid32 = adler32_checksum((const char *) s_uuid.hash, sizeof(std::size_t));
+    uint64_t uuid32 = adler32_checksum(reinterpret_cast<const char *>(&s_uuid.hash), sizeof(s_uuid.hash));
     uint64_t phy32 = gen_pkey(phy);
 
     return (uuid32 << 32) | phy32;
-}
-
-bool operator <(const device_key& x, const device_key& y) {
-    if (x.spkey == y.spkey)
-        return x.dkey < y.dkey;
-
-    return x.spkey < y.spkey;
-}
-
-bool operator ==(const device_key& x, const device_key& y) {
-    return (x.spkey == y.spkey && x.dkey == y.dkey);
 }
 
 std::ostream& operator<<(std::ostream& os, const device_key& k) {

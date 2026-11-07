@@ -290,7 +290,7 @@ public:
             std::string m_wps_de_data;
         };
 
-        enum wps_de_type_e {
+        enum wps_de_type_e : uint16_t {
             wps_de_config_methods = 0x1008,
             wps_de_device_name = 0x1011,
             wps_de_manuf = 0x1021,

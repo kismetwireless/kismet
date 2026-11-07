@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <atomic>
+#include <compare>
 #include <concepts>
 #include <stdio.h>
 #include <stdint.h>
@@ -87,8 +88,16 @@ struct opts {
 // Values are exported as big endian, hex, [SPKEY]_[DKEY]
 class device_key {
 public:
-    friend bool operator <(const device_key& x, const device_key& y);
-    friend bool operator ==(const device_key& x, const device_key& y);
+    friend bool operator==(const device_key& x, const device_key& y) {
+        return x.spkey == y.spkey && x.dkey == y.dkey;
+    }
+
+    friend std::strong_ordering operator<=>(const device_key& x, const device_key& y) {
+        if (auto c = x.spkey <=> y.spkey; c != 0)
+            return c;
+        return x.dkey <=> y.dkey;
+    }
+
     friend std::ostream& operator<<(std::ostream& os, const device_key& k);
     friend std::istream& operator>>(std::istream& is, device_key& k);
 
@@ -129,8 +138,6 @@ protected:
     bool error;
 };
 
-bool operator <(const device_key& x, const device_key& y);
-bool operator ==(const device_key& x, const device_key& y);
 std::ostream& operator<<(std::ostream& os, const device_key& k);
 std::istream& operator>>(std::istream& is, device_key& k);
 
@@ -1190,52 +1197,20 @@ public:
         value = in;
     }
 
-    inline bool operator==(const tracker_element_core_numeric<N, T, S>& rhs) const {
+    bool operator==(const tracker_element_core_numeric& rhs) const {
         return value == rhs.value;
     }
 
-    inline bool operator==(const N& rhs) const {
-        return value != rhs;
+    bool operator==(const N& rhs) const {
+        return value == rhs;
     }
 
-    inline bool operator!=(const tracker_element_core_numeric<N, T, S>& rhs) const {
-        return !(value == rhs.value);
+    auto operator<=>(const tracker_element_core_numeric& rhs) const {
+        return value <=> rhs.value;
     }
 
-    inline bool operator!=(const N& rhs) const {
-        return value != rhs;
-    }
-
-    inline bool operator<=(const tracker_element_core_numeric<N, T, S>& rhs) const {
-        return value <= rhs.value;
-    }
-
-    inline bool operator<=(const N& rhs) const {
-        return value <= rhs;
-    }
-
-    inline bool operator<(const tracker_element_core_numeric<N, T, S>& rhs) const {
-        return value < rhs.value;
-    }
-
-    inline bool operator<(const N& rhs) {
-        return value < rhs;
-    }
-
-    inline bool operator>=(const tracker_element_core_numeric<N, T, S>& rhs) const {
-        return value >= rhs.value;
-    }
-
-    inline bool operator>=(const N& rhs) {
-        return value >= rhs;
-    }
-
-    inline bool operator>(const tracker_element_core_numeric<N, T, S>& rhs) const {
-        return value > rhs.value;
-    }
-
-    inline bool operator>(const N& rhs) const {
-        return value  > rhs;
+    auto operator<=>(const N& rhs) const {
+        return value <=> rhs;
     }
 
     tracker_element_core_numeric<N, T, S>& operator+=(const N& rhs) {
@@ -1300,7 +1275,7 @@ public:
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
         // return value < safe_cast_as<tracker_element_core_numeric<N, T, S>>(rhs)->value;
-        return value < static_cast<tracker_element_core_numeric<N, T, S> *>(rhs.get)->value;
+        return value < static_cast<tracker_element_core_numeric<N, T, S> *>(rhs.get())->value;
     }
 
     virtual void as_json(std::ostream& os, struct json_adapter::opts *opts = nullptr) override {
@@ -1437,7 +1412,7 @@ public:
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
         auto v1 = get();
-        auto v2 = static_cast<tracker_element_atomic_numeric<N, T, S> *>(rhs.get)->get();
+        auto v2 = static_cast<tracker_element_atomic_numeric<N, T, S> *>(rhs.get())->get();
         return v1 < v2;
     }
 

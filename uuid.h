@@ -21,8 +21,10 @@
 
 #include "config.h"
 
+#include <compare>
 #include <string>
 #include <sstream>
+#include <tuple>
 #include <sys/time.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -187,30 +189,14 @@ public:
         return false;
     }
 
-    inline bool operator== (const uuid& op) const {
-        return (hash == op.hash);
-        /*
-        return (time_low == op.time_low && time_mid == op.time_mid &&
-                time_hi == op.time_hi && clock_seq == op.clock_seq &&
-                node == op.node);
-                */
+    bool operator==(const uuid& op) const {
+        return time_low == op.time_low && time_mid == op.time_mid && time_hi == op.time_hi &&
+            clock_seq == op.clock_seq && node == op.node;
     }
 
-    inline bool operator!= (const uuid& op) const {
-        return (hash != op.hash);
-        /*
-        return (time_low != op.time_low || time_mid != op.time_mid ||
-                time_hi != op.time_hi || clock_seq != op.clock_seq ||
-                node != op.node);
-                */
-    }
-
-    inline bool operator<= (const uuid& op) const {
-        return hash <= op.hash;
-    }
-
-    inline bool operator< (const uuid& op) const {
-        return hash < op.hash;
+    std::strong_ordering operator<=>(const uuid& op) const {
+        return std::tie(time_low, time_mid, time_hi, clock_seq, node) <=>
+            std::tie(op.time_low, op.time_mid, op.time_hi, op.clock_seq, op.node);
     }
 
     uuid& operator= (const uuid& op) {
@@ -323,9 +309,12 @@ std::istream& operator>>(std::istream &is, uuid& u);
 template <>struct fmt::formatter<uuid> : fmt::ostream_formatter {};
 
 namespace std {
+    // From the fields, so uuids which compare equal always hash equal
     template<> struct hash<uuid> {
         std::size_t operator()(uuid const& u) const noexcept {
-            return u.hash;
+            const uint64_t a = ((uint64_t) u.time_low << 32) | ((uint64_t) u.time_mid << 16) | u.time_hi;
+            const uint64_t b = ((uint64_t) u.clock_seq << 48) | u.node;
+            return std::hash<uint64_t>{}(a) ^ (std::hash<uint64_t>{}(b) << 1);
         }
     };
 }

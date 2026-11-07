@@ -94,7 +94,7 @@ public:
         class sub_element_data_gtk;
         class sub_element_data_generic;
 
-        enum sub_type {
+        enum sub_type : uint8_t {
             sub_pmk_r1_keyholder = 1,
             sub_pmk_gtk = 2,
             sub_pmk_r0_kh_id = 3
