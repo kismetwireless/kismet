@@ -75,7 +75,7 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
     devlist_locker.unlock();
 
     // Pull all the devices out of the list
-    for (auto m : macs) {
+    for (const auto& m : macs) {
         const auto& mi = immutable_copy.equal_range(m);
         for (auto msi = mi.first; msi != mi.second; ++msi)
             ret_devices->push_back(msi->second);
@@ -136,7 +136,7 @@ std::shared_ptr<tracker_element> device_tracker::multikey_endp_handler(shared_co
         keys.push_back(ka);
     }
 
-    for (auto k : keys) { 
+    for (const auto& k : keys) { 
         auto d = fetch_device(k);
 
         if (d == nullptr)

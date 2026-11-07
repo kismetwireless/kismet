@@ -1633,7 +1633,7 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
 
     uuid_vec->clear();
 
-    for (auto u : btpi->service_uuid_vec) {
+    for (const auto& u : btpi->service_uuid_vec) {
         auto tu = std::make_shared<tracker_element_uuid>(0, u);
         uuid_vec->push_back(tu);
     }

@@ -385,13 +385,9 @@ template<> std::string get_tracker_value(const shared_tracker_element& e) {
     if (e->is_stringable())
         return e->as_string();
 
-#ifdef TE_TYPE_SAFETY
     const auto es = fmt::format("invalid trackedelement access id {}, cannot use a {} "
             "as a string", e->get_id(), e->get_type_as_string());
     throw std::runtime_error(es);
-#endif
-
-    return "";
 }
 
 template<> uint8_t get_tracker_value(const shared_tracker_element& e) {

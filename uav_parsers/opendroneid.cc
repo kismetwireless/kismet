@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <bit>
 #include <cstring>
 
 #include "opendroneid.h"
@@ -35,10 +36,7 @@ uint32_t le32(const uint8_t *p) {
 }
 
 int32_t le32s(const uint8_t *p) {
-    uint32_t v = le32(p);
-    int32_t r;
-    std::memcpy(&r, &v, sizeof(r));
-    return r;
+    return std::bit_cast<int32_t>(le32(p));
 }
 
 /* Fixed-width text field, trimmed at the first NUL */
@@ -117,8 +115,7 @@ void decode_location(const uint8_t *m, location_msg& l) {
         l.speed_valid = true;
     }
 
-    int8_t sv;
-    std::memcpy(&sv, &m[4], 1);
+    auto sv = std::bit_cast<int8_t>(m[4]);
     l.speed_v = sv * 0.5;
     l.speed_v_valid = sv >= -124 && sv <= 124;
 

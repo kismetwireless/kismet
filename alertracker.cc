@@ -752,7 +752,7 @@ alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connecti
     {
         kis_lock_guard<kis_mutex> lk(alert_mutex, "alert_tracker last_alerts_endpoint");
 
-        for (auto i : *alert_backlog_vec) {
+        for (const auto& i : *alert_backlog_vec) {
             auto ai = std::static_pointer_cast<tracked_alert>(i);
             if (since_time < ai->get_timestamp()) {
                 msgvec->push_back(ai);

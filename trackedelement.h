@@ -1387,15 +1387,15 @@ public:
         return value.load(order);
     }
 
-    void set(const N in, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+    void set(const N in, std::memory_order order = std::memory_order_seq_cst) noexcept {
         value.store(in, order);
     }
 
-    const N fetch_add(N val, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+    const N fetch_add(N val, std::memory_order order = std::memory_order_seq_cst) noexcept {
         return value.fetch_add(val, order);
     }
 
-    const N fetch_sub(N val, std::memory_order order = std::memory_order_seq_cst) volatile noexcept {
+    const N fetch_sub(N val, std::memory_order order = std::memory_order_seq_cst) noexcept {
         return value.fetch_sub(val, order);
     }
 

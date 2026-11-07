@@ -557,7 +557,7 @@ bool kis_tracked_device_base_v2::match_regex(const kis_regex::regex& re, const j
                 break;
             case json_adapter_v2::consthash("kismet.device.base.seenby"):
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                for (auto i : seenby_map_) {
+                for (auto& i : seenby_map_) {
                     if (i.second.match_regex(re, subgroup)) {
                         return true;
                     }
@@ -607,7 +607,7 @@ bool kis_tracked_device_base_v2::match_string(const std::string& match, bool mat
                 break;
             case json_adapter_v2::consthash("kismet.device.base.seenby"):
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
-                for (auto i : seenby_map_) {
+                for (auto& i : seenby_map_) {
                     if (i.second.match_string(match, match_icase, match_full, subgroup)) {
                         return true;
                     }

@@ -2134,7 +2134,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     if (process_11d_country_list) {
                         dot11d.parse_channels(ie_tag.tag_data());
 
-                        for (auto c : *(dot11d.country_list())) {
+                        for (const auto& c : *(dot11d.country_list())) {
                             dot11_packinfo_dot11d_entry ri;
 
                             ri.startchan = c->first_channel();
@@ -3174,7 +3174,7 @@ int kis_80211_phy::packet_dot11_wps_m3(const kis_packet* in_pack) {
             return 0;
 
         // Go through the fields until we find the MESSAGE_TYPE field
-        for (auto i : *(wfa_wps->fields())) {
+        for (const auto& i : *(wfa_wps->fields())) {
             auto msg = i->content_message_type();
 
             if (msg != NULL && msg->messagetype() ==
