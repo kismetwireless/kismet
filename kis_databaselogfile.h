@@ -224,6 +224,15 @@ protected:
     sqlite3_stmt *data_stmt;
 
     sqlite3_stmt *prepare_cached(sqlite3_stmt *& stmt, const char *sql, std::string& err);
+
+    // log_data for a caller already holding a writer guard; taking the shared lifetime lock
+    // again on the same thread could deadlock behind a waiting close
+    int log_data_locked(const kis_gps_packinfo *gps,
+            const kis_layer1_packinfo *l1info,
+            const struct timeval& tv,
+            const std::string& phystring, const mac_addr& devmac, const uuid& datasource_uuid,
+            const std::string& type, const std::string& json,
+            const kis_gps_packinfo *reported_gps);
     void finalize_cached();
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with

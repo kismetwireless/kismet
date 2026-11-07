@@ -1385,7 +1385,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
-        log_data(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
+        log_data_locked(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
                 metablob->meta_type, metablob->meta_data, &in_pack->reported_gps);
     } else if (jsonblob != nullptr) {
         mac_addr smac("00:00:00:00:00:00");
@@ -1397,7 +1397,7 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         if (datasrc != nullptr)
             puuid = datasrc->ref_source->get_source_uuid();
 
-        log_data(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
+        log_data_locked(&in_pack->gps_info, &in_pack->signal_info, in_pack->ts, phystring, smac, puuid,
                 jsonblob->type, jsonblob->json_string, &in_pack->reported_gps);
     }
 
@@ -1414,6 +1414,17 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
         return 0;
 
     db_writer_guard writer_lk(this);
+
+    return log_data_locked(gps, l1info, tv, phystring, devmac, datasource_uuid, type, json,
+            reported_gps);
+}
+
+int kis_database_logfile::log_data_locked(const kis_gps_packinfo* gps,
+        const kis_layer1_packinfo *l1info,
+        const struct timeval& tv, const std::string& phystring, const mac_addr& devmac,
+        const uuid& datasource_uuid, const std::string& type, const std::string& json,
+        const kis_gps_packinfo *reported_gps) {
+
     if (!db_enabled)
         return 0;
 
