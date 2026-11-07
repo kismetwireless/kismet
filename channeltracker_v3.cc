@@ -18,8 +18,12 @@
 
 #include "channeltracker_v3.h"
 
+#include <algorithm>
 #include <utility>
 
+#include "alertracker.h"
+#include "censor.h"
+#include "configfile.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "devicetracker_view_workers.h"
@@ -41,6 +45,18 @@ void channel_tracker_v3_channel::as_json(std::ostream& os, json_adapter_v2::opts
     json_adapter_v2::json_encode_keyed<decltype(data_rrd)>{}(os, "kismet.channelrec.data_rrd", opts, data_rrd);
     json_adapter_v2::json_encode_keyed<decltype(device_rrd)>{}(os, "kismet.channelrec.device_rrd", opts, device_rrd);
     json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, "kismet.channelrec.signal", opts, signal_data);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.channelrec.retry_frames", opts, retry_frames);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.channelrec.retry_count", opts, retry_count);
+    json_adapter_v2::json_encode_keyed<decltype(retry_frames_rrd)>{}(os, "kismet.channelrec.retry_frames_rrd", opts, retry_frames_rrd);
+    json_adapter_v2::json_encode_keyed<decltype(retry_rrd)>{}(os, "kismet.channelrec.retry_rrd", opts, retry_rrd);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.channelrec.noise_frames", opts, noise_frames);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.channelrec.noise_retries", opts, noise_retries);
+    json_adapter_v2::json_encode_keyed<unsigned int>{}(os, "kismet.channelrec.noise_retry_tx", opts, noise_retry_tx);
+    json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.channelrec.noise_retry_pct", opts, noise_retry_pct);
+    json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.channelrec.noise_score", opts, noise_score);
+    json_adapter_v2::json_encode_keyed<double>{}(os, "kismet.channelrec.noise_baseline_pct", opts, noise_baseline_pct);
+    json_adapter_v2::json_encode_keyed<bool>{}(os, "kismet.channelrec.noise", opts, noisy);
+    json_adapter_v2::json_encode_keyed<uint64_t>{}(os, "kismet.channelrec.noise_since", opts, static_cast<uint64_t>(noise_since));
 
     fmt::print(os, "}}");
 
@@ -87,6 +103,46 @@ void channel_tracker_v3_channel::filtered_as_json(std::ostream& os, json_adapter
                 json_adapter_v2::group_fields(f.second.subfields, subgroup);
                 json_adapter_v2::json_encode_keyed<kis_tracked_signal_data_v2>{}(os, f.second.rename, opts, signal_data, subgroup);
                 break;
+            case json_adapter_v2::consthash("kismet.channelrec.retry_frames"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, retry_frames);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.retry_count"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, retry_count);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.retry_frames_rrd"):
+                subgroup.clear();
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<decltype(retry_frames_rrd)>{}(os, f.second.rename, opts, retry_frames_rrd, subgroup);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.retry_rrd"):
+                subgroup.clear();
+                json_adapter_v2::group_fields(f.second.subfields, subgroup);
+                json_adapter_v2::json_encode_keyed<decltype(retry_rrd)>{}(os, f.second.rename, opts, retry_rrd, subgroup);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_frames"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, noise_frames);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_retries"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, noise_retries);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_retry_tx"):
+                json_adapter_v2::json_encode_keyed<unsigned int>{}(os, f.second.rename, opts, noise_retry_tx);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_retry_pct"):
+                json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, noise_retry_pct);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_score"):
+                json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, noise_score);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_baseline_pct"):
+                json_adapter_v2::json_encode_keyed<double>{}(os, f.second.rename, opts, noise_baseline_pct);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise"):
+                json_adapter_v2::json_encode_keyed<bool>{}(os, f.second.rename, opts, noisy);
+                break;
+            case json_adapter_v2::consthash("kismet.channelrec.noise_since"):
+                json_adapter_v2::json_encode_keyed<uint64_t>{}(os, f.second.rename, opts, static_cast<uint64_t>(noise_since));
+                break;
             default:
                 json_adapter_v2::json_encode_keyed<int>{}(os, f.second.rename, opts, 0);
         }
@@ -104,6 +160,28 @@ channel_tracker_v3::channel_tracker_v3() :
     // Number of seconds we consider a device to be active on a frequency
     // after the last time we see it
     device_decay = 30;
+
+    auto conf = Globalreg::globalreg->kismet_config;
+
+    noise_enabled = conf->fetch_opt_bool("dot11_channel_noise", true);
+    noise_window_sec = std::clamp(conf->fetch_opt_uint("dot11_channel_noise_window", 10), 1U, 600U);
+    noise_min_frames = std::clamp(conf->fetch_opt_uint("dot11_channel_noise_min_frames", 50), 1U, 1000000U);
+    noise_min_tx = std::clamp(conf->fetch_opt_uint("dot11_channel_noise_min_transmitters", 3), 1U,
+            static_cast<unsigned int>(channel_noise_window::max_tx));
+    noise_set_pct = std::clamp(conf->fetch_opt_as<double>("dot11_channel_noise_retry_pct", 30.0), 0.0, 100.0);
+    noise_clear_pct = std::clamp(conf->fetch_opt_as<double>("dot11_channel_noise_clear_pct", 15.0), 0.0, noise_set_pct);
+    noise_hold_sec = std::clamp(conf->fetch_opt_uint("dot11_channel_noise_hold", 60), noise_window_sec, 86400U);
+
+    alert_noise_ref = -1;
+    if (noise_enabled) {
+        auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
+        alert_noise_ref =
+            alertracker->activate_configured_alert("CHANNOISE",
+                    "SYSTEM", kis_alert_severity::low,
+                    "Many 802.11 frames on a channel are being retransmitted, by several "
+                    "transmitters at once.  This usually means interference Kismet can't "
+                    "decode: non-Wi-Fi devices, overlapping networks, or a jammer.");
+    }
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
@@ -202,7 +280,145 @@ int channel_tracker_v3::gather_devices_event(int event_id __attribute__((unused)
     channeltracker_v3_device_worker worker(this);
     devicetracker->do_readonly_device_work(worker);
 
+    if (noise_enabled)
+        evaluate_noise(Globalreg::globalreg->last_tv_sec);
+
     return 1;
+}
+
+// Close the noise windows that have run their time.  A window's retry percentage leaves out
+// its worst transmitter, so one station retrying to a far-away peer can't mark the channel,
+// and the score is scaled down until enough frames and enough retrying transmitters are
+// heard.  Windows with too few frames don't change the flag, so an idle channel keeps its
+// state until the hold time runs out.  The baseline only learns from windows that aren't
+// flagged, so it stays the channel's usual level through a noisy spell.
+void channel_tracker_v3::evaluate_noise(time_t now) {
+    struct noise_alert {
+        std::string channel;
+        double mhz;
+        double pct;
+        uint64_t frames;
+        unsigned int tx;
+        double baseline;
+    };
+
+    std::vector<noise_alert> alerts;
+
+    {
+        kis_lock_guard<kis_mutex> lk(lock, __func__);
+
+        for (auto& fi : frequency_map) {
+            auto& f = fi.second;
+            auto& w = f.noise_win;
+
+            auto hold_expired = [&]() {
+                if (f.noisy && now - f.noise_last_qualified >= static_cast<time_t>(noise_hold_sec)) {
+                    f.noisy = false;
+                    f.noise_since = 0;
+                    f.noise_score = 0;
+                }
+            };
+
+            if (w.start == 0) {
+                hold_expired();
+                continue;
+            }
+
+            // Clock stepped back; start over
+            if (now < w.start) {
+                w.reset(now);
+                continue;
+            }
+
+            if (now - w.start < static_cast<time_t>(noise_window_sec))
+                continue;
+
+            // Retrying transmitters, and the one retrying the most
+            unsigned int retry_tx = 0;
+            const channel_noise_window::tx_rec *worst = nullptr;
+
+            for (size_t i = 0; i < w.n_tx; i++) {
+                const auto& t = w.tx[i];
+
+                if (t.retries >= 2)
+                    retry_tx++;
+
+                if (t.retries > 0 && (worst == nullptr || t.retries > worst->retries))
+                    worst = &t;
+            }
+
+            auto frames = w.frames;
+            auto retries = w.retries;
+
+            if (worst != nullptr) {
+                frames -= worst->frames;
+                retries -= worst->retries;
+            }
+
+            const double pct = frames > 0 ? 100.0 * retries / frames : 0.0;
+            const double conf_frames = std::min(1.0, static_cast<double>(w.frames) / noise_min_frames);
+            const double conf_tx = std::min(1.0, static_cast<double>(retry_tx) / noise_min_tx);
+
+            f.noise_frames = w.frames;
+            f.noise_retries = w.retries;
+            f.noise_retry_tx = retry_tx;
+
+            if (w.frames >= noise_min_frames) {
+                f.noise_last_qualified = now;
+                f.noise_retry_pct = pct;
+                f.noise_score = pct * conf_frames * conf_tx;
+
+                if (!f.noisy && f.noise_score >= noise_set_pct) {
+                    f.noisy = true;
+                    f.noise_since = now;
+
+                    if (alert_noise_ref >= 0)
+                        alerts.push_back(noise_alert{f.noise_channel, f.frequency / 1000,
+                                pct, w.frames, retry_tx, f.noise_baseline_pct});
+                } else if (f.noisy && f.noise_score < noise_clear_pct) {
+                    f.noisy = false;
+                    f.noise_since = 0;
+                }
+
+                if (!f.noisy) {
+                    if (f.noise_baseline_pct < 0)
+                        f.noise_baseline_pct = pct;
+                    else
+                        f.noise_baseline_pct = 0.9 * f.noise_baseline_pct + 0.1 * pct;
+                }
+            } else {
+                hold_expired();
+            }
+
+            // An idle channel stops evaluating until it hears another frame
+            w.reset(w.frames > 0 ? now : 0);
+        }
+    }
+
+    if (alerts.empty())
+        return;
+
+    auto alertracker = Globalreg::fetch_global_as<alert_tracker>();
+    if (alertracker == nullptr)
+        return;
+
+    for (const auto& a : alerts) {
+        const auto mhz = fmt::format("{:.0f}", a.mhz);
+        const auto chan = a.channel.empty() ? mhz : a.channel;
+
+        // Sources that name channels by frequency would otherwise read "2412 (2412 MHz)"
+        const auto where = chan == mhz ? fmt::format("{} MHz", mhz) :
+            fmt::format("Channel {} ({} MHz)", chan, mhz);
+        const auto usual = a.baseline < 0 ? std::string{} :
+            fmt::format("; usually {:.0f}%", a.baseline);
+
+        alertracker->raise_alert(alert_noise_ref, nullptr,
+                mac_addr{}, mac_addr{}, mac_addr{}, mac_addr{}, chan,
+                censor::format("{} may have interference: {:.0f}% of the 802.11 data and "
+                    "management frames were retries over the last {} seconds, from {} retrying "
+                    "transmitters ({} frames, the worst transmitter left out{}).", where, a.pct,
+                    noise_window_sec, a.tx, a.frames, usual));
+    }
 }
 
 void channel_tracker_v3::update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t ts) {
@@ -231,6 +447,21 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
     if (!in_pack->signal_info.data_ok)
         return 1;
 
+    // Retries count once however many sources heard them, and only from frames that decoded
+    const bool retry_ok = in_pack->common_info.common_info_ok && in_pack->common_info.retry_valid &&
+        !in_pack->duplicate && !in_pack->error && !(in_pack->crc_ok && !in_pack->checksum_valid);
+    const bool retry = in_pack->common_info.retry;
+
+    auto count_retry = [retry](channel_tracker_v3_channel& c) {
+        c.retry_frames++;
+        c.retry_frames_rrd.add_sample(1, Globalreg::globalreg->last_tv_sec);
+
+        if (retry) {
+            c.retry_count++;
+            c.retry_rrd.add_sample(1, Globalreg::globalreg->last_tv_sec);
+        }
+    };
+
     // Find or make a frequency record if we know our frequency
     if (in_pack->signal_info.freq_khz != 0) {
         auto const& imi_idx = cv3->frequency_map.try_emplace(in_pack->signal_info.freq_khz, channel_tracker_v3_channel{});
@@ -246,6 +477,22 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
         if (in_pack->common_info.common_info_ok) {
             freq.data_rrd.add_sample(in_pack->common_info.datasize,
                     Globalreg::globalreg->last_tv_sec);
+        }
+
+        if (retry_ok) {
+            count_retry(freq);
+
+            if (cv3->noise_enabled) {
+                if (freq.noise_win.start == 0)
+                    freq.noise_win.start = Globalreg::globalreg->last_tv_sec;
+
+                // Named once, for the alert
+                if (freq.noise_channel.empty() && !(in_pack->common_info.channel == "0" ||
+                            in_pack->common_info.channel.empty()))
+                    freq.noise_channel = in_pack->common_info.channel.substr(0, 32);
+
+                freq.noise_win.add(in_pack->common_info.link_tx.longmac, retry);
+            }
         }
     }
 
@@ -263,6 +510,9 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
             chan.signal_data.append_signal(in_pack->signal_info, false, 0);
             chan.packets_rrd.add_sample(1, Globalreg::globalreg->last_tv_sec);
             chan.data_rrd.add_sample(in_pack->common_info.datasize, Globalreg::globalreg->last_tv_sec);
+
+            if (retry_ok)
+                count_retry(chan);
         }
     }
 

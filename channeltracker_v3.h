@@ -19,11 +19,53 @@
 #ifndef __CHANNELTRACKER_V3__
 #define __CHANNELTRACKER_V3__
 
+#include <array>
 #include <unordered_map>
 
 #include "devicetracker_component_v2.h"
 #include "json_adapter_v2.h"
 #include "rrd_v2.h"
+
+// One noise window of retry-capable frames on a frequency, with a bounded table of the
+// transmitters heard; transmitters past the table count only in the totals
+struct channel_noise_window {
+    static constexpr size_t max_tx = 32;
+
+    struct tx_rec {
+        uint64_t addr;
+        uint64_t frames;
+        uint64_t retries;
+    };
+
+    std::array<tx_rec, max_tx> tx{};
+    size_t n_tx = 0;
+    uint64_t frames = 0;
+    uint64_t retries = 0;
+    time_t start = 0;
+
+    void reset(time_t now) {
+        n_tx = 0;
+        frames = 0;
+        retries = 0;
+        start = now;
+    }
+
+    void add(uint64_t addr, bool retry) {
+        frames++;
+        retries += retry;
+
+        for (size_t i = 0; i < n_tx; i++) {
+            if (tx[i].addr == addr) {
+                tx[i].frames++;
+                tx[i].retries += retry;
+                return;
+            }
+        }
+
+        if (n_tx < max_tx)
+            tx[n_tx++] = tx_rec{addr, 1, retry};
+    }
+};
 
 class channel_tracker_v3;
 class channel_tracker_v3_channel : public json_adapter_v2::jsonable {
@@ -39,7 +81,13 @@ public:
         frequency{c.frequency},
         packets_rrd{std::move(c.packets_rrd)},
         data_rrd{std::move(c.data_rrd)},
-        device_rrd{std::move(c.device_rrd)} { }
+        device_rrd{std::move(c.device_rrd)},
+        retry_frames{c.retry_frames},
+        retry_count{c.retry_count},
+        retry_frames_rrd{std::move(c.retry_frames_rrd)},
+        retry_rrd{std::move(c.retry_rrd)},
+        noise_win{c.noise_win},
+        noise_channel{std::move(c.noise_channel)} { }
 
     virtual void as_json(std::ostream& os, json_adapter_v2::opts *opts) override;
     virtual void filtered_as_json(std::ostream& os, json_adapter_v2::opts *opts, const json_adapter_v2::field_group_map& fields) override;
@@ -53,6 +101,26 @@ protected:
     kis_rrd_v2<kis_rrd_v2_peak_aggregator> device_rrd;
     kis_tracked_signal_data_v2 signal_data;
 
+    // Frames whose retry flag means something (802.11 data and management), and how many
+    // of them were retries; totals and per second
+    uint64_t retry_frames{0};
+    uint64_t retry_count{0};
+    kis_rrd_v2<kis_rrd_v2_sum_aggregator> retry_frames_rrd;
+    kis_rrd_v2<kis_rrd_v2_sum_aggregator> retry_rrd;
+
+    // Noise estimate, kept per frequency only: the window being filled, and the result of
+    // the last one closed
+    channel_noise_window noise_win;
+    uint64_t noise_frames{0};
+    uint64_t noise_retries{0};
+    unsigned int noise_retry_tx{0};
+    double noise_retry_pct{0};
+    double noise_score{0};
+    double noise_baseline_pct{-1};
+    bool noisy{false};
+    time_t noise_since{0};
+    time_t noise_last_qualified{0};
+    std::string noise_channel;
 };
 
 template<> struct json_adapter_v2::json_encode<channel_tracker_v3_channel> {
@@ -124,6 +192,18 @@ protected:
 
     int timer_id;
     int gather_devices_event(int event_id);
+
+    // Retry-based noise detection; see dot11_channel_noise in kismet_80211.conf
+    bool noise_enabled;
+    unsigned int noise_window_sec;
+    unsigned int noise_min_frames;
+    unsigned int noise_min_tx;
+    double noise_set_pct;
+    double noise_clear_pct;
+    unsigned int noise_hold_sec;
+    int alert_noise_ref;
+
+    void evaluate_noise(time_t now);
 };
 
 template<> struct json_adapter_v2::json_encode<channel_tracker_v3> {

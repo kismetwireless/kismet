@@ -111,6 +111,10 @@ public:
         dest = mac_addr(0);
         network = mac_addr(0);
         transmitter = mac_addr(0);
+
+        retry_valid = false;
+        retry = false;
+        link_tx = mac_addr(0);
     }
 
     // initialization indicator
@@ -139,6 +143,12 @@ public:
     std::string channel;
     // Frequency in khz
     double freq_khz;
+
+    // Link-layer retransmission flag, for phys whose frames carry a meaningful one (802.11
+    // data and management, not control); link_tx is the frame's transmitter on the air
+    bool retry_valid;
+    bool retry;
+    mac_addr link_tx;
 };
 
 class kis_gps_packinfo : public packet_component {

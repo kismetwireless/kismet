@@ -825,6 +825,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
         ci.transmitter = oci.transmitter;
         ci.datasize = oci.datasize;
         ci.basic_crypt_set = oci.basic_crypt_set;
+        ci.retry_valid = oci.retry_valid;
+        ci.retry = oci.retry;
+        ci.link_tx = oci.link_tx;
 
         if (in_pack->signal_info.data_ok)
             ci.freq_khz = in_pack->signal_info.freq_khz;
@@ -1806,6 +1809,13 @@ eap_end:
     in_pack->common_info.dest = packinfo->dest_mac;
     in_pack->common_info.network = packinfo->bssid_mac;
     in_pack->common_info.transmitter = packinfo->transmit_mac;
+
+    // Only complete data and management frames get here; A2 is always the transmitter
+    if (!packinfo->corrupt && (packinfo->type == packet_management || packinfo->type == packet_data)) {
+        in_pack->common_info.retry_valid = true;
+        in_pack->common_info.retry = packinfo->retry != 0;
+        in_pack->common_info.link_tx = mac_addr(addr1, PHY80211_MAC_LEN);
+    }
 
     in_pack->common_info.type = packet_basic_data;
 
