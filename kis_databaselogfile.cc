@@ -692,6 +692,18 @@ void kis_database_logfile::finalize_cached() {
     data_stmt = nullptr;
 }
 
+// Bind text or a blob with its full length; sqlite rejects anything over its length limit
+// (SQLITE_TOOBIG) instead of the length being truncated to an int
+static bool bind_text_checked(sqlite3_stmt *stmt, int pos, std::string_view s,
+        sqlite3_destructor_type d) {
+    return sqlite3_bind_text64(stmt, pos, s.data(), s.size(), d, SQLITE_UTF8) == SQLITE_OK;
+}
+
+static bool bind_blob_checked(sqlite3_stmt *stmt, int pos, std::string_view s,
+        sqlite3_destructor_type d) {
+    return sqlite3_bind_blob64(stmt, pos, s.data(), s.size(), d) == SQLITE_OK;
+}
+
 // Bind a gps record's position, or zeros if there's no usable one
 static void bind_gps(sqlite3_stmt *stmt, int& pos, const kis_gps_packinfo *gps) {
     bool ok = gps != nullptr && gps->gps_info_ok;
@@ -1024,14 +1036,22 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
         msgtype = "FATAL";
 
     sqlite3_bind_text(msg_stmt, spos++, msgtype.c_str(), msgtype.length(), SQLITE_TRANSIENT);
-    sqlite3_bind_text(msg_stmt, spos++, msg->get_message().c_str(), msg->get_message().length(), SQLITE_TRANSIENT);
+
+    // Reporting an oversized message would come straight back here, so it's dropped
+    if (!bind_text_checked(msg_stmt, spos++, msg->get_message(), SQLITE_TRANSIENT)) {
+        sqlite3_finalize(msg_stmt);
+        return;
+    }
 
 #if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb handle_message");
     db_lock_with_sync_check(dblock, return);
 #endif
 
-    if (sqlite3_step(msg_stmt) != SQLITE_DONE) {
+    r = sqlite3_step(msg_stmt);
+
+    // An oversized message is dropped, as above
+    if (r != SQLITE_DONE && r != SQLITE_TOOBIG) {
         close_log();
         _MSG_ERROR("Unable to insert message into {}: {}", ds_dbfile, sqlite3_errmsg(db));
     }
@@ -1147,15 +1167,27 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     sqlite3_bind_text(device_stmt, spos++, typestring.c_str(),
             typestring.length(), SQLITE_TRANSIENT);
 
-    sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(),
-            streamstring.length(), SQLITE_TRANSIENT);
+    if (!bind_blob_checked(device_stmt, spos++, streamstring, SQLITE_TRANSIENT)) {
+        sqlite3_finalize(device_stmt);
+        _MSG_ERROR("kis_database_logfile skipping device {}, its {} byte record is too large "
+                "for the database", macstring, streamstring.length());
+        return 0;
+    }
 
 #if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_device");
     db_lock_with_sync_check(dblock, return);
 #endif
 
-    if (sqlite3_step(device_stmt) != SQLITE_DONE) {
+    auto step_r = sqlite3_step(device_stmt);
+
+    if (step_r == SQLITE_TOOBIG) {
+        sqlite3_finalize(device_stmt);
+        _MSG_ERROR("kis_database_logfile skipping device {}, its {} byte record is too large for the database", macstring, streamstring.length());
+        return 0;
+    }
+
+    if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert device in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         close_log();
@@ -1297,7 +1329,14 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
                 sourceuuidstring.length(), SQLITE_STATIC);
 
         sqlite3_bind_int(stmt, sql_pos++, chunk->dlt);
-        sqlite3_bind_blob(stmt, sql_pos++, (const char *) chunk->data(), chunk->length(), SQLITE_STATIC);
+        if (!bind_blob_checked(stmt, sql_pos++, *chunk, SQLITE_STATIC)) {
+            sqlite3_reset(stmt);
+            sqlite3_clear_bindings(stmt);
+            stmt_lk.unlock();
+            _MSG_ERROR("kis_database_logfile skipping a {} byte packet, too large for the "
+                    "database", chunk->length());
+            return 0;
+        }
 
         sqlite3_bind_int(stmt, sql_pos++, in_pack->error);
 
@@ -1311,9 +1350,9 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
         sqlite3_bind_int(stmt, sql_pos++, in_pack->hash);
         sqlite3_bind_int64(stmt, sql_pos++, in_pack->packet_no);
 
-        bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+        auto r = sqlite3_step(stmt);
 
-        if (!ok)
+        if (r != SQLITE_DONE)
             err = sqlite3_errmsg(db);
 
         // Drop the references to our buffers before they go away
@@ -1322,7 +1361,11 @@ int kis_database_logfile::log_packet(const kis_packet* in_pack) {
 
         stmt_lk.unlock();
 
-        if (!ok) {
+        if (r == SQLITE_TOOBIG) {
+            _MSG_ERROR("kis_database_logfile skipping a {} byte packet, too large for the "
+                    "database", chunk->length());
+            return 0;
+        } else if (r != SQLITE_DONE) {
             _MSG_ERROR("kis_database_logfile unable to insert packet in {}: {}",
                     ds_dbfile, err);
             close_log();
@@ -1412,8 +1455,15 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
 
     sqlite3_bind_text(stmt, sql_pos++, uuidstring.c_str(), uuidstring.length(), SQLITE_STATIC);
 
-    sqlite3_bind_text(stmt, sql_pos++, type.data(), type.length(), SQLITE_STATIC);
-    sqlite3_bind_text(stmt, sql_pos++, json.data(), json.length(), SQLITE_STATIC);
+    if (!bind_text_checked(stmt, sql_pos++, type, SQLITE_STATIC) ||
+            !bind_text_checked(stmt, sql_pos++, json, SQLITE_STATIC)) {
+        sqlite3_reset(stmt);
+        sqlite3_clear_bindings(stmt);
+        stmt_lk.unlock();
+        _MSG_ERROR("kis_database_logfile skipping a {} byte data record, too large for the "
+                "database", type.length() + json.length());
+        return 0;
+    }
 
     if (l1info != nullptr && l1info->data_ok) {
         sqlite3_bind_int(stmt, sql_pos++, l1info->signal_dbm);
@@ -1421,9 +1471,9 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
         sqlite3_bind_int(stmt, sql_pos++, 0);
     }
 
-    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    auto r = sqlite3_step(stmt);
 
-    if (!ok)
+    if (r != SQLITE_DONE)
         err = sqlite3_errmsg(db);
 
     sqlite3_reset(stmt);
@@ -1431,7 +1481,11 @@ int kis_database_logfile::log_data(const kis_gps_packinfo* gps,
 
     stmt_lk.unlock();
 
-    if (!ok) {
+    if (r == SQLITE_TOOBIG) {
+        _MSG_ERROR("kis_database_logfile skipping a {} byte data record, too large for the "
+                "database", type.length() + json.length());
+        return 0;
+    } else if (r != SQLITE_DONE) {
         _MSG_ERROR("kis_database_logfile unable to insert data in {}: {}", ds_dbfile, err);
         close_log();
         return -1;
@@ -1507,14 +1561,27 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
     sqlite3_bind_text(datasource_stmt, 4, namestring.data(), namestring.length(), SQLITE_TRANSIENT);
     sqlite3_bind_text(datasource_stmt, 5, intfstring.data(), intfstring.length(), SQLITE_TRANSIENT);
 
-    sqlite3_bind_blob(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
+    if (!bind_blob_checked(datasource_stmt, 6, jsonstring, SQLITE_TRANSIENT)) {
+        sqlite3_finalize(datasource_stmt);
+        _MSG_ERROR("kis_database_logfile skipping datasource {}, its {} byte record is too "
+                "large for the database", uuidstring, jsonstring.length());
+        return 0;
+    }
 
 #if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_datasource");
     db_lock_with_sync_check(dblock, return -1);
 #endif
 
-    if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
+    auto step_r = sqlite3_step(datasource_stmt);
+
+    if (step_r == SQLITE_TOOBIG) {
+        sqlite3_finalize(datasource_stmt);
+        _MSG_ERROR("kis_database_logfile skipping datasource {}, its {} byte record is too large for the database", uuidstring, jsonstring.length());
+        return 0;
+    }
+
+    if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert datasource in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         close_log();
@@ -1584,15 +1651,28 @@ int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_ale
         sqlite3_bind_int(alert_stmt, 6, 0);
     }
 
-    sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), SQLITE_TRANSIENT);
-    sqlite3_bind_blob(alert_stmt, 8, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
+    if (!bind_text_checked(alert_stmt, 7, headerstring, SQLITE_TRANSIENT) ||
+            !bind_blob_checked(alert_stmt, 8, jsonstring, SQLITE_TRANSIENT)) {
+        sqlite3_finalize(alert_stmt);
+        _MSG_ERROR("kis_database_logfile skipping a {} byte alert, too large for the database",
+                jsonstring.length());
+        return 0;
+    }
 
 #if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_alert");
     db_lock_with_sync_check(dblock, return -1);
 #endif
 
-    if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
+    auto step_r = sqlite3_step(alert_stmt);
+
+    if (step_r == SQLITE_TOOBIG) {
+        sqlite3_finalize(alert_stmt);
+        _MSG_ERROR("kis_database_logfile skipping a {} byte alert, too large for the database", jsonstring.length());
+        return 0;
+    }
+
+    if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert alert in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         close_log();
@@ -1656,15 +1736,28 @@ int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& 
         }
     }
 
-    sqlite3_bind_text(snapshot_stmt, 5, snaptype.c_str(), snaptype.length(), SQLITE_TRANSIENT);
-    sqlite3_bind_text(snapshot_stmt, 6, json.data(), json.length(), SQLITE_TRANSIENT);
+    if (!bind_text_checked(snapshot_stmt, 5, snaptype, SQLITE_TRANSIENT) ||
+            !bind_text_checked(snapshot_stmt, 6, json, SQLITE_TRANSIENT)) {
+        sqlite3_finalize(snapshot_stmt);
+        _MSG_ERROR("kis_database_logfile skipping a {} byte snapshot, too large for the "
+                "database", snaptype.length() + json.length());
+        return 0;
+    }
 
 #if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_snapshot");
     db_lock_with_sync_check(dblock, return -1);
 #endif
 
-    if (sqlite3_step(snapshot_stmt) != SQLITE_DONE) {
+    auto step_r = sqlite3_step(snapshot_stmt);
+
+    if (step_r == SQLITE_TOOBIG) {
+        sqlite3_finalize(snapshot_stmt);
+        _MSG_ERROR("kis_database_logfile skipping a {} byte snapshot, too large for the database", snaptype.length() + json.length());
+        return 0;
+    }
+
+    if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert snapshot in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         close_log();
