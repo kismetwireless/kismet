@@ -31,6 +31,7 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "uuid.h"
 
 /* Kismet Databases
  *
@@ -38,8 +39,8 @@
  * simplicity.
  *
  * Each database contains one core table which contains information about
- * the primary module manipulating state, the database version, and the kismet
- * version which last accessed the file.
+ * the primary module manipulating state, the database version, the kismet
+ * version which last accessed the file, and a random uuid unique to the file.
  *
  * Database versions are monotonically incrementing numbers; a module is
  * expected to detect when the codebase is newer than the database file and
@@ -74,11 +75,17 @@ public:
 
     virtual unsigned int database_get_db_version();
 
+    // Per-file uuid, generated when the database is created; error/empty
+    // for older files which predate it
+    uuid database_get_db_uuid();
+
     // Upgrade a database which doesn't match our version
     virtual int database_upgrade_db() = 0;
 
 protected:
     virtual bool database_create_master_table();
+
+    void database_load_db_uuid();
 
     // Force-set db version, to be called after upgrading the db or
     // creating a new db
@@ -88,6 +95,8 @@ protected:
     std::string ds_module_name;
 
     std::string ds_dbfile;
+
+    uuid ds_db_uuid;
 
     kis_mutex ds_mutex;
 

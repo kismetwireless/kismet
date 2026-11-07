@@ -134,6 +134,23 @@ public:
         hash = gen_hash();
     }
 
+    // RFC 4122 v4, fully random; carries no time or host information
+    void generate_random_uuid() {
+        uint8_t b[16] = {0};
+        get_random_bytes(b, sizeof(b));
+
+        time_low = kismet::load_be<uint32_t>(b);
+        time_mid = kismet::load_be<uint16_t>(b + 4);
+        time_hi = (kismet::load_be<uint16_t>(b + 6) & 0x0FFF) | 0x4000;
+        clock_seq = (kismet::load_be<uint16_t>(b + 8) & 0x3FFF) | 0x8000;
+
+        uint8_t node_b[8] = {0};
+        memcpy(node_b, b + 10, 6);
+        node = kismet::load_le<uint64_t>(node_b);
+        error = 0;
+        hash = gen_hash();
+    }
+
     void generate_time_uuid(uint8_t *in_node) {
         uint32_t clock_mid;
 

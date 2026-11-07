@@ -96,9 +96,46 @@ bool kis_database::database_open(std::string in_file_path, int in_flags) {
         // Build the master table
         if (!database_create_master_table())
             return false;
+    } else {
+        database_load_db_uuid();
     }
 
     return true;
+}
+
+void kis_database::database_load_db_uuid() {
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
+
+    ds_db_uuid = uuid();
+
+    if (db == NULL)
+        return;
+
+    sqlite3_stmt *stmt = NULL;
+
+    // Older files have no db_uuid column; failing to prepare is expected there
+    if (sqlite3_prepare_v2(db, "SELECT db_uuid FROM KISMET", -1, &stmt, NULL) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return;
+    }
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        auto t = sqlite3_column_text(stmt, 0);
+        auto l = sqlite3_column_bytes(stmt, 0);
+
+        if (t != NULL && l == 36) {
+            uuid u(std::string((const char *) t, l));
+            if (!u.error)
+                ds_db_uuid = u;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+}
+
+uuid kis_database::database_get_db_uuid() {
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
+    return ds_db_uuid;
 }
 
 void kis_database::database_close() {
@@ -125,7 +162,8 @@ bool kis_database::database_create_master_table() {
         "CREATE TABLE KISMET ("
         "kismet_version TEXT, "
         "db_version INT, "
-        "db_module TEXT)";
+        "db_module TEXT, "
+        "db_uuid TEXT)";
 
     r = sqlite3_exec(db, sql.c_str(),
             [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
@@ -139,7 +177,7 @@ bool kis_database::database_create_master_table() {
     }
 
     sql = 
-        "INSERT INTO KISMET (kismet_version, db_version, db_module) VALUES (?, ?, ?)";
+        "INSERT INTO KISMET (kismet_version, db_version, db_module, db_uuid) VALUES (?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
@@ -157,12 +195,27 @@ bool kis_database::database_create_master_table() {
             Globalreg::globalreg->version_tiny,
             Globalreg::globalreg->version_git_rev);
 
+    uuid dbuuid;
+    dbuuid.generate_random_uuid();
+    auto dbuuid_str = dbuuid.as_string();
+
     sqlite3_bind_text(stmt, 1, kversion.c_str(), kversion.length(), 0);
     sqlite3_bind_int(stmt, 2, 0);
     sqlite3_bind_text(stmt, 3, ds_module_name.c_str(), ds_module_name.length(), 0);
+    sqlite3_bind_text(stmt, 4, dbuuid_str.c_str(), dbuuid_str.length(), SQLITE_TRANSIENT);
 
-    sqlite3_step(stmt);
+    r = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
+
+    if (r != SQLITE_DONE) {
+        _MSG("kis_database unable to populate KISMET main table in " + ds_dbfile + ": " +
+                std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        sqlite3_close(db);
+        db = NULL;
+        return false;
+    }
+
+    ds_db_uuid = dbuuid;
 
     return true;
 }
