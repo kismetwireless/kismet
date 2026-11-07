@@ -1408,68 +1408,7 @@ std::shared_ptr<device_rules::active_set> device_rules::set_api_rules(const std:
 }
 
 bool device_rules::save_api(const std::string& text, std::string& err) {
-    // Write a new, uniquely named file beside it and rename over it, so a crash never
-    // leaves half a file and nothing pre-placed at the temp path can be truncated
-    std::vector<char> tmpl(api_file.begin(), api_file.end());
-    for (auto c : std::string{".XXXXXX"})
-        tmpl.push_back(c);
-    tmpl.push_back('\0');
-
-    int fd = mkostemp(tmpl.data(), O_CLOEXEC);
-    if (fd < 0) {
-        err = kis_strerror_r(errno);
-        return false;
-    }
-
-    const std::string tmp{tmpl.data()};
-
-    auto fail = [&](int e) {
-        err = kis_strerror_r(e);
-        close(fd);
-        unlink(tmp.c_str());
-        return false;
-    };
-
-    if (fchmod(fd, 0600) != 0)
-        return fail(errno);
-
-    size_t off = 0;
-    while (off < text.size()) {
-        ssize_t w = write(fd, text.data() + off, text.size() - off);
-        if (w < 0) {
-            if (errno == EINTR)
-                continue;
-            return fail(errno);
-        }
-        off += w;
-    }
-
-    if (fsync(fd) != 0)
-        return fail(errno);
-
-    if (close(fd) != 0) {
-        err = kis_strerror_r(errno);
-        unlink(tmp.c_str());
-        return false;
-    }
-
-    if (rename(tmp.c_str(), api_file.c_str()) != 0) {
-        err = kis_strerror_r(errno);
-        unlink(tmp.c_str());
-        return false;
-    }
-
-    // The rename itself is only durable once the directory is synced
-    auto slash = api_file.find_last_of('/');
-    auto dir = slash == std::string::npos ? std::string{"."} :
-        (slash == 0 ? std::string{"/"} : api_file.substr(0, slash));
-    int dfd = open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (dfd >= 0) {
-        fsync(dfd);
-        close(dfd);
-    }
-
-    return true;
+    return write_private_file(api_file, text, err);
 }
 
 std::string device_rules::describe(const devicerules::parse_error& e) {

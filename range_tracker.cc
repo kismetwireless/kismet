@@ -780,49 +780,11 @@ bool range_tracker::save(std::string& err) {
         dirty = false;
     }
 
-    // Write beside the file and rename over it, so a crash never leaves half a file;
-    // it holds where the receiver is, so only the user can read it
-    auto tmp = save_file + ".tmp";
-
-    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
-    if (fd < 0) {
-        err = kis_strerror_r(errno);
-        return false;
-    }
-
-    auto fail = [&](int e) {
-        err = kis_strerror_r(e);
-        close(fd);
-        unlink(tmp.c_str());
-        return false;
-    };
-
-    if (fchmod(fd, 0600) != 0)
-        return fail(errno);
-
-    size_t off = 0;
-    while (off < text.size()) {
-        ssize_t w = write(fd, text.data() + off, text.size() - off);
-        if (w < 0) {
-            if (errno == EINTR)
-                continue;
-            return fail(errno);
-        }
-        off += w;
-    }
-
-    if (fsync(fd) != 0)
-        return fail(errno);
-
-    if (close(fd) != 0) {
-        err = kis_strerror_r(errno);
-        unlink(tmp.c_str());
-        return false;
-    }
-
-    if (rename(tmp.c_str(), save_file.c_str()) != 0) {
-        err = kis_strerror_r(errno);
-        unlink(tmp.c_str());
+    // It holds where the receiver is, so only the user can read it
+    if (!write_private_file(save_file, text, err)) {
+        // Try again on the next save instead of waiting for another change
+        kis_lock_guard<kis_mutex> lk(mutex, "range_tracker save");
+        dirty = true;
         return false;
     }
 

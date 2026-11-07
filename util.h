@@ -463,8 +463,13 @@ struct membuf : public std::streambuf {
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
 std::string kis_strerror_r(int errnum);
 
-// Replace a file with data readable only by the user, via a temp file and rename so a
-// crash never leaves half a file and a planted link isn't followed; false and err on failure
+// Replace a file with data and the given mode, via a uniquely named temp file beside it,
+// synced and renamed over it, then the directory synced; a crash never leaves half a file,
+// and nothing planted at the temp path is followed or truncated.  False and err on failure
+bool write_file_atomic(const std::string& path, const std::string& data, mode_t mode,
+        std::string& err);
+
+// write_file_atomic, readable only by the user
 bool write_private_file(const std::string& path, const std::string& data, std::string& err);
 
 // realpath() as a string, or nullopt when the path can't be resolved (errno is set)
