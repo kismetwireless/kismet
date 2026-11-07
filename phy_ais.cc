@@ -826,7 +826,7 @@ bool kis_ais_phy::process_ais_json(nlohmann::json& json, const std::shared_ptr<k
         basedev->set_devicename(fmt::format("AIS {}", d.mmsi));
 
     if (new_device) {
-        _MSG_INFO("Detected new AIS station MMSI {} ({})", d.mmsi, aisdev->get_country());
+        _MSG_INFO("Detected new AIS station MMSI {} ({})", censor::ident(d.mmsi), aisdev->get_country());
     }
 
     return true;

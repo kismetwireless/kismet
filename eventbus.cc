@@ -17,7 +17,28 @@
 */
 
 #include "eventbus.h"
+#include "censor.h"
 #include "kis_net_beast_httpd.h"
+
+// Event content with each record that has a marked version (messages, alerts) swapped for it
+static std::shared_ptr<tracker_element_string_map> marked_content(
+        const std::shared_ptr<tracker_element_string_map>& in) {
+    bool any = false;
+    for (const auto& kv : *in)
+        if (std::dynamic_pointer_cast<censor::marked_view_source>(kv.second) != nullptr)
+            any = true;
+
+    if (!any)
+        return in;
+
+    auto out = std::make_shared<tracker_element_string_map>(in->get_id());
+    for (const auto& kv : *in) {
+        auto mv = std::dynamic_pointer_cast<censor::marked_view_source>(kv.second);
+        out->insert(kv.first, mv != nullptr ? mv->marked_view() : kv.second);
+    }
+
+    return out;
+}
 
 event_bus::event_bus() :
     lifetime_global(),
@@ -57,90 +78,96 @@ event_bus::~event_bus() {
 void event_bus::trigger_deferred_startup() {
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    httpd->register_websocket_route("/eventbus/events", httpd->RO_ROLE, {"ws"},
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    // The event bus, and a marked version whose messages and alerts add their marked text,
+    // for the web UI's censoring
+    for (const auto marked : {false, true}) {
+        httpd->register_websocket_route(marked ? "/eventbus/marked/events" : "/eventbus/events", httpd->RO_ROLE, {"ws"},
+                std::make_shared<kis_net_web_function_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
-                std::unordered_map<std::string, unsigned long> reg_map;
+                    std::unordered_map<std::string, unsigned long> reg_map;
 
-                auto ws =
-                    std::make_shared<kis_net_web_websocket_endpoint>(con,
-                        [this, &reg_map](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            std::shared_ptr<boost::asio::streambuf> buf, bool text) mutable {
+                    auto ws =
+                        std::make_shared<kis_net_web_websocket_endpoint>(con,
+                            [this, &reg_map, marked](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                                std::shared_ptr<boost::asio::streambuf> buf, bool text) mutable {
 
-                            if (!text) {
-                                ws->close();
-                                return;
-                            }
-
-                            std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
-                            nlohmann::json json;
-
-                            std::string jsontype = "json";
-
-                            try {
-                                ss >> json;
-                            } catch (const std::exception& e) {
-                                _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
-                                        "/eventbus/events.ws");
-                                return;
-                            }
-
-                            if (!json["format"].is_null()) {
-                                jsontype = json["format"].get<std::string>();
-                            }
-
-                            if (!json["SUBSCRIBE"].is_null()) {
-                                // Every channel name gets a listener table entry
-                                if (json["SUBSCRIBE"].get<std::string>().size() > 256 ||
-                                        reg_map.size() >= 256) {
-                                    _MSG_ERROR("Invalid websocket request (too many or too long event "
-                                            "subscriptions) on /eventbus/events.ws");
+                                if (!text) {
+                                    ws->close();
                                     return;
                                 }
 
-                                auto e_k = reg_map.find(json["SUBSCRIBE"].get<std::string>());
-                                if (e_k != reg_map.end()) {
-                                    remove_listener(e_k->second);
-                                    reg_map.erase(e_k);
+                                std::stringstream ss(boost::beast::buffers_to_string(buf->data()));
+                                nlohmann::json json;
+
+                                std::string jsontype = "json";
+
+                                try {
+                                    ss >> json;
+                                } catch (const std::exception& e) {
+                                    _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
+                                            "/eventbus/events.ws");
+                                    return;
                                 }
 
-                                auto id =
-                                    register_listener(json["SUBSCRIBE"].get<std::string>(),
-                                            [ws, json, jsontype](std::shared_ptr<eventbus_event> evt) {
-                                                std::stringstream os;
-                                                Globalreg::globalreg->entrytracker->serialize_with_json_summary(jsontype, os,
-                                                        evt->get_event_content(), json);
-												auto data = os.str();
-                                                ws->write(data);
-                                            });
-
-                                reg_map[json["SUBSCRIBE"].get<std::string>()] = id;
-                            }
-
-                            if (!json["UNSUBSCRIBE"].is_null()) {
-                                auto e_k = reg_map.find(json["UNSUBSCRIBE"].get<std::string>());
-                                if (e_k != reg_map.end()) {
-                                    remove_listener(e_k->second);
-                                    reg_map.erase(e_k);
+                                if (!json["format"].is_null()) {
+                                    jsontype = json["format"].get<std::string>();
                                 }
 
-                            }
-                        });
+                                if (!json["SUBSCRIBE"].is_null()) {
+                                    // Every channel name gets a listener table entry
+                                    if (json["SUBSCRIBE"].get<std::string>().size() > 256 ||
+                                            reg_map.size() >= 256) {
+                                        _MSG_ERROR("Invalid websocket request (too many or too long event "
+                                                "subscriptions) on /eventbus/events.ws");
+                                        return;
+                                    }
 
-                ws->text();
+                                    auto e_k = reg_map.find(json["SUBSCRIBE"].get<std::string>());
+                                    if (e_k != reg_map.end()) {
+                                        remove_listener(e_k->second);
+                                        reg_map.erase(e_k);
+                                    }
 
-                // Blind-catch all errors b/c we must release our listeners at the end
-                try {
-                    ws->handle_request(con);
-                } catch (const std::exception& e) {
-                    ws->close();
-                }
+                                    auto id =
+                                        register_listener(json["SUBSCRIBE"].get<std::string>(),
+                                                [ws, json, jsontype, marked](std::shared_ptr<eventbus_event> evt) {
+                                                    std::stringstream os;
+                                                    auto content = evt->get_event_content();
+                                                    if (marked)
+                                                        content = marked_content(content);
+                                                    Globalreg::globalreg->entrytracker->serialize_with_json_summary(jsontype, os,
+                                                            content, json);
+    												auto data = os.str();
+                                                    ws->write(data);
+                                                });
 
-                for (auto s : reg_map)
-                    remove_listener(s.second);
-                }));
+                                    reg_map[json["SUBSCRIBE"].get<std::string>()] = id;
+                                }
 
+                                if (!json["UNSUBSCRIBE"].is_null()) {
+                                    auto e_k = reg_map.find(json["UNSUBSCRIBE"].get<std::string>());
+                                    if (e_k != reg_map.end()) {
+                                        remove_listener(e_k->second);
+                                        reg_map.erase(e_k);
+                                    }
+
+                                }
+                            });
+
+                    ws->text();
+
+                    // Blind-catch all errors b/c we must release our listeners at the end
+                    try {
+                        ws->handle_request(con);
+                    } catch (const std::exception& e) {
+                        ws->close();
+                    }
+
+                    for (auto s : reg_map)
+                        remove_listener(s.second);
+                    }));
+    }
 }
 
 std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string& event_type) {

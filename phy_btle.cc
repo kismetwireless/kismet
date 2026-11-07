@@ -1184,7 +1184,7 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
                     in_pack->common_info.source, frames.describe());
         else if (device->get_devicename().length() > 0)
             _MSG_INFO("Detected new BTLE device {} {}",
-                    in_pack->common_info.source, device->get_devicename());
+                    in_pack->common_info.source, censor::name(device->get_devicename()));
         else
             _MSG_INFO("Detected new BTLE device {}",
                     in_pack->common_info.source);

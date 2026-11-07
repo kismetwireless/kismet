@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "censor.h"
 #include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -49,7 +50,7 @@
 // Combine
 #define MSGFLAG_PRINTERROR	(MSGFLAG_ERROR | MSGFLAG_PRINT)
 
-class tracked_message : public tracker_component {
+class tracked_message : public tracker_component, public censor::marked_view_source {
 public:
     tracked_message() :
         tracker_component() {
@@ -75,22 +76,28 @@ public:
             __ImportField(message, p);
             __ImportField(flags, p);
             __ImportField(timestamp, p);
+            __ImportId(message_marked_id, p);
 
             reserve_fields(nullptr);
         }
 
-    tracked_message(const tracked_message *p, const std::string& in_msg, int in_flags, time_t in_time) :
+    tracked_message(const tracked_message *p, const censor::marked_string& in_msg, int in_flags,
+            time_t in_time) :
         tracker_component{p} {
 
             __ImportField(message, p);
             __ImportField(flags, p);
             __ImportField(timestamp, p);
+            __ImportId(message_marked_id, p);
 
             reserve_fields(nullptr);
 
-            set_message(in_msg);
+            set_message(in_msg.plain());
             set_flags(in_flags);
             set_timestamp(in_time);
+
+            if (in_msg.has_spans())
+                marked = in_msg.marked();
         }
 
     virtual uint32_t get_signature() const override {
@@ -107,6 +114,18 @@ public:
     __Proxy(message, std::string, std::string, std::string, message);
     __Proxy(flags, int32_t, int32_t, int32_t, flags);
     __Proxy(timestamp, uint64_t, time_t, time_t, timestamp);
+    __ProxyDynamic(message_marked, std::string, std::string, std::string, message_marked,
+            message_marked_id);
+
+    // The message with the marked text added, for the marked endpoints; shares this record's
+    // fields, which don't change once the message is sent
+    virtual std::shared_ptr<tracker_element> marked_view() override {
+        // Non-owning: the fields are only read while the view is built
+        auto r = std::make_shared<tracked_message>(get_id(),
+                std::shared_ptr<tracker_element_map>(std::shared_ptr<tracker_element_map>{}, this));
+        r->set_message_marked(marked.empty() ? get_message() : marked);
+        return r;
+    }
 
     void set_from_message(std::string in_msg, int in_flags) {
         set_message(in_msg);
@@ -122,6 +141,8 @@ public:
         message->reset();
         flags->reset();
         timestamp->reset();
+        message_marked.reset();
+        marked.clear();
     }
 
 protected:
@@ -131,11 +152,20 @@ protected:
         register_field("kismet.messagebus.message_string", "Message content", &message);
         register_field("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
         register_field("kismet.messagebus.message_time", "Message time_t", &timestamp);
+        message_marked_id =
+            register_dynamic_field("kismet.messagebus.message_marked",
+                    "Message content with identifying text marked, for censoring", &message_marked);
     }
 
     std::shared_ptr<tracker_element_string> message;
     std::shared_ptr<tracker_element_int32> flags;
     std::shared_ptr<tracker_element_uint64> timestamp;
+
+    std::shared_ptr<tracker_element_string> message_marked;
+    uint16_t message_marked_id;
+
+    // Marked text, when it has spans
+    std::string marked;
 };
 
 // Minimal stub of a messagebus that just holds the event IDs and passes it all into the eventbus now
@@ -184,16 +214,17 @@ public:
         return "MESSAGE";
     }
 
-    void inject_message(const std::string msg, int flags) {
+    // Plain strings convert to marked_string with marker bytes escaped
+    void inject_message(const censor::marked_string& msg, int flags) {
         // Force fatal messages out to stderr immediately
         if (flags & MSGFLAG_FATAL) {
-            fprintf(stderr, "FATAL: %s\n", msg.c_str());
+            fprintf(stderr, "FATAL: %s\n", msg.plain().c_str());
             fflush(stderr);
         }
 
         // Don't propagate debug messages into the eventbus or silly things can happen
         if (flags & MSGFLAG_DEBUG) {
-            fprintf(stdout, "DEBUG: %s\n", msg.c_str());
+            fprintf(stdout, "DEBUG: %s\n", msg.plain().c_str());
             fflush(stdout);
             return;
         }

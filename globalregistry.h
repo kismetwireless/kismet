@@ -26,6 +26,7 @@
 #include <memory>
 #include <typeinfo>
 
+#include "censor.h"
 #include "fmt.h"
 #include "kis_mutex.h"
 #include "macaddr.h"
@@ -90,21 +91,22 @@ class kis_net_beast_httpd;
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	Globalreg::globalreg->messagebus->inject_message((x), (y))
 
-// fmt-enabled msgbus
+// fmt-enabled msgbus; MAC addresses, device keys and censor:: wrapped values are marked
+// for the web UI, other strings are escaped (censor.h)
 #define _MSG_DEBUG(...) \
-    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_DEBUG)
+    Globalreg::globalreg->messagebus->inject_message(censor::format(__VA_ARGS__), MSGFLAG_DEBUG)
 
 #define _MSG_INFO(...) \
-    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_INFO)
+    Globalreg::globalreg->messagebus->inject_message(censor::format(__VA_ARGS__), MSGFLAG_INFO)
 
 #define _MSG_ERROR(...) \
-    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_ERROR)
+    Globalreg::globalreg->messagebus->inject_message(censor::format(__VA_ARGS__), MSGFLAG_ERROR)
 
 #define _MSG_ALERT(...) \
-    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_ALERT)
+    Globalreg::globalreg->messagebus->inject_message(censor::format(__VA_ARGS__), MSGFLAG_ALERT)
 
 #define _MSG_FATAL(...) \
-    { Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_FATAL); \
+    { Globalreg::globalreg->messagebus->inject_message(censor::format(__VA_ARGS__), MSGFLAG_FATAL); \
       Globalreg::globalreg->fatal_condition = true; }
 
 // Record of how we failed critically.  We want to spin a critfail message out

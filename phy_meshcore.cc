@@ -690,8 +690,8 @@ int kis_meshcore_phy::packet_handler(CHAINCALL_PARMS) {
 
         mphy->alertracker->raise_alert(mphy->alert_badsig_ref, in_pack,
                 mac_addr{}, mac, mac_addr{}, mac_addr{}, in_pack->common_info.channel,
-                fmt::format("MeshCore advert for key {} has an invalid signature; this may be "
-                    "a spoofed advert or a corrupted packet", base64::encode(bad_signature_key)));
+                censor::format("MeshCore advert for key {} has an invalid signature; this may be "
+                    "a spoofed advert or a corrupted packet", censor::ident(base64::encode(bad_signature_key))));
 
         return 1;
     }
@@ -771,8 +771,8 @@ int kis_meshcore_phy::packet_handler(CHAINCALL_PARMS) {
 
     if (new_node_info) {
         _MSG_INFO("Detected new {} \"{}\" ({})",
-                source_dev->get_tracker_type_string()->get(), advert->name,
-                to_hex(advert->pubkey.substr(0, 4)));
+                source_dev->get_tracker_type_string()->get(), censor::name(advert->name),
+                censor::ident(to_hex(advert->pubkey.substr(0, 4))));
     }
 
     return 1;
@@ -824,7 +824,7 @@ void kis_meshcore_phy::handle_group(const frame& f, const std::shared_ptr<kis_pa
             message = text.substr(sep + 2);
         }
 
-        _MSG_INFO("MeshCore \"{}\" on channel \"{}\": {}", sender, chan_name, message);
+        _MSG_INFO("MeshCore \"{}\" on channel \"{}\": {}", censor::name(sender), chan_name, message);
 
         chan.add_message(timestamp, sender, message);
 

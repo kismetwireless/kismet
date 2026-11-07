@@ -13,7 +13,7 @@ const windows = [[300, '5 minutes'], [900, '15 minutes'], [3600, 'hour']];
 const maxDevices = 500;
 
 export function register(kismet) {
-    const { ui, api, dom, settings, clock, rrd, format } = kismet;
+    const { ui, api, dom, settings, clock, rrd, format, censor } = kismet;
     const { el } = dom;
 
     // A device whose signal rose sharply over the last minute is coming closer
@@ -85,7 +85,7 @@ export function register(kismet) {
                 out.push({
                     id: `alert:${id}`, severity: sev >= 15 ? 'high' : sev >= 10 ? 'medium' : 'info',
                     title: `Kismet alert ${last['kismet.alert.header']}` + (g.alerts.length > 1 ? ` (${g.alerts.length} times)` : ''),
-                    text: last['kismet.alert.text'], devices: [...g.nodes].map((n) => n.key).filter(Boolean),
+                    text: censor.alertText(last), devices: [...g.nodes].map((n) => n.key).filter(Boolean),
                 });
             }
             return out;
@@ -274,7 +274,7 @@ export function register(kismet) {
                     const fields = model.fieldsFor(relations, finders);
                     const [devices, alerts] = await Promise.all([
                         api.post(`devices/views/all/last-time/${-win}/devices.json`, { fields }),
-                        api.get(`alerts/last-time/${-win}/alerts.json`).catch(() => []),
+                        api.get(api.marked(`alerts/last-time/${-win}/alerts.json`)).catch(() => []),
                     ]);
                     let list = devices;
                     if (list.length > maxDevices)

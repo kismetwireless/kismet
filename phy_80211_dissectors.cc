@@ -1265,9 +1265,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     packinfo->mgt_reason_code > 45) {
 
                     _ALERT(alert_disconinvalid_ref, in_pack, packinfo,
-                           "Unknown disassociation code " +
-                           n_to_string<unsigned int>(packinfo->mgt_reason_code, 0, 1) +
-                           " from network " + packinfo->bssid_mac.mac_to_string());
+                           censor::format("Unknown disassociation code {} from network {}",
+                               n_to_string<unsigned int>(packinfo->mgt_reason_code, 0, 1),
+                               packinfo->bssid_mac));
                 }
 
                 break;
@@ -1313,9 +1313,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                     packinfo->mgt_reason_code > 45) {
 
                     _ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
-                           "Unknown deauthentication code " +
-                           n_to_string<unsigned int>(packinfo->mgt_reason_code, 0, 1) +
-                           " from network " + packinfo->bssid_mac.mac_to_string());
+                           censor::format("Unknown deauthentication code {} from network {}",
+                               n_to_string<unsigned int>(packinfo->mgt_reason_code, 0, 1),
+                               packinfo->bssid_mac));
                 }
 
                 break;
@@ -1424,19 +1424,17 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                                     ie_rmm.parse(t.tag_data());
 
                                     if (ie_rmm.channel_number() > 0xE0) {
-                                        std::stringstream ss;
-
-                                        ss << "IEE80211 Access Point BSSID " <<
-                                            packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
-                                            "neighbor channel of " << (unsigned int) ie_rmm.channel_number() << " which is " <<
-                                            "greater than the maximum channel, 224.  This may be an " <<
-                                            "exploit attempt against Broadcom chipsets used in mobile " <<
-                                            "devices.";
+                                        auto al = censor::format("IEE80211 Access Point BSSID {} "
+                                            "reporting an 802.11k neighbor channel of {} which is "
+                                            "greater than the maximum channel, 224.  This may be an "
+                                            "exploit attempt against Broadcom chipsets used in mobile "
+                                            "devices.",
+                                            packinfo->bssid_mac, (unsigned int) ie_rmm.channel_number());
 
                                         alertracker->raise_alert(alert_11kneighborchan_ref, in_pack,
                                                                  packinfo->bssid_mac, packinfo->source_mac,
                                                                  packinfo->dest_mac, packinfo->other_mac,
-                                                                 packinfo->channel, ss.str());
+                                                                 packinfo->channel, al);
                                     }
 
                                 } catch (...) { }
@@ -1980,9 +1978,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
             case 50:
                 if (ie_tag.tag_data().find("\x75\xEB\x49") != std::string::npos) {
                     _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
-                            "MSF-style poisoned rate field in beacon for network " +
-                            packinfo->bssid_mac.mac_to_string() + ", exploit attempt "
-                            "against D-Link drivers");
+                            censor::format("MSF-style poisoned rate field in beacon for network {}, "
+                                "exploit attempt against D-Link drivers", packinfo->bssid_mac));
 
                     packinfo->corrupt = 1;
                     return -1;
@@ -2135,7 +2132,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                 break;
             case 3:
                 if (ie_tag.tag_len() > 1) {
-                    std::string al = fmt::format("IEEE80211 packet from {0} to {1} BSSID {2} included an IE "
+                    auto al = censor::format("IEEE80211 packet from {0} to {1} BSSID {2} included an IE "
                             "tag {3} entry with an invalid length; IE {3} should be {4} bytes, but was {5}. "
                             "This may be indicative of an as-yet-unknown buffer overflow attempt against "
                             "the Wi-Fi drivers or firmware, but could also be caused by a misconfigured device.",
@@ -2375,7 +2372,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             case 127:
                 if (ie_tag.tag_len() > 15) {
-                    std::string al = fmt::format("IEEE80211 Access Point BSSID {} sent a beacon with "
+                    auto al = censor::format("IEEE80211 Access Point BSSID {} sent a beacon with "
                             "an unusual IE 127 Extended Capabilities tag; this may indicate attempts to "
                             "exploit Qualcomm drivers using the CVE-2019-10539 vulnerability.  Extended "
                             "capability tags should typically have 10-15 bytes, but saw {}.",
@@ -2515,11 +2512,10 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                             vendor.vendor_oui_type() == 2 &&
                             ie_tag.tag_data().length() > 24) {
 
-                        std::string al = "IEEE80211 Access Point BSSID " +
-                            packinfo->bssid_mac.mac_to_string() + " sent association "
+                        auto al = censor::format("IEEE80211 Access Point BSSID {} sent association "
                             "response with an invalid WMM length; this may "
                             "indicate attempts to exploit driver vulnerabilities "
-                            "such as BroadPwn";
+                            "such as BroadPwn", packinfo->bssid_mac);
 
                         alertracker->raise_alert(alert_wmm_ref, in_pack,
                                 packinfo->bssid_mac, packinfo->source_mac,
@@ -2917,11 +2913,10 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
     // Overflow of responses
     if (wmmtspec_responses > 4) {
-        std::string al = "IEEE80211 Access Point BSSID " +
-            packinfo->bssid_mac.mac_to_string() + " sent association "
+        auto al = censor::format("IEEE80211 Access Point BSSID {} sent association "
             "response with more than 4 WMM-TSPEC responses; this "
             "may be attempt to exploit embedded Atheros drivers using "
-            "CVE-2017-11013";
+            "CVE-2017-11013", packinfo->bssid_mac);
 
         alertracker->raise_alert(alert_atheros_wmmtspec_ref, in_pack,
                 packinfo->bssid_mac, packinfo->source_mac,

@@ -225,7 +225,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
 
         if (nrf == NULL) {
             _MSG_INFO("Detected new nRF cordless input device (mouse, keyboard, etc) {}",
-                    source.mac_to_string());
+                    source);
             nrf = Globalreg::globalreg->entrytracker->get_shared_instance_as<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
             device->insert(nrf);
             device->set_manuf(mphy->mj_manuf_nrf);
@@ -309,8 +309,8 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     if (raise_plaintext &&
             mphy->alertracker->raise_alert(mphy->alert_plaintext_ref, in_pack, mac_addr{}, source,
                 mac_addr{}, mac_addr{}, in_pack->signal_info.channel,
-                fmt::format("nRF24 keyboard {} sends unencrypted keystrokes (Logitech 0xC1 reports): "
-                    "anyone in radio range can read what is typed", source.mac_to_string())) != 1) {
+                censor::format("nRF24 keyboard {} sends unencrypted keystrokes (Logitech 0xC1 reports): "
+                    "anyone in radio range can read what is typed", source)) != 1) {
         // held back by the rate limit: a later report raises it
         kis_lock_guard<kis_mutex> alk(mphy->alert_mutex, "mousejack_plaintext_alert");
         mphy->plaintext_alerted.erase(source);

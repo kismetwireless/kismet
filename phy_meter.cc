@@ -302,7 +302,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         basedev->set_devicename(fmt::format("{}-{}", meterdev->get_meter_type(), decoded_id));
 
         _MSG_INFO("Detected new meter {} id {}",
-                basedev->get_type_string(), meterdev->get_meter_id());
+                basedev->get_type_string(), censor::ident(meterdev->get_meter_id()));
     }
 
     meterdev->get_model_vec()->insert(model_j, nullptr);

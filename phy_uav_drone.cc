@@ -362,7 +362,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
                 uavdev->set_uav_match_type("DroneID RF");
                 uavdev->set_uav_serialnumber(serial_no);
 
-                _MSG_INFO("Detected new DJI DroneID RF UAV {} serial {}", dev_type, serial_no);
+                _MSG_INFO("Detected new DJI DroneID RF UAV {} serial {}", dev_type, censor::ident(serial_no));
             }
 
             if (home_lat != 0 && home_lon != 0) {
@@ -824,7 +824,7 @@ void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>
 
     if (!had_id && uas_id().length() != 0)
         _MSG_INFO("Detected new Remote ID UAV {} ({}) ID '{}'", basedev->get_macaddr(),
-                rid->transport != nullptr ? rid->transport : "unknown", uas_id());
+                rid->transport != nullptr ? rid->transport : "unknown", censor::ident(uas_id()));
 }
 
 bool kis_uav_phy::parse_manuf_definition(std::string in_def) {

@@ -523,7 +523,7 @@ void kis_datasource_cell_diag::adopt_sibling_identity() {
 
     _MSG_INFO("Data source '{}' opened without AT identity (its AT node was held); "
             "adopted '{}' as read over AT by a same-IMEI source of this server",
-            get_source_name(), label);
+            get_source_name(), censor::ident(label));
 }
 
 kis_datasource::rx_content kis_datasource_cell_diag::handle_rx_data_content(kis_packet *packet,

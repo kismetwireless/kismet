@@ -1442,7 +1442,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->bssid_dot11 == NULL) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi access point {}",
-                        dot11info->bssid_dev->get_macaddr().mac_to_string());
+                        dot11info->bssid_dev->get_macaddr());
 
                 dot11info->bssid_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
@@ -1507,7 +1507,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                                 dot11info->bssid_mac, dot11info->source_mac,
                                 dot11info->dest_mac, dot11info->other_mac,
                                 dot11info->channel,
-                                fmt::format("Network {} BSS timestamp fluctuating.  This may indicate "
+                                censor::format("Network {} BSS timestamp fluctuating.  This may indicate "
                                     "an 'evil twin' style attack where the BSSID of a legitimate AP "
                                     "is being spoofed.", dot11info->bssid_dev->get_macaddr()));
                     }
@@ -1578,7 +1578,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->source_dot11 == nullptr) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
-                        dot11info->source_dev->get_macaddr().mac_to_string());
+                        dot11info->source_dev->get_macaddr());
 
                 dot11info->source_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
@@ -1724,7 +1724,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
                 if (dot11info->bssid_dot11->get_client_disconnects() > 10) {
                     if (d11phy->alertracker->potential_alert(d11phy->alert_deauthflood_ref)) {
-                        std::string al = "Deauth/Disassociate flood on " + dot11info->bssid_mac.mac_to_string();
+                        auto al = censor::format("Deauth/Disassociate flood on {}", dot11info->bssid_mac);
 
                         d11phy->alertracker->raise_alert(d11phy->alert_deauthflood_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
@@ -1742,7 +1742,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     dot11info->dest_mac == Globalreg::globalreg->broadcast_mac &&
                     d11phy->alertracker->potential_alert(d11phy->alert_bcastdcon_ref)) {
 
-                auto al = fmt::format("IEEE80211 Access Point BSSID {} broadcast deauthentication "
+                auto al = censor::format("IEEE80211 Access Point BSSID {} broadcast deauthentication "
                         "or disassociation of all clients; Either the AP is shutting down or this "
                         "is indicative of a possible denial of service attack.",
                         dot11info->bssid_dev->get_macaddr());
@@ -1843,9 +1843,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (sender->get_wps_m3_count() > 5) {
                 if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
-                    std::string al = "IEEE80211 AP " + dot11info->bssid_mac.mac_to_string() +
-                        " sending excessive number of WPS messages which may "
-                        "indicate a WPS brute force attack such as Reaver";
+                    auto al = censor::format("IEEE80211 AP {} sending excessive number of WPS "
+                        "messages which may indicate a WPS brute force attack such as Reaver",
+                        dot11info->bssid_mac);
 
                     d11phy->alertracker->raise_alert(d11phy->alert_wpsbrute_ref,
                             in_pack,
@@ -1936,10 +1936,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 if (dot11info->bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
                         !dot11info->bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_BEACON_AP) &&
                         d11phy->alertracker->potential_alert(d11phy->alert_adhoc_ref)) {
-                    std::string al = "IEEE80211 Network BSSID " +
-                        dot11info->bssid_mac.mac_to_string() +
-                        " previously advertised as AP network, now advertising as "
-                        "Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
+                    auto al = censor::format("IEEE80211 Network BSSID {} previously advertised "
+                        "as AP network, now advertising as Ad-Hoc/WDS which may indicate AP "
+                        "spoofing/impersonation", dot11info->bssid_mac);
 
                     d11phy->alertracker->raise_alert(d11phy->alert_adhoc_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
@@ -2306,7 +2305,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (dot11info->bssid_dot11 == NULL) {
                 _MSG_INFO("Detected new 802.11 Wi-Fi S1G access point {}",
-                        dot11info->bssid_dev->get_macaddr().mac_to_string());
+                        dot11info->bssid_dev->get_macaddr());
 
                 dot11info->bssid_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
@@ -2571,7 +2570,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         if (bssid_dot11 == NULL) {
             _MSG_INFO("Detected new 802.11 Wi-Fi access point {}",
-                    bssid_dev->get_macaddr().mac_to_string());
+                    bssid_dev->get_macaddr());
 
             bssid_dot11 =
                 std::make_shared<dot11_tracked_device>(d11phy->dot11_builder.get());
@@ -2707,7 +2706,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             ssid->set_ssid_len(ssid_str.length());
 
             _MSG_INFO("802.11 Wi-Fi device {} advertising SSID '{}'",
-                    bssid_dev->get_macaddr(), ssid_str);
+                    bssid_dev->get_macaddr(), censor::ssid(ssid_str));
 
             if (ssid->get_ssid() != "") {
                 bssid_dev->set_devicename(ssid->get_ssid());
@@ -2720,7 +2719,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
 
                     if (regex_string_compare(si, ssid->get_ssid())) {
-                        const auto al = fmt::format("IEEE80211 Access Point {} advertising canary "
+                        const auto al = censor::format("IEEE80211 Access Point {} advertising canary "
                                 "SSID {} ({})", in_pack->common_info.source, i.first, si);
                         d11phy->alertracker->raise_alert(d11phy->alert_ssidcanary_ref, in_pack,
                                 in_pack->common_info.network, in_pack->common_info.source,
@@ -2738,10 +2737,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     auto sa = static_cast<dot11_tracked_ssid_alert *>(s.get());
 
                     if (sa->compare_ssid(ssid_str, in_pack->common_info.source)) {
-                        auto al = fmt::format("IEEE80211 Unauthorized device ({}) advertising  "
+                        auto al = censor::format("IEEE80211 Unauthorized device ({}) advertising  "
                                 "for SSID '{}', matching APSPOOF rule {} which may indicate "
                                 "spoofing or impersonation.", in_pack->common_info.source,
-                                ssid_str, sa->get_group_name());
+                                censor::ssid(ssid_str), sa->get_group_name());
 
                         d11phy->alertracker->raise_alert(d11phy->alert_ssidmatch_ref, in_pack,
                                 in_pack->common_info.network,
@@ -2778,11 +2777,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
                 in_pack->tag_map["DOT11_BEACON_SSID"] = true;
 
-                std::string al = "IEEE80211 Access Point BSSID " +
-                    bssid_dev->get_macaddr().mac_to_string() + " SSID \"" +
-                    ssid->get_ssid() + "\" changed advertised encryption from " +
-                    crypt_to_string(ssid->get_crypt_set()) + " to Open which may "
-                    "indicate AP spoofing/impersonation";
+                auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed "
+                    "advertised encryption from {} to Open which may indicate AP "
+                    "spoofing/impersonation", bssid_dev->get_macaddr(),
+                    censor::ssid(ssid->get_ssid()), crypt_to_string(ssid->get_crypt_set()));
 
                 d11phy->alertracker->raise_alert(d11phy->alert_wepflap_ref, in_pack,
                         in_pack->common_info.network, in_pack->common_info.source,
@@ -2791,9 +2789,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             } else if (old_crypt != new_crypt &&
                     d11phy->alertracker->potential_alert(d11phy->alert_cryptchange_ref)) {
 
-                auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+                auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                         "encryption from {} to {} which may indicate AP spoofing/impersonation",
-                        bssid_dev->get_macaddr(), ssid->get_ssid(),
+                        bssid_dev->get_macaddr(), censor::ssid(ssid->get_ssid()),
                         crypt_to_string(ssid->get_crypt_set()),
                         crypt_to_string(cryptset));
 
@@ -2813,10 +2811,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                 ssid->get_channel() != in_pack->common_info.channel && in_pack->common_info.channel != "0") {
 
             auto al =
-                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+                censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                         "channel from {} to {}, which may indicate spoofing or impersonation.  "
                         "This may also be a normal event where the AP seeks a less congested channel.",
-                        bssid_dev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(),
+                        bssid_dev->get_macaddr(), censor::ssid(ssid->get_ssid()), ssid->get_channel(),
                         in_pack->common_info.channel);
 
             d11phy->alertracker->raise_alert(d11phy->alert_chan_ref, in_pack,
@@ -2982,7 +2980,7 @@ void kis_80211_phy::handle_chan_switch(const std::shared_ptr<kis_tracked_device_
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
                     dot11info->channel,
-                    fmt::format("BSSID {} is sending an unusual number of Channel Switch "
+                    censor::format("BSSID {} is sending an unusual number of Channel Switch "
                         "Announcements, more than its beacon interval allows.  Channel switch "
                         "announcements are a normal part of network operation, but this many in a "
                         "short period of time may indicate a denial of service attack.",
@@ -3119,7 +3117,7 @@ void kis_80211_phy::handle_chan_switch(const std::shared_ptr<kis_tracked_device_
             dot11info->bssid_mac, dot11info->source_mac,
             dot11info->dest_mac, dot11info->other_mac,
             cur_channel != 0 ? fmt::format("{}", cur_channel) : dot11info->channel,
-            fmt::format("IEEE80211 Access Point BSSID {} sent a channel switch announcement ({}, "
+            censor::format("IEEE80211 Access Point BSSID {} sent a channel switch announcement ({}, "
                 "channel {}, count {}) that {}.  This may be a spoofed announcement to disconnect "
                 "clients.", bssid_dev->get_macaddr(), csa_source_name(cs.src, dot11info->subtype),
                 cs.new_channel, cs.count, reason));
@@ -3345,13 +3343,13 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
         }
 
-        std::string ssidstr;
+        censor::marked_string ssidstr;
         if (ssid->get_ssid_cloaked()) {
             // Use the OWE SSID if we can
             if (dot11info->owe_transition.parsed()) {
                 if (dot11info->owe_transition.ssid().length() != 0)
-                    ssidstr = fmt::format("an OWE SSID '{}' for BSSID {}",
-                            munge_to_printable(dot11info->owe_transition.ssid()),
+                    ssidstr = censor::format("an OWE SSID '{}' for BSSID {}",
+                            censor::ssid(munge_to_printable(dot11info->owe_transition.ssid())),
                             dot11info->owe_transition.bssid());
                 else
                     ssidstr = "a cloaked SSID";
@@ -3359,7 +3357,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
                 ssidstr = "a cloaked SSID";
             }
         } else {
-            ssidstr = fmt::format("SSID '{}'", ssid->get_ssid());
+            ssidstr = censor::format("SSID '{}'", censor::ssid(ssid->get_ssid()));
         }
 
         _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
@@ -3372,9 +3370,9 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
                     ssidtxt.find("%p") != std::string::npos ||
                     ssidtxt.find("%@") != std::string::npos) {
 
-                auto al = fmt::format("IEEE80211 Access Point {} broadcasting SSID \"{}\" "
+                auto al = censor::format("IEEE80211 Access Point {} broadcasting SSID \"{}\" "
                         "which contains special formatting characters which may crash some "
-                        "devices", basedev->get_macaddr(), ssidtxt);
+                        "devices", basedev->get_macaddr(), censor::ssid(ssidtxt));
                 alertracker->raise_alert(alert_formatstring_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
                         dot11info->dest_mac, dot11info->other_mac,
@@ -3390,8 +3388,8 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
                 auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
 
                 if (regex_string_compare(si, ssid->get_ssid())) {
-                    const auto al = fmt::format("IEEE80211 Access Point {} {} canary "
-                            "SSID {} ({})", basedev->get_macaddr().mac_to_string(), ntype, i.first, si);
+                    const auto al = censor::format("IEEE80211 Access Point {} {} canary "
+                            "SSID {} ({})", basedev->get_macaddr(), ntype, i.first, si);
                     alertracker->raise_alert(alert_ssidcanary_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
                             dot11info->dest_mac, dot11info->other_mac,
@@ -3419,11 +3417,10 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
                         dot11info->subtype == packet_sub_s1g_beacon ? std::string("advertising") :
                         std::string("responding for");
 
-                    std::string al = "IEEE80211 Unauthorized device (" +
-                        dot11info->source_mac.mac_to_string() + std::string(") ") + ntype +
-                        " for SSID '" + dot11info->ssid + "', matching APSPOOF "
-                        "rule " + sa->get_group_name() +
-                        std::string(" which may indicate spoofing or impersonation.");
+                    auto al = censor::format("IEEE80211 Unauthorized device ({}) {} for SSID "
+                        "'{}', matching APSPOOF rule {} which may indicate spoofing or "
+                        "impersonation.", dot11info->source_mac, ntype,
+                        censor::ssid(dot11info->ssid), sa->get_group_name());
 
                     alertracker->raise_alert(alert_ssidmatch_ref, in_pack,
                             dot11info->bssid_mac,
@@ -3526,11 +3523,10 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
         if (old_crypt && new_crypt == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
-            std::string al = "IEEE80211 Access Point BSSID " +
-                basedev->get_macaddr().mac_to_string() + " SSID \"" +
-                ssid->get_ssid() + "\" changed advertised encryption from " +
-                crypt_to_string(ssid->get_crypt_set()) + " to Open which may "
-                "indicate AP spoofing/impersonation";
+            auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed "
+                "advertised encryption from {} to Open which may indicate AP "
+                "spoofing/impersonation", basedev->get_macaddr(),
+                censor::ssid(ssid->get_ssid()), crypt_to_string(ssid->get_crypt_set()));
 
             alertracker->raise_alert(alert_wepflap_ref, in_pack,
                     dot11info->bssid_mac, dot11info->source_mac,
@@ -3539,9 +3535,10 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
         } else if (old_crypt != new_crypt &&
                 alertracker->potential_alert(alert_cryptchange_ref)) {
 
-            auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+            auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                     "encryption from {} to {} which may indicate AP spoofing/impersonation",
-                    basedev->get_macaddr(), ssid->get_ssid(), crypt_to_string(ssid->get_crypt_set()),
+                    basedev->get_macaddr(), censor::ssid(ssid->get_ssid()),
+                    crypt_to_string(ssid->get_crypt_set()),
                     crypt_to_string(dot11info->cryptset));
 
             alertracker->raise_alert(alert_cryptchange_ref, in_pack,
@@ -3563,10 +3560,10 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
         if (dot11info->subtype == packet_sub_s1g_beacon) {
             auto al =
-                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
+                censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
                         "from {} to {}, which may indicate spoofing or impersonation.  This may also be a "
                         "normal event where the AP seeks a less congested channel.",
-                        basedev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(),
+                        basedev->get_macaddr(), censor::ssid(ssid->get_ssid()), ssid->get_channel(),
                         dot11info->channel);
 
             alertracker->raise_alert(alert_chan_ref, in_pack,
@@ -3577,11 +3574,12 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
             ssid->set_channel(dot11info->channel);
         } else if (dot11info->subtype == packet_sub_probe_resp) {
             auto al =
-                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
+                censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
                         "channel {} while advertising channel {}.  This may indicate spoofing or "
                         "impersonation, or may indicate a misconfigured or misbehaving access "
                         "point or repeater.",
-                        basedev->get_macaddr(), ssid->get_ssid(), dot11info->channel, ssid->get_channel());
+                        basedev->get_macaddr(), censor::ssid(ssid->get_ssid()), dot11info->channel,
+                        ssid->get_channel());
             alertracker->raise_alert(alert_probechan_ref, in_pack,
                     dot11info->bssid_mac, dot11info->source_mac,
                     dot11info->dest_mac, dot11info->other_mac,
@@ -3667,7 +3665,7 @@ void kis_80211_phy::handle_wsc_fragments(kis_packet *in_pack, dot11_packinfo *do
     constexpr time_t frag_timeout = 30;
     constexpr size_t max_tracked = 1024;
 
-    std::string fraglen_alert, probe_alert;
+    censor::marked_string fraglen_alert, probe_alert;
     bool confirm = false;
 
     {
@@ -3693,12 +3691,12 @@ void kis_80211_phy::handle_wsc_fragments(kis_packet *in_pack, dot11_packinfo *do
             if (wsc.has_message_length) {
                 // First fragment, or a whole message carrying its length
                 if (wsc.message_length == 0 && wsc.more_fragments) {
-                    probe_alert = fmt::format("IEEE80211 station {} sent a zero length WPS first "
+                    probe_alert = censor::format("IEEE80211 station {} sent a zero length WPS first "
                             "fragment to Access Point BSSID {}, which may indicate scanning for "
                             "access points running Broadcom's vulnerable wps_monitor",
                             sta, dot11info->bssid_mac);
                 } else if (wsc.fragment_length > wsc.message_length) {
-                    fraglen_alert = fmt::format("IEEE80211 station {} sent a {} byte WPS fragment "
+                    fraglen_alert = censor::format("IEEE80211 station {} sent a {} byte WPS fragment "
                             "declaring a {} byte message to Access Point BSSID {}, which may be "
                             "an attempt to exploit WPS fragment reassembly",
                             sta, wsc.fragment_length, wsc.message_length, dot11info->bssid_mac);
@@ -3719,7 +3717,7 @@ void kis_80211_phy::handle_wsc_fragments(kis_packet *in_pack, dot11_packinfo *do
                         st.declared = wsc.message_length;
                         st.seen = wsc.fragment_length;
                         st.last = now;
-                        st.probe_pending = !probe_alert.empty();
+                        st.probe_pending = !probe_alert.plain().empty();
                     }
                 } else {
                     wsc_frag_map.erase(key);
@@ -3736,7 +3734,7 @@ void kis_80211_phy::handle_wsc_fragments(kis_packet *in_pack, dot11_packinfo *do
                         s->second.last = now;
 
                         if (s->second.seen > s->second.declared) {
-                            fraglen_alert = fmt::format("IEEE80211 station {} sent WPS fragments "
+                            fraglen_alert = censor::format("IEEE80211 station {} sent WPS fragments "
                                     "totalling {} bytes for a {} byte message to Access Point "
                                     "BSSID {}, which may be an attempt to exploit WPS fragment "
                                     "reassembly",
@@ -3751,13 +3749,13 @@ void kis_80211_phy::handle_wsc_fragments(kis_packet *in_pack, dot11_packinfo *do
         }
     }
 
-    if (!probe_alert.empty() && alertracker->potential_alert(alert_wpsfragprobe_ref))
+    if (!probe_alert.plain().empty() && alertracker->potential_alert(alert_wpsfragprobe_ref))
         alertracker->raise_alert(alert_wpsfragprobe_ref, in_pack,
                 dot11info->bssid_mac, dot11info->source_mac,
                 dot11info->dest_mac, dot11info->other_mac,
                 dot11info->channel, probe_alert);
 
-    if (!fraglen_alert.empty() && alertracker->potential_alert(alert_wpsfraglen_ref))
+    if (!fraglen_alert.plain().empty() && alertracker->potential_alert(alert_wpsfraglen_ref))
         alertracker->raise_alert(alert_wpsfraglen_ref, in_pack,
                 dot11info->bssid_mac, dot11info->source_mac,
                 dot11info->dest_mac, dot11info->other_mac,
@@ -3820,7 +3818,7 @@ void kis_80211_phy::confirm_broadcom_wps(kis_packet *in_pack, dot11_packinfo *do
     }
 
     if (alert) {
-        auto al = fmt::format("IEEE80211 Access Point BSSID {} rejected a zero length WPS "
+        auto al = censor::format("IEEE80211 Access Point BSSID {} rejected a zero length WPS "
                 "fragment the way Broadcom's wps_monitor does, and is very likely vulnerable "
                 "to WPS fragment reassembly attacks", dot11info->bssid_mac);
 
@@ -4084,29 +4082,29 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
         }
 
-        std::string ssidstr;
+        censor::marked_string ssidstr;
         if (ssid->get_ssid_cloaked()) {
             // Use the OWE SSID if we can
             if (dot11info->owe_transition.parsed()) {
                 if (dot11info->owe_transition.ssid().length() != 0) {
 
                     basedev->set_devicename(munge_to_printable(dot11info->owe_transition.ssid()));
-                    ssidstr = fmt::format("a new OWE SSID '{}' for BSSID {}",
-                            munge_to_printable(dot11info->owe_transition.ssid()),
+                    ssidstr = censor::format("a new OWE SSID '{}' for BSSID {}",
+                            censor::ssid(munge_to_printable(dot11info->owe_transition.ssid())),
                             dot11info->owe_transition.bssid());
                 } else {
-                    ssidstr = fmt::format("a new cloaked OWE transition SSID for BSSID {}",
+                    ssidstr = censor::format("a new cloaked OWE transition SSID for BSSID {}",
                             dot11info->owe_transition.bssid());
                 }
             } else if (ssid->has_meshid() && ssid->get_meshid().length() > 0) {
                 basedev->set_devicename(ssid->get_meshid());
-                ssidstr = fmt::format("a new mesh ID '{}'", ssid->get_meshid());
+                ssidstr = censor::format("a new mesh ID '{}'", censor::ssid(ssid->get_meshid()));
             } else {
                 ssidstr = "a new cloaked SSID";
             }
         } else {
             basedev->set_devicename(ssid->get_ssid());
-            ssidstr = fmt::format("new SSID '{}'", ssid->get_ssid());
+            ssidstr = censor::format("new SSID '{}'", censor::ssid(ssid->get_ssid()));
         }
 
         _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
@@ -4119,9 +4117,9 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                     ssidtxt.find("%p") != std::string::npos ||
                     ssidtxt.find("%@") != std::string::npos) {
 
-                auto al = fmt::format("IEEE80211 Access Point {} broadcasting SSID \"{}\" "
+                auto al = censor::format("IEEE80211 Access Point {} broadcasting SSID \"{}\" "
                         "which contains special formatting characters which may crash some "
-                        "devices", basedev->get_macaddr(), ssidtxt);
+                        "devices", basedev->get_macaddr(), censor::ssid(ssidtxt));
                 alertracker->raise_alert(alert_formatstring_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
                         dot11info->dest_mac, dot11info->other_mac,
@@ -4137,8 +4135,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                 auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
 
                 if (regex_string_compare(si, ssid->get_ssid())) {
-                    const auto al = fmt::format("IEEE80211 Access Point {} {} canary "
-                            "SSID {} ({})", basedev->get_macaddr().mac_to_string(), ntype, i.first, si);
+                    const auto al = censor::format("IEEE80211 Access Point {} {} canary "
+                            "SSID {} ({})", basedev->get_macaddr(), ntype, i.first, si);
                     alertracker->raise_alert(alert_ssidcanary_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
                             dot11info->dest_mac, dot11info->other_mac,
@@ -4150,10 +4148,9 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         if (alertracker->potential_alert(alert_airjackssid_ref) &&
                 ssid->get_ssid() == "AirJack" ) {
 
-            std::string al = "IEEE80211 Access Point BSSID " +
-                basedev->get_macaddr().mac_to_string() + " broadcasting SSID "
-                "\"AirJack\" which implies an attempt to disrupt "
-                "networks.";
+            auto al = censor::format("IEEE80211 Access Point BSSID {} broadcasting SSID "
+                "\"AirJack\" which implies an attempt to disrupt networks.",
+                basedev->get_macaddr());
 
             alertracker->raise_alert(alert_airjackssid_ref, in_pack,
                     dot11info->bssid_mac, dot11info->source_mac,
@@ -4172,11 +4169,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                         dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
                         std::string("responding for");
 
-                    std::string al = "IEEE80211 Unauthorized device (" +
-                        dot11info->source_mac.mac_to_string() + std::string(") ") + ntype +
-                        " for SSID '" + dot11info->ssid + "', matching APSPOOF "
-                        "rule " + sa->get_group_name() +
-                        std::string(" which may indicate spoofing or impersonation.");
+                    auto al = censor::format("IEEE80211 Unauthorized device ({}) {} for SSID "
+                        "'{}', matching APSPOOF rule {} which may indicate spoofing or "
+                        "impersonation.", dot11info->source_mac, ntype,
+                        censor::ssid(dot11info->ssid), sa->get_group_name());
 
                     alertracker->raise_alert(alert_ssidmatch_ref, in_pack,
                             dot11info->bssid_mac,
@@ -4412,11 +4408,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         if (old_crypt && new_crypt == 0 &&
                 alertracker->potential_alert(alert_wepflap_ref)) {
 
-            std::string al = "IEEE80211 Access Point BSSID " +
-                basedev->get_macaddr().mac_to_string() + " SSID \"" +
-                ssid->get_ssid() + "\" changed advertised encryption from " +
-                crypt_to_string(ssid->get_crypt_set()) + " to Open which may "
-                "indicate AP spoofing/impersonation";
+            auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed "
+                "advertised encryption from {} to Open which may indicate AP "
+                "spoofing/impersonation", basedev->get_macaddr(),
+                censor::ssid(ssid->get_ssid()), crypt_to_string(ssid->get_crypt_set()));
 
             alertracker->raise_alert(alert_wepflap_ref, in_pack,
                     dot11info->bssid_mac, dot11info->source_mac,
@@ -4425,9 +4420,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         } else if (old_crypt != new_crypt &&
                 alertracker->potential_alert(alert_cryptchange_ref)) {
 
-            auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+            auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                     "encryption from {} to {} which may indicate AP spoofing/impersonation",
-                    basedev->get_macaddr(), ssid->get_ssid(), crypt_to_string(ssid->get_crypt_set()),
+                    basedev->get_macaddr(), censor::ssid(ssid->get_ssid()),
+                    crypt_to_string(ssid->get_crypt_set()),
                     crypt_to_string(dot11info->cryptset));
 
             alertracker->raise_alert(alert_cryptchange_ref, in_pack,
@@ -4448,10 +4444,11 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         if (dot11info->subtype == packet_sub_beacon) {
             if (prev_channel.length() > 0 && prev_channel != adv_channel) {
                 auto al =
-                    fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
+                    censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
                             "from {} to {}, which may indicate spoofing or impersonation.  This may also be a "
                             "normal event where the AP seeks a less congested channel.",
-                            basedev->get_macaddr(), ssid->get_ssid(), prev_channel, adv_channel);
+                            basedev->get_macaddr(), censor::ssid(ssid->get_ssid()), prev_channel,
+                            adv_channel);
 
                 alertracker->raise_alert(alert_chan_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
@@ -4473,11 +4470,12 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             if (adv_ssid != nullptr && adv_ssid->get_channel().length() > 0 &&
                     adv_ssid->get_channel() != adv_channel) {
                 auto al =
-                    fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
+                    censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
                             "channel {} while advertising channel {}.  This may indicate spoofing or "
                             "impersonation, or may indicate a misconfigured or misbehaving access "
                             "point or repeater.",
-                            basedev->get_macaddr(), ssid->get_ssid(), adv_channel, adv_ssid->get_channel());
+                            basedev->get_macaddr(), censor::ssid(ssid->get_ssid()), adv_channel,
+                            adv_ssid->get_channel());
                 alertracker->raise_alert(alert_probechan_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
                         dot11info->dest_mac, dot11info->other_mac,
@@ -4520,10 +4518,9 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         if (dot11dmismatch) {
             if (alertracker->potential_alert(alert_dot11d_ref)) {
 
-                std::string al = "IEEE80211 Access Point BSSID " +
-                    basedev->get_macaddr().mac_to_string() + " SSID \"" +
-                    ssid->get_ssid() + "\" advertised conflicting 802.11d "
-                    "information which may indicate AP spoofing/impersonation";
+                auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" advertised "
+                    "conflicting 802.11d information which may indicate AP spoofing/impersonation",
+                    basedev->get_macaddr(), censor::ssid(ssid->get_ssid()));
 
                 alertracker->raise_alert(alert_dot11d_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
@@ -4581,10 +4578,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                 alertracker->potential_alert(alert_bcmwps_ref)) {
             ssid->wps_broadcom_alerted = bcm_level;
 
-            auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" advertises "
+            auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" advertises "
                     "WPS with the Broadcom SDK's default {} and likely runs Broadcom's "
                     "wps_monitor, which may be vulnerable to WPS fragment reassembly attacks",
-                    basedev->get_macaddr(), ssid->get_ssid(),
+                    basedev->get_macaddr(), censor::ssid(ssid->get_ssid()),
                     dot11info->wps_broadcom_uuid ? "UUID" : "identity");
 
             alertracker->raise_alert(alert_bcmwps_ref, in_pack,
@@ -4599,12 +4596,11 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
         if (ssid->get_beaconrate() != 0 &&
                 alertracker->potential_alert(alert_beaconrate_ref)) {
-            std::string al = "IEEE80211 Access Point BSSID " +
-                basedev->get_macaddr().mac_to_string() + " SSID \"" +
-                ssid->get_ssid() + "\" changed beacon rate from " +
-                n_to_string<int>(ssid->get_beaconrate()) + " to " +
-                n_to_string<int>(Ieee80211Interval2NSecs(dot11info->beacon_interval)) +
-                " which may indicate AP spoofing/impersonation";
+            auto al = censor::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed "
+                "beacon rate from {} to {} which may indicate AP spoofing/impersonation",
+                basedev->get_macaddr(), censor::ssid(ssid->get_ssid()),
+                n_to_string<int>(ssid->get_beaconrate()),
+                n_to_string<int>(Ieee80211Interval2NSecs(dot11info->beacon_interval)));
 
             alertracker->raise_alert(alert_beaconrate_ref, in_pack,
                     dot11info->bssid_mac, dot11info->source_mac,
@@ -4857,8 +4853,8 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
                         auto si = std::static_pointer_cast<tracker_element_string>(i.second)->get();
 
                         if (regex_string_compare(si, probessid->get_ssid())) {
-                            const auto al = fmt::format("IEEE80211 Access Point {} probing for canary "
-                                    "SSID {} ({})", basedev->get_macaddr().mac_to_string(), i.first, si);
+                            const auto al = censor::format("IEEE80211 Access Point {} probing for canary "
+                                    "SSID {} ({})", basedev->get_macaddr(), i.first, si);
                             alertracker->raise_alert(alert_ssidcanary_ref, in_pack,
                                     dot11info->bssid_mac, dot11info->source_mac,
                                     dot11info->dest_mac, dot11info->other_mac,
@@ -5234,12 +5230,9 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
             // TODO how often do we warn about MFP
             if ((dot11info->rsn.parsed() && !dot11info->rsn.rsn_capability_mfp_supported()) &&
                     alertracker->potential_alert(alert_noclientmfp_ref)) {
-                std::string al = "IEEE80211 network BSSID " +
-                    client_record->get_bssid().mac_to_string() +
-                    " client " +
-                    clientdev->get_macaddr().mac_to_string() +
-                    " does not support management frame protection (MFP) which "
-                    "may ease client disassocation or deauthentication";
+                auto al = censor::format("IEEE80211 network BSSID {} client {} does not support "
+                    "management frame protection (MFP) which may ease client disassocation or "
+                    "deauthentication", client_record->get_bssid(), clientdev->get_macaddr());
 
                 alertracker->raise_alert(alert_noclientmfp_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
@@ -5268,14 +5261,11 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
                 if (client_record->get_dhcp_vendor() != "" &&
                         client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
                         alertracker->potential_alert(alert_dhcpos_ref)) {
-                    std::string al = "IEEE80211 network BSSID " +
-                        client_record->get_bssid().mac_to_string() +
-                        " client " +
-                        clientdev->get_macaddr().mac_to_string() +
-                        "changed advertised DHCP vendor from '" +
-                        client_record->get_dhcp_vendor() + "' to '" +
-                        pack_datainfo->discover_vendor + "' which may indicate "
-                        "client spoofing or impersonation";
+                    auto al = censor::format("IEEE80211 network BSSID {} client {}changed "
+                        "advertised DHCP vendor from '{}' to '{}' which may indicate client "
+                        "spoofing or impersonation", client_record->get_bssid(),
+                        clientdev->get_macaddr(), client_record->get_dhcp_vendor(),
+                        pack_datainfo->discover_vendor);
 
                     alertracker->raise_alert(alert_dhcpos_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
@@ -5290,14 +5280,11 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
                 if (client_record->get_dhcp_host() != "" &&
                         client_record->get_dhcp_host() != pack_datainfo->discover_host &&
                         alertracker->potential_alert(alert_dhcpname_ref)) {
-                    std::string al = "IEEE80211 network BSSID " +
-                        client_record->get_bssid().mac_to_string() +
-                        " client " +
-                        clientdev->get_macaddr().mac_to_string() +
-                        "changed advertised DHCP hostname from '" +
-                        client_record->get_dhcp_host() + "' to '" +
-                        pack_datainfo->discover_host + "' which may indicate "
-                        "client spoofing or impersonation";
+                    auto al = censor::format("IEEE80211 network BSSID {} client {}changed "
+                        "advertised DHCP hostname from '{}' to '{}' which may indicate client "
+                        "spoofing or impersonation", client_record->get_bssid(),
+                        clientdev->get_macaddr(), censor::name(client_record->get_dhcp_host()),
+                        censor::name(pack_datainfo->discover_host));
 
                     alertracker->raise_alert(alert_dhcpname_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,

@@ -663,12 +663,12 @@ int64_t sec_int(const nlohmann::json& j, const char *key, int64_t lo, int64_t hi
     return (v < lo || v > hi) ? -1 : v;
 }
 
-std::string sec_cell(const nlohmann::json& j) {
+censor::marked_string sec_cell(const nlohmann::json& j, bool sentence_start) {
     auto pci = sec_int(j, "pci", 0, 1007);
     auto earfcn = sec_int(j, "earfcn", 0, 3279165);
     if (pci < 0 || earfcn < 0)
-        return "an unknown cell";
-    return fmt::format("LTE PCI {} EARFCN {}", pci, earfcn);
+        return sentence_start ? "An unknown cell" : "an unknown cell";
+    return censor::format("LTE PCI {} EARFCN {}", censor::ident(pci), earfcn);
 }
 
 }  // namespace
@@ -683,23 +683,21 @@ std::vector<security_alert_t> security_alerts(const nlohmann::json& j) {
             {"null_security", "redirect", "incomplete_sib1", "identity_request"});
     const auto layer = sec_enum(j, "layer", {"rrc", "nas"});
     const std::string layer_name = layer == "nas" ? "NAS" : "RRC";
-    const auto cell = sec_cell(j);
-    auto cell_start = cell;
-    if (!cell_start.empty() && cell_start[0] == 'a')
-        cell_start[0] = 'A';
+    const auto cell = sec_cell(j, false);
+    const auto cell_start = sec_cell(j, true);
 
     if (event == "null_security") {
         const auto cipher = sec_enum(j, "ciphering", {"eea0", "eea1", "eea2", "eea3", "other"});
         const auto integ = sec_enum(j, "integrity", {"eia0", "eia1", "eia2", "eia3", "other"});
         if (cipher == "eea0")
-            out.push_back({alert_null_cipher, fmt::format(
+            out.push_back({alert_null_cipher, censor::format(
                     "An LTE {} security mode command from {} selected the null "
                     "cipher (EEA0, integrity {}), so the connection is unencrypted. "
                     "Commercial networks do not normally do this; it is typical of "
                     "a cell-site simulator.", layer_name, cell,
                     integ.empty() ? "unknown" : integ)});
         if (integ == "eia0")
-            out.push_back({alert_null_integrity, fmt::format(
+            out.push_back({alert_null_integrity, censor::format(
                     "An LTE {} security mode command from {} selected null "
                     "integrity protection (EIA0, ciphering {}), which is only "
                     "valid for unauthenticated emergency calls.", layer_name, cell,
@@ -710,7 +708,7 @@ std::vector<security_alert_t> security_alerts(const nlohmann::json& j) {
         const auto cause = sec_enum(j, "release_cause",
                 {"load_balancing_tau", "other", "cs_fallback_high_priority", "rrc_suspend"});
         const auto arfcn = sec_int(j, "redirect_arfcn", 0, 1023);
-        out.push_back({alert_2g_redirect, fmt::format(
+        out.push_back({alert_2g_redirect, censor::format(
                 "{} released the connection and redirected the modem to a 2G "
                 "(GERAN) carrier{} (release cause {}). Forcing a phone onto 2G, "
                 "where encryption is weak or absent, is a known cell-site "
@@ -725,10 +723,11 @@ std::vector<security_alert_t> security_alerts(const nlohmann::json& j) {
         const auto plmn = plmn_from_json(j);
         const auto tac = sec_int(j, "tac", 0, 65535);
         const auto cid = sec_int(j, "cell_id", 0, 0x0FFFFFFF);
-        std::string ident;
+        censor::marked_string ident;
         if (plmn.present && tac >= 0 && cid >= 0)
-            ident = fmt::format(" ({}-{} TAC {} cell {})", plmn.mcc, plmn.mnc, tac, cid);
-        out.push_back({alert_incomplete_sib, fmt::format(
+            ident = censor::format(" ({}-{} TAC {} cell {})", plmn.mcc, plmn.mnc,
+                    censor::ident(tac), censor::ident(cid));
+        out.push_back({alert_incomplete_sib, censor::format(
                 "{}{} broadcasts a SIB1 that schedules only {} system information "
                 "message{}; commercial cells schedule several. A minimal SIB set "
                 "is typical of a cell-site simulator, but some small cells do "
@@ -741,21 +740,21 @@ std::vector<security_alert_t> security_alerts(const nlohmann::json& j) {
         if (idtype.empty())
             idtype = "identity";
         if (reason == "after_auth")
-            out.push_back({alert_identity_request, fmt::format(
+            out.push_back({alert_identity_request, censor::format(
                     "{} asked the modem for its {} after authentication had "
                     "completed. A network that has authenticated the subscriber "
                     "has no need to ask; IMSI catchers do.", cell_start, idtype)});
         else if (reason == "no_connection_request")
-            out.push_back({alert_identity_request, fmt::format(
+            out.push_back({alert_identity_request, censor::format(
                     "{} asked the modem for its {} without a preceding connection "
                     "or attach request, as an IMSI catcher does.", cell_start, idtype)});
         else if (reason == "disconnect_without_auth")
-            out.push_back({alert_identity_noauth, fmt::format(
+            out.push_back({alert_identity_noauth, censor::format(
                     "{} asked the modem for its {} and then disconnected without "
                     "authenticating it, as an IMSI catcher does. A roaming or "
                     "provisioning failure can look the same.", cell_start, idtype)});
         else if (reason == "attach_reject_without_auth")
-            out.push_back({alert_identity_noauth, fmt::format(
+            out.push_back({alert_identity_noauth, censor::format(
                     "{} asked the modem for its {} and rejected the attach "
                     "without authenticating it. This is normal for a SIM with no "
                     "active plan.", cell_start, idtype)});

@@ -576,7 +576,7 @@ function registerDetails(kismet) {
         if (alerts.length)
             rows.push({ label: 'Alerts', events: alerts.map((a) => ({ t: a['kismet.alert.timestamp'] ?? 0,
                 color: severityColor(a['kismet.alert.severity'] ?? 0),
-                title: `${a['kismet.alert.header']}\n${format.time(a['kismet.alert.timestamp'])}\n${a['kismet.alert.text'] ?? ''}` })) });
+                title: `${a['kismet.alert.header']}\n${format.time(a['kismet.alert.timestamp'])}\n${kismet.censor.alertText(a)}` })) });
         return rows;
     }
 
@@ -626,7 +626,7 @@ function registerDetails(kismet) {
             const onScreen = node.checkVisibility ? node.checkVisibility() : node.offsetParent !== null;
             if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
                 try {
-                    alerts = ((await api.get('alerts/all_alerts.json')) ?? []).filter(names);
+                    alerts = ((await api.get(api.marked('alerts/all_alerts.json'))) ?? []).filter(names);
                     draw();
                 } catch {
                     // Keep what's drawn; the next refresh tries again

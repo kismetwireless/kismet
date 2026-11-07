@@ -70,8 +70,8 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
         gps_location->fix = 3;
     }
 
-    _MSG_INFO("GPSVirtual using location {},{} @ {}", gps_location->lat,
-            gps_location->lon, gps_location->alt);
+    _MSG_INFO("GPSVirtual using location {},{} @ {}", censor::loc(gps_location->lat),
+            censor::loc(gps_location->lon), gps_location->alt);
 
     std::stringstream msg;
     msg << "Virtual GPS at " << gps_location->lat << "," << 

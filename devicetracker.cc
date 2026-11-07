@@ -1004,7 +1004,7 @@ void device_tracker::macdevice_timer_event() {
     std::vector<std::shared_ptr<kis_tracked_device_base>> lost;
 
     for (const auto& k : flagged) {
-        std::string alrt;
+        censor::marked_string alrt;
         std::string channel;
 
         {
@@ -1013,8 +1013,8 @@ void device_tracker::macdevice_timer_event() {
             if (now - k->get_mod_time() <= devicelost_timeout)
                 continue;
 
-            alrt = fmt::format("Monitored device {} ({}) hasn't been seen for {} "
-                    "seconds.", k->get_macaddr(), k->get_commonname(),
+            alrt = censor::format("Monitored device {} ({}) hasn't been seen for {} "
+                    "seconds.", k->get_macaddr(), censor::name(k->get_commonname()),
                     devicelost_timeout);
             channel = k->get_channel();
         }
@@ -1519,8 +1519,8 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
                 }
 
                 auto alrt =
-                    fmt::format("Monitored device {} ({}) has been found.",
-                            device->get_macaddr(), device->get_commonname());
+                    censor::format("Monitored device {} ({}) has been found.",
+                            device->get_macaddr(), censor::name(device->get_commonname()));
                    alertracker->raise_alert(alert_macdevice_found_ref,
                            in_pack, netmac, device->get_macaddr(), dstmac, transmac,
                            device->get_channel(), alrt);
@@ -1914,8 +1914,8 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
 
     if (fetch_device_nr(device->get_key()) != NULL) {
-        _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() +
-                " which already exists", MSGFLAG_ERROR);
+        _MSG(censor::format("device_tracker tried to add device {} which already exists",
+                    device->get_macaddr()), MSGFLAG_ERROR);
         return;
     }
 

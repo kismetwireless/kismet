@@ -57,37 +57,43 @@ rest_message_client::rest_message_client() :
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    httpd->register_route("/messagebus/last-time/:timestamp/messages", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    auto ts_k = con->uri_params().find(":timestamp");
-                    auto ts = string_to_n<long>(ts_k->second);
+    // The message endpoints, and marked versions under /messagebus/marked/ whose records add
+    // kismet.messagebus.message_marked for the web UI's censoring
+    for (const auto marked : {false, true}) {
+        const std::string pfx = marked ? "/messagebus/marked" : "/messagebus";
 
-                    kis_lock_guard<kis_mutex> lk(msg_mutex, "/messagebus/last-time/messages");
-                    auto wrapper = std::make_shared<tracker_element_map>();
-                    auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
+        httpd->register_route(pfx + "/last-time/:timestamp/messages", {"GET", "POST"}, httpd->RO_ROLE, {},
+                std::make_shared<kis_net_web_tracked_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                        auto ts_k = con->uri_params().find(":timestamp");
+                        auto ts = string_to_n<long>(ts_k->second);
 
-                    wrapper->insert(msgvec);
-                    wrapper->insert(std::make_shared<tracker_element_uint64>(message_timestamp_id, time(0)));
+                        kis_lock_guard<kis_mutex> lk(msg_mutex, "/messagebus/last-time/messages");
+                        auto wrapper = std::make_shared<tracker_element_map>();
+                        auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
 
-                    for (auto i : message_list) 
-                        if (ts < i->get_timestamp()) 
-                            msgvec->push_back(i);
+                        wrapper->insert(msgvec);
+                        wrapper->insert(std::make_shared<tracker_element_uint64>(message_timestamp_id, time(0)));
 
-                    return wrapper;
-                }));
+                        for (auto i : message_list) 
+                            if (ts < i->get_timestamp()) 
+                                msgvec->push_back(marked ? i->marked_view() : i);
 
-    httpd->register_route("/messagebus/all_messages", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    kis_lock_guard<kis_mutex> lk(msg_mutex, "/messagebus/all_messages");
+                        return wrapper;
+                    }));
 
-                    auto ret = std::make_shared<tracker_element_vector>();
-                    for (auto i : message_list) 
-                        ret->push_back(i);
+        httpd->register_route(pfx + "/all_messages", {"GET", "POST"}, httpd->RO_ROLE, {},
+                std::make_shared<kis_net_web_tracked_endpoint>(
+                    [this, marked](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                        kis_lock_guard<kis_mutex> lk(msg_mutex, "/messagebus/all_messages");
 
-                    return ret;
-                }));
+                        auto ret = std::make_shared<tracker_element_vector>();
+                        for (auto i : message_list) 
+                            ret->push_back(marked ? i->marked_view() : i);
+
+                        return ret;
+                    }));
+    }
 
 }
 

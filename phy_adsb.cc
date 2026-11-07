@@ -685,7 +685,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
 
     // Generate the adsb device record
     bool new_adsb = false;
-    std::stringstream new_ss;
+    censor::marked_string new_ss;
 
     auto adsbdev = 
         basedev->get_sub_as<adsb_tracked_adsb>(adsb_adsb_id);
@@ -695,7 +695,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
         basedev->insert(adsbdev);
         new_adsb = true;
 
-        new_ss << "Detected new ADSB device ICAO " << icao_s;
+        new_ss = censor::format("Detected new ADSB device ICAO {}", censor::ident(icao_s));
     }
 
     adsbdev->set_icao(icao_s);
@@ -715,15 +715,14 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
         }
 
         adsbdev->set_callsign(mangle_cs);
-        if (adsbdev->get_callsign() != "")
-            new_ss << adsbdev->get_callsign();
+        if (new_adsb && adsbdev->get_callsign() != "")
+            new_ss = censor::format("{}{}", new_ss, censor::ident(adsbdev->get_callsign()));
     }
 
-    if (icao_record != icaodb->get_unknown_icao()) {
-        new_ss << " " << icao_record->get_model();
-        new_ss << " " << icao_record->get_model_type();
-        new_ss << " " << icao_record->get_owner();
-        new_ss << " " << icao_record->get_atype()->get();
+    if (new_adsb && icao_record != icaodb->get_unknown_icao()) {
+        new_ss = censor::format("{} {} {} {} {}", new_ss, icao_record->get_model(),
+                icao_record->get_model_type(), censor::name(icao_record->get_owner()),
+                icao_record->get_atype()->get());
     }
 
     if (use_altitude) {
@@ -766,7 +765,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
 
 
     if (new_adsb) {
-        _MSG_INFO("{}", new_ss.str());
+        _MSG_INFO("{}", new_ss);
     }
 
     if (icao_record != icaodb->get_unknown_icao()) {
@@ -965,7 +964,7 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(const std::shared_ptr<
 
     auto icao_j = json["icao"];
     bool new_adsb = false;
-    std::stringstream new_ss;
+    censor::marked_string new_ss;
 
     if (!icao_j.is_null()) {
         auto adsbdev = 
@@ -976,7 +975,7 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(const std::shared_ptr<
             rtlholder->insert(adsbdev);
             new_adsb = true;
 
-            new_ss << "Detected new ADSB device ICAO " << icao_j;
+            new_ss = censor::format("Detected new ADSB device ICAO {}", censor::ident(icao_j.dump()));
         }
 
         adsbdev->set_icao(icao_j);
@@ -997,15 +996,14 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(const std::shared_ptr<
             }
 
             adsbdev->set_callsign(mangle_cs);
-            if (adsbdev->get_callsign() != "")
-                new_ss << adsbdev->get_callsign();
+            if (new_adsb && adsbdev->get_callsign() != "")
+                new_ss = censor::format("{}{}", new_ss, censor::ident(adsbdev->get_callsign()));
         }
 
-        if (icao_record != icaodb->get_unknown_icao()) {
-            new_ss << " " << icao_record->get_model();
-            new_ss << " " << icao_record->get_model_type();
-            new_ss << " " << icao_record->get_owner();
-            new_ss << " " << icao_record->get_atype()->get();
+        if (new_adsb && icao_record != icaodb->get_unknown_icao()) {
+            new_ss = censor::format("{} {} {} {} {}", new_ss, icao_record->get_model(),
+                    icao_record->get_model_type(), censor::name(icao_record->get_owner()),
+                    icao_record->get_atype()->get());
         }
 
         auto altitude_j = json["altitude"];
@@ -1060,7 +1058,7 @@ std::shared_ptr<adsb_tracked_adsb> kis_adsb_phy::add_adsb(const std::shared_ptr<
         } catch (...) { }
 
         if (new_adsb) {
-            _MSG_INFO("{}", new_ss.str());
+            _MSG_INFO("{}", new_ss);
         }
         
         return adsbdev;

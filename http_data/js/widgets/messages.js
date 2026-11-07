@@ -3,6 +3,7 @@
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
+import * as censor from '../core/censor.js';
 import * as eventbus from '../core/eventbus.js';
 import * as format from '../core/format.js';
 import * as loading from './loading.js';
@@ -28,7 +29,7 @@ function messageRow(m) {
     const flags = m['kismet.messagebus.message_flags'] ?? 0;
     return el('li', { class: `message level-${levelOf(flags)}` },
         el('time', {}, format.time(m['kismet.messagebus.message_time'])),
-        el('span', { class: 'message-text' }, m['kismet.messagebus.message_string'] ?? ''));
+        el('span', { class: 'message-text' }, censor.messageText(m)));
 }
 
 const retrySeconds = [2, 5, 10];
@@ -88,7 +89,7 @@ export function createMessages(container) {
             return;
         inFlight = true;
         try {
-            const r = await api.get('messagebus/last-time/0/messages.json');
+            const r = await api.get(api.marked('messagebus/last-time/0/messages.json'));
             const backlog = r['kismet.messagebus.list'] ?? [];
             backlog.sort((a, b) => timeOf(b) - timeOf(a));
             loaded = true;
@@ -112,7 +113,7 @@ export function createMessages(container) {
             return;
         inFlight = true;
         try {
-            const r = await api.get('messagebus/last-time/0/messages.json');
+            const r = await api.get(api.marked('messagebus/last-time/0/messages.json'));
             (r['kismet.messagebus.list'] ?? []).forEach(add);
         } catch {
             // The live feed carries on; the gap stays

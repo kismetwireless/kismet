@@ -217,11 +217,12 @@ LOGTOOL_KISMETDB_WIGLE = log_tools/kismetdb_to_wiglecsv
 # phy_cell_decisions.cc.o: the offline exporter builds the SAME cell key the
 # live PHY does, from the same function, so the two WiGLE writers cannot drift
 # apart. It is deliberately free of tracker/Globalreg deps for
-# exactly this reason -- see phy_cell_decisions.h.
+# exactly this reason -- see phy_cell_decisions.h.  censor.cc.o is its
+# marked alert text, also dependency-free.
 LOGTOOL_KISMETDB_WIGLE_O = \
 	version.c.o \
 	log_tools/kismetdb_to_wiglecsv.cc.o \
-	phy_cell_decisions.cc.o \
+	phy_cell_decisions.cc.o censor.cc.o \
 	sqlite3_cpp11.cc.o 
 
 LOGTOOL_KISMETDB_JSON = log_tools/kismetdb_dump_devices
@@ -298,7 +299,7 @@ TOOL_USBSERIAL = usbserial/kismet_usbserial
 BUILD_USBSERIAL = @BUILD_USBSERIAL@
 USBSERIAL_BINS = @USBSERIAL_BINS@
 
-PSO	= util.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o \
+PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o \
 	sqlite3_cpp11.cc.o mpack/mpack.c.o \
 	globalregistry.cc.o eventbus.cc.o \
 	packet.cc.o configfile.cc.o \

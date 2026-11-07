@@ -3,7 +3,7 @@
 const a = 'kismet.alert';
 
 export function register(kismet) {
-    const { ui, format, dom } = kismet;
+    const { ui, format, dom, api, censor } = kismet;
     const { el } = dom;
     const noMac = (v) => !v || v === '00:00:00:00:00:00';
     const mac = (v) => (noMac(v) ? '' : el('span', { class: 'mono' }, v));
@@ -18,14 +18,15 @@ export function register(kismet) {
 
     ui.addTable({
         id: 'alerts', title: 'Alerts', area: 'main', priority: 30,
-        endpoint: 'alerts/alerts_view.json',
+        // Marked, so the details censor by what each part is
+        endpoint: () => api.marked('alerts/alerts_view.json'),
         noun: 'alerts',
         emptyText: 'No alerts.',
         rowKey: (r) => `${r[`${a}.header`]}:${r[`${a}.timestamp`]}`,
         onRowClick: (r) => openAlert(r),
         defaultSort: { column: 'time', dir: 'desc' },
         // Everything the alert's panel shows comes with the row
-        alwaysFields: [`${a}.header`, `${a}.timestamp`, `${a}.text`, `${a}.severity`, `${a}.class`, `${a}.device_key`,
+        alwaysFields: [`${a}.header`, `${a}.timestamp`, `${a}.text`, `${a}.text_marked`, `${a}.severity`, `${a}.class`, `${a}.device_key`,
             `${a}.source_mac`, `${a}.dest_mac`, `${a}.transmitter_mac`, `${a}.other_mac`, `${a}.channel`, `${a}.frequency`],
         columns: [
             { id: 'time', title: 'Time', priority: 0, defaultVisible: true, width: '11.5em',
@@ -42,8 +43,8 @@ export function register(kismet) {
                 fields: [`${a}.class`], sortField: `${a}.class`,
                 render: (r) => (r[`${a}.class`] ?? '').toLowerCase() },
             { id: 'text', title: 'Details', priority: 40, defaultVisible: true,
-                fields: [`${a}.text`],
-                render: (r) => r[`${a}.text`] },
+                fields: [`${a}.text`, `${a}.text_marked`],
+                render: (r) => censor.alertText(r) },
             { id: 'source', title: 'Source', priority: 50, defaultVisible: true, width: '11em',
                 fields: [`${a}.source_mac`], sortField: `${a}.source_mac`, render: (r) => mac(r[`${a}.source_mac`]) },
             { id: 'dest', title: 'Destination', priority: 60, width: '11em',
@@ -75,7 +76,7 @@ export function register(kismet) {
             { title: 'Time', field: `${a}.timestamp`, format: (v) => format.time(Math.floor(v)) },
             { title: 'Severity', field: `${a}.severity`, format: (v) => `${severity(v)} (${v})` },
             { title: 'Class', field: `${a}.class`, format: (v) => v.toLowerCase() },
-            { title: 'Details', field: `${a}.text` },
+            { title: 'Details', field: `${a}.text`, format: () => censor.alertText(r) },
             { title: 'Device', field: `${a}.device_key`, show: (v) => v && v !== '00_0' && v !== '0',
                 format: (k) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); ui.openDevice(k); } }, 'Open the device') },
             { title: 'Source', field: `${a}.source_mac`, show: (v) => !noMac(v), format: mac },

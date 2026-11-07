@@ -424,11 +424,9 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 					if (clmac != in_pack->common_info.source) {
                         _COMMONALERT(alert_dhcpclient_ref, in_pack,
                                 in_pack->common_info.network,
-                                std::string("DHCP request from ") +
-                                in_pack->common_info.source.mac_to_string() +
-                                std::string(" doesn't match DHCP DISCOVER client id ") +
-                                clmac.mac_to_string() + std::string(" which can indicate "
-                                    "a DHCP spoofing attack"));
+                                censor::format("DHCP request from {} doesn't match DHCP "
+                                    "DISCOVER client id {} which can indicate a DHCP "
+                                    "spoofing attack", in_pack->common_info.source, clmac));
 					}
 				}
 			}

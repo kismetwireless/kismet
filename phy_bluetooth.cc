@@ -278,11 +278,11 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
             basedev->set_devicename(munge_to_printable(devname_j));
 
         if (btdev == nullptr) {
-            std::stringstream ss;
-            ss << "Detected new Bluetooth device " << btaddr_mac;
             if (basedev->get_devicename().length() > 0)
-                ss << " (" << basedev->get_devicename() << ")";
-            _MSG(ss.str(), MSGFLAG_INFO);
+                _MSG(censor::format("Detected new Bluetooth device {} ({})", btaddr_mac,
+                            censor::name(basedev->get_devicename())), MSGFLAG_INFO);
+            else
+                _MSG(censor::format("Detected new Bluetooth device {}", btaddr_mac), MSGFLAG_INFO);
 
             btdev =
                 Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
@@ -629,7 +629,7 @@ int kis_bluetooth_phy::packet_classifier_bredr_bb(CHAINCALL_PARMS) {
         basedev->set_manuf(Globalreg::globalreg->manufdb->make_manuf("Unknown"));
         basedev->set_devicename(fmt::format("Piconet {:06X}", lap));
 
-        _MSG_INFO("Detected new Bluetooth classic piconet LAP {:06X}", lap);
+        _MSG_INFO("Detected new Bluetooth classic piconet LAP {:06X}", censor::ident(lap));
     }
 
     const auto partial = has_uap ?
@@ -724,15 +724,16 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             btdev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
         if (btdev_bluetooth == nullptr) {
-            newdevstr << "Detected new HCI Bluetooth device " << btaddr_mac; 
+            auto newdevstr = censor::format("Detected new HCI Bluetooth device {}", btaddr_mac);
 
             if (btdev->get_devicename().length() > 0)
-                newdevstr << " (" << btdev->get_devicename() << ")";
+                newdevstr = censor::format("{} ({})", newdevstr,
+                        censor::name(btdev->get_devicename()));
 
             if (devtype_j.is_string())
-                newdevstr << " " << btdev->get_type_string();
+                newdevstr = censor::format("{} {}", newdevstr, btdev->get_type_string());
 
-            _MSG_INFO("{}", newdevstr.str());
+            _MSG_INFO("{}", newdevstr);
 
             btdev_bluetooth = 
                 Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
@@ -1590,11 +1591,11 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
         basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
     if (btdev == nullptr) {
-        std::stringstream ss;
-        ss << "Detected new Bluetooth device " << btpi->address.mac_to_string();
         if (btpi->name.length() > 0) 
-            ss << " (" << btpi->name << ")";
-        _MSG(ss.str(), MSGFLAG_INFO);
+            _MSG(censor::format("Detected new Bluetooth device {} ({})", btpi->address,
+                        censor::name(btpi->name)), MSGFLAG_INFO);
+        else
+            _MSG(censor::format("Detected new Bluetooth device {}", btpi->address), MSGFLAG_INFO);
 
         btdev = 
             Globalreg::globalreg->entrytracker->get_shared_instance_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
