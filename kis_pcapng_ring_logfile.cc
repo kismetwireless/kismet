@@ -172,7 +172,6 @@ uint64_t dir_size_bytes(const std::string& path) {
 kis_pcapng_ring_logfile::kis_pcapng_ring_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder),
     pcapng{nullptr},
-    ring_file{nullptr},
     shutting_down{false},
     active_slot{0},
     active_slot_bytes{0},
@@ -331,7 +330,7 @@ bool kis_pcapng_ring_logfile::open_log(const std::string& /*in_template*/,
     set_int_log_path(first_path);
     set_int_log_template("");
 
-    ring_file = fopen(first_path.c_str(), "w");
+    ring_file.reset(fopen(first_path.c_str(), "w"));
     if (ring_file == nullptr) {
         _MSG_ERROR("pcapng_ring: failed to open ring slot '{}' - {}",
                 first_path, kis_strerror_r(errno));
@@ -384,9 +383,9 @@ bool kis_pcapng_ring_logfile::open_log(const std::string& /*in_template*/,
             auto sz = buf->get(&data);
 
             if (sz > 0) {
-                if (fwrite(data, sz, 1, ring_file) != 1) {
+                if (fwrite(data, sz, 1, ring_file.get()) != 1) {
                     int e = errno;
-                    bool ferr = ferror(ring_file);
+                    bool ferr = ferror(ring_file.get());
                     _MSG_ERROR("pcapng_ring: error writing to ring slot '{}' - {}",
                             ring_slot_path(active_slot),
                             ferr ? kis_strerror_r(e) : "short write");
@@ -456,7 +455,7 @@ void kis_pcapng_ring_logfile::rotate_ring() {
         old_buffer = buffer;
     }
 
-    auto old_file = ring_file;
+    auto old_file = std::move(ring_file);
     auto old_path = ring_slot_path(active_slot);
 
     // Swap to a new buffer; the new SHB lands in the new buffer immediately
@@ -478,22 +477,17 @@ void kis_pcapng_ring_logfile::rotate_ring() {
 
     // Truncate the slot we're about to overwrite. On a fresh start this is
     // a no-op; once the ring has cycled it discards the oldest data.
-    FILE *new_file = fopen(new_path.c_str(), "w");
-    if (new_file == nullptr) {
+    ring_file.reset(fopen(new_path.c_str(), "w"));
+    if (ring_file == nullptr) {
         _MSG_ERROR("pcapng_ring: failed to open next ring slot '{}' - {}; "
                 "stopping ring", new_path, kis_strerror_r(errno));
-        if (old_file != nullptr)
-            fclose(old_file);
-        // Flag shutdown; the writer loop's next iteration sees ring_file
-        // is still the old (now closed) handle but will also see
-        // shutting_down and return. We don't call close_log() here —
-        // that would join this very thread (UB).
-        ring_file = nullptr;
+        // Flag shutdown; the writer loop's next iteration sees no ring_file
+        // and returns. We don't call close_log() here — that would join
+        // this very thread (UB).
         shutting_down = true;
         rotation_cv.notify_all();
         return;
     }
-    ring_file = new_file;
 
     // Drain the tail of the old buffer (anything still in flight before the
     // restart_stream swap) into the closing slot. pcapng has moved off the
@@ -502,18 +496,18 @@ void kis_pcapng_ring_logfile::rotate_ring() {
         char *data;
         auto sz = old_buffer->get(&data);
         if (sz > 0) {
-            if (fwrite(data, sz, 1, old_file) != 1) {
+            if (fwrite(data, sz, 1, old_file.get()) != 1) {
                 int e = errno;
                 _MSG_ERROR("pcapng_ring: error draining ring slot '{}' - {}",
                         old_path,
-                        ferror(old_file) ? kis_strerror_r(e) : "short write");
+                        ferror(old_file.get()) ? kis_strerror_r(e) : "short write");
                 break;
             }
         }
         old_buffer->consume(sz);
     }
 
-    fclose(old_file);
+    old_file.reset();
     // old_buffer's shared_ptr drops here; the buffer object lives until any
     // outstanding snapshot-thread copy (via force_rotate_now) also drops.
 }
@@ -552,10 +546,7 @@ void kis_pcapng_ring_logfile::close_log() {
     if (prune_t.joinable())
         prune_t.join();
 
-    if (ring_file != nullptr) {
-        fclose(ring_file);
-        ring_file = nullptr;
-    }
+    ring_file.reset();
 
     if (pcapng != nullptr) {
         delete pcapng;
@@ -609,7 +600,7 @@ void kis_pcapng_ring_logfile::concat_files(const std::vector<std::string>& sourc
     if (sources.empty())
         return;
 
-    FILE *out = fopen(dest.c_str(), "w");
+    auto out = pcapng_unique_file(fopen(dest.c_str(), "w"));
     if (out == nullptr) {
         int e = errno;
         throw std::runtime_error(fmt::format("failed to open '{}' for write: {}",
@@ -619,7 +610,7 @@ void kis_pcapng_ring_logfile::concat_files(const std::vector<std::string>& sourc
     std::vector<char> buf(SNAPSHOT_COPY_BUFFER_BYTES);
 
     for (const auto& src : sources) {
-        FILE *in = fopen(src.c_str(), "r");
+        auto in = pcapng_unique_file(fopen(src.c_str(), "r"));
         if (in == nullptr) {
             // A ring slot we listed a moment ago may have been overwritten by
             // a rotation in the interim — skip it rather than aborting the
@@ -630,31 +621,33 @@ void kis_pcapng_ring_logfile::concat_files(const std::vector<std::string>& sourc
         }
 
         while (true) {
-            size_t n = fread(buf.data(), 1, buf.size(), in);
+            size_t n = fread(buf.data(), 1, buf.size(), in.get());
             if (n == 0) {
-                if (ferror(in)) {
+                if (ferror(in.get())) {
                     int e = errno;
                     _MSG_ERROR("pcapng_ring: read error on '{}': {}",
                             src, kis_strerror_r(e));
                 }
                 break;
             }
-            size_t w = fwrite(buf.data(), 1, n, out);
+            size_t w = fwrite(buf.data(), 1, n, out.get());
             if (w != n) {
                 int e = errno;
-                bool ferr = ferror(out);
-                fclose(in);
-                fclose(out);
+                bool ferr = ferror(out.get());
                 throw std::runtime_error(fmt::format(
                         "short write to '{}' ({}/{} bytes): {}", dest, w, n,
                         ferr ? kis_strerror_r(e) : "no errno"));
             }
             *out_bytes += n;
         }
-        fclose(in);
     }
 
-    fclose(out);
+    // The last buffered bytes are written on close
+    if (fclose(out.release()) != 0) {
+        int e = errno;
+        throw std::runtime_error(fmt::format("failed to finish '{}': {}", dest,
+                    kis_strerror_r(e)));
+    }
 }
 
 bool kis_pcapng_ring_logfile::force_rotate_now(std::chrono::seconds timeout) {

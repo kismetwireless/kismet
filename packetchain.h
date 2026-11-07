@@ -321,8 +321,8 @@ protected:
         std::atomic<bool> exited{false};
     };
 
-    packet_thread **packet_threads;
-    size_t n_packet_threads;
+    std::unique_ptr<std::unique_ptr<packet_thread>[]> packet_threads;
+    size_t n_packet_threads{0};
 
     std::atomic<bool> packetchain_shutdown;
     std::atomic<bool> drain_started{false};

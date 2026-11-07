@@ -937,9 +937,6 @@ public:
 
 	virtual ~tracker_component() {
         Globalreg::n_tracked_components.fetch_sub(1, std::memory_order_relaxed);
-
-        if (registered_fields != nullptr)
-            delete registered_fields;
     }
 
     virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
@@ -949,7 +946,6 @@ public:
         return std::move(dup);
     }
 
-    // registered_fields is an owning raw pointer; a defaulted move would free it twice
     tracker_component(tracker_component&&) = delete;
     tracker_component(tracker_component&) = delete;
     tracker_component& operator=(tracker_component&) = delete;
@@ -1009,7 +1005,7 @@ protected:
                     tracker_element_factory<build_type>(), in_desc);
 
         if (registered_fields == nullptr)
-            registered_fields = new std::vector<std::unique_ptr<registered_field>>();
+            registered_fields = std::make_unique<std::vector<std::unique_ptr<registered_field>>>();
 
         auto rf = std::unique_ptr<registered_field>(new registered_field(id,
                     reinterpret_cast<shared_tracker_element *>(in_dest),
@@ -1029,7 +1025,7 @@ protected:
                     tracker_element_factory<build_type>(), in_desc);
 
         if (registered_fields == nullptr)
-            registered_fields = new std::vector<std::unique_ptr<registered_field>>();
+            registered_fields = std::make_unique<std::vector<std::unique_ptr<registered_field>>>();
 
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, nullptr, true));
 
@@ -1054,7 +1050,7 @@ protected:
     // Add imported or new field to our map for use tracking.
     virtual shared_tracker_element import_or_new(std::shared_ptr<tracker_element_map> e, int i);
 
-    std::vector<std::unique_ptr<registered_field>> *registered_fields;
+    std::unique_ptr<std::vector<std::unique_ptr<registered_field>>> registered_fields;
 };
 
 

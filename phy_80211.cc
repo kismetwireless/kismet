@@ -1185,14 +1185,17 @@ int kis_80211_phy::load_wepkeys() {
             return -1;
         }
 
-        dot11_wep_key *keyinfo = new dot11_wep_key;
+        auto keyinfo = std::make_unique<dot11_wep_key>();
         keyinfo->bssid = bssid_mac;
         keyinfo->decrypted = 0;
         keyinfo->failed = 0;
         keyinfo->len = len;
         memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
 
-        wepkeys.insert(std::make_pair(bssid_mac, keyinfo));
+        if (!wepkeys.emplace(bssid_mac, std::move(keyinfo)).second) {
+            _MSG_ERROR("Duplicate 'wepkey' for BSSID '{}', using the first one", bssid_mac);
+            continue;
+        }
 
         _MSG_INFO("Using key '{}' for BSSID '{}'", rawkey, bssid_mac);
     }

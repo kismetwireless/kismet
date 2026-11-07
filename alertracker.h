@@ -563,7 +563,7 @@ protected:
     std::shared_ptr<tracker_element_vector> alert_backlog_vec;
 
     // Alert configs we read before we know the alerts themselves
-    std::map<std::string, alert_conf_rec *> alert_conf_map;
+    std::map<std::string, std::unique_ptr<alert_conf_rec>> alert_conf_map;
 
 #ifdef PRELUDE
     // Prelude client

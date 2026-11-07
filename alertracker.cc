@@ -628,21 +628,19 @@ int alert_tracker::parse_alert_config(config_file *in_conf) {
     std::vector<std::string> clines = in_conf->fetch_opt_vec("alert");
 
     for (unsigned int x = 0; x < clines.size(); x++) {
-        alert_conf_rec *rec = new alert_conf_rec;
+        auto rec = std::make_unique<alert_conf_rec>();
 
         if (parse_alert_str(clines[x], &(rec->header), &(rec->limit_unit),
                     &(rec->limit_rate), &(rec->burst_unit),
                     &(rec->limit_burst)) < 0) {
             _MSG_FATAL("Invalid 'alert' config option {}; expected HEADER,rate,burstrate", clines[x]);
             Globalreg::globalreg->fatal_condition = 1;
-            delete rec;
             return -1;
         }
 
-        if (!alert_conf_map.insert(std::make_pair(rec->header, rec)).second) {
-            _MSG_ERROR("Duplicate 'alert' config option for {}, using the first one", rec->header);
-            delete rec;
-        }
+        auto header = rec->header;
+        if (!alert_conf_map.emplace(header, std::move(rec)).second)
+            _MSG_ERROR("Duplicate 'alert' config option for {}, using the first one", header);
     }
 
     return 1;
@@ -658,14 +656,15 @@ int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, in
         return -1;
     }
 
-    alert_conf_rec *rec = new alert_conf_rec;
+    auto rec = std::make_unique<alert_conf_rec>();
     rec->header = str_upper(name);
     rec->limit_unit = limit_unit;
     rec->limit_rate = limit_rate;
     rec->burst_unit = burst_unit;
     rec->limit_burst = burst_rate;
 
-    alert_conf_map.insert(std::make_pair(rec->header, rec));
+    auto header = rec->header;
+    alert_conf_map.emplace(header, std::move(rec));
 
     return 1;
 }
@@ -696,9 +695,9 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
                 return -1;
             }
 
-            rec = hi_full->second;
+            rec = hi_full->second.get();
         } else {
-            rec = hi->second;
+            rec = hi->second.get();
         }
     }
 

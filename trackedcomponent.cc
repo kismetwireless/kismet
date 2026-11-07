@@ -37,7 +37,7 @@ int tracker_component::register_field(const std::string& in_name,
 
     if (in_dest != NULL) {
         if (registered_fields == nullptr)
-            registered_fields = new std::vector<std::unique_ptr<registered_field>>();
+            registered_fields = std::make_unique<std::vector<std::unique_ptr<registered_field>>>();
 
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
         registered_fields->push_back(std::move(rf));
@@ -69,8 +69,7 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     map.shrink_to_fit();
 
     // Remove all the registration records we've allocated
-    delete registered_fields;
-    registered_fields = nullptr;
+    registered_fields.reset();
 }
 
 shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {

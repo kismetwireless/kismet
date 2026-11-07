@@ -229,7 +229,7 @@ packet_chain::~packet_chain() {
         // packet_queue.enqueue(nullptr);
 
         for (size_t i = 0; i < n_packet_threads; i++) {
-            auto t = packet_threads[i];
+            auto& t = packet_threads[i];
 
             if (t == nullptr)
                 continue;
@@ -239,12 +239,10 @@ packet_chain::~packet_chain() {
             if (t->packet_thread.joinable())
                 t->packet_thread.join();
 
-            delete(t);
-            packet_threads[i] = nullptr;
+            t.reset();
         }
 
-        delete[] packet_threads;
-        packet_threads = nullptr;
+        packet_threads.reset();
     }
 
     {
@@ -323,10 +321,10 @@ void packet_chain::start_processing() {
 
     dedupe_windows = std::make_unique<dedupe_window[]>(n_packet_threads);
 
-    packet_threads = new packet_thread*[n_packet_threads];
+    packet_threads = std::make_unique<std::unique_ptr<packet_thread>[]>(n_packet_threads);
 
     for (unsigned int n = 0; n < n_packet_threads; n++) {
-        packet_threads[n] = new packet_thread();
+        packet_threads[n] = std::make_unique<packet_thread>();
         packet_threads[n]->packet_thread =
             std::thread([this, n]() {
             auto name = fmt::format("PACKET {}/{}", n, n_packet_threads);

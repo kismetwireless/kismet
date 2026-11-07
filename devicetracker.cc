@@ -984,8 +984,7 @@ device_tracker::~device_tracker() {
 		delete track_filter;
     */
 
-    for (auto p : phy_handler_map)
-        delete(p.second);
+    phy_handler_map.clear();
 
     immutable_tracked_vec->clear();
     tracked_mac_multimap.clear();
@@ -1047,7 +1046,7 @@ kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
 	if (i == phy_handler_map.end())
 		return NULL;
 
-	return i->second;
+	return i->second.get();
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler_by_name(const std::string& in_name) {
@@ -1055,7 +1054,7 @@ kis_phy_handler *device_tracker::fetch_phy_handler_by_name(const std::string& in
 
     for (const auto& i : phy_handler_map) {
         if (i.second->fetch_phy_name() == in_name) {
-            return i.second;
+            return i.second.get();
         }
     }
     return NULL;
@@ -1086,16 +1085,19 @@ int device_tracker::fetch_num_packets() {
 }
 
 
+// The weak builder is never destroyed: phy destructors unregister hooks a builder never set up
 int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
     kis_unique_lock<kis_shared_mutex> lk(phy_mutex, "device_tracker register_phy_handler");
 
 	int num = next_phy_id++;
 
     lk.unlock();
-	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(num);
+	auto strong_owner = std::unique_ptr<kis_phy_handler>(in_weak_handler->create_phy_handler(num));
     lk.lock();
 
-	phy_handler_map[num] = strongphy;
+    // Handlers are never removed until shutdown, so the pointer stays valid once unlocked
+	kis_phy_handler *strongphy = strong_owner.get();
+	phy_handler_map[num] = std::move(strong_owner);
 
 	phy_packets[num] = 0;
 	phy_datapackets[num] = 0;
