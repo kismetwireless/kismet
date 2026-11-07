@@ -581,6 +581,29 @@ static int submit_locked(usbserial_dev_t *dev, struct libusb_transfer *t) {
     return 0;
 }
 
+/* How many of the len queued bytes starting at head (in a ring of qsize) the next
+ * DIAG transfer carries: up to and including the first frame's closing flag.
+ *
+ * A leading flag goes out alone.  It is the resync a DIAG client writes on open,
+ * and the frame queued behind it must not ride in the same transfer: SDX6x
+ * userspace diag-router firmware stops decoding a write at an empty frame, so
+ * one that begins with a lone 0x7e loses the frame after it.  The host tty
+ * drivers already send the flag in its own write.  A modem that wants the flush
+ * still gets it, one transfer earlier.  A modem that drops it loses an empty frame. */
+static size_t diag_xfer_len(const uint8_t *q, size_t qsize, size_t head, size_t len) {
+    size_t i;
+
+    if (len == 0 || q[head] == 0x7e)
+        return len == 0 ? 0 : 1;
+
+    for (i = 1; i < len; i++) {
+        if (q[(head + i) % qsize] == 0x7e)
+            return i + 1;
+    }
+
+    return len;
+}
+
 /* Lock held; start the next send if there's queued data and nothing in flight */
 static void tx_next_locked(usbserial_port_t *port) {
     size_t len, first;
@@ -592,18 +615,9 @@ static void tx_next_locked(usbserial_port_t *port) {
     if (len > USBSERIAL_TX_XFER_SIZE)
         len = USBSERIAL_TX_XFER_SIZE;
 
-    /* End the transfer at the first frame's closing flag; a leading lone flag
-     * goes with the frame after it */
-    if (port->one_frame) {
-        size_t i;
-
-        for (i = 1; i < len; i++) {
-            if (port->txq[(port->txq_head + i) % USBSERIAL_TXQ_SIZE] == 0x7e) {
-                len = i + 1;
-                break;
-            }
-        }
-    }
+    /* One DIAG frame per transfer, and a leading flag on its own */
+    if (port->one_frame)
+        len = diag_xfer_len(port->txq, USBSERIAL_TXQ_SIZE, port->txq_head, len);
 
     first = USBSERIAL_TXQ_SIZE - port->txq_head;
     if (first > len)
@@ -967,3 +981,88 @@ size_t usbserial_tx_space(usbserial_port_t *port) {
 
     return space;
 }
+
+#if defined(CELL_SELFTEST) && defined(USBSERIAL_SELFTEST)
+#include <stdio.h>
+
+static int fail;
+
+/* Split a queue (a ring of qsize, len bytes from head) into the transfers
+ * tx_next_locked() would send, and compare their lengths with want[] */
+static void check_split(const char *what, const uint8_t *q, size_t qsize, size_t head,
+        size_t len, const size_t *want, size_t nwant) {
+    size_t got[16], n = 0, k;
+
+    while (len > 0 && n < 16) {
+        size_t x = diag_xfer_len(q, qsize, head, len);
+        if (x == 0 || x > len)
+            break;
+        got[n++] = x;
+        head = (head + x) % qsize;
+        len -= x;
+    }
+
+    if (len != 0 || n != nwant) {
+        fprintf(stderr, "FAIL: %s: %zu transfer(s), %zu byte(s) left; want %zu\n",
+                what, n, len, nwant);
+        fail = 1;
+        return;
+    }
+
+    for (k = 0; k < n; k++) {
+        if (got[k] != want[k]) {
+            fprintf(stderr, "FAIL: %s: transfer %zu is %zu byte(s), want %zu\n",
+                    what, k, got[k], want[k]);
+            fail = 1;
+            return;
+        }
+    }
+
+    printf("ok: %s\n", what);
+}
+
+int main(void) {
+    /* VERNO: cmd 0x00, CRC 0xf078 little-endian, closing flag */
+    static const uint8_t resync_verno[] = { 0x7e, 0x00, 0x78, 0xf0, 0x7e };
+    static const uint8_t verno[] = { 0x00, 0x78, 0xf0, 0x7e };
+    static const uint8_t two[] = { 0x00, 0x78, 0xf0, 0x7e, 0x7c, 0x93, 0x49, 0x7e };
+    static const uint8_t flags_frame[] = { 0x7e, 0x7e, 0x00, 0x78, 0xf0, 0x7e };
+    static const uint8_t partial[] = { 0x4b, 0x12, 0x00 };
+    /* resync + VERNO wrapping the ring's end, then a second frame:
+     * [8] flag, [9] [0] [1] [2] VERNO, [3] .. [6] the next frame */
+    static const uint8_t ring[] = { 0x78, 0xf0, 0x7e, 0x00, 0x78, 0xf0, 0x7e, 0xaa, 0x7e, 0x00 };
+
+    /* The open-time case: resync and first command queued together */
+    static const size_t w1[] = { 1, 4 };
+    check_split("a resync flag queued with a frame goes out alone, then the frame",
+            resync_verno, sizeof(resync_verno), 0, sizeof(resync_verno), w1, 2);
+
+    static const size_t w2[] = { 4 };
+    check_split("a frame alone is one transfer", verno, sizeof(verno), 0, sizeof(verno),
+            w2, 1);
+
+    static const size_t w3[] = { 4, 4 };
+    check_split("two queued frames are two transfers", two, sizeof(two), 0, sizeof(two),
+            w3, 2);
+
+    static const size_t w4[] = { 1, 1, 4 };
+    check_split("each leading flag goes out alone", flags_frame, sizeof(flags_frame), 0,
+            sizeof(flags_frame), w4, 3);
+
+    static const size_t w5[] = { 3 };
+    check_split("a frame with no closing flag yet goes out as queued", partial,
+            sizeof(partial), 0, sizeof(partial), w5, 1);
+
+    static const size_t w6[] = { 1, 4, 4 };
+    check_split("the split holds across the ring's wrap", ring, sizeof(ring), 8, 9, w6, 3);
+
+    if (diag_xfer_len(verno, sizeof(verno), 0, 0) != 0) {
+        fprintf(stderr, "FAIL: an empty queue sends nothing\n");
+        fail = 1;
+    } else {
+        printf("ok: an empty queue sends nothing\n");
+    }
+
+    return fail;
+}
+#endif
