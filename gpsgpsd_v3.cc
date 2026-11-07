@@ -194,6 +194,7 @@ void kis_gps_gpsd_v3::handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
     set_int_device_connected(true);
 
     in_buf.consume(in_buf.size());
+    skip_line_tail = false;
 
     boost::asio::post(strand_, [ref]() { ref->start_read(); });
 }
@@ -257,9 +258,11 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
             return;
 
         if (error.value() == boost::asio::error::not_found) {
-            // We didn't get a newline w/in our buffer size, clear the buffer and re-try
+            // We didn't get a newline w/in our buffer size; drop what we have and the rest
+            // of this line, and keep reading
             in_buf.consume(in_buf.size() + 1);
-            return;
+            skip_line_tail = true;
+            return start_read();
         } else if (error.value() == boost::asio::error::eof) {
             _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - GPSD closed "
                     "the connection", host, port);
@@ -284,6 +287,12 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
     std::string line;
     std::istream is(&in_buf);
     std::getline(is, line);
+
+    // The end of a line that was too long for the buffer
+    if (skip_line_tail) {
+        skip_line_tail = false;
+        return start_read();
+    }
 
     // Ignore blank lines from gpsd
     if (line.empty()) {

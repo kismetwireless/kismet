@@ -72,6 +72,9 @@ protected:
     boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     boost::asio::streambuf in_buf{8192};
 
+    // A line didn't fit in in_buf; its start was dropped, drop the rest of it too
+    bool skip_line_tail = false;
+
     std::string host, port;
 
     // Last time we got data, to allow us to reset the connection if we 
