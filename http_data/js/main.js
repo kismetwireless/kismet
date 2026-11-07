@@ -129,6 +129,13 @@ async function start() {
     await loadServerModules(kismet);
 
     kismet.eventbus.onState(showConnection);
+    // The server may have been restarted under a new name while we were away
+    let wasDown = false;
+    kismet.eventbus.onState((up) => {
+        if (up && wasDown)
+            loadServerName();
+        wasDown = !up;
+    });
     kismet.eventbus.connect();
 
     createMenu(document.getElementById('menu'));

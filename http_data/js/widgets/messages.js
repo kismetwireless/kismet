@@ -105,12 +105,32 @@ export function createMessages(container) {
         }
     }
 
+    // Messages sent while the connection was down only reach us from the server's backlog;
+    // ones already shown are skipped by add()
+    async function fillGap() {
+        if (inFlight)
+            return;
+        inFlight = true;
+        try {
+            const r = await api.get('messagebus/last-time/0/messages.json');
+            (r['kismet.messagebus.list'] ?? []).forEach(add);
+        } catch {
+            // The live feed carries on; the gap stays
+        } finally {
+            inFlight = false;
+        }
+    }
+
     const stop = eventbus.subscribe('MESSAGE', null, (event) => add(event));
     // Back in touch with the server: try straight away
     const stopState = eventbus.onState((up) => {
-        if (up && !loaded) {
+        if (!up)
+            return;
+        if (!loaded) {
             attempt = 0;
             loadBacklog();
+        } else {
+            fillGap();
         }
     });
     note.textContent = 'Loading earlier messages…';
