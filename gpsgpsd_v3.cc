@@ -740,13 +740,9 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
             } else if (set_magheading && new_location != nullptr) {
                 // Use mag heading if present and no other location
                 new_location->heading = new_location->magheading;
-            } else if (now_t - last_heading_time > 5 &&
-                gps_location != nullptr && gps_location->fix >= 2) {
+            } else {
                 // Calculate from earlier location
-                new_location->heading = 
-                    gps_calc_heading(new_location->lat, new_location->lon, 
-                                     gps_location->lat, gps_location->lon);
-                last_heading_time = new_location->tv.tv_sec;
+                calc_heading_from(new_location, gps_location, last_heading_time);
             }
         }
 
