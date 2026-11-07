@@ -40,7 +40,7 @@
 
 #include "fmt.h"
 
-class mac_addr;
+struct mac_addr;
 class device_key;
 class tracker_element;
 
