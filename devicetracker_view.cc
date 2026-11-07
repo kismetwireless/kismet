@@ -583,7 +583,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         }
 
         // Capture timestamp and negative-offset timestamp
-        uint64_t raw_ts = con->json().value("last_time", 0);
+        auto raw_ts = con->json().value("last_time", static_cast<int64_t>(0));
         if (raw_ts < 0)
             timestamp_min = time(0) + raw_ts;
         else
