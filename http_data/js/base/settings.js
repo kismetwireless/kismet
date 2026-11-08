@@ -81,7 +81,10 @@ export function register(kismet) {
                 choice('units-length', kismet.format.lengthUnits, kismet.format.lengthUnits.find((u) =>
                     u.id === settings.get('units.length'))?.id ?? 'metric', (id) => settings.set('units.length', id)),
                 el('p', { class: 'muted' }, 'Distances change to kilometers or miles as they get longer; ' +
-                    'altitudes stay in meters or feet.'));
+                    'altitudes stay in meters or feet.'),
+                el('h4', {}, 'Temperature'),
+                choice('units-temperature', kismet.format.temperatureUnits, kismet.format.temperatureUnits.find((u) =>
+                    u.id === settings.get('units.temperature'))?.id ?? 'c', (id) => settings.set('units.temperature', id)));
         },
     });
 

@@ -42,6 +42,7 @@ const paths = {
     gps: '<path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
     alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".6" fill="currentColor"/>',
     battery: '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/>',
+    thermometer: '<path d="M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"/><path d="M12 9v7"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
     play: '<path d="M7 4.5v15l12-7.5z"/>',
     more: '<circle cx="12" cy="5" r=".8" fill="currentColor"/><circle cx="12" cy="12" r=".8" fill="currentColor"/><circle cx="12" cy="19" r=".8" fill="currentColor"/>',

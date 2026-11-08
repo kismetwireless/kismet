@@ -157,6 +157,33 @@ export function register(kismet) {
     });
 
     ui.ribbonStats.add({
+        id: 'thermal', title: 'Thermal', priority: 45,
+        description: 'The hottest temperature sensor of the Kismet server; click for the thermal window',
+        create(body) {
+            const v = valueStat('thermometer');
+            v.value.textContent = '---';
+            body.append(v.node);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            const open = () => kismet.widgets.thermal.openThermal();
+            stat.addEventListener('click', open);
+            let temps = null;
+            const show = () => {
+                const hot = kismet.widgets.thermal.hottest(temps);
+                v.value.textContent = hot ? format.temperature(hot[1]) : '---';
+                stat.title = hot ? `Hottest: ${hot[0]}\nClick for the thermal window` :
+                    'No temperature sensors; click for the thermal window';
+            };
+            const stop = eventbus.subscribe('THERMAL', ['kismet.system.sensors.temp'], (e) => {
+                temps = e['kismet.system.sensors.temp'];
+                show();
+            });
+            const stopUnits = kismet.settings.watch('units.temperature', show);
+            return () => { stop(); stopUnits(); stat.removeEventListener('click', open); };
+        },
+    });
+
+    ui.ribbonStats.add({
         id: 'gps', title: 'GPS', priority: 50,
         description: 'GPS fix and satellites; click for the GPS window',
         create(body) {
