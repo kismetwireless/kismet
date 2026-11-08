@@ -182,6 +182,12 @@ kis_database_logfile::kis_database_logfile():
     rotate_requested = false;
     fresh_size = 0;
     fresh_size_warned = false;
+    rotate_stage = rotate_hold::none;
+    rotate_held = rotate_hold::none;
+    rotate_attempts = 0;
+    rotate_timer_late_s = 0;
+    rotate_watch_timer = -1;
+    rotate_warned = 0;
     transaction_timer = -1;
 
     message_evt_id = 0;
@@ -280,24 +286,25 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
 
     // Also runs for rotate requests, which only need a numbered template
     if (max_duration.count() != 0 || max_size != 0 || template_numbers_files(in_template)) {
+        rotate_overdue_clear();
+        rotate_last_tick = std::chrono::steady_clock::time_point{};
+
         rotate_timer =
             timetracker->register_timer(std::chrono::seconds(1), 1,
                     [this](int) -> int {
-                        if (db_enabled && file_due()) {
-                            const auto opened = file_opened.load();
+                        rotate_tick();
+                        return 1;
+                    });
 
-                            rotate_log();
-
-                            // A rotate request that didn't get its new file (the locks were
-                            // busy, or opening it failed) stays pending
-                            if (rotate_reason == "api" && file_opened.load() == opened &&
-                                    db_enabled && !rotate_disabled)
-                                rotate_requested = true;
-                        }
+        rotate_watch_timer =
+            timetracker->register_timer(std::chrono::seconds(1), 1,
+                    [this](int) -> int {
+                        rotate_watch();
                         return 1;
                     });
     } else {
         rotate_timer = -1;
+        rotate_watch_timer = -1;
     }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false)) {
@@ -712,6 +719,7 @@ void kis_database_logfile::close_log() {
     if (timetracker != NULL) {
         // Waits for a rotation in progress, which gives up once it sees db_enabled is false
         timetracker->remove_timer(rotate_timer);
+        timetracker->remove_timer(rotate_watch_timer);
         timetracker->remove_timer(transaction_timer);
         timetracker->remove_timer(packet_timeout_timer);
         timetracker->remove_timer(alert_timeout_timer);
@@ -897,6 +905,129 @@ static bool bind_blob_checked(sqlite3_stmt *stmt, int pos, std::string_view s,
     return sqlite3_bind_blob64(stmt, pos, s.data(), s.size(), d) == SQLITE_OK;
 }
 
+const char *kis_database_logfile::rotate_hold_text(rotate_hold h) {
+    switch (h) {
+        case rotate_hold::old_devices:
+            return "writing the devices to the old file (waits for a device log pass already running)";
+        case rotate_hold::log_tracker:
+            return "the log tracker was busy";
+        case rotate_hold::writers:
+            return "other kismetdb writers kept the log busy";
+        case rotate_hold::finishing_old:
+            return "committing the old file's last transaction";
+        case rotate_hold::opening:
+            return "opening the new file";
+        case rotate_hold::open_failed:
+            return "the new file couldn't be opened";
+        default:
+            return "the rotation timer is running late";
+    }
+}
+
+void kis_database_logfile::rotate_overdue_clear() {
+    rotate_due = std::chrono::steady_clock::time_point{};
+    rotate_held = rotate_hold::none;
+    rotate_attempts = 0;
+    rotate_timer_late_s = 0;
+    rotate_overdue_since = 0;
+}
+
+void kis_database_logfile::rotate_tick() {
+    // How late this run is, from when the last one returned, so a long rotation doesn't
+    // count as the timer running late
+    const auto now = std::chrono::steady_clock::now();
+    const auto late = rotate_last_tick == std::chrono::steady_clock::time_point{} ?
+        std::chrono::steady_clock::duration::zero() :
+        now - rotate_last_tick - std::chrono::seconds(1);
+
+    struct tick_end {
+        std::chrono::steady_clock::time_point& t;
+        ~tick_end() { t = std::chrono::steady_clock::now(); }
+    } end_mark{rotate_last_tick};
+
+    if (!db_enabled)
+        return;
+
+    // file_due() is false while a failed open waits to retry, and the file is still late
+    const bool due = file_due();
+    const bool pending = rotate_due != std::chrono::steady_clock::time_point{};
+
+    if (!due && !pending)
+        return;
+
+    if (!pending) {
+        rotate_due = now;
+        rotate_overdue_since = static_cast<uint64_t>(time(0));
+    } else {
+        const auto late_s = std::chrono::duration_cast<std::chrono::seconds>(late).count();
+        if (late_s > rotate_timer_late_s)
+            rotate_timer_late_s = late_s;
+    }
+
+    if (!due)
+        return;
+
+    const auto opened = file_opened.load();
+
+    rotate_attempts++;
+    rotate_log();
+    rotate_stage = rotate_hold::none;
+
+    if (file_opened.load() != opened) {
+        // Up to the new file opening, not the device dump into it that follows
+        const auto waited = std::chrono::duration_cast<std::chrono::seconds>(
+                file_opened.load() - rotate_due).count();
+        if (waited >= 10)
+            _MSG_INFO("Started the new kismetdb log {} seconds after it was due, after {} "
+                    "attempt{}", waited, rotate_attempts.load(), rotate_attempts > 1 ? "s" : "");
+        rotate_overdue_clear();
+        return;
+    }
+
+    // The template ran out of names; rotate_log() said so, and nothing is due any more
+    if (rotate_disabled) {
+        rotate_overdue_clear();
+        return;
+    }
+
+    // A rotate request that didn't get its new file (the locks were busy, or opening it
+    // failed) stays pending
+    if (rotate_reason == "api" && db_enabled)
+        rotate_requested = true;
+}
+
+void kis_database_logfile::rotate_watch() {
+    // Warn once a due file is this late, and again this often while it stays late
+    constexpr time_t overdue_warn = 10;
+    constexpr time_t overdue_rewarn = 30;
+
+    const auto since = static_cast<time_t>(rotate_overdue_since.load());
+
+    if (since == 0 || !db_enabled) {
+        rotate_warned = 0;
+        return;
+    }
+
+    const auto now = time(0);
+
+    if (now - since < overdue_warn || (rotate_warned != 0 && now - rotate_warned < overdue_rewarn))
+        return;
+
+    rotate_warned = now;
+
+    // What a running attempt is doing, else what held up the last one
+    const auto stage = rotate_stage.load();
+    const auto attempts = rotate_attempts.load();
+    const auto late_s = rotate_timer_late_s.load();
+
+    _MSG_ERROR("Starting the next kismetdb log is {} seconds overdue: {} ({} attempt{}{}); still "
+            "logging to '{}'", now - since,
+            rotate_hold_text(stage != rotate_hold::none ? stage : rotate_held.load()),
+            attempts, attempts == 1 ? "" : "s",
+            late_s >= 2 ? fmt::format(", the rotation timer ran up to {} seconds late", late_s) : "",
+            get_log_path());
+}
+
 bool kis_database_logfile::file_due() {
     if (rotate_disabled || std::chrono::steady_clock::now() < rotate_retry.load())
         return false;
@@ -973,8 +1104,11 @@ void kis_database_logfile::rotate_log() {
         return;
     }
 
-    // Bring the devices up to date in the file we're about to close
+    // Bring the devices up to date in the file we're about to close; this waits for a
+    // device log pass already running
+    rotate_stage = rotate_hold::old_devices;
     devicetracker->databaselog_write_devices();
+    rotate_stage = rotate_hold::log_tracker;
 
     auto give_up = [this](std::chrono::steady_clock::time_point deadline) {
         return !db_enabled || std::chrono::steady_clock::now() > deadline;
@@ -986,11 +1120,15 @@ void kis_database_logfile::rotate_log() {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
     std::unique_lock<kis_mutex> tracker_lk(logtracker->get_tracker_mutex(), std::defer_lock);
     while (!tracker_lk.try_lock()) {
-        if (give_up(deadline))
+        if (give_up(deadline)) {
+            rotate_held = rotate_hold::log_tracker;
             return;
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+
+    rotate_stage = rotate_hold::writers;
 
     {
         std::lock_guard<std::mutex> gate_lk(rotate_gate_mutex);
@@ -1012,12 +1150,15 @@ void kis_database_logfile::rotate_log() {
     deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
     while (!lifetime_lk.try_lock()) {
         if (give_up(deadline)) {
+            rotate_held = rotate_hold::writers;
             open_gate();
             return;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+
+    rotate_stage = rotate_hold::finishing_old;
 
     bool rotated = false;
     bool old_closed = false;
@@ -1044,6 +1185,7 @@ void kis_database_logfile::rotate_log() {
 
     // database_open() and database_upgrade_db() work on db
     db = nullptr;
+    rotate_stage = rotate_hold::opening;
 
     if (!new_existed && database_open(new_path, SQLITE_OPEN_FULLMUTEX) &&
             database_upgrade_db() > 0) {
@@ -1086,6 +1228,7 @@ void kis_database_logfile::rotate_log() {
 
         // Such as a full disk; don't try, and complain, every second
         rotate_retry = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        rotate_held = rotate_hold::open_failed;
         _MSG_ERROR("Failed to open new kismetdb log '{}'; continuing to log to '{}', and "
                 "trying again in 60 seconds", new_path, old_path);
         return;
@@ -1093,6 +1236,10 @@ void kis_database_logfile::rotate_log() {
 
     file_opened = std::chrono::steady_clock::now();
     fresh_size = 0;
+
+    // No longer overdue, though the devices still go into the new file below
+    rotate_overdue_since = 0;
+    rotate_stage = rotate_hold::none;
 
     _MSG_INFO("Rotating to new kismetdb log '{}'", new_path);
     if (old_closed) {
