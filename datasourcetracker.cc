@@ -382,7 +382,8 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
 datasource_tracker::datasource_tracker() :
     remotecap_enabled{false},
     remotecap_port{0},
-    packet_stats_handler_id{-1} {
+    packet_stats_handler_id{-1},
+    database_open_evt_id{0} {
 
     dst_lock.set_name("datasourcetracker");
 
@@ -422,6 +423,9 @@ datasource_tracker::~datasource_tracker() {
 
     if (completion_cleanup_id >= 0)
         timetracker->remove_timer(completion_cleanup_id);
+
+    if (database_open_evt_id != 0)
+        eventbus->remove_listener(database_open_evt_id);
 
     if (database_log_timer >= 0) {
         timetracker->remove_timer(database_log_timer);
@@ -589,6 +593,13 @@ void datasource_tracker::trigger_deferred_startup() {
                         return 1;
                     });
 
+        // A new kismetdb file, at startup or when the log rotates, gets the sources right
+        // away instead of at the next timer, so its packets don't name unknown sources
+        database_open_evt_id =
+            eventbus->register_listener(kis_database_logfile::event_log_open(),
+                    [this](std::shared_ptr<eventbus_event>) {
+                        databaselog_write_datasources();
+                    });
     } else {
         database_log_timer = -1;
     }

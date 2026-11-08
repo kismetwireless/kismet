@@ -420,10 +420,10 @@ public:
         return remotecap_listen;
     }
 
-protected:
-    // Log the datasources
+    // Log the datasources; also called by a kismetdb rotation before packets resume
     virtual void databaselog_write_datasources();
 
+protected:
     bool remotecap_enabled;
     unsigned int remotecap_port;
     std::string remotecap_listen;
@@ -493,6 +493,8 @@ protected:
     // Datasource logging
     int database_log_timer;
     bool database_log_enabled;
+    // Writes the datasources into each kismetdb file as it opens
+    unsigned long database_open_evt_id;
     std::atomic<bool> database_logging;
 
     // Buffer sizes
