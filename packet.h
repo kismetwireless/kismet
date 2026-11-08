@@ -392,6 +392,9 @@ public:
     // would drop the packet or overwrite its link frame with the earlier one's.
     bool dedupe_exempt;
 
+    // The source was changing channels when this was captured
+    bool chanswitch;
+
     // What hash has been calculated, if any?
     uint32_t hash;
 

@@ -210,6 +210,11 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE                           19
 /* Graceful close request, server -> datasource.  See below. */
 #define KIS_EXTERNAL_V3_KDS_CLOSEREQ                            20
+/* Hop clock sync, datasource -> server and the answer.  See below. */
+#define KIS_EXTERNAL_V3_KDS_TIMESYNCREQ                         21
+#define KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT                      22
+/* Channel change timing, datasource -> server.  See below. */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT                           23
 
 /* eventbus commands */
 #define KIS_EXTERNAL_V3_EVT_REGISTER                            32
@@ -303,6 +308,11 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_CHAN_LIST         5
 /* bool */
 #define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_ENABLED           6
+/* u64, optional, server -> datasource: hop on the shared slot grid, whose slot 0
+ * starts at this server clock time (ns since the unix epoch); slots are 1/rate
+ * long.  Only a server which answers TIMESYNCREQ sends it; absent, the datasource
+ * hops on its own timer. */
+#define KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SYNC_EPOCH        7
 
 
 /* KDS_CHANNEL_GPS_BLOCK */
@@ -400,6 +410,11 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH             4
 /* string/binary */
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT             6
+/* u32, optional, KIS_EXTERNAL_V3_PACKET_FLAG_* */
+#define KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_FLAGS               7
+
+/* Captured while the source was changing channels */
+#define KIS_EXTERNAL_V3_PACKET_FLAG_CHANSWITCH                  (1U << 0)
 
 #define KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(v, cl) \
     { \
@@ -569,6 +584,9 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL             1
 /* hopping sub-block */
 #define KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK        2
+/* u32, optional: send a HOPREPORT at most this often, in ms.  Only a server which
+ * takes HOPREPORT sends it. */
+#define KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_REPORT_MS           3
 /* todo: spectrum */
 
 
@@ -596,6 +614,72 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_SOURCETYPE          2
 /* string */
 #define KIS_EXTERNAL_V3_KDS_NEWSOURCE_FIELD_UUID                3
+
+
+/* KIS_EXTERNAL_V3_KDS_TIMESYNCREQ
+ *
+ * Datasource -> KS
+ *
+ * One NTP-style exchange.  Sent only to a server which sent SYNC_EPOCH.  The
+ * datasource keeps the answer with the shortest round trip from each burst; an
+ * exchange delayed behind queued packets always has a longer one.
+ */
+/* u64, datasource monotonic clock at send, ns */
+#define KIS_EXTERNAL_V3_KDS_TIMESYNCREQ_FIELD_T1                1
+
+
+/* KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT
+ *
+ * KS -> Datasource, answering a TIMESYNCREQ
+ */
+/* u64, T1 from the request */
+#define KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_T1             1
+/* u64, server realtime clock when the request was handled, ns */
+#define KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_RX             2
+/* u64, server realtime clock when the answer was sent, ns */
+#define KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_TX             3
+
+
+/* KIS_EXTERNAL_V3_KDS_HOPREPORT
+ *
+ * Datasource -> KS
+ *
+ * Channel change timing since the last report, sent only to a server which sent
+ * CONFIGREQ_FIELD_REPORT_MS.  A band switch changes bands (2.4 to 5GHz, for
+ * instance); every other change is a channel switch.
+ */
+/* switch timing sub-block, channel switches */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_CHANSWITCH          1
+/* switch timing sub-block, band switches; absent if the source can't tell bands */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_BANDSWITCH          2
+/* u64, slots skipped because a switch ran late, total */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_MISSED              3
+/* u64, switches which failed, total */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_FAILED              4
+/* u8, KIS_EXTERNAL_V3_HOPSYNC_* */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_STATE          5
+/* u32, sync error bound (half the best round trip), us */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_ERR_US         6
+/* i64, server clock minus datasource realtime clock, us */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_OFFSET_US      7
+/* i32, datasource clock drift against the server, parts per billion */
+#define KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_DRIFT_PPB      8
+
+/* Hop sync states */
+#define KIS_EXTERNAL_V3_HOPSYNC_OFF                             0
+/* hopping on the shared grid by the local clock, until a sync completes */
+#define KIS_EXTERNAL_V3_HOPSYNC_LOCAL                           1
+#define KIS_EXTERNAL_V3_HOPSYNC_SYNCED                          2
+
+/* Switch timing sub-block */
+/* u64, switches, total */
+#define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_TOTAL              1
+/* u32, switches since the last report */
+#define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_COUNT              2
+/* u32, us, over the switches since the last report */
+#define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MEAN_US            3
+#define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MIN_US             4
+#define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MAX_US             5
 
 
 /* KIS_EXTERNAL_V3_EVT_REGISTER

@@ -68,6 +68,8 @@ void *uwifi_kis_parse_channel(struct uwifi_dev *dev, const char *chanstr, char *
 /* Returns 1 when tuned, 0 if the driver or firmware rejected the channel */
 int uwifi_kis_set_channel(struct uwifi_dev *dev, const void *chan);
 const char *uwifi_kis_channel_name(const void *chan);
+/* Base frequency in MHz of the channel's band (2400, 5000, 5925), or 0 */
+unsigned int uwifi_kis_channel_band(const void *chan);
 
 int uwifi_kis_set_country(struct uwifi_dev *dev, const char *alpha2);
 int uwifi_kis_start(struct uwifi_dev *dev, uwifi_kis_rx_t rx, void *ctx);

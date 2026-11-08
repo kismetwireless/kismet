@@ -789,6 +789,14 @@ void datasource_tracker::trigger_deferred_startup() {
                         set_ft.wait();
 
                         if (set_success) {
+                            // The rest of a hop group follows
+                            for (const auto& p : hop_group_peers(ds)) {
+                                _MSG_INFO("Source '{}' ({}) setting channel {} with hop group '{}'",
+                                        p->get_source_name(), p->get_source_uuid(), ch,
+                                        p->get_source_hop_group());
+                                p->set_channel(ch, 0, nullptr);
+                            }
+
                             return ds;
                         } else {
                             _MSG_ERROR("Source '{}' ({}) failed to set channel {}: {}",
@@ -835,6 +843,14 @@ void datasource_tracker::trigger_deferred_startup() {
                         set_ft.wait();
 
                         if (set_success) {
+                            for (const auto& p : hop_group_peers(ds)) {
+                                _MSG_INFO("Source '{}' ({}) setting channel list and hopping with "
+                                        "hop group '{}'", p->get_source_name(),
+                                        p->get_source_uuid(), p->get_source_hop_group());
+                                p->set_channel_hop(rate, converted_channels, shuffle,
+                                        p->get_source_hop_offset(), 0, nullptr);
+                            }
+
                             return ds;
                         } else {
                             _MSG_ERROR("Source '{}' ({}) failed to set channel list or hopping: {}",
@@ -884,6 +900,15 @@ void datasource_tracker::trigger_deferred_startup() {
                     set_ft.wait();
 
                     if (set_success) {
+                        for (const auto& p : hop_group_peers(ds)) {
+                            _MSG_INFO("Source '{}' ({}) enabling channel hop with hop group '{}'",
+                                    p->get_source_name(), p->get_source_uuid(),
+                                    p->get_source_hop_group());
+                            p->set_channel_hop(p->get_source_hop_rate(), p->get_source_hop_vec(),
+                                    p->get_source_hop_shuffle(), p->get_source_hop_offset(), 0,
+                                    nullptr);
+                        }
+
                         return ds;
                     } else {
                         _MSG_ERROR("Source '{}' ({}) failed to enable channel hopping: {}",
@@ -2063,22 +2088,33 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
 }
 
 // Basic DST worker for figuring out how many sources of the same type
-// exist, and are hopping
+// exist, and are hopping.  Members of a hop group which match the group's first source
+// hop as one unit: they share an offset, so they sit on the same channel together.
 class dst_chansplit_worker : public datasource_tracker_worker {
 public:
     dst_chansplit_worker(datasource_tracker *in_dst,
             std::shared_ptr<datasource_tracker_defaults> in_defaults,
-            shared_datasource in_ds) {
+            shared_datasource in_ds, bool in_split) {
         dst = in_dst;
         defaults = in_defaults;
+        split = in_split;
         target_sources.push_back(in_ds);
         initial_ds = in_ds;
         match_type = in_ds->get_source_builder()->get_source_type();
     }
 
     virtual void handle_datasource(shared_datasource in_src) {
+        if (in_src->get_source_running())
+            all_running.push_back(in_src);
+
         // Don't dupe ourselves
-        if (in_src == initial_ds)
+        if (in_src == initial_ds) {
+            initial_seen = true;
+            return;
+        }
+
+        // Without splitting each source hops on its own
+        if (!split)
             return;
 
         // Don't look at ones we don't care about
@@ -2118,44 +2154,187 @@ public:
     }
 
     virtual void finalize() {
-        if (target_sources.size() <= 1) {
-            initial_ds->set_channel_hop(dst->definition_hop_rate(initial_ds),
-                    initial_ds->get_source_hop_vec(),
-                    defaults->get_random_channel_order(),
-                    0, 0, NULL);
-            return;
+        // A newly merged source isn't in the source list yet
+        if (!initial_seen && initial_ds->get_source_running())
+            all_running.push_back(initial_ds);
+
+        dst->update_hop_groups(all_running);
+
+        // One unit per source, except group members hopping together share one
+        std::vector<std::vector<shared_datasource>> units;
+        std::map<std::string, size_t> group_units;
+
+        for (const auto& ds : target_sources) {
+            if (ds->get_source_hop_group_state() == "together") {
+                auto g = group_units.find(ds->get_source_hop_group());
+
+                if (g != group_units.end()) {
+                    units[g->second].push_back(ds);
+                    continue;
+                }
+
+                group_units[ds->get_source_hop_group()] = units.size();
+            }
+
+            units.push_back({ds});
         }
 
-        _MSG_INFO("Splitting channels for interfaces using '{}' among {} interfaces",
-                match_type, target_sources.size());
+        if (units.size() > 1)
+            _MSG_INFO("Splitting channels for interfaces using '{}' among {} interfaces",
+                    match_type, units.size());
 
-        int nintf = 0;
-        for (auto ds : target_sources) {
-            int offt_count = target_sources.size();
+        for (size_t u = 0; u < units.size(); u++) {
+            for (const auto& ds : units[u]) {
+                auto ds_hopchans = ds->get_source_hop_vec();
+                int ds_offt = (ds_hopchans->size() / units.size()) * u;
 
-            auto ds_hopchans = (ds)->get_source_hop_vec();
-
-            int ds_offt = (ds_hopchans->size() / offt_count) * nintf;
-
-            ds->set_channel_hop(dst->definition_hop_rate(ds), ds_hopchans, defaults->get_random_channel_order(),
-                    ds_offt, 0, NULL);
-
-            nintf++;
+                ds->set_channel_hop(dst->definition_hop_rate(ds), ds_hopchans,
+                        defaults->get_random_channel_order(), ds_offt, 0, NULL);
+            }
         }
-
     }
 
 protected:
     std::string match_type;
+    bool split;
+    bool initial_seen = false;
 
     datasource_tracker *dst;
 
     shared_datasource initial_ds;
     std::vector<shared_datasource> target_sources;
+    std::vector<shared_datasource> all_running;
 
     std::shared_ptr<datasource_tracker_defaults> defaults;
 
 };
+
+// Why a source can't be on the synced grid, or empty
+static std::string hop_sync_problem(shared_datasource ds) {
+    if (!ds->get_hop_sync())
+        return "hopsync is off";
+
+    if (ds->get_helper_not_syncing())
+        return "helper doesn't sync";
+
+    return "";
+}
+
+// Why a source can't hop together with the first source of its group, or empty
+std::string datasource_tracker::hop_group_mismatch(shared_datasource leader,
+        shared_datasource ds) {
+    auto sync = hop_sync_problem(ds);
+    if (!sync.empty())
+        return sync;
+
+    if (ds->get_source_builder()->get_source_type() !=
+            leader->get_source_builder()->get_source_type())
+        return fmt::format("source type {} is not {}",
+                ds->get_source_builder()->get_source_type(),
+                leader->get_source_builder()->get_source_type());
+
+    if (ds->get_source_hardware() != leader->get_source_hardware())
+        return fmt::format("hardware '{}' is not '{}'", ds->get_source_hardware(),
+                leader->get_source_hardware());
+
+    auto lchans = leader->get_source_channels_vec_copy();
+    auto dchans = ds->get_source_channels_vec_copy();
+    if (lchans != dchans)
+        return "different channels";
+
+    if (leader->get_source_hop_vec_copy() != ds->get_source_hop_vec_copy())
+        return "different hop list";
+
+    if (definition_hop_rate(ds) != definition_hop_rate(leader))
+        return "different hop rate";
+
+    return "";
+}
+
+// Work out every grouped source's state; the first running source of a group, in source
+// order, is the one the others have to match
+void datasource_tracker::update_hop_groups(const std::vector<shared_datasource>& running) {
+    std::map<std::string, shared_datasource> leaders;
+    std::map<std::string, unsigned int> together;
+
+    for (const auto& ds : running) {
+        auto g = ds->get_source_hop_group();
+        if (g.empty())
+            continue;
+
+        auto l = leaders.find(g);
+        if (l == leaders.end()) {
+            auto sync = hop_sync_problem(ds);
+            if (!sync.empty()) {
+                auto state = fmt::format("alone: {}", sync);
+
+                if (ds->get_source_hop_group_state() != state)
+                    _MSG_ERROR("Source '{}' can't hop together with hop group '{}' ({}); it "
+                            "hops on its own", ds->get_source_name(), g, sync);
+
+                ds->set_source_hop_group_state(state);
+                continue;
+            }
+
+            leaders[g] = ds;
+            together[g] = 1;
+            continue;
+        }
+
+        auto why = hop_group_mismatch(l->second, ds);
+        if (!why.empty()) {
+            auto state = fmt::format("alone: {}", why);
+
+            if (ds->get_source_hop_group_state() != state)
+                _MSG_ERROR("Source '{}' can't hop together with hop group '{}' ({}); it "
+                        "hops on its own", ds->get_source_name(), g, why);
+
+            ds->set_source_hop_group_state(state);
+            continue;
+        }
+
+        together[g]++;
+    }
+
+    for (const auto& ds : running) {
+        auto g = ds->get_source_hop_group();
+        if (g.empty())
+            continue;
+
+        auto l = leaders.find(g);
+        if (l == leaders.end())
+            continue;
+
+        if (ds != l->second && hop_group_mismatch(l->second, ds) != "")
+            continue;
+
+        ds->set_source_hop_group_state(together[g] > 1 ? "together" : "only member");
+    }
+}
+
+// The other running sources hopping together with this one
+std::vector<shared_datasource> datasource_tracker::hop_group_peers(shared_datasource in_ds) {
+    std::vector<shared_datasource> peers;
+
+    if (in_ds->get_source_hop_group().empty() ||
+            in_ds->get_source_hop_group_state() != "together")
+        return peers;
+
+    kis_lock_guard<kis_mutex> lk(dst_lock, "dst hop_group_peers");
+
+    for (const auto& i : *datasource_vec) {
+        auto ds = std::static_pointer_cast<kis_datasource>(i);
+
+        if (ds == in_ds || !ds->get_source_running())
+            continue;
+
+        if (ds->get_source_hop_group() == in_ds->get_source_hop_group() &&
+                ds->get_source_hop_group_state() == "together")
+            peers.push_back(ds);
+    }
+
+    return peers;
+}
 
 void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
     // Failed sources are merged so they can be re-opened, but there's nothing to configure
@@ -2172,18 +2351,32 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
     if (hop_vec == nullptr || hop_vec->size() == 0)
         return;
 
-    // Turn on channel hopping if we do that
+    // Turn on channel hopping if we do that; without splitting every source gets offset 0,
+    // and the worker still works out the hop groups
     if (config_defaults->get_hop() && in_ds->get_source_builder()->get_tune_capable() &&
             in_ds->get_source_builder()->get_hop_capable()) {
-        // Do we split sources?
-        if (config_defaults->get_split_same_sources()) {
-            dst_chansplit_worker worker(this, config_defaults, in_ds);
-            iterate_datasources(&worker);
-        } else {
-            in_ds->set_channel_hop(definition_hop_rate(in_ds),
-                    in_ds->get_source_hop_vec(),
-                    config_defaults->get_random_channel_order(),
-                    0, 0, NULL);
+        dst_chansplit_worker worker(this, config_defaults, in_ds,
+                config_defaults->get_split_same_sources());
+        iterate_datasources(&worker);
+
+        // Once the helper has had time to ask for the clock, split again without it
+        // if it never did
+        if (!in_ds->get_source_hop_group().empty() && in_ds->get_hop_sync() &&
+                !in_ds->get_helper_synced()) {
+            std::weak_ptr<kis_datasource> weak_ds = in_ds;
+
+            timetracker->register_timer(
+                    std::chrono::seconds(kis_datasource::helper_sync_timeout_s + 1), 0,
+                    [this, weak_ds](int) -> int {
+                        auto ds = weak_ds.lock();
+
+                        if (ds != nullptr && ds->get_source_running() &&
+                                ds->get_helper_not_syncing() &&
+                                ds->get_source_hop_group_state() != "alone: helper doesn't sync")
+                            calculate_source_hopping(ds);
+
+                        return 0;
+                    });
         }
     }
 }

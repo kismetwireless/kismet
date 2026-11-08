@@ -401,6 +401,12 @@ public:
     // The hop rate for a source: its channel_hoprate= option, else the configured default
     double definition_hop_rate(shared_datasource in_ds);
 
+    // Set the hop group state of every grouped source among the running sources
+    void update_hop_groups(const std::vector<shared_datasource>& running);
+
+    // Running sources hopping together with this one, not including it
+    std::vector<shared_datasource> hop_group_peers(shared_datasource in_ds);
+
     // Access the defaults
     std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
@@ -489,6 +495,8 @@ protected:
     // Re-assign channel hopping because we've opened a new source
     // and want to do channel split
     void calculate_source_hopping(shared_datasource in_ds);
+
+    std::string hop_group_mismatch(shared_datasource leader, shared_datasource ds);
 
     // Datasource logging
     int database_log_timer;
