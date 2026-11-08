@@ -2,11 +2,13 @@
 //
 //   const spark = sparkline();           // a <canvas> sized by CSS
 //   spark.draw([1, 4, 2, 8, ...]);
+//
+// It scales to its largest value, or to a fixed max (100 for percentages).
 
 import { el, fitCanvas } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
 
-export function sparkline({ color = '--accent', className = 'sparkline' } = {}) {
+export function sparkline({ color = '--accent', className = 'sparkline', max: fixedMax = null } = {}) {
     const canvas = el('canvas', { class: className });
     let values = [];
 
@@ -20,7 +22,7 @@ export function sparkline({ color = '--accent', className = 'sparkline' } = {}) 
         if (values.length < 2)
             return;
 
-        const max = Math.max(1, ...values);
+        const max = fixedMax ?? Math.max(1, ...values);
         const step = w / (values.length - 1);
         const y = (v) => h - 1 - (v / max) * (h - 2);
         const stroke = themeColor(color) || '#888';

@@ -157,6 +157,47 @@ export function register(kismet) {
     });
 
     ui.ribbonStats.add({
+        id: 'cpu', title: 'CPU', priority: 42,
+        description: 'CPU load of the system, and of the Kismet server, over the last minute',
+        create(body) {
+            const spark = kismet.widgets.sparkline({ max: 100 });
+            const v = valueStat('cpu');
+            v.value.textContent = '---';
+            body.append(el('div', { class: 'stat-graph' }, spark.canvas), v.node);
+            const stat = body.parentElement;
+            const pct = (p) => `${p < 10 ? p.toFixed(1) : Math.round(p)}%`;
+            let history = [];
+
+            // A minute of history to start the graph with; servers without it start empty
+            api.get('system/cpu.json').then((c) => {
+                const h = rrd.history(c['kismet.system.cpu.total_rrd'], undefined, 'minute', { blank: null })
+                    .slice(0, -1).filter((x) => x !== null);
+                if (!history.length)
+                    history = h;
+                spark.draw(history);
+            }).catch(() => {});
+
+            const stop = eventbus.subscribe('STATISTICS',
+                ['kismet.system.cpu.available', 'kismet.system.cpu.total', 'kismet.system.cpu.kismet'], (e) => {
+                    // Older servers send none of these; 0 where it can't be read (no /proc)
+                    if (!e['kismet.system.cpu.available']) {
+                        v.value.textContent = '---';
+                        stat.title = 'The server can\'t read its CPU load';
+                        return;
+                    }
+                    const total = e['kismet.system.cpu.total'];
+                    const kis = e['kismet.system.cpu.kismet'];
+                    history = [...history, total].slice(-60);
+                    v.value.textContent = `${pct(total)} / ${pct(kis)}`;
+                    stat.title = `System: ${pct(total)} of the CPUs\nKismet: ${pct(kis)}`;
+                    if (document.visibilityState !== 'hidden')
+                        spark.draw(history);
+                });
+            return () => { stop(); spark.destroy(); };
+        },
+    });
+
+    ui.ribbonStats.add({
         id: 'thermal', title: 'Thermal', priority: 45,
         description: 'Temperatures of the Kismet server: the hottest sensor, or the ones chosen below; ' +
             'click for the thermal window',
