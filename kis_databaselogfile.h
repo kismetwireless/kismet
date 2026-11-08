@@ -40,6 +40,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -171,16 +172,27 @@ protected:
     // The log whose lifetime lock this thread holds, if any
     static thread_local kis_database_logfile *current_writer;
 
-    // A rotation holds new writers here while it waits for the ones in flight, so a busy
-    // packet stream can't keep it from taking db_lifetime_mutex exclusively.  A thread that
-    // already holds the lock goes through.
+    // A rotation holds the packet writer thread here while it tries for db_lifetime_mutex,
+    // so the busiest writer can't keep it from ever getting the lock.  Only the packet
+    // writer waits: other writers may hold other locks (gps, system monitor) and must never
+    // block on a rotation.
     std::atomic<bool> rotate_gate;
     std::mutex rotate_gate_mutex;
     std::condition_variable rotate_gate_cv;
 
-    // pcapng downloads in progress hold the database for their whole stream; a rotation
-    // waits for a moment without one instead of stopping every writer behind it
-    std::atomic<int> active_streams;
+    // pcapng downloads use a handle without holding db_lifetime_mutex; a handle a rotation
+    // or close replaces while downloads still read it is closed by the last of them
+    std::mutex stream_handle_mutex;
+    std::map<sqlite3 *, unsigned int> stream_handle_users;
+    std::map<sqlite3 *, std::string> retired_handles;
+
+    // The caller holds a writer guard, so db can't change underneath it
+    sqlite3 *acquire_stream_handle();
+    void release_stream_handle(sqlite3 *h);
+    // Close a handle now, or when the last download using it ends; true when it closed
+    // now, for the caller to announce once its own messages are out
+    bool retire_handle(sqlite3 *h, const std::string& path);
+    bool close_finished(sqlite3 *h, const std::string& path);
 
     class db_writer_guard {
     public:
@@ -189,7 +201,7 @@ protected:
             lk{in_log->db_lifetime_mutex, std::defer_lock},
             prev_writer{current_writer} {
 
-            if (current_writer != log && log->rotate_gate) {
+            if (packet_writer_log == log && current_writer != log && log->rotate_gate) {
                 std::unique_lock<std::mutex> gate_lk(log->rotate_gate_mutex);
                 log->rotate_gate_cv.wait(gate_lk, [this]() { return !log->rotate_gate; });
             }
@@ -351,8 +363,15 @@ protected:
     // After a failed rotation (such as a full disk), when to try again
     std::atomic<std::chrono::steady_clock::time_point> rotate_retry;
     int rotate_timer;
+    // The template can't make another file name; rotation stops, logging continues
+    std::atomic<bool> rotate_disabled;
+    // Size of a new file once its devices and datasources are written; a size rotation
+    // needs max_size / 4 of new data on top, so a device table over the limit can't loop
+    std::atomic<uint64_t> fresh_size;
+    bool fresh_size_warned;
 
     bool file_due();
+    uint64_t current_size();
 
     // Switch to the next file in place: devices are brought up to date in the old file,
     // the database handle is swapped while no writer uses it, and the new file gets the

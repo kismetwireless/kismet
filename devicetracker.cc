@@ -2012,8 +2012,12 @@ void device_tracker::databaselog_write_devices() {
     if (!dbf->is_enabled())
         return;
 
-    device_tracker_view_function_worker worker([this, dbf](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-            if (dev->get_mod_time() >= last_database_logged) {
+    std::lock_guard<std::mutex> pass_lk(databaselog_pass_mutex);
+
+    const time_t since = last_database_logged;
+
+    device_tracker_view_function_worker worker([since, dbf](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            if (dev->get_mod_time() >= since) {
                 dbf->log_device(dev);
             }
 

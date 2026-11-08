@@ -260,6 +260,9 @@ public:
     __ProxyPrivSplit(log_prefix, std::string, std::string, std::string, log_prefix);
     __ProxyPrivSplit(log_template, std::string, std::string, std::string, log_template);
 
+    // Held while the log list and log records are read or changed
+    kis_mutex& get_tracker_mutex() { return tracker_mutex; }
+
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
