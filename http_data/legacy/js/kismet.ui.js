@@ -1004,7 +1004,7 @@ function GenerateDeviceFieldList2() {
         if (typeof(v['field']) === 'string') {
             retcols.set(v, v['field']);
         } else if (Array.isArray(v['field'])) {
-            retcols.set(v['field'][1], v);
+            retcols.set(v['field'][1], v['field']);
         }
     };
 
