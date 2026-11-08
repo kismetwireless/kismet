@@ -76,13 +76,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                     new_location->gps_id = gps_id;
                     kis_lock_guard<kis_mutex> lk(data_mutex, "gps_meta update");
 
-                    if (time(0) - last_heading_time > 5 &&
-                        gps_location != nullptr && gps_location->fix >= 2) {
-                        new_location->heading = 
-                            gps_calc_heading(new_location->lat, new_location->lon, 
-                                             gps_location->lat, gps_location->lon);
-                        last_heading_time = new_location->tv.tv_sec;
-                    }
+                    calc_heading_from(new_location, gps_location, last_heading_time);
 
                     gps_last_location = gps_location;
                     gps_location = new_location;
@@ -138,13 +132,7 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                                         new_location->gps_id = gps_id;
                                         kis_lock_guard<kis_mutex> lk(data_mutex, "gps_meta update");
 
-                                        if (time(0) - last_heading_time > 5 &&
-                                                gps_location != nullptr && gps_location->fix >= 2) {
-                                            new_location->heading = 
-                                                gps_calc_heading(new_location->lat, new_location->lon, 
-                                                        gps_location->lat, gps_location->lon);
-                                            last_heading_time = new_location->tv.tv_sec;
-                                        }
+                                        calc_heading_from(new_location, gps_location, last_heading_time);
 
                                         gps_last_location = gps_location;
                                         gps_location = new_location;

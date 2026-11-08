@@ -201,12 +201,27 @@ double kis_gps::gps_calc_heading(double in_lat, double in_lon, double in_lat2,
     return (double) gps_rad_to_deg(angle);
 }
 
+void kis_gps::calc_heading_from(const std::shared_ptr<kis_gps_packinfo>& loc,
+        const std::shared_ptr<kis_gps_packinfo>& prev, time_t& last_calc) {
+    if (loc == nullptr || prev == nullptr || prev->fix < 2)
+        return;
+
+    loc->heading = prev->heading;
+
+    if (loc->tv.tv_sec - last_calc <= 5 || (loc->lat == prev->lat && loc->lon == prev->lon))
+        return;
+
+    // Heading from the previous position to the new one
+    loc->heading = gps_calc_heading(prev->lat, prev->lon, loc->lat, loc->lon);
+    last_calc = loc->tv.tv_sec;
+}
+
 double kis_gps::gps_rad_to_deg(double x) {
     return (x/M_PI) * 180.0;
 }
 
 double kis_gps::gps_deg_to_rad(double x) {
-    return 180/(x*M_PI);
+    return x * M_PI / 180.0;
 }
 
 double kis_gps::gps_earth_distance(double in_lat, double in_lon, 
@@ -306,8 +321,8 @@ void kis_gps::apply_fix(const gps_fix_update& update) {
     }
 
     if (update.has_position && !update.has_heading && prev->fix >= 2 &&
-            now.tv_sec - fix_heading_time > 5) {
-        loc->heading = gps_calc_heading(loc->lat, loc->lon, prev->lat, prev->lon);
+            now.tv_sec - fix_heading_time > 5 && (loc->lat != prev->lat || loc->lon != prev->lon)) {
+        loc->heading = gps_calc_heading(prev->lat, prev->lon, loc->lat, loc->lon);
         fix_heading_time = now.tv_sec;
     }
 

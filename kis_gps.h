@@ -232,6 +232,12 @@ public:
     static double gps_earth_distance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
 protected:
+    // Set the heading of a new location from the previous one, for drivers whose GPS reports
+    // none: recalculated at most every 5 seconds and only once the position has moved, the
+    // previous heading is kept in between.  Call with data_mutex held.
+    void calc_heading_from(const std::shared_ptr<kis_gps_packinfo>& loc,
+            const std::shared_ptr<kis_gps_packinfo>& prev, time_t& last_calc);
+
     // We share mutexes down to the driver engines so we use a shared
     kis_mutex gps_mutex, data_mutex;
 
