@@ -225,6 +225,14 @@ LOGTOOL_KISMETDB_WIGLE_O = \
 	phy_cell_decisions.cc.o censor.cc.o \
 	sqlite3_cpp11.cc.o 
 
+# The cell phy decision tests; built on request (make test/cell_decisions/decisions_test),
+# not by 'all'
+TEST_CELL_DECISIONS = test/cell_decisions/decisions_test
+TEST_CELL_DECISIONS_O = \
+	test/cell_decisions/decisions_test.cc.o \
+	phy_cell_decisions.cc.o censor.cc.o \
+	diagspec/enrichment/cpp/lte_band.cpp.o
+
 LOGTOOL_KISMETDB_JSON = log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
@@ -403,6 +411,12 @@ $(LOGTOOL_KISMETDB_STRIP):	$(LOGTOOL_KISMETDB_STRIP_O) $(patsubst %c.o,%c.d,$(LO
 
 $(LOGTOOL_KISMETDB_WIGLE):	$(LOGTOOL_KISMETDB_WIGLE_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_WIGLE_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_WIGLE) $(LOGTOOL_KISMETDB_WIGLE_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(TEST_CELL_DECISIONS):	$(TEST_CELL_DECISIONS_O)
+	$(LD) $(LDFLAGS) -o $(TEST_CELL_DECISIONS) $(TEST_CELL_DECISIONS_O) $(CXXLIBS)
+
+diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
 
 $(LOGTOOL_KISMETDB_JSON):	$(LOGTOOL_KISMETDB_JSON_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_JSON_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_JSON) $(LOGTOOL_KISMETDB_JSON_O) $(LIBS) $(CXXLIBS) -rdynamic
@@ -986,6 +1000,7 @@ depclean:
 	@-rm -f uav_parsers/*.d
 	@-rm -f dot11_parsers/*.d
 	@-rm -f log_tools/*.d
+	@-rm -f test/cell_decisions/*.d diagspec/enrichment/cpp/lte_band.cpp.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -996,6 +1011,7 @@ clean: all-plugins-clean depclean
 	@-rm -f bluetooth_parsers/*.o
 	@-rm -f uav_parsers/*.o
 	@-rm -f log_tools/*.o
+	@-rm -f test/cell_decisions/*.o diagspec/enrichment/cpp/lte_band.cpp.o $(TEST_CELL_DECISIONS)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1111,6 +1127,7 @@ firmware_file.c.o firmware_file.c.d: CFLAGS += $(FIRMWARECFLAGS)
 .PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_CELL_DECISIONS_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))

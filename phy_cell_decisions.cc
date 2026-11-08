@@ -30,7 +30,9 @@
 
 #include "fmt.h"
 
+#include <cstdlib>
 #include <initializer_list>
+#include <iterator>
 #include <vector>
 
 namespace cell_decisions {
@@ -74,8 +76,7 @@ uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn) {
              * row's F_DL_low) is easy to make and is load-bearing, because
              * derive_key() keys on the resolved frequency: B17 EARFCN 5820 at
              * 869.0 MHz would equal B5 EARFCN 2400's real frequency, merging
-             * two unrelated cells that share a PCI into one device. Pinned by
-             * test_lte_frequency_table_band_edges. */
+             * two unrelated cells that share a PCI into one device. */
             { 5730,  5849,  734.0},   /* Band 17 */
             { 5850,  5999,  860.0},   /* Band 18 */
             { 6000,  6149,  875.0},   /* Band 19 */
@@ -86,8 +87,9 @@ uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn) {
              * one band, AT&T's B29 (EARFCN 9660) would compute as 2350 MHz,
              * B30 as 462.5 MHz, and every B28 cell would land at 717-762 MHz,
              * inside B12/B13/B17's spectrum, where a same-PCI cell would merge
-             * through the frequency key. Values per TS 36.101 Table 5.7.3-1;
-             * pinned by test_lte_frequency_table_b23_to_b32. */
+             * through the frequency key. Values per TS 36.101 Table 5.7.3-1.
+             * test/cell_decisions/decisions_test.cc checks every row's
+             * frequencies against an independent transcription. */
             { 7500,  7699, 2180.0},   /* Band 23 */
             { 7700,  8039, 1525.0},   /* Band 24 */
             { 8040,  8689, 1930.0},   /* Band 25 */
@@ -134,7 +136,7 @@ uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn) {
             {70316, 70365,  1427.0},  /* Band 76 (SDL) */
             {70366, 70545,   728.0},  /* Band 85 */
             /* There is no LTE band 86: 70546.. is B87 (TS 36.101
-             * v20.0.0 Table 5.7.3-1; pinned by test_lte_frequency_table_b54_to_b111). */
+             * v20.0.0 Table 5.7.3-1). */
             {70546, 70595,   420.0},  /* Band 87 */
             {70596, 70645,   422.0},  /* Band 88 */
             {70646, 70655,   757.0},  /* Band 103 */
@@ -177,41 +179,72 @@ uint64_t arfcn_to_khz(const std::string& rat, uint32_t arfcn) {
 }
 
 /* Derive LTE band number from EARFCN.
- * EARFCN ranges per 3GPP TS 36.101 Table 5.7.3-1.
+ * EARFCN ranges per 3GPP TS 36.101 Table 5.7.3-1, duplex per Table 5.5-1.
  * Returns 0 if unknown.
  *
- * Must answer exactly as diagspec's lte_band::earfcn_to_band (the helper's
- * copy) for every EARFCN:
- * test_earfcn_to_band_matches_the_helper_table sweeps 0..80000, so the server
- * and the DIAG path cannot label the same cell with different bands. */
-struct lte_band_row { uint32_t lo; uint32_t hi; int band; };
-static constexpr lte_band_row kLteBands[] = {
-        {    0,   599,  1}, {  600,  1199,  2}, { 1200,  1949,  3},
-        { 1950,  2399,  4}, { 2400,  2649,  5}, { 2650,  2749,  6},
-        { 2750,  3449,  7}, { 3450,  3799,  8}, { 3800,  4149,  9},
-        { 4150,  4749, 10}, { 4750,  4949, 11}, { 5010,  5179, 12},
-        { 5180,  5279, 13}, { 5280,  5379, 14}, { 5730,  5849, 17},
-        { 5850,  5999, 18}, { 6000,  6149, 19}, { 6150,  6449, 20},
-        { 6450,  6599, 21}, { 6600,  7399, 22}, { 7500,  7699, 23},
-        { 7700,  8039, 24}, { 8040,  8689, 25}, { 8690,  9039, 26},
-        { 9040,  9209, 27}, { 9210,  9659, 28}, { 9660,  9769, 29},
-        { 9770,  9869, 30}, { 9870,  9919, 31}, { 9920, 10359, 32},
-        {36000, 36199, 33},
-        {36200, 36349, 34}, {36350, 36949, 35}, {36950, 37549, 36},
-        {37550, 37749, 37}, {37750, 38249, 38}, {38250, 38649, 39},
-        {38650, 39649, 40}, {39650, 41589, 41}, {41590, 43589, 42},
-        {43590, 45589, 43}, {45590, 46589, 44}, {46590, 46789, 45},
-        {46790, 54539, 46}, {54540, 55239, 47}, {55240, 56739, 48},
-        {56740, 58239, 49}, {58240, 59089, 50}, {59090, 59139, 51},
-        {59140, 60139, 52}, {60140, 60254, 53}, {60255, 60304, 54},
-        {65536, 66435, 65},
-        {66436, 67335, 66}, {67336, 67535, 67}, {67536, 67835, 68},
-        {67836, 68335, 69}, {68336, 68585, 70}, {68586, 68935, 71},
-        {68936, 68985, 72}, {68986, 69035, 73}, {69036, 69465, 74},
-        {69466, 70315, 75}, {70316, 70365, 76}, {70366, 70545, 85},
-        {70546, 70595, 87}, {70596, 70645, 88}, {70646, 70655, 103},
-        {70656, 70705, 106}, {73386, 73485, 111},
+ * Must answer exactly as diagspec's lte_band::earfcn_to_band and
+ * band_to_duplex (the helper's copy), so the server and the DIAG path cannot
+ * label the same cell differently; test/cell_decisions/decisions_test.cc
+ * compares them for every EARFCN 0..300000 and every band. */
+namespace {
+
+struct lte_band_row { uint32_t lo; uint32_t hi; int band; lte_duplex duplex; };
+
+constexpr auto F = lte_duplex::fdd, T = lte_duplex::tdd, S = lte_duplex::sdl;
+
+constexpr lte_band_row kLteBands[] = {
+        {    0,   599,  1, F}, {  600,  1199,  2, F}, { 1200,  1949,  3, F},
+        { 1950,  2399,  4, F}, { 2400,  2649,  5, F}, { 2650,  2749,  6, F},
+        { 2750,  3449,  7, F}, { 3450,  3799,  8, F}, { 3800,  4149,  9, F},
+        { 4150,  4749, 10, F}, { 4750,  4949, 11, F}, { 5010,  5179, 12, F},
+        { 5180,  5279, 13, F}, { 5280,  5379, 14, F}, { 5730,  5849, 17, F},
+        { 5850,  5999, 18, F}, { 6000,  6149, 19, F}, { 6150,  6449, 20, F},
+        { 6450,  6599, 21, F}, { 6600,  7399, 22, F}, { 7500,  7699, 23, F},
+        { 7700,  8039, 24, F}, { 8040,  8689, 25, F}, { 8690,  9039, 26, F},
+        { 9040,  9209, 27, F}, { 9210,  9659, 28, F}, { 9660,  9769, 29, S},
+        { 9770,  9869, 30, F}, { 9870,  9919, 31, F}, { 9920, 10359, 32, S},
+        {36000, 36199, 33, T},
+        {36200, 36349, 34, T}, {36350, 36949, 35, T}, {36950, 37549, 36, T},
+        {37550, 37749, 37, T}, {37750, 38249, 38, T}, {38250, 38649, 39, T},
+        {38650, 39649, 40, T}, {39650, 41589, 41, T}, {41590, 43589, 42, T},
+        {43590, 45589, 43, T}, {45590, 46589, 44, T}, {46590, 46789, 45, T},
+        {46790, 54539, 46, T}, {54540, 55239, 47, T}, {55240, 56739, 48, T},
+        {56740, 58239, 49, T}, {58240, 59089, 50, T}, {59090, 59139, 51, T},
+        {59140, 60139, 52, T}, {60140, 60254, 53, T}, {60255, 60304, 54, T},
+        {65536, 66435, 65, F},
+        {66436, 67335, 66, F}, {67336, 67535, 67, S}, {67536, 67835, 68, F},
+        {67836, 68335, 69, S}, {68336, 68585, 70, F}, {68586, 68935, 71, F},
+        {68936, 68985, 72, F}, {68986, 69035, 73, F}, {69036, 69465, 74, F},
+        {69466, 70315, 75, S}, {70316, 70365, 76, S}, {70366, 70545, 85, F},
+        {70546, 70595, 87, F}, {70596, 70645, 88, F}, {70646, 70655, 103, F},
+        {70656, 70705, 106, F}, {73386, 73485, 111, F},
 };
+
+/* Ascending, disjoint ranges, each band once: earfcn_to_band's first hit is
+ * then the only hit, and lte_band_row_for's band lookup is unambiguous. */
+constexpr bool lte_bands_ordered() {
+    for (size_t i = 0; i < std::size(kLteBands); i++) {
+        if (kLteBands[i].lo > kLteBands[i].hi || kLteBands[i].duplex == lte_duplex::none)
+            return false;
+        if (i > 0 && (kLteBands[i].lo <= kLteBands[i - 1].hi ||
+                    kLteBands[i].band <= kLteBands[i - 1].band))
+            return false;
+    }
+    return true;
+}
+static_assert(lte_bands_ordered());
+
+constexpr const lte_band_row *lte_band_row_for(int band) {
+    for (const auto& r : kLteBands)
+        if (r.band == band)
+            return &r;
+    return nullptr;
+}
+
+static_assert(lte_band_row_for(4)->duplex == F && lte_band_row_for(41)->duplex == T &&
+        lte_band_row_for(75)->duplex == S && lte_band_row_for(86) == nullptr);
+
+}  // namespace
 
 int earfcn_to_band(uint32_t earfcn) {
     for (const auto& r : kLteBands) {
@@ -221,17 +254,29 @@ int earfcn_to_band(uint32_t earfcn) {
     return 0;
 }
 
+lte_duplex lte_band_duplex(int band) {
+    const auto r = lte_band_row_for(band);
+    return r ? r->duplex : lte_duplex::none;
+}
+
+const char *lte_duplex_name(lte_duplex d) {
+    switch (d) {
+        case lte_duplex::fdd: return "FDD";
+        case lte_duplex::tdd: return "TDD";
+        case lte_duplex::sdl: return "SDL";
+        case lte_duplex::none: break;
+    }
+    return nullptr;
+}
 
 /* A band's downlink edges in kHz, from its first and last EARFCN. */
 static bool lte_band_dl_khz(int band, uint64_t *lo, uint64_t *hi) {
-    for (const auto& r : kLteBands) {
-        if (r.band == band) {
-            *lo = arfcn_to_khz("LTE", r.lo);
-            *hi = arfcn_to_khz("LTE", r.hi);
-            return *lo > 0 && *hi >= *lo;
-        }
-    }
-    return false;
+    const auto r = lte_band_row_for(band);
+    if (r == nullptr)
+        return false;
+    *lo = arfcn_to_khz("LTE", r->lo);
+    *hi = arfcn_to_khz("LTE", r->hi);
+    return *lo > 0 && *hi >= *lo;
 }
 
 int label_band(const std::string& rat, int current, int incoming,
@@ -256,9 +301,13 @@ int label_band(const std::string& rat, int current, int incoming,
             !lte_band_dl_khz(incoming, &i_lo, &i_hi))
         return incoming;
 
-    /* Two names for this carrier only if both bands hold its frequency. If
+    /* Two names for this carrier only if both bands hold its frequency and
+     * share a duplex mode: B41 (TDD) overlaps B7's FDD downlink and B44 (TDD)
+     * the 700 MHz FDD bands, but a TDD or SDL carrier is not an FDD one. If
      * not, the cell itself moved, and the newest report is the truth. */
     if (freq_khz < c_lo || freq_khz > c_hi || freq_khz < i_lo || freq_khz > i_hi)
+        return incoming;
+    if (lte_band_duplex(current) != lte_band_duplex(incoming))
         return incoming;
 
     /* The wider downlink wins (B66 over B4, B25 over B2, B85 over B12);
@@ -369,23 +418,29 @@ plmn_t plmn_from_numbers(int64_t mcc, int64_t mnc) {
 }
 
 plmn_t plmn_from_json(const nlohmann::json& j) {
+    if (!j.is_object())
+        return plmn_t();
+
     const auto mcc_j = j.contains("mcc") ? j["mcc"] : nlohmann::json();
     const auto mnc_j = j.contains("mnc") ? j["mnc"] : nlohmann::json();
+
+    /* A numeric half must be an in-range integer; anything else is absent */
+    const auto mcc_n = json_int(j, "mcc", kPlmnPartRange);
+    const auto mnc_n = json_int(j, "mnc", kPlmnPartRange);
 
     if (mcc_j.is_string() && mnc_j.is_string())
         return plmn_from_digits(mcc_j.get<std::string>(),
                 mnc_j.get<std::string>());
 
-    if (mcc_j.is_number() && mnc_j.is_number())
-        return plmn_from_numbers(mcc_j.get<int64_t>(), mnc_j.get<int64_t>());
+    if (mcc_n && mnc_n)
+        return plmn_from_numbers(*mcc_n, *mnc_n);
 
-    if (mcc_j.is_string() && mnc_j.is_number())
+    if (mcc_j.is_string() && mnc_n)
         return plmn_from_numbers(
-                strtoll(mcc_j.get<std::string>().c_str(), nullptr, 10),
-                mnc_j.get<int64_t>());
+                strtoll(mcc_j.get<std::string>().c_str(), nullptr, 10), *mnc_n);
 
-    if (mcc_j.is_number() && mnc_j.is_string())
-        return plmn_from_digits(fmt::format("{:03d}", mcc_j.get<int64_t>()),
+    if (mcc_n && mnc_j.is_string())
+        return plmn_from_digits(fmt::format("{:03d}", *mcc_n),
                 mnc_j.get<std::string>());
 
     return plmn_t();
@@ -456,6 +511,61 @@ cell_key_t derive_key(const std::string& rat, const plmn_t& plmn,
     }
 
     return out;
+}
+
+std::optional<int64_t> json_int(const nlohmann::json& j, const char *key, int_range r) {
+    if (!j.is_object())
+        return std::nullopt;
+    auto it = j.find(key);
+    if (it == j.end() || !it->is_number_integer())
+        return std::nullopt;
+    int64_t v;
+    if (it->is_number_unsigned()) {
+        const auto u = it->get<uint64_t>();
+        if (u > static_cast<uint64_t>(INT64_MAX))
+            return std::nullopt;
+        v = static_cast<int64_t>(u);
+    } else {
+        v = it->get<int64_t>();
+    }
+    if (!r.holds(v))
+        return std::nullopt;
+    return v;
+}
+
+std::optional<int64_t> json_signal(const nlohmann::json& j, const char *key, int_range r) {
+    if (!j.is_object())
+        return std::nullopt;
+    auto it = j.find(key);
+    if (it == j.end() || !it->is_number())
+        return std::nullopt;
+    if (it->is_number_integer())
+        return json_int(j, key, r);
+    /* Compare as double before converting; also rejects NaN */
+    const double d = it->get<double>();
+    if (!(d > static_cast<double>(r.lo) - 1.0 && d < static_cast<double>(r.hi) + 1.0))
+        return std::nullopt;
+    const auto v = static_cast<int64_t>(d);
+    if (!r.holds(v))
+        return std::nullopt;
+    return v;
+}
+
+cell_fields_t cell_fields(const nlohmann::json& j) {
+    cell_fields_t f;
+    f.tac = json_int(j, "tac", kTacRange);
+    f.cell_id = json_int(j, "cell_id", kCellIdRange);
+    f.pci = json_int(j, "pci", kPciRange);
+    f.earfcn = json_int(j, "earfcn", kArfcnRange);
+    f.band = json_int(j, "band", kBandRange);
+    f.bandwidth = json_int(j, "bandwidth", kBandwidthRange);
+    f.rsrp = json_signal(j, "rsrp", kSignalRange);
+    f.rsrq = json_signal(j, "rsrq", kSignalRange);
+    f.sinr = json_signal(j, "sinr", kSignalRange);
+    f.snr = json_signal(j, "snr", kSignalRange);
+    f.rssi = json_signal(j, "rssi", kSignalRange);
+    f.cqi = json_int(j, "cqi", kCqiRange);
+    return f;
 }
 
 bool have_usable_rsrp(bool rsrp_is_number, int rsrp) {
@@ -582,9 +692,9 @@ pci_promotion_t pci_promotion(const std::string& rat, int64_t pci,
      * registered by a modem that calls the carrier B4/2300 must be findable by
      * one that calls it B66/66786, and peer_cell_key IS the device MAC, so if
      * it stopped matching derive_key()'s partial form the promotion would link
-     * to a device that does not exist. That agreement is what
-     * test_promotion_keys_agree_across_rats pins -- the two spellings drifting
-     * apart is the bug, so there is only one spelling. */
+     * to a device that does not exist. The two spellings drifting
+     * apart is the bug, so there is only one spelling, and
+     * test/cell_decisions/decisions_test.cc checks the two agree. */
     out.map_key = promotion_map_key(rat, pci, earfcn);
 
     if (full_identity) {
@@ -663,11 +773,7 @@ std::string sec_enum(const nlohmann::json& j, const char *key,
 }
 
 int64_t sec_int(const nlohmann::json& j, const char *key, int64_t lo, int64_t hi) {
-    auto it = j.find(key);
-    if (it == j.end() || !it->is_number_integer())
-        return -1;
-    auto v = it->get<int64_t>();
-    return (v < lo || v > hi) ? -1 : v;
+    return json_int(j, key, int_range{lo, hi}).value_or(-1);
 }
 
 censor::marked_string sec_cell(const nlohmann::json& j, bool sentence_start) {

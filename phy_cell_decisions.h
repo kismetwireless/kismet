@@ -62,6 +62,7 @@
 #define __PHY_CELL_DECISIONS_H__
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -212,6 +213,49 @@ cell_key_t derive_key(const std::string& rat, const plmn_t& plmn,
 cell_key_t derive_key(const std::string& rat, int64_t mcc, int64_t mnc,
         int64_t tac, int64_t cid, int64_t pci, bool have_earfcn, uint32_t earfcn);
 
+/* ------------------------------------------------------------------------
+ * Numeric fields of a helper's cell observation JSON.
+ *
+ * The JSON comes from a capture helper, so every number is untrusted. A field
+ * that is not a number of the right kind, or is outside its range, is treated
+ * as absent: converting it anyway is UB for a float out of range (1e30 to int)
+ * and wraps a negative into a huge unsigned (-1 to EARFCN 4294967295).
+ * ------------------------------------------------------------------------ */
+
+struct int_range {
+    int64_t lo;
+    int64_t hi;
+    constexpr bool holds(int64_t v) const { return v >= lo && v <= hi; }
+};
+
+inline constexpr int_range kPlmnPartRange{0, 999};
+inline constexpr int_range kTacRange{0, 0xFFFFFF};              /* NR TAC, 24 bits */
+inline constexpr int_range kCellIdRange{0, (int64_t{1} << 36) - 1};  /* NR NCI, 36 bits */
+inline constexpr int_range kPciRange{0, 1007};                  /* NR PCI; LTE is 0..503 */
+inline constexpr int_range kArfcnRange{0, 3279165};             /* NR-ARFCN, TS 38.104 */
+inline constexpr int_range kBandRange{1, 1024};                 /* FreqBandIndicatorNR */
+inline constexpr int_range kBandwidthRange{1, 400};             /* MHz */
+inline constexpr int_range kCqiRange{0, 15};
+/* dB / dBm. Wide on purpose: some AT legs pass a vendor scale through (Quectel
+ * LTE SINR is 0..250), but a sentinel like -32768 or a 1e30 is no reading. */
+inline constexpr int_range kSignalRange{-300, 300};
+
+/* An integer field within `r`, else nullopt. A float is not an integer. */
+std::optional<int64_t> json_int(const nlohmann::json& j, const char *key, int_range r);
+
+/* A signal field: an integer or a float within `r`, truncated toward zero
+ * (the DIAG leg sends fractional dB), else nullopt. */
+std::optional<int64_t> json_signal(const nlohmann::json& j, const char *key, int_range r);
+
+/* Every numeric field of a cell observation, validated once, so the live PHY
+ * and the offline WiGLE exporter read the same JSON the same way. */
+struct cell_fields_t {
+    std::optional<int64_t> tac, cell_id, pci, earfcn, band, bandwidth;
+    std::optional<int64_t> rsrp, rsrq, sinr, snr, rssi, cqi;
+};
+
+cell_fields_t cell_fields(const nlohmann::json& j);
+
 /* Signal-presence policy.
  *
  * Returns whether to populate signal, never whether to keep the observation.
@@ -229,6 +273,15 @@ bool have_usable_rsrp(bool rsrp_is_number, int rsrp);
  * Returns 0 when the EARFCN is in no known band. */
 int earfcn_to_band(uint32_t earfcn);
 
+/* An LTE band's duplex mode (TS 36.101 Table 5.5-1); none for a band not in
+ * the table.  Agrees with diagspec's lte_band::band_to_duplex. */
+enum class lte_duplex : uint8_t { none, fdd, tdd, sdl };
+
+lte_duplex lte_band_duplex(int band);
+
+/* "FDD" / "TDD" / "SDL", or nullptr for none, as band_to_duplex spells them */
+const char *lte_duplex_name(lte_duplex d);
+
 /* The band a cell's name and channel show, given the band shown so far
  * (`current`, 0 for none) and an observation's band (`incoming`, 0 for none)
  * at downlink `freq_khz`.
@@ -237,10 +290,11 @@ int earfcn_to_band(uint32_t earfcn);
  * (EARFCN 2300) to one and B66 (EARFCN 66786) to another, and the cell key
  * fuses both into one device. Taking the newest report made the label
  * depend on which observer spoke last. When both bands hold the carrier's
- * frequency, the one with the wider downlink wins, then the higher number,
- * so the label depends only on which bands were seen. An LTE report with no
- * frequency keeps `current`. Otherwise, and for non-LTE RATs, `incoming`
- * wins as before.
+ * frequency and have the same duplex mode, the one with the wider downlink
+ * wins, then the higher number, so the label depends only on which bands were
+ * seen. An LTE report with no frequency keeps `current`. Otherwise (a TDD or
+ * SDL band overlapping an FDD downlink is a different carrier) and for
+ * non-LTE RATs, `incoming` wins as before.
  *
  * Only the band is chosen this way: the cell's ARFCN stays the newest
  * report's, as WiGLE logs it, so a B4 label can sit beside a B66 EARFCN
@@ -350,7 +404,7 @@ pci_promotion_t pci_promotion(const std::string& rat, int64_t pci,
  * function, so they cannot drift.
  *
  * Caller guarantees pci >= 0 and a real earfcn (pci_promotion gates on
- * `pci < 0 || !have_earfcn`; the exporter gates on `pci > 0 && earfcn > 0`). */
+ * `pci < 0 || !have_earfcn`; the exporter on cell_fields() having both). */
 std::string promotion_map_key(const std::string& rat, int64_t pci,
         uint32_t earfcn);
 

@@ -1056,6 +1056,14 @@ int main(int argc, char *argv[]) {
         // Pass 1: build PCI+EARFCN → identity map from full-identity observations
         std::map<std::string, cell_identity> pci_identity_map;
 
+        // A string field, or "" -- a wrong type is absent, as in the live PHY,
+        // rather than a throw that drops the whole row
+        auto str_field = [](const nlohmann::json& j, const char *key) {
+            auto it = j.is_object() ? j.find(key) : j.end();
+            return (it != j.end() && it->is_string()) ?
+                it->get<std::string>() : std::string();
+        };
+
         auto cell_data_fields = std::list<std::string>{
             "ts_sec", "devmac", "phyname", "lat", "lon", "alt", "signal", "json"};
 
@@ -1072,12 +1080,14 @@ int main(int argc, char *argv[]) {
             try {
                 auto j = nlohmann::json::parse(json_str);
                 auto plmn = cell_decisions::plmn_from_json(j);
-                auto cell_id = j.value("cell_id", (uint64_t) 0);
-                auto pci = j.value("pci", (uint64_t) 0);
-                auto earfcn = j.value("earfcn", (uint64_t) 0);
+                // The live PHY's validation (cell_decisions::cell_fields), so
+                // both writers drop the same malformed numbers
+                const auto f = cell_decisions::cell_fields(j);
+                const auto cell_id = f.cell_id.value_or(0);
 
-                if (plmn.present && cell_id > 0 && pci > 0 && earfcn > 0) {
-                    auto rat = j.value("rat", std::string("LTE"));
+                const auto rat = str_field(j, "rat");
+
+                if (plmn.present && cell_id > 0 && f.pci && f.earfcn && !rat.empty()) {
                     // Keyed by cell_decisions::promotion_map_key -- the SAME
                     // "{rat}_{pci}_{carrier_token}" the live PHY registers a
                     // promotion under.  A local "{pci}_{earfcn}" key (raw
@@ -1085,9 +1095,9 @@ int main(int argc, char *argv[]) {
                     // the PHY makes, and an LTE PCI/EARFCN could false-merge an
                     // NR PCI/NR-ARFCN over the overlapping ranges.
                     auto key = cell_decisions::promotion_map_key(rat,
-                            (int64_t) pci, (uint32_t) earfcn);
+                            *f.pci, (uint32_t) *f.earfcn);
                     if (pci_identity_map.find(key) == pci_identity_map.end()) {
-                        auto tac = j.value("tac", (uint64_t) 0);
+                        const uint64_t tac = f.tac.value_or(0);
 
                         // Built by cell_decisions::derive_key, the SAME
                         // function the live PHY keys on, so the live and
@@ -1095,9 +1105,10 @@ int main(int argc, char *argv[]) {
                         // padding included).
                         auto cell_key = cell_decisions::derive_key(rat, plmn,
                                 (int64_t) tac, (int64_t) cell_id, -1, false, 0).key;
-                        auto oper = j.value("operator_name", std::string(""));
+                        auto oper = str_field(j, "operator_name");
 
-                        pci_identity_map[key] = {plmn, tac, cell_id, rat, cell_key, oper};
+                        pci_identity_map[key] = {plmn, tac, (uint64_t) cell_id, rat,
+                            cell_key, oper};
                     }
                 }
             } catch (const std::exception& e) {
@@ -1149,13 +1160,13 @@ int main(int argc, char *argv[]) {
                 auto j = nlohmann::json::parse(json_str);
 
                 auto plmn = cell_decisions::plmn_from_json(j);
-                auto cell_id = j.value("cell_id", (uint64_t) 0);
-                auto tac = j.value("tac", (uint64_t) 0);
-                auto pci = j.value("pci", (uint64_t) 0);
-                auto earfcn = j.value("earfcn", (uint64_t) 0);
-                auto rat = j.value("rat", std::string(""));
-                auto rsrp = j.value("rsrp", (int64_t) 0);
-                auto oper = j.value("operator_name", std::string(""));
+                const auto f = cell_decisions::cell_fields(j);
+                uint64_t cell_id = f.cell_id.value_or(0);
+                uint64_t tac = f.tac.value_or(0);
+                const uint32_t earfcn = (uint32_t) f.earfcn.value_or(0);
+                auto rat = str_field(j, "rat");
+                const int64_t rsrp = f.rsrp.value_or(0);
+                auto oper = str_field(j, "operator_name");
 
                 std::string cell_key;
                 bool resolved = false;
@@ -1164,13 +1175,13 @@ int main(int argc, char *argv[]) {
                     // Full-identity observation
                     cell_key = cell_decisions::derive_key(rat, plmn,
                             (int64_t) tac, (int64_t) cell_id, -1, false, 0).key;
-                } else if (pci > 0 && earfcn > 0) {
+                } else if (f.pci && f.earfcn) {
                     // PCI-only — try to resolve via identity map, on the SAME
                     // "{rat}_{pci}_{carrier_token}" key pass 1 registered under.
                     // rat is present on every real PCI-only observation
                     // (AT neighbourcell and DIAG 0xB193/0xB97F all carry it).
                     auto lookup_key = cell_decisions::promotion_map_key(rat,
-                            (int64_t) pci, (uint32_t) earfcn);
+                            *f.pci, earfcn);
                     auto it = pci_identity_map.find(lookup_key);
                     if (it != pci_identity_map.end()) {
                         plmn = it->second.plmn;
@@ -1222,7 +1233,7 @@ int main(int argc, char *argv[]) {
                         authmode,
                         tmstr,
                         "",  // channel: blank for cells, the ARFCN is the frequency
-                        (uint32_t) earfcn,
+                        earfcn,
                         signal,
                         lat, lon, alt,
                         0,  // accuracy
