@@ -38,6 +38,7 @@
 #include <queue>
 #include <atomic>
 #include <chrono>
+#include <limits>
 #include <thread>
 #include <unordered_set>
 
@@ -112,20 +113,10 @@ class kis_datachunk;
 // whichever threads queued them, so a source's packets are processed in capture order.
 class packet_fifo {
 public:
-    void enqueue(std::shared_ptr<kis_packet> in_pack) {
-        bool wake;
-
-        pending.fetch_add(1, std::memory_order_relaxed);
-
-        {
-            std::lock_guard<std::mutex> lk(mutex);
-            queue.push_back(std::move(in_pack));
-            wake = waiting;
-        }
-
-        if (wake)
-            cv.notify_one();
-    }
+    // With an arrival counter, the packet is numbered and timed as it's queued, under the
+    // queue lock, so each queue is in arrival order and a numbered packet is always either
+    // queued or held by the consumer
+    void enqueue(std::shared_ptr<kis_packet> in_pack, std::atomic<uint64_t> *arrival_counter = nullptr);
 
     // Move everything queued into an empty out, in order; false if nothing was queued
     bool try_dequeue_all(std::deque<std::shared_ptr<kis_packet>>& out) {
@@ -135,6 +126,7 @@ public:
             return false;
 
         std::swap(out, queue);
+        hold_front(out);
         return true;
     }
 
@@ -146,7 +138,20 @@ public:
         waiting = false;
 
         std::swap(out, queue);
+        hold_front(out);
     }
+
+    // The consumer is processing this packet; it and the rest of its batch are outstanding
+    void hold(const kis_packet& p);
+
+    // The consumer finished its batch
+    void release_held() {
+        held_no.store(no_arrival_no, std::memory_order_release);
+        held_us.store(no_arrival_us, std::memory_order_release);
+    }
+
+    // The oldest arrival queued here or held by the consumer; false if none
+    bool oldest_outstanding(uint64_t& out_no, int64_t& out_us);
 
     // The consumer finished a dequeued packet
     void packet_done() {
@@ -159,11 +164,19 @@ public:
     }
 
 protected:
+    static constexpr uint64_t no_arrival_no = std::numeric_limits<uint64_t>::max();
+    static constexpr int64_t no_arrival_us = std::numeric_limits<int64_t>::max();
+
+    // Under the lock, so packets are never between the queue and the consumer's hold
+    void hold_front(const std::deque<std::shared_ptr<kis_packet>>& batch);
+
     std::mutex mutex;
     std::condition_variable cv;
     std::deque<std::shared_ptr<kis_packet>> queue;
     bool waiting = false;
     std::atomic<size_t> pending{0};
+    std::atomic<uint64_t> held_no{no_arrival_no};
+    std::atomic<int64_t> held_us{no_arrival_us};
 };
 
 class packet_chain : public lifetime_global {
@@ -190,8 +203,7 @@ public:
     // Freed packets kept for reuse; they fill to the most packets in flight at once, up to 1024
     size_t get_packet_pool_size() { return packet_pool.size(); }
 
-    // Packets held in the duplicate windows, up to dedupe_list_sz per packet thread; they
-    // stay until newer packets replace them
+    // Packets held in the duplicate windows, up to dedupe_list_sz per packet thread
     size_t get_dedupe_packets();
 
     size_t get_packet_threads() const { return dedupe_window_count.load(std::memory_order_acquire); }
@@ -383,7 +395,8 @@ protected:
     std::atomic<uint64_t> arrival_packet_no;
 
     // Recent unique packets per window for duplicate detection; matches are limited to
-    // packets which arrived within this many packets of each other
+    // packets which arrived within this many packets of each other.  A packet leaves the
+    // window once nothing still to be processed can match it.
     static constexpr size_t dedupe_list_sz = 1024;
 
     // and which reached the server within this many microseconds of each other; a frame
@@ -435,6 +448,12 @@ protected:
     // packet so it can be released after the lock is dropped.
     std::shared_ptr<kis_packet> dedupe_insert(dedupe_window& window,
             const std::shared_ptr<kis_packet>& packet);
+
+    // Drop the packets no queued or later packet can match: those more than dedupe_list_sz
+    // arrivals or dedupe_max_age_us older than the oldest packet not yet processed
+    void dedupe_sweep();
+    static constexpr time_tracker::slice dedupe_sweep_interval{3};
+    int dedupe_sweep_timer_id = -1;
 
 	int pack_comp_linkframe, pack_comp_decap, pack_comp_l1_agg, pack_comp_datasource;
 

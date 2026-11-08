@@ -57,7 +57,7 @@ const settingText = {
     dot11_view_ssids: ['SSID list, separate from the devices', null],
     dot11_max_ssid_groups: ['Most SSID groups the SSID list keeps', (v) => v ? format.count(v) : 'no limit'],
     dot11_ap_only_survey: ['Only track Wi-Fi access points, not clients', null],
-    kismet_packet_threads: ['Packet threads; each keeps its last 1,024 packets to spot duplicates', (v) => format.count(v)],
+    kismet_packet_threads: ['Packet threads; each keeps up to 1,024 packets from the last second to spot duplicates', (v) => format.count(v)],
     pcapng_log_buffer_mb: ['Most packets each pcapng log holds while its writer catches up', (v) => format.size(v * 1024 * 1024)],
     pcapng_ring_file_size_mb: ['Size of each pcapng ring file, on tmpfs when pcapng_ring logging is on', (v) => format.size(v * 1024 * 1024)],
     pcapng_ring_file_count: ['Files in the pcapng ring; the ring holds about size times count of system memory',
