@@ -98,6 +98,7 @@ public:
 
     virtual bool open_log(const std::string& in_template, const std::string& in_path) override;
     virtual void close_log() override;
+    virtual bool request_rotate(std::string& err) override;
 
     virtual int database_upgrade_db() override;
 
@@ -184,14 +185,21 @@ protected:
     // or close replaces while downloads still read it is closed by the last of them
     std::mutex stream_handle_mutex;
     std::map<sqlite3 *, unsigned int> stream_handle_users;
-    std::map<sqlite3 *, std::string> retired_handles;
+    // A finished file a download still reads: announced as finished when it closes
+    struct retired_handle {
+        std::string path;
+        uuid log_uuid;
+        std::string reason;
+    };
+    std::map<sqlite3 *, retired_handle> retired_handles;
 
     // The caller holds a writer guard, so db can't change underneath it
     sqlite3 *acquire_stream_handle();
     void release_stream_handle(sqlite3 *h);
     // Close a handle now, or when the last download using it ends; true when it closed
     // now, for the caller to announce once its own messages are out
-    bool retire_handle(sqlite3 *h, const std::string& path);
+    bool retire_handle(sqlite3 *h, const std::string& path, const uuid& log_uuid,
+            const std::string& reason);
     bool close_finished(sqlite3 *h, const std::string& path);
 
     class db_writer_guard {
@@ -363,6 +371,10 @@ protected:
     // After a failed rotation (such as a full disk), when to try again
     std::atomic<std::chrono::steady_clock::time_point> rotate_retry;
     int rotate_timer;
+    // A rotate request over the API, taken up by the next rotation timer run
+    std::atomic<bool> rotate_requested;
+    // Why file_due() started the next file; rotation timer only
+    std::string rotate_reason;
     // The template can't make another file name; rotation stops, logging continues
     std::atomic<bool> rotate_disabled;
     // Size of a new file once its devices and datasources are written; a size rotation

@@ -68,6 +68,7 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     file_opened = std::chrono::steady_clock::now();
     duration_timer_id = -1;
     closing = false;
+    rotate_requested = false;
 
     // How far the writer may fall behind before packets are dropped (or wait, when
     // blocking); at least 1MB
@@ -163,12 +164,22 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
                 report_drops(false);
 
                 // Flush the buffer, close the log, and make a new one; rotate_log() checks
-                // for close_log() again under buffer_mutex before it swaps.  The timer below
-                // wakes the writer when the file is due, even without packets.
-                if (!closing && buffer->running() &&
-                        ((log_size >= max_size && max_size != 0) || file_due())) {
-                    log_size = 0;
-                    rotate_log();
+                // for close_log() again under buffer_mutex before it swaps.  The timer below,
+                // and a rotate request, wake the writer when a file is due, even without packets.
+                if (!closing && buffer->running()) {
+                    const char *reason = nullptr;
+
+                    if (rotate_requested.exchange(false))
+                        reason = "api";
+                    else if (log_size >= max_size && max_size != 0)
+                        reason = "size";
+                    else if (file_due())
+                        reason = "duration";
+
+                    if (reason != nullptr) {
+                        log_size = 0;
+                        rotate_log(reason);
+                    }
                 }
             }
 
@@ -195,7 +206,7 @@ bool kis_pcapng_logfile::open_log(const std::string& in_template,
     return true;
 }
 
-void kis_pcapng_logfile::rotate_log() {
+void kis_pcapng_logfile::rotate_log(const char *in_reason) {
     // Runs on the writer thread; errors must not call close_log(), which joins this thread
 
     auto logtracker = 
@@ -295,6 +306,8 @@ void kis_pcapng_logfile::rotate_log() {
     // Close the old file and remove the old buffer
     if (fclose(old_pcapng_file.release()) != 0)
         _MSG_ERROR("Error closing pcapng log '{}' - {}", old_path, kis_strerror_r(errno));
+    else
+        publish_log_finished(get_log_uuid(), old_path, in_reason);
     delete old_buffer;
 
     // Return to the packet handling loop thread and let it start processing packets again
@@ -375,6 +388,33 @@ void kis_pcapng_logfile::close_log() {
         pcapng = nullptr;
     }
 
-    pcapng_file.reset();
+    // A file the writer gave up on (writer_failed()) is already gone
+    if (pcapng_file != nullptr) {
+        if (fclose(pcapng_file.release()) != 0)
+            _MSG_ERROR("Error closing pcapng log '{}' - {}", get_log_path(),
+                    kis_strerror_r(errno));
+        else
+            publish_log_finished(get_log_uuid(), get_log_path(), "close");
+    }
+}
+
+bool kis_pcapng_logfile::request_rotate(std::string& err) {
+    if (!get_log_open() || closing) {
+        err = "the pcapng log is not open";
+        return false;
+    }
+
+    if (!template_numbers_files(get_log_template())) {
+        err = "the log_template has no %i to number another pcapng file";
+        return false;
+    }
+
+    rotate_requested = true;
+
+    // Wake the writer, as the duration timer does
+    std::lock_guard<std::mutex> lk(buffer_mutex);
+    buffer->sync();
+
+    return true;
 }
 
