@@ -250,6 +250,11 @@ input:focus, select:focus, button:focus-visible {
     border-radius: 10px;
     overflow: hidden;
 }
+/* Down to its tab bar; over the height the user dragged, which comes back on restore */
+.bottom.minimized { height: auto !important; }
+.bottom.minimized > .tab-bodies { display: none; }
+.bottom.minimized > .tab-bar { border-bottom: none; }
+.tab-minimize { margin: 0.2rem 0.5rem 0 0; }
 
 /* Device list */
 
