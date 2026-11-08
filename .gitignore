@@ -14,6 +14,7 @@ compile_commands.json
 .cache/*
 
 # Test files
+test/cell_decisions/decisions_test
 callgrind*
 *.pcap
 *.pcapng

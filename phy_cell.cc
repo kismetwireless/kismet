@@ -198,25 +198,14 @@ void kis_cellular_phy::security_to_alerts(const nlohmann::json& json,
     // one, else the PCI + EARFCN partial
     mac_addr cellmac;
     std::string channel;
-    auto pci = json.find("pci");
-    auto earfcn = json.find("earfcn");
-    if (pci != json.end() && pci->is_number_integer() &&
-            earfcn != json.end() && earfcn->is_number_unsigned()) {
-        int64_t tac = -1, cid = -1;
-        auto ti = json.find("tac");
-        auto ci = json.find("cell_id");
-        if (ti != json.end() && ti->is_number_integer())
-            tac = ti->get<int64_t>();
-        if (ci != json.end() && ci->is_number_integer())
-            cid = ci->get<int64_t>();
-        auto e = earfcn->get<uint64_t>();
-        if (e <= UINT32_MAX) {
-            auto key = cell_decisions::derive_key("LTE", cell_decisions::plmn_from_json(json),
-                    tac, cid, pci->get<int64_t>(), true, static_cast<uint32_t>(e));
-            if (key.valid)
-                cellmac = cellkey_to_mac(key.key);
-            channel = std::to_string(e);
-        }
+    const auto f = cell_decisions::cell_fields(json);
+    if (f.pci && f.earfcn) {
+        const auto e = static_cast<uint32_t>(*f.earfcn);
+        auto key = cell_decisions::derive_key("LTE", cell_decisions::plmn_from_json(json),
+                f.tac.value_or(-1), f.cell_id.value_or(-1), *f.pci, true, e);
+        if (key.valid)
+            cellmac = cellkey_to_mac(key.key);
+        channel = std::to_string(e);
     }
 
     for (const auto& a : alerts) {
@@ -230,8 +219,8 @@ void kis_cellular_phy::security_to_alerts(const nlohmann::json& json,
 
 /* Collect the observation fields this JSON object actually carried, so a
  * provenance source can advertise what it contributes (e.g. AT supplies
- * mcc/mnc/tac/cell_id, DIAG supplies rsrp/rsrq). Only keys present and
- * non-null are reported. */
+ * mcc/mnc/tac/cell_id, DIAG supplies rsrp/rsrq). Only fields json_to_cell
+ * used are reported: a number that failed validation was not contributed. */
 // A provenance source is a short capture tag (at, diag, qmi), and an origin a
 // short printable token (a log code or AT command); either one keys or fills
 // device records, so anything else from a capture is dropped
@@ -260,13 +249,35 @@ static bool prov_origin_ok(const std::string& origin) {
     return true;
 }
 
-static std::vector<std::string> prov_contributed_fields(nlohmann::json& json) {
+static std::vector<std::string> prov_contributed_fields(const nlohmann::json& json,
+        const cell_decisions::plmn_t& plmn, const cell_decisions::cell_fields_t& f) {
     /* Which keys are present is a JSON question; which keys COUNT, and in what
      * order, is the decision layer's. */
+    const std::pair<const char *, bool> have[] = {
+        {"mcc", plmn.present}, {"mnc", plmn.present},
+        {"tac", f.tac.has_value()}, {"cell_id", f.cell_id.has_value()},
+        {"pci", f.pci.has_value()}, {"earfcn", f.earfcn.has_value()},
+        {"band", f.band.has_value()}, {"bandwidth", f.bandwidth.has_value()},
+        {"rsrp", f.rsrp.has_value()}, {"rsrq", f.rsrq.has_value()},
+        {"sinr", f.sinr.has_value()}, {"snr", f.snr.has_value()},
+        {"rssi", f.rssi.has_value()}, {"cqi", f.cqi.has_value()},
+    };
+
     std::vector<std::string> present;
     for (const auto& k : cell_decisions::prov_field_keys()) {
-        auto v = json[k];
-        if (!v.is_null())
+        bool p = false, numeric = false;
+        for (const auto& [name, ok] : have) {
+            if (k == name) {
+                numeric = true;
+                p = ok;
+                break;
+            }
+        }
+        if (!numeric) {
+            auto it = json.find(k);
+            p = it != json.end() && !it->is_null();
+        }
+        if (p)
             present.push_back(k);
     }
 
@@ -344,21 +355,14 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
      * (see plmn_from_numbers). */
     const cell_decisions::plmn_t plmn = cell_decisions::plmn_from_json(json);
 
-    auto tac_j = json["tac"];
-    if (tac_j.is_number())
-        tac = tac_j.get<int64_t>();
+    // Every number from the helper is range checked once; a bad one is absent
+    const auto fields = cell_decisions::cell_fields(json);
 
-    auto cid_j = json["cell_id"];
-    if (cid_j.is_number())
-        cid = cid_j.get<int64_t>();
-
-    auto pci_j = json["pci"];
-    if (pci_j.is_number())
-        pci = pci_j.get<int64_t>();
-
-    auto earfcn_j = json["earfcn"];
-    if (earfcn_j.is_number()) {
-        earfcn = earfcn_j.get<uint32_t>();
+    tac = fields.tac.value_or(-1);
+    cid = fields.cell_id.value_or(-1);
+    pci = fields.pci.value_or(-1);
+    if (fields.earfcn) {
+        earfcn = static_cast<uint32_t>(*fields.earfcn);
         have_earfcn = true;
     }
 
@@ -422,8 +426,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
         common.freq_khz = cell_decisions::arfcn_to_khz(rat, earfcn);
 
     // Build channel string from explicit band or EARFCN-derived band
-    auto band_j = json["band"];
-    const int explicit_band = band_j.is_number() ? band_j.get<int>() : 0;
+    const int explicit_band = static_cast<int>(fields.band.value_or(0));
     const int band_num = explicit_band > 0 ? explicit_band :
         ((have_earfcn && rat == "LTE") ? cell_decisions::earfcn_to_band(earfcn) : 0);
     common.channel = cell_decisions::channel_string(rat, explicit_band,
@@ -445,9 +448,8 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     // identity-only (no rsrp key), and this layer must not drop them either.
     //
     // Signal population is conditional; identity always lands.
-    auto rsrp_j = json["rsrp"];
-    const bool have_rsrp = cell_decisions::have_usable_rsrp(rsrp_j.is_number(),
-            rsrp_j.is_number() ? rsrp_j.get<int>() : 0);
+    const bool have_rsrp = cell_decisions::have_usable_rsrp(fields.rsrp.has_value(),
+            static_cast<int>(fields.rsrp.value_or(0)));
 
     // Populate L1 radio info so the base signal tracker picks up RSRP.
     //
@@ -480,7 +482,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
 
         l1info.data_ok = true;
         l1info.signal_type = kis_l1_signal_type_dbm;
-        l1info.signal_dbm = rsrp_j.get<int>();
+        l1info.signal_dbm = static_cast<int>(*fields.rsrp);
 
         if (common.freq_khz != 0)
             l1info.freq_khz = common.freq_khz;
@@ -744,16 +746,20 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     if (have_earfcn)
         celldev->set_cell_arfcn(earfcn);
 
+    // shown_band is a validated or table band, so the uint16 field holds it
+    static_assert(cell_decisions::kBandRange.hi <= UINT16_MAX);
     if (shown_band > 0)
-        celldev->set_cell_band(shown_band);
+        celldev->set_cell_band(static_cast<uint16_t>(shown_band));
 
-    auto bw_j = json["bandwidth"];
-    if (bw_j.is_number())
-        celldev->set_cell_bandwidth(bw_j.get<int>());
+    static_assert(cell_decisions::kBandwidthRange.hi <= UINT16_MAX);
+    if (fields.bandwidth)
+        celldev->set_cell_bandwidth(static_cast<uint16_t>(*fields.bandwidth));
 
     // Update signal fields
-    if (rsrp_j.is_number()) {
-        int16_t rsrp = rsrp_j.get<int16_t>();
+    static_assert(cell_decisions::kSignalRange.lo >= INT16_MIN &&
+            cell_decisions::kSignalRange.hi <= INT16_MAX);
+    if (fields.rsrp) {
+        const auto rsrp = static_cast<int16_t>(*fields.rsrp);
         celldev->set_cell_rsrp(rsrp);
 
         // Track min/max RSRP
@@ -763,30 +769,21 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
             celldev->set_cell_max_rsrp(rsrp);
     }
 
-    auto rsrq_j = json["rsrq"];
-    if (rsrq_j.is_number())
-        celldev->set_cell_rsrq(rsrq_j.get<int16_t>());
+    if (fields.rsrq)
+        celldev->set_cell_rsrq(static_cast<int16_t>(*fields.rsrq));
 
-    auto sinr_j = json["sinr"];
-    if (sinr_j.is_number())
-        celldev->set_cell_sinr(sinr_j.get<int16_t>());
+    if (fields.sinr)
+        celldev->set_cell_sinr(static_cast<int16_t>(*fields.sinr));
 
     // SNR is its own quantity, never folded into SINR
-    auto snr_j = json["snr"];
-    if (snr_j.is_number())
-        celldev->set_cell_snr(snr_j.get<int16_t>());
+    if (fields.snr)
+        celldev->set_cell_snr(static_cast<int16_t>(*fields.snr));
 
-    auto rssi_j = json["rssi"];
-    if (rssi_j.is_number())
-        celldev->set_cell_rssi(rssi_j.get<int16_t>());
+    if (fields.rssi)
+        celldev->set_cell_rssi(static_cast<int16_t>(*fields.rssi));
 
-    // Range check before narrowing, so a huge value can't wrap into 0..15
-    auto cqi_j = json["cqi"];
-    if (cqi_j.is_number_unsigned() && cqi_j.get<uint64_t>() <= 15)
-        celldev->set_cell_cqi(static_cast<int16_t>(cqi_j.get<uint64_t>()));
-    else if (cqi_j.is_number_integer() && !cqi_j.is_number_unsigned() &&
-            cqi_j.get<int64_t>() >= 0 && cqi_j.get<int64_t>() <= 15)
-        celldev->set_cell_cqi(static_cast<int16_t>(cqi_j.get<int64_t>()));
+    if (fields.cqi)
+        celldev->set_cell_cqi(static_cast<int16_t>(*fields.cqi));
 
     // Update observation count
     celldev->set_cell_observation_count(celldev->get_cell_observation_count() + 1);
@@ -821,7 +818,7 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
                 pcaptured = pcap_j.get<double>();
 
             update_seen_via(celldev, psrc, porigin, pcaptured,
-                            prov_contributed_fields(json));
+                            prov_contributed_fields(json, plmn, fields));
         }
     }
 
