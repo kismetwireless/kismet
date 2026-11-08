@@ -1817,6 +1817,8 @@ void *cf_int_chanhop_thread(void *arg) {
                     free(caph->channel_hop_list[i]);
                     if (caph->chanfree_cb != NULL)
                         (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
+                    else
+                        free(caph->custom_channel_hop_list[i]);
                     continue;
                 }
 
@@ -1871,7 +1873,10 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
         caph->hopping_running = 0;
     }
 
-    if (pthread_create(&(caph->hopthread), &attr, cf_int_chanhop_thread, caph) < 0) {
+    /* pthread_create returns an error number, never a negative value */
+    if (pthread_create(&(caph->hopthread), &attr, cf_int_chanhop_thread, caph) != 0) {
+        pthread_mutex_unlock(&(caph->handler_lock));
+        pthread_attr_destroy(&attr);
         cf_send_error(caph, 0, "failed to launch channel hopping thread");
         cf_handler_spindown(caph);
         return -1;
@@ -1880,6 +1885,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     caph->hopping_running = 1;
 
     pthread_mutex_unlock(&(caph->handler_lock));
+    pthread_attr_destroy(&attr);
 
     return 1;
 }
