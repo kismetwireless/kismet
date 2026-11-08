@@ -262,6 +262,10 @@ public:
     // Store all devices to the database
     virtual void databaselog_write_devices();
 
+    // Store every device, changed or not, such as into a new kismetdb file; leaves the
+    // regular device log's bookkeeping alone
+    void databaselog_write_all_devices();
+
     // View API
     virtual bool add_view(std::shared_ptr<device_tracker_view> in_view);
     virtual void remove_view(const std::string& in_view_id);

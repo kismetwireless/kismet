@@ -136,6 +136,9 @@ protected:
     std::shared_ptr<time_tracker> timetracker;
     int event_timer_id;
     std::shared_ptr<event_bus> eventbus;
+
+    // Writes the GPS position into each kismetdb file as it opens
+    unsigned long database_open_evt_id = 0;
 };
 
 #endif

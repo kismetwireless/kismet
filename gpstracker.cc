@@ -58,6 +58,9 @@ gps_tracker::~gps_tracker() {
     timetracker->remove_timer(log_snapshot_timer);
     timetracker->remove_timer(log_satellites_timer);
     timetracker->remove_timer(event_timer_id);
+
+    if (eventbus != nullptr && database_open_evt_id != 0)
+        eventbus->remove_listener(database_open_evt_id);
 }
 
 void gps_tracker::trigger_deferred_startup() {
@@ -82,6 +85,12 @@ void gps_tracker::trigger_deferred_startup() {
         log_snapshot_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
                     [this](int) -> int { log_snapshot_gps(); return 1; });
+
+        // A new kismetdb file, at startup or when the log rotates, gets a position right
+        // away instead of at the next timer
+        database_open_evt_id =
+            eventbus->register_listener(kis_database_logfile::event_log_open(),
+                    [this](std::shared_ptr<eventbus_event>) { log_snapshot_gps(); });
     } else {
         _MSG("GPS track logging disabled", MSGFLAG_INFO);
     }

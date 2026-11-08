@@ -38,6 +38,7 @@
 #include "config.h"
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -148,6 +149,8 @@ public:
         return device_mac_filter;
     }
 
+    // Published when a kismetdb log is opened, and again when kis_log_max_seconds or
+    // kis_log_max_mb starts a new file; listeners write their current state into it
     static std::string event_log_open() {
         return "KISMETDB_LOG_OPEN";
     }
@@ -168,12 +171,30 @@ protected:
     // The log whose lifetime lock this thread holds, if any
     static thread_local kis_database_logfile *current_writer;
 
+    // A rotation holds new writers here while it waits for the ones in flight, so a busy
+    // packet stream can't keep it from taking db_lifetime_mutex exclusively.  A thread that
+    // already holds the lock goes through.
+    std::atomic<bool> rotate_gate;
+    std::mutex rotate_gate_mutex;
+    std::condition_variable rotate_gate_cv;
+
+    // pcapng downloads in progress hold the database for their whole stream; a rotation
+    // waits for a moment without one instead of stopping every writer behind it
+    std::atomic<int> active_streams;
+
     class db_writer_guard {
     public:
         db_writer_guard(kis_database_logfile *in_log) :
             log{in_log},
-            lk{in_log->db_lifetime_mutex},
+            lk{in_log->db_lifetime_mutex, std::defer_lock},
             prev_writer{current_writer} {
+
+            if (current_writer != log && log->rotate_gate) {
+                std::unique_lock<std::mutex> gate_lk(log->rotate_gate_mutex);
+                log->rotate_gate_cv.wait(gate_lk, [this]() { return !log->rotate_gate; });
+            }
+
+            lk.lock();
             current_writer = log;
         }
 
@@ -321,6 +342,23 @@ protected:
     // Alert time limit
     unsigned int alert_timeout;
     int alert_timeout_timer;
+
+    // Start a new file after this long (kis_log_max_seconds) or this size (kis_log_max_mb),
+    // 0 for no limit; checked once a second
+    std::chrono::seconds max_duration;
+    uint64_t max_size;
+    std::atomic<std::chrono::steady_clock::time_point> file_opened;
+    // After a failed rotation (such as a full disk), when to try again
+    std::atomic<std::chrono::steady_clock::time_point> rotate_retry;
+    int rotate_timer;
+
+    bool file_due();
+
+    // Switch to the next file in place: devices are brought up to date in the old file,
+    // the database handle is swapped while no writer uses it, and the new file gets the
+    // devices, datasources and other state written again.  Alerts and messages stay in
+    // the file they were logged to.
+    void rotate_log();
 
     // Packet clearing API
     void packet_drop_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);

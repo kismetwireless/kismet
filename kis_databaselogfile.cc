@@ -24,6 +24,7 @@
 #include <optional>
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "globalregistry.h"
@@ -41,6 +42,27 @@ namespace {
 constexpr const char *tagged_data_prefix = "API:";
 constexpr size_t tagged_data_max_tag = 64;
 constexpr const char *tagged_data_role = "datalog";
+
+// Longest kis_log_max_seconds (a year) and largest kis_log_max_mb (1 TB)
+constexpr uint64_t max_log_seconds = 366ULL * 86400;
+constexpr uint64_t max_log_mb = 1024ULL * 1024;
+
+// A file limit from the config as plain digits, since an unsigned read turns -1 into a
+// huge number; 0 or unset is no limit
+uint64_t log_limit_opt(const std::string& name, uint64_t max) {
+    auto v = Globalreg::globalreg->kismet_config->fetch_opt(name);
+
+    if (v.empty())
+        return 0;
+
+    if (v.size() > 12 || v.find_first_not_of("0123456789") != std::string::npos ||
+            std::stoull(v) > max) {
+        _MSG_ERROR("Ignoring {}={}; expected a number from 0 (no limit) to {}", name, v, max);
+        return 0;
+    }
+
+    return std::stoull(v);
+}
 
 constexpr size_t tagged_data_default_size = 8 * 1024 * 1024;
 constexpr size_t tagged_data_min_size = 100000;
@@ -148,6 +170,15 @@ kis_database_logfile::kis_database_logfile():
 
     db_enabled = false;
     close_pending = false;
+    rotate_gate = false;
+    active_streams = 0;
+
+    max_duration = std::chrono::seconds(0);
+    max_size = 0;
+    file_opened = std::chrono::steady_clock::now();
+    rotate_retry = std::chrono::steady_clock::time_point{};
+    rotate_timer = -1;
+    transaction_timer = -1;
 
     message_evt_id = 0;
     alert_evt_id = 0;
@@ -228,6 +259,22 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     set_int_log_template(in_template);
 
 	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
+
+    file_opened = std::chrono::steady_clock::now();
+    max_duration = std::chrono::seconds(log_limit_opt("kis_log_max_seconds", max_log_seconds));
+    max_size = log_limit_opt("kis_log_max_mb", max_log_mb) * 1024 * 1024;
+
+    if (max_duration.count() != 0 || max_size != 0) {
+        rotate_timer =
+            timetracker->register_timer(std::chrono::seconds(1), 1,
+                    [this](int) -> int {
+                        if (db_enabled && file_due())
+                            rotate_log();
+                        return 1;
+                    });
+    } else {
+        rotate_timer = -1;
+    }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false)) {
         _MSG_INFO("KISMETDB LOG IS IN EPHEMERAL MODE.  LOG WILL *** NOT *** BE PRESERVED WHEN "
@@ -638,6 +685,8 @@ void kis_database_logfile::close_log() {
         Globalreg::fetch_global_as<time_tracker>();
 
     if (timetracker != NULL) {
+        // Waits for a rotation in progress, which gives up once it sees db_enabled is false
+        timetracker->remove_timer(rotate_timer);
         timetracker->remove_timer(transaction_timer);
         timetracker->remove_timer(packet_timeout_timer);
         timetracker->remove_timer(alert_timeout_timer);
@@ -731,6 +780,162 @@ static bool bind_text_checked(sqlite3_stmt *stmt, int pos, std::string_view s,
 static bool bind_blob_checked(sqlite3_stmt *stmt, int pos, std::string_view s,
         sqlite3_destructor_type d) {
     return sqlite3_bind_blob64(stmt, pos, s.data(), s.size(), d) == SQLITE_OK;
+}
+
+bool kis_database_logfile::file_due() {
+    if (std::chrono::steady_clock::now() < rotate_retry.load())
+        return false;
+
+    if (max_duration.count() != 0 &&
+            std::chrono::steady_clock::now() - file_opened.load() >= max_duration)
+        return true;
+
+    if (max_size != 0) {
+        // The size of the database as this connection sees it, so the open transaction
+        // counts too; the file itself only grows when a transaction ends
+        db_writer_guard writer_lk(this);
+
+        if (!db_enabled || db == nullptr)
+            return false;
+
+        auto pragma_int = [this](const char *sql) -> int64_t {
+            sqlite3_stmt *stmt = nullptr;
+            int64_t v = 0;
+
+            if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK &&
+                    sqlite3_step(stmt) == SQLITE_ROW)
+                v = sqlite3_column_int64(stmt, 0);
+
+            sqlite3_finalize(stmt);
+            return v;
+        };
+
+        if ((uint64_t) (pragma_int("PRAGMA page_count") * pragma_int("PRAGMA page_size")) >= max_size)
+            return true;
+    }
+
+    return false;
+}
+
+void kis_database_logfile::rotate_log() {
+    // Runs on the rotation timer; close_log() removes that timer before it closes the
+    // database, and waits for this to return
+
+    auto logtracker = Globalreg::fetch_global_as<log_tracker>();
+    if (logtracker == nullptr || builder == nullptr)
+        return;
+
+    // Bring the devices up to date in the file we're about to close
+    devicetracker->databaselog_write_devices();
+
+    const auto old_path = get_log_path();
+    const auto new_path = logtracker->expand_template(get_log_template(), builder->get_log_class());
+
+    {
+        std::lock_guard<std::mutex> gate_lk(rotate_gate_mutex);
+        rotate_gate = true;
+    }
+
+    auto open_gate = [this]() {
+        {
+            std::lock_guard<std::mutex> gate_lk(rotate_gate_mutex);
+            rotate_gate = false;
+        }
+        rotate_gate_cv.notify_all();
+    };
+
+    // A download holds the database until it ends; try again next second instead of
+    // making every writer wait for it.  A download that starts now waits at the gate.
+    if (active_streams > 0) {
+        open_gate();
+        return;
+    }
+
+    bool rotated = false;
+    bool tried = false;
+
+    {
+        // The writers in flight finish, new ones wait at the gate
+        std::unique_lock<std::shared_mutex> lifetime_lk(db_lifetime_mutex);
+
+        if (db_enabled && db != nullptr) {
+            tried = true;
+
+            auto old_db = db;
+            const auto old_uuid = database_get_db_uuid();
+            sqlite3_exec(old_db, "END TRANSACTION", NULL, NULL, NULL);
+
+            // The cached inserts belong to the old handle, and it can't close while
+            // they're open; they're prepared again on whichever handle is kept
+            finalize_cached();
+
+            // Only remove the new file on a failure if we made it
+            struct stat st;
+            const bool new_existed = lstat(new_path.c_str(), &st) == 0;
+
+            // database_open() and database_upgrade_db() work on db
+            db = nullptr;
+
+            if (database_open(new_path, SQLITE_OPEN_FULLMUTEX) && database_upgrade_db()) {
+                sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
+                sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+                sqlite3_exec(old_db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
+                sqlite3_close(old_db);
+
+                set_int_log_path(new_path);
+
+                // Like the first file, the log record carries the current file's uuid
+                auto dbuuid = database_get_db_uuid();
+                if (!dbuuid.error)
+                    set_int_log_uuid(dbuuid);
+
+                rotated = true;
+            } else {
+                if (db != nullptr)
+                    sqlite3_close(db);
+                if (!new_existed)
+                    unlink(new_path.c_str());
+
+                db = old_db;
+                ds_dbfile = old_path;
+
+                {
+                    kis_lock_guard<kis_mutex> dlk(ds_mutex, "kismetdb rotate restore");
+                    ds_db_uuid = old_uuid;
+                }
+
+                sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+            }
+        }
+    }
+
+    open_gate();
+
+    if (!tried)
+        return;
+
+    if (!rotated) {
+        // Such as a full disk; don't try, and complain, every second
+        rotate_retry = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        _MSG_ERROR("Failed to open new kismetdb log '{}'; continuing to log to '{}', and "
+                "trying again in 60 seconds", new_path, old_path);
+        return;
+    }
+
+    file_opened = std::chrono::steady_clock::now();
+
+    _MSG_INFO("Rotating to new kismetdb log '{}'", new_path);
+
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false))
+        unlink(new_path.c_str());
+
+    // Datasources, GPS and the system state are written by their owners on this event
+    auto evt = eventbus->get_eventbus_event(event_log_open());
+    eventbus->publish(evt);
+
+    // Every device, not only those that changed since the last device log
+    devicetracker->databaselog_write_all_devices();
 }
 
 // Bind a gps record's position, or zeros if there's no usable one
@@ -1936,7 +2141,14 @@ void kis_database_logfile::usage(const char *argv0) {
 void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
 	using namespace kissqlite3;
 
-	// Hold the database open for the whole stream; a close waits for it
+	// Hold the database open for the whole stream; a close waits for it, and a rotation
+	// waits for a moment without a stream
+	active_streams++;
+	struct stream_count {
+		std::atomic<int>& n;
+		~stream_count() { n--; }
+	} stream_count_lk{active_streams};
+
 	db_writer_guard writer_lk(this);
 	if (!db_enabled) {
 		std::ostream ostream(&con->response_stream());
