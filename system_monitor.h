@@ -97,6 +97,11 @@ public:
 
     __Proxy(string_cache_sz, uint64_t, uint64_t, uint64_t, string_cache_sz);
 
+    __Proxy(cpu_available, uint8_t, bool, bool, cpu_available);
+    __Proxy(cpu_count, uint32_t, uint32_t, uint32_t, cpu_count);
+    __Proxy(cpu_total, double, double, double, cpu_total);
+    __Proxy(cpu_kismet, double, double, double, cpu_kismet);
+
     virtual void pre_serialize() override;
 
 protected:
@@ -134,6 +139,11 @@ protected:
     std::shared_ptr<tracker_element_uint64> num_http_connections;
 
     std::shared_ptr<tracker_element_uint64> string_cache_sz;
+
+    std::shared_ptr<tracker_element_uint8> cpu_available;
+    std::shared_ptr<tracker_element_uint32> cpu_count;
+    std::shared_ptr<tracker_element_double> cpu_total;
+    std::shared_ptr<tracker_element_double> cpu_kismet;
 };
 
 // Detailed memory use, for /system/memory; sizes in kB, 0 where unknown
@@ -301,6 +311,46 @@ protected:
     std::shared_ptr<tracker_element_string_map> sensors;
 };
 
+// CPU load and its history, for /system/cpu; loads are percentages of all the CPUs
+class tracked_cpu_status : public tracker_component {
+public:
+    tracked_cpu_status() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_cpu_status(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_cpu_status(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    virtual ~tracked_cpu_status() { }
+
+    __ProxyTrackable(total_rrd, kis_tracked_gauge_rrd, total_rrd);
+    __ProxyTrackable(kismet_rrd, kis_tracked_gauge_rrd, kismet_rrd);
+
+protected:
+    virtual void register_fields() override;
+
+    std::shared_ptr<kis_tracked_gauge_rrd> total_rrd;
+    std::shared_ptr<kis_tracked_gauge_rrd> kismet_rrd;
+};
+
 class Systemmonitor : public lifetime_global, public time_tracker_event {
 public:
     static std::string global_name() { return "SYSTEMMONITOR"; }
@@ -357,6 +407,16 @@ protected:
 
     void update_temps();
     void record_temp(const std::string& name, const std::string& label, double temp);
+
+    std::shared_ptr<tracked_cpu_status> cpustatus;
+    std::shared_ptr<kis_net_web_tracked_endpoint> cpu_endp;
+    // The last /proc/stat and /proc/self/stat counters, in clock ticks
+    uint64_t cpu_last_total;
+    uint64_t cpu_last_idle;
+    uint64_t cpu_last_proc;
+    bool cpu_primed;
+
+    void update_cpu();
 
     long mem_per_page;
 

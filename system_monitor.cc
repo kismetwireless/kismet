@@ -151,6 +151,14 @@ Systemmonitor::Systemmonitor() :
                 1U, 1024U);
     thermal->set_history(thermal_history);
 
+    cpustatus = std::make_shared<tracked_cpu_status>();
+    cpustatus->insert(status->get_tracker_cpu_available());
+    cpustatus->insert(status->get_tracker_cpu_count());
+    cpustatus->insert(status->get_tracker_cpu_total());
+    cpustatus->insert(status->get_tracker_cpu_kismet());
+    cpu_last_total = cpu_last_idle = cpu_last_proc = 0;
+    cpu_primed = false;
+
     auto httpd = 
         Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -174,6 +182,9 @@ Systemmonitor::Systemmonitor() :
 
     thermal_endp = std::make_shared<kis_net_web_tracked_endpoint>(thermal, monitor_mutex);
     httpd->register_route("/system/thermal", {"GET", "POST"}, httpd->RO_ROLE, {}, thermal_endp);
+
+    cpu_endp = std::make_shared<kis_net_web_tracked_endpoint>(cpustatus, monitor_mutex);
+    httpd->register_route("/system/cpu", {"GET", "POST"}, httpd->RO_ROLE, {}, cpu_endp);
 
     timestamp_endp = 
         std::make_shared<kis_net_web_tracked_endpoint>(
@@ -285,6 +296,14 @@ Systemmonitor::Systemmonitor() :
                 sate->insert(status->get_tracker_num_http_connections());
                 sate->insert(status->get_tracker_memory());
                 sate->insert(status->get_tracker_devices());
+
+                // Copies; the loads are rewritten on every read
+                sate->insert(std::make_shared<tracker_element_uint8>(status->get_tracker_cpu_available()->get_id(),
+                            status->get_cpu_available()));
+                sate->insert(std::make_shared<tracker_element_double>(status->get_tracker_cpu_total()->get_id(),
+                            status->get_cpu_total()));
+                sate->insert(std::make_shared<tracker_element_double>(status->get_tracker_cpu_kismet()->get_id(),
+                            status->get_cpu_kismet()));
 
                 sevt->get_event_content()->insert(event_stats(), sate);
                 eventbus->publish(sevt);
@@ -457,6 +476,83 @@ void tracked_system_status::register_fields() {
     register_field("kismet.system.num_http_connections", "number of concurrent http connections", &num_http_connections);
 
     register_field("kismet.system.string_cache_size", "number of strings in cache", &string_cache_sz);
+
+    register_field("kismet.system.cpu.available", "CPU load can be read", &cpu_available);
+    register_field("kismet.system.cpu.count", "number of CPUs online", &cpu_count);
+    register_field("kismet.system.cpu.total", "CPU load of the system, percent of all CPUs", &cpu_total);
+    register_field("kismet.system.cpu.kismet",
+            "CPU load of the Kismet server process, percent of all CPUs", &cpu_kismet);
+}
+
+void tracked_cpu_status::register_fields() {
+    register_field("kismet.system.cpu.total_rrd", "CPU load of the system RRD", &total_rrd);
+    register_field("kismet.system.cpu.kismet_rrd", "CPU load of the Kismet server RRD", &kismet_rrd);
+}
+
+// Called with monitor_mutex held
+void Systemmonitor::update_cpu() {
+#ifdef SYS_LINUX
+    // cpu user nice system idle iowait irq softirq steal; guest time is already in user
+    uint64_t user, nice, sys, idle, iowait, irq, softirq, steal;
+    uint64_t utime, stime;
+
+    FILE *sf = fopen("/proc/stat", "r");
+    if (sf == nullptr)
+        return;
+
+    int r = fscanf(sf, "cpu %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
+            " %" SCNu64 " %" SCNu64, &user, &nice, &sys, &idle, &iowait, &irq, &softirq, &steal);
+    fclose(sf);
+
+    // Kernels before 2.6.11 have no steal
+    if (r == 7)
+        steal = 0;
+    else if (r != 8)
+        return;
+
+    std::ifstream pf("/proc/self/stat");
+    std::string procline;
+
+    if (!std::getline(pf, procline))
+        return;
+
+    // 'pid (name) state ...'; the name can hold spaces and parens, so the fields
+    // start after the last paren.  utime and stime are fields 14 and 15.
+    auto paren = procline.find_last_of(')');
+    if (paren == std::string::npos ||
+            sscanf(procline.c_str() + paren + 1, " %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %" SCNu64
+                " %" SCNu64, &utime, &stime) != 2)
+        return;
+
+    uint64_t total = user + nice + sys + idle + iowait + irq + softirq + steal;
+    uint64_t idle_all = idle + iowait;
+    uint64_t proc = utime + stime;
+
+    auto ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+    status->set_cpu_count(ncpu > 0 ? ncpu : 0);
+
+    // Counters only go up; anything else (a counter wrapping, or the first read)
+    // starts over from this read
+    if (cpu_primed && total > cpu_last_total && idle_all >= cpu_last_idle && proc >= cpu_last_proc) {
+        double dtotal = total - cpu_last_total;
+        double busy = dtotal - std::min<double>(dtotal, idle_all - cpu_last_idle);
+        double sys_pct = std::clamp(100.0 * busy / dtotal, 0.0, 100.0);
+        double kis_pct = std::clamp(100.0 * (proc - cpu_last_proc) / dtotal, 0.0, 100.0);
+
+        status->set_cpu_available(true);
+        status->set_cpu_total(sys_pct);
+        status->set_cpu_kismet(kis_pct);
+
+        auto now = Globalreg::globalreg->last_tv_sec.load();
+        cpustatus->get_total_rrd()->add_sample(sys_pct, now);
+        cpustatus->get_kismet_rrd()->add_sample(kis_pct, now);
+    }
+
+    cpu_last_total = total;
+    cpu_last_idle = idle_all;
+    cpu_last_proc = proc;
+    cpu_primed = true;
+#endif
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
@@ -469,6 +565,7 @@ int Systemmonitor::timetracker_event(int eventid) {
     status->get_devices_rrd()->add_sample(num_devices, Globalreg::globalreg->last_tv_sec);
 
     update_proc_memory();
+    update_cpu();
 
 #ifdef SYS_LINUX
     // Grab the memory from /proc
