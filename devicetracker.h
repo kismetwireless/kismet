@@ -116,6 +116,7 @@ public:
     bool get_ram_no_rrd() const { return ram_no_rrd; }
     bool get_map_seenby_views() const { return map_seenby_views; }
     bool get_map_phy_views() const { return map_phy_views; }
+    unsigned int get_device_presize() const { return device_presize; }
     bool get_track_persource_history() const { return track_persource_history; }
     bool get_track_history_cloud() const { return track_history_cloud; }
 
@@ -349,6 +350,7 @@ protected:
 
     // Maximum number of devices
     unsigned int max_num_devices;
+    unsigned int device_presize;
     int max_devices_timer;
 
     // Timer event for storing devices

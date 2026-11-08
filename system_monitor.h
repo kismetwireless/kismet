@@ -195,6 +195,20 @@ public:
 
     __ProxyTrackable(num_fields_rrd, kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>, num_fields_rrd);
 
+    __Proxy(startup_time, uint64_t, uint64_t, uint64_t, startup_time);
+    __Proxy(startup_rss, uint64_t, uint64_t, uint64_t, startup_rss);
+    __Proxy(startup_rss_anon, uint64_t, uint64_t, uint64_t, startup_rss_anon);
+    __Proxy(startup_heap_used, uint64_t, uint64_t, uint64_t, startup_heap_used);
+    __Proxy(startup_heap_mmap, uint64_t, uint64_t, uint64_t, startup_heap_mmap);
+    __Proxy(startup_fields, uint64_t, uint64_t, uint64_t, startup_fields);
+
+    __Proxy(datasources, uint64_t, uint64_t, uint64_t, datasources);
+    __Proxy(datasource_estimate, uint64_t, uint64_t, uint64_t, datasource_estimate);
+    __Proxy(packet_pool, uint64_t, uint64_t, uint64_t, packet_pool);
+    __Proxy(packet_pool_estimate, uint64_t, uint64_t, uint64_t, packet_pool_estimate);
+    __Proxy(dedupe_packets, uint64_t, uint64_t, uint64_t, dedupe_packets);
+    __Proxy(dedupe_estimate, uint64_t, uint64_t, uint64_t, dedupe_estimate);
+
     __ProxyTrackable(settings, tracker_element_string_map, settings);
 
 protected:
@@ -218,6 +232,20 @@ protected:
     std::shared_ptr<tracker_element_uint64> heap_mmap;
 
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> num_fields_rrd;
+
+    std::shared_ptr<tracker_element_uint64> startup_time;
+    std::shared_ptr<tracker_element_uint64> startup_rss;
+    std::shared_ptr<tracker_element_uint64> startup_rss_anon;
+    std::shared_ptr<tracker_element_uint64> startup_heap_used;
+    std::shared_ptr<tracker_element_uint64> startup_heap_mmap;
+    std::shared_ptr<tracker_element_uint64> startup_fields;
+
+    std::shared_ptr<tracker_element_uint64> datasources;
+    std::shared_ptr<tracker_element_uint64> datasource_estimate;
+    std::shared_ptr<tracker_element_uint64> packet_pool;
+    std::shared_ptr<tracker_element_uint64> packet_pool_estimate;
+    std::shared_ptr<tracker_element_uint64> dedupe_packets;
+    std::shared_ptr<tracker_element_uint64> dedupe_estimate;
 
     std::shared_ptr<tracker_element_string_map> settings;
 };
@@ -371,6 +399,9 @@ public:
     // time_tracker callback
     virtual int timetracker_event(int eventid) override;
 
+    // Record the memory Kismet uses once it has loaded, before any data source opens
+    void record_startup_memory();
+
     static std::string event_timestamp() { return "TIMESTAMP"; }
     static std::string event_battery() { return "BATTERY"; }
     static std::string event_stats() { return "STATISTICS"; }
@@ -398,6 +429,8 @@ protected:
 
     void update_proc_memory();
     void update_heap_memory();
+    // Data source and packet pool counts, and what they hold, for /system/memory
+    void update_capture_memory();
 
     std::shared_ptr<tracked_thermal_status> thermal;
     std::shared_ptr<kis_net_web_tracked_endpoint> thermal_endp;

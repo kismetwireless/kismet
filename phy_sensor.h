@@ -655,6 +655,8 @@ class kis_sensor_phy : public kis_phy_handler {
 public:
     virtual ~kis_sensor_phy();
 
+    bool get_track_last_record() const { return track_last_record; }
+
     kis_sensor_phy() :
         kis_phy_handler() { };
 

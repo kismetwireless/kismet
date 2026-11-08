@@ -101,6 +101,9 @@ public:
     kis_pcapng_logfile(shared_log_builder in_builder);
     virtual ~kis_pcapng_logfile();
 
+    // pcapng_log_buffer_mb, in bytes: how far the writer may fall behind
+    static size_t configured_buffer_bytes();
+
     virtual bool open_log(const std::string& in_temlate, const std::string& in_path) override;
     virtual void close_log() override;
     virtual bool request_rotate(std::string& err) override;

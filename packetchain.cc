@@ -320,6 +320,7 @@ void packet_chain::start_processing() {
     }
 
     dedupe_windows = std::make_unique<dedupe_window[]>(n_packet_threads);
+    dedupe_window_count.store(n_packet_threads, std::memory_order_release);
 
     packet_threads = std::make_unique<std::unique_ptr<packet_thread>[]>(n_packet_threads);
 
@@ -502,6 +503,20 @@ int64_t arrival_distance_us(const kis_packet& a, const kis_packet& b) {
     return d < 0 ? -d : d;
 }
 
+}
+
+size_t packet_chain::get_dedupe_packets() {
+    const auto nwindows = dedupe_window_count.load(std::memory_order_acquire);
+    size_t held = 0;
+
+    for (size_t w = 0; w < nwindows; w++) {
+        std::lock_guard<std::mutex> lk(dedupe_windows[w].mutex);
+        for (const auto& p : dedupe_windows[w].pkt)
+            if (p != nullptr)
+                held++;
+    }
+
+    return held;
 }
 
 void packet_chain::dedupe_packet(const std::shared_ptr<kis_packet>& packet) {

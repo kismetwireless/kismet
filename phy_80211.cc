@@ -805,7 +805,9 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     }
 
 
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_fingerprint_devices", true)) {
+    fingerprint_devices =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_fingerprint_devices", true);
+    if (fingerprint_devices) {
         auto fingerprint_s =
             Globalreg::globalreg->kismet_config->fetch_opt_dfl("dot11_beacon_ie_fingerprint",
                     "0,1,45,48,50,61,74,127,191,195,221-00156D-00,221-0050F2-2,221-001018-2,221-506F9A-28");

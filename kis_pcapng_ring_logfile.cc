@@ -169,6 +169,18 @@ uint64_t dir_size_bytes(const std::string& path) {
 
 } // anonymous namespace
 
+uint64_t kis_pcapng_ring_logfile::configured_file_size_bytes() {
+    auto file_size_mb = Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_ring_file_size_mb", 8L);
+    return static_cast<uint64_t>(file_size_mb) * 1024UL * 1024UL;
+}
+
+unsigned int kis_pcapng_ring_logfile::configured_file_count() {
+    auto count = static_cast<unsigned int>(
+            Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_ring_file_count", 8L));
+    // a one-file "ring" is just rotation; need >=2
+    return std::max(count, 2U);
+}
+
 kis_pcapng_ring_logfile::kis_pcapng_ring_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder),
     pcapng{nullptr},
@@ -187,13 +199,8 @@ kis_pcapng_ring_logfile::kis_pcapng_ring_logfile(shared_log_builder in_builder) 
     // 64 MB total (8 files * 8 MB) by default — chosen conservatively so
     // the ring fits comfortably on small/embedded targets. Bump on larger
     // sensors via the pcapng_ring_file_size_mb / _file_count config keys.
-    auto file_size_mb = cfg->fetch_opt_ulong("pcapng_ring_file_size_mb", 8L);
-    ring_file_size_bytes = static_cast<uint64_t>(file_size_mb) * 1024UL * 1024UL;
-
-    ring_file_count = static_cast<unsigned int>(
-            cfg->fetch_opt_ulong("pcapng_ring_file_count", 8L));
-    if (ring_file_count < 2)
-        ring_file_count = 2; // a one-file "ring" is just rotation; need >=2
+    ring_file_size_bytes = configured_file_size_bytes();
+    ring_file_count = configured_file_count();
 
     default_post_seconds = static_cast<unsigned int>(
             cfg->fetch_opt_ulong("pcapng_ring_default_post_seconds", 30L));

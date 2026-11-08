@@ -210,6 +210,9 @@ private:
 public:
     virtual ~phy_80211_ssid_tracker();
 
+    bool get_tracking_enabled() const { return ssid_tracking_enabled; }
+    size_t get_max_ssid_groups() const { return max_ssid_groups; }
+
     // ssid_hash is the hash of the raw SSID bytes the dissector put in ssid_csum, the same
     // key the device's advertised, responded and probed SSID maps use; the printable ssid
     // can differ from those bytes

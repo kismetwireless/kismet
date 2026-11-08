@@ -72,9 +72,7 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
 
     // How far the writer may fall behind before packets are dropped (or wait, when
     // blocking); at least 1MB
-    buffer_backlog =
-        Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_buffer_mb", PCAPNG_LOG_DEFAULT_BUFFER_MB);
-    buffer_backlog = std::max<size_t>(buffer_backlog, 1) * 1024 * 1024;
+    buffer_backlog = configured_buffer_bytes();
 
     block_on_buffer =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("pcapng_log_blocking", false);
@@ -82,6 +80,13 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
     pack_comp_l1data = packetchain->register_packet_component("L1RAW");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+}
+
+size_t kis_pcapng_logfile::configured_buffer_bytes() {
+    // At least 1MB
+    auto mb = Globalreg::globalreg->kismet_config->fetch_opt_ulong("pcapng_log_buffer_mb",
+            PCAPNG_LOG_DEFAULT_BUFFER_MB);
+    return std::max<size_t>(mb, 1) * 1024 * 1024;
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {

@@ -245,10 +245,10 @@ device_tracker::device_tracker() :
     last_database_logged = 0;
 
     // Preload the vector for speed
-    unsigned int preload_sz =
+    device_presize =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
-    immutable_tracked_vec->reserve(preload_sz);
+    immutable_tracked_vec->reserve(device_presize);
 
     // Set up the device timeout
     device_idle_expiration =

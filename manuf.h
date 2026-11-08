@@ -64,6 +64,8 @@ public:
 
     bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
 
+    bool get_lookup_enabled() const { return lookup_enabled; }
+
 protected:
     // OUI records loaded from the OUI file, sorted by OUI; the name is a range of
     // oui_names.  Written only during construction, so searched without a lock.
@@ -82,6 +84,8 @@ protected:
     ankerl::unordered_dense::map<uint32_t, manuf_data> oui_map;
 
     gzFile zmfile = nullptr;
+
+    bool lookup_enabled = true;
 
     // IDs for manufacturer objects
     int manuf_id;

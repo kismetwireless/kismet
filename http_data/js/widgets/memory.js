@@ -31,7 +31,8 @@ const detailSeconds = 10;
 const statusFields = [`${mem}.rss`, `${mem}.rrd`, `${sys}.devices.count`, `${sys}.devices.rrd`,
     `${sys}.timestamp.start_sec`];
 
-// What each setting does, for the settings list; all of them are in kismet_memory.conf
+// What each setting does, for the settings list; in kismet_memory.conf, kismet_80211.conf for dot11_,
+// or kismet_logging.conf for pcapng_
 const settingText = {
     tracker_device_timeout: ['Forget devices idle for this many seconds', (v) => v ? format.duration(v) : 'never'],
     tracker_device_packets: ['Only forget idle devices with fewer packets than this', (v) => v ? format.count(v) : 'any'],
@@ -41,6 +42,26 @@ const settingText = {
     track_device_phy_views: ['Device lists for each phy type', null],
     keep_per_datasource_stats: ['Signal and packet history per data source, for each device', null],
     keep_location_cloud_history: ['Location history cloud for each device', null],
+    tracker_device_presize: ['Room reserved in the device list at startup', (v) => format.count(v)],
+    manuf_lookup: ['Manufacturer names from the OUI list, loaded at startup', null],
+    alertbacklog: ['Alerts kept in the alert history', (v) => format.count(v)],
+    packet_backlog_warning: ['Warn when this many packets wait to be processed', (v) => v ? format.count(v) : 'off'],
+    packet_backlog_limit: ['Drop packets past this many waiting, about 1.5 kB each', (v) => v ? format.count(v) : 'no limit'],
+    ulimit_mbytes: ['Most memory Kismet may use before it exits', (v) => v ? format.size(v * 1024 * 1024) : 'no limit'],
+    rtl433_track_last: ['Keep the last message from each rtl433 sensor', null],
+    dot11_keep_eapol: ['Keep WPA handshake packets for each Wi-Fi device', null],
+    dot11_keep_ietags: ['Keep a copy of the IE tags for each SSID', null],
+    dot11_fingerprint_devices: ['Fingerprints of Wi-Fi devices, needed for allow lists', null],
+    dot11_11d_country_full: ['Full 802.11d channel lists for each access point', null],
+    dot11_view_accesspoints: ['Device list of Wi-Fi access points', null],
+    dot11_view_ssids: ['SSID list, separate from the devices', null],
+    dot11_max_ssid_groups: ['Most SSID groups the SSID list keeps', (v) => v ? format.count(v) : 'no limit'],
+    dot11_ap_only_survey: ['Only track Wi-Fi access points, not clients', null],
+    kismet_packet_threads: ['Packet threads; each keeps its last 1,024 packets to spot duplicates', (v) => format.count(v)],
+    pcapng_log_buffer_mb: ['Most packets each pcapng log holds while its writer catches up', (v) => format.size(v * 1024 * 1024)],
+    pcapng_ring_file_size_mb: ['Size of each pcapng ring file, on tmpfs when pcapng_ring logging is on', (v) => format.size(v * 1024 * 1024)],
+    pcapng_ring_file_count: ['Files in the pcapng ring; the ring holds about size times count of system memory',
+        (v, set) => `${format.count(v)}, ${format.size(v * (set.pcapng_ring_file_size_mb ?? 0) * 1024 * 1024)}`],
 };
 
 const kb = (v) => Number.isFinite(v) && v > 0 ? format.size(v * 1024) : '-';
@@ -101,6 +122,45 @@ function fit(points) {
     return { slope, intercept: (sy - slope * sx) / n };
 }
 
+// What the devices hold: the heap in use (or the resident memory, without heap stats), less
+// what Kismet held once it had loaded, the estimate for its data sources, recent packets kept
+// to recognize duplicates, and freed packets kept for reuse.  Sizes in kB; null on servers
+// without the startup snapshot
+function deviceMemory(detail, rss) {
+    const x = (f) => detail?.[`${mem}.${f}`] ?? 0;
+    const devices = detail?.[`${sys}.devices.count`] ?? 0;
+    let basis, used, start;
+    if (x('heap_known') && x('startup_heap_used') > 0) {
+        basis = 'heap';
+        used = x('heap_used') + x('heap_mmap');
+        start = x('startup_heap_used') + x('startup_heap_mmap');
+    } else if (x('startup_rss') > 0 && rss > 0) {
+        basis = 'rss';
+        used = rss;
+        start = x('startup_rss');
+    } else {
+        return null;
+    }
+    const sources = x('datasources') * x('datasource_estimate');
+    const pool = x('packet_pool_estimate');
+    const dedupe = x('dedupe_estimate');
+    const device = Math.max(0, used - start - sources - pool - dedupe);
+    return { basis, used, start, sources, nsources: x('datasources'), pool, dedupe, device, devices,
+        per: devices > 0 ? device / devices : 0 };
+}
+
+function deviceMemoryText(dm) {
+    const parts = [`the ${kb(dm.start)} Kismet held once it had loaded`];
+    if (dm.sources)
+        parts.push(`about ${kb(dm.sources)} for ${format.count(dm.nsources)} data source${dm.nsources === 1 ? '' : 's'}`);
+    if (dm.dedupe)
+        parts.push(`${kb(dm.dedupe)} of recent packets kept to spot duplicates`);
+    if (dm.pool)
+        parts.push(`${kb(dm.pool)} of freed packets kept for reuse`);
+    const last = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+    return `${dm.basis === 'heap' ? 'Heap in use' : 'Kismet\'s memory'} (${kb(dm.used)}), less ${last}, divided by the devices.`;
+}
+
 const finitePairs = (a, b) => a.map((v, i) => [v, b[i]]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 
 // Memory per device: how memory moved with the device count, over the hour
@@ -158,10 +218,15 @@ function insights({ status, detail, hist, views }) {
     const avail = detail?.[`${mem}.system_available`] ?? 0;
 
     const per = perDevice(hist);
+    const dm = deviceMemory(detail, rss);
     if (per)
         out.push({ level: 'info', title: `About ${format.size(per.kb * 1024)} per new device`,
             text: `How memory rose with the device count over the last ${per.span}.` +
-                (devices ? ` ${format.count(devices)} devices now, about ${format.size(rss * 1024 / devices)} each counting everything else Kismet holds.` : '') });
+                (dm?.devices ? ` ${format.count(dm.devices)} devices now hold about ${kb(dm.device)}, ${format.size(dm.per * 1024)} each.` :
+                    devices ? ` ${format.count(devices)} devices now, about ${format.size(rss * 1024 / devices)} each counting everything else Kismet holds.` : '') });
+    else if (dm?.devices)
+        out.push({ level: 'info', title: `About ${format.size(dm.per * 1024)} per device`,
+            text: `${deviceMemoryText(dm)}  The cost of a new device shows once the device count has changed enough over the hour.` });
     else if (devices)
         out.push({ level: 'info', title: `${format.size(rss * 1024 / devices)} per device, overall`,
             text: 'Kismet\'s memory divided by its devices.  The cost of a new device shows once the device count has changed enough over the hour.' });
@@ -281,14 +346,14 @@ export function openMemory() {
     const stats = el('div', { class: 'mem-stats' });
     const insightList = el('ul', { class: 'mem-insights' });
     const breakdown = el('div', { class: 'mem-rows' });
-    const settingList = el('div', { class: 'mem-rows' });
+    const settingList = el('div', { class: ['mem-rows', 'mem-settings'] });
     const sysTitle = el('h3', {}, 'System memory used');
     const fieldSection = el('section', {}, el('h3', { title: 'Every value Kismet tracks, in devices and everything else' }, 'Tracked fields'), fieldGraph.node);
     const sysSection = el('section', { hidden: true }, sysTitle, sysGraph.node);
     const detailSections = el('div', { class: 'mem-detail', hidden: true },
         el('section', {}, el('h3', {}, 'What the memory is'), breakdown),
         el('section', {}, el('h3', {}, 'Settings that change memory use'), settingList,
-            el('p', { class: 'muted mem-note' }, 'Set in kismet_memory.conf, or kismet_site.conf to override it.')));
+            el('p', { class: 'muted mem-note' }, 'Set in kismet_memory.conf, kismet_80211.conf for the dot11_ settings, or kismet_logging.conf for the pcapng_ ones; kismet_site.conf overrides them.')));
 
     const body = el('div', { class: 'mem-window' },
         el('div', { class: 'pk-bar' },
@@ -342,6 +407,13 @@ export function openMemory() {
         views = v;
     }
 
+    function perDeviceReadout(rss, devices) {
+        const dm = deviceMemory(detail, rss);
+        if (dm?.devices)
+            return readout('Per device', format.size(dm.per * 1024), deviceMemoryText(dm));
+        return rss && devices ? readout('Per device', format.size(rss * 1024 / devices), 'Kismet\'s memory divided by its devices') : null;
+    }
+
     function showStats(s, now) {
         const rss = s[`${mem}.rss`] ?? 0;
         const devices = s[`${sys}.devices.count`] ?? 0;
@@ -352,7 +424,7 @@ export function openMemory() {
             readout('Kismet', rss ? kb(rss) : 'n/a', 'Resident memory of the Kismet server'),
             detail?.[`${mem}.peak_rss`] ? readout('Peak', kb(detail[`${mem}.peak_rss`]), 'The most it has used since it started') : null,
             readout('Devices', format.count(devices)),
-            rss && devices ? readout('Per device', format.size(rss * 1024 / devices), 'Kismet\'s memory divided by its devices') : null,
+            perDeviceReadout(rss, devices),
             total ? readout('System free', `${kb(avail)} (${pct(avail, total)})`, `Of ${kb(total)}`) : null,
             start ? readout('Up', format.duration(now - start)) : null].filter(Boolean));
     }
@@ -363,7 +435,16 @@ export function openMemory() {
             return;
         const x = (f) => detail[`${mem}.${f}`] ?? 0;
         const heap = x('heap_known');
+        const dm = deviceMemory(detail, x('rss'));
+        const used = dm?.basis === 'heap' ? 'of the heap in use' : 'of Kismet\'s memory';
         breakdown.replaceChildren(...rows([
+            dm ? ['Once loaded', kb(dm.start), `${used}, before any data source opened`] : null,
+            dm ? ['Data sources', dm.sources ? `~${kb(dm.sources)}` : 'none',
+                dm.nsources ? `about ${kb(x('datasource_estimate'))} each; capture helpers are separate programs` : ''] : null,
+            dm ? ['Recent packets', dm.dedupe ? `~${kb(dm.dedupe)}` : 'none',
+                `${format.count(x('dedupe_packets'))} kept to spot duplicates, up to ${format.count(1024)} per packet thread`] : null,
+            dm ? ['Packets kept for reuse', dm.pool ? `~${kb(dm.pool)}` : 'none', `${format.count(x('packet_pool'))} freed packets`] : null,
+            dm ? ['Devices', kb(dm.device), `${used}, ${format.count(dm.devices)} device${dm.devices === 1 ? '' : 's'}`] : null,
             ['Heap and stacks', kb(x('rss_anon')), 'device records, packets, buffers'],
             ['Program and libraries', kb(x('rss_file')), 'shared with other programs using them'],
             x('rss_shmem') ? ['Shared memory', kb(x('rss_shmem'))] : null,
@@ -380,7 +461,7 @@ export function openMemory() {
         ]));
         const set = detail[`${mem}.settings`] ?? {};
         settingList.replaceChildren(...rows(Object.entries(settingText).filter(([k]) => k in set).map(([k, [text, fmt]]) =>
-            [el('code', {}, k), fmt ? fmt(set[k]) : set[k] ? 'on' : 'off', text])));
+            [el('code', {}, k), fmt ? fmt(set[k], set) : set[k] ? 'on' : 'off', text])));
     }
 
     async function read(force = false) {
