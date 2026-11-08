@@ -186,6 +186,27 @@ public:
         set_int_log_open(false);
     }
 
+    // Start a new file soon, as a size or time limit would.  Returns false with the reason
+    // in err when this log can't: it isn't open, its type doesn't start new files, or its
+    // template has no %i to number them.
+    virtual bool request_rotate(std::string& err) {
+        err = "this log type can't start a new file";
+        return false;
+    }
+
+    // Published once a log file is complete and closed: when a size or time limit or a
+    // rotate request starts the next file, and when the log is closed.  A kismetdb file a
+    // pcapng download is still reading is finished when that download ends.
+    static std::string event_log_finished() {
+        return "LOG_FINISHED";
+    }
+
+    // A template that can name another file
+    static bool template_numbers_files(const std::string& in_template) {
+        return in_template.find("%i") != std::string::npos ||
+            in_template.find("%I") != std::string::npos;
+    }
+
     __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
     __ProxyTrackable(builder, kis_logfile_builder, builder);
     __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
@@ -194,6 +215,12 @@ public:
     __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);
 
 protected:
+    // Publish event_log_finished for a file, with the log's uuid while it was written (a
+    // kismetdb log takes the uuid of each new file), its path and why it ended: "size",
+    // "duration", "api" or "close"
+    void publish_log_finished(const uuid& in_log_uuid, const std::string& in_path,
+            const std::string& in_reason);
+
     virtual void register_fields() override {
         tracker_component::register_fields();
 

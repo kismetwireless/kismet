@@ -27,6 +27,7 @@
 #include "alertracker.h"
 #include "packetchain.h"
 #include "base64.h"
+#include "eventbus.h"
 
 // A log title from the API becomes part of the log file name, so only
 // accept plain filename characters, never a leading '.', and a bounded length
@@ -230,6 +231,42 @@ void log_tracker::trigger_deferred_startup() {
                     stream << "OK\n";
                 }));
 
+    httpd->register_route("/logging/by-uuid/:uuid/rotate", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    std::ostream stream(&con->response_stream());
+
+                    auto u = string_to_n<uuid>(con->uri_params()[":uuid"]);
+
+                    if (u.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    kis_lock_guard<kis_mutex> lk(tracker_mutex, static_cast<std::string>(con->uri()));
+
+                    std::shared_ptr<kis_logfile> logfile;
+                    for (auto lfi : *logfile_vec) {
+                        auto lf = std::static_pointer_cast<kis_logfile>(lfi);
+
+                        if (lf->get_log_uuid() == u) {
+                            logfile = lf;
+                            break;
+                        }
+                    }
+
+                    if (logfile == nullptr)
+                        throw std::runtime_error("no such log");
+
+                    // The new file starts on the log's own rotation path, shortly after
+                    std::string err;
+                    if (!logfile->request_rotate(err))
+                        throw std::runtime_error(err);
+
+                    _MSG_INFO("Starting a new file for log {} ({})", logfile->get_log_uuid(),
+                            logfile->get_log_path());
+
+                    stream << "OK\n";
+                }));
+
     httpd->register_route("/logging/by-class/:class/start", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -418,3 +455,23 @@ void log_tracker::usage(const char *argv0) {
 		   " -n, --no-logging             Disable logging entirely\n");
 }
 
+void kis_logfile::publish_log_finished(const uuid& in_log_uuid, const std::string& in_path,
+        const std::string& in_reason) {
+    auto eventbus = Globalreg::fetch_global_as<event_bus>();
+    if (eventbus == nullptr)
+        return;
+
+    auto evt = eventbus->get_eventbus_event(event_log_finished());
+    auto content = evt->get_event_content();
+
+    content->insert("kismet.logfile.uuid",
+            std::make_shared<tracker_element_string>(in_log_uuid.as_string()));
+    content->insert("kismet.logfile.class",
+            std::make_shared<tracker_element_string>(builder != nullptr ?
+                builder->get_log_class() : ""));
+    content->insert("kismet.logfile.path", std::make_shared<tracker_element_string>(in_path));
+    content->insert("kismet.logfile.finished_reason",
+            std::make_shared<tracker_element_string>(in_reason));
+
+    eventbus->publish(evt);
+}

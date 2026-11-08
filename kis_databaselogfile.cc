@@ -179,6 +179,7 @@ kis_database_logfile::kis_database_logfile():
     rotate_retry = std::chrono::steady_clock::time_point{};
     rotate_timer = -1;
     rotate_disabled = false;
+    rotate_requested = false;
     fresh_size = 0;
     fresh_size_warned = false;
     transaction_timer = -1;
@@ -269,9 +270,7 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     max_size = log_limit_opt("kis_log_max_mb", max_log_mb) * 1024 * 1024;
 
     // Each file needs a new name, and only a numbered template has one
-    if ((max_duration.count() != 0 || max_size != 0) &&
-            in_template.find("%i") == std::string::npos &&
-            in_template.find("%I") == std::string::npos) {
+    if ((max_duration.count() != 0 || max_size != 0) && !template_numbers_files(in_template)) {
         _MSG_ERROR("kis_log_max_seconds and kis_log_max_mb need a log_template with %i to "
                 "number the files; '{}' has none, so the kismetdb log will not rotate",
                 in_template);
@@ -279,12 +278,22 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
         max_size = 0;
     }
 
-    if (max_duration.count() != 0 || max_size != 0) {
+    // Also runs for rotate requests, which only need a numbered template
+    if (max_duration.count() != 0 || max_size != 0 || template_numbers_files(in_template)) {
         rotate_timer =
             timetracker->register_timer(std::chrono::seconds(1), 1,
                     [this](int) -> int {
-                        if (db_enabled && file_due())
+                        if (db_enabled && file_due()) {
+                            const auto opened = file_opened.load();
+
                             rotate_log();
+
+                            // A rotate request that didn't get its new file (the locks were
+                            // busy, or opening it failed) stays pending
+                            if (rotate_reason == "api" && file_opened.load() == opened &&
+                                    db_enabled && !rotate_disabled)
+                                rotate_requested = true;
+                        }
                         return 1;
                     });
     } else {
@@ -745,6 +754,7 @@ void kis_database_logfile::close_log() {
 
     // A download still reading it closes it when it ends
     std::string path;
+    const auto log_uuid = get_log_uuid();
     bool closed;
 
     {
@@ -752,11 +762,30 @@ void kis_database_logfile::close_log() {
         auto h = db;
         db = nullptr;
         path = ds_dbfile;
-        closed = retire_handle(h, path);
+        closed = retire_handle(h, path, log_uuid, "close");
     }
 
-    if (closed)
+    if (closed) {
         _MSG_INFO("Finished kismetdb log '{}'", path);
+        publish_log_finished(log_uuid, path, "close");
+    }
+}
+
+bool kis_database_logfile::request_rotate(std::string& err) {
+    // Without a numbered template there's no timer to take the request
+    if (!db_enabled || rotate_timer < 0) {
+        err = db_enabled ? "the log_template has no %i to number another kismetdb file" :
+            "the kismetdb log is not open";
+        return false;
+    }
+
+    if (rotate_disabled) {
+        err = "the log_template can't make another kismetdb file name";
+        return false;
+    }
+
+    rotate_requested = true;
+    return true;
 }
 
 sqlite3 *kis_database_logfile::acquire_stream_handle() {
@@ -783,10 +812,12 @@ void kis_database_logfile::release_stream_handle(sqlite3 *h) {
 
     auto r = retired_handles.find(h);
     if (r != retired_handles.end()) {
-        const auto path = r->second;
+        const auto retired = r->second;
         retired_handles.erase(r);
-        if (close_finished(h, path))
-            _MSG_INFO("Finished kismetdb log '{}'", path);
+        if (close_finished(h, retired.path)) {
+            _MSG_INFO("Finished kismetdb log '{}'", retired.path);
+            publish_log_finished(retired.log_uuid, retired.path, retired.reason);
+        }
     }
 }
 
@@ -799,14 +830,15 @@ bool kis_database_logfile::close_finished(sqlite3 *h, const std::string& path) {
     return true;
 }
 
-bool kis_database_logfile::retire_handle(sqlite3 *h, const std::string& path) {
+bool kis_database_logfile::retire_handle(sqlite3 *h, const std::string& path,
+        const uuid& log_uuid, const std::string& reason) {
     if (h == nullptr)
         return false;
 
     std::lock_guard<std::mutex> lk(stream_handle_mutex);
 
     if (stream_handle_users.find(h) != stream_handle_users.end()) {
-        retired_handles[h] = path;
+        retired_handles[h] = retired_handle{path, log_uuid, reason};
         return false;
     }
 
@@ -869,9 +901,16 @@ bool kis_database_logfile::file_due() {
     if (rotate_disabled || std::chrono::steady_clock::now() < rotate_retry.load())
         return false;
 
-    if (max_duration.count() != 0 &&
-            std::chrono::steady_clock::now() - file_opened.load() >= max_duration)
+    if (rotate_requested.exchange(false)) {
+        rotate_reason = "api";
         return true;
+    }
+
+    if (max_duration.count() != 0 &&
+            std::chrono::steady_clock::now() - file_opened.load() >= max_duration) {
+        rotate_reason = "duration";
+        return true;
+    }
 
     if (max_size != 0) {
         // The size of the database as this connection sees it, so the open transaction
@@ -885,8 +924,10 @@ bool kis_database_logfile::file_due() {
 
         // A new file starts with every device in it; it has to gain some data of its own
         // before the size can start another one
-        if (size >= max_size && size >= fresh_size + max_size / 4)
+        if (size >= max_size && size >= fresh_size + max_size / 4) {
+            rotate_reason = "size";
             return true;
+        }
     }
 
     return false;
@@ -990,6 +1031,7 @@ void kis_database_logfile::rotate_log() {
 
     auto old_db = db;
     const auto old_uuid = database_get_db_uuid();
+    const auto old_log_uuid = get_log_uuid();
     sqlite3_exec(old_db, "END TRANSACTION", NULL, NULL, NULL);
 
     // The cached inserts belong to the old handle, and it can't close while they're open;
@@ -1010,7 +1052,7 @@ void kis_database_logfile::rotate_log() {
 
         sqlite3_exec(old_db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
         // A download still reading the old file closes it when it ends
-        old_closed = retire_handle(old_db, old_path);
+        old_closed = retire_handle(old_db, old_path, old_log_uuid, rotate_reason);
 
         set_int_log_path(new_path);
 
@@ -1053,8 +1095,10 @@ void kis_database_logfile::rotate_log() {
     fresh_size = 0;
 
     _MSG_INFO("Rotating to new kismetdb log '{}'", new_path);
-    if (old_closed)
+    if (old_closed) {
         _MSG_INFO("Finished kismetdb log '{}'", old_path);
+        publish_log_finished(old_log_uuid, old_path, rotate_reason);
+    }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false))
         unlink(new_path.c_str());

@@ -103,9 +103,11 @@ public:
 
     virtual bool open_log(const std::string& in_temlate, const std::string& in_path) override;
     virtual void close_log() override;
+    virtual bool request_rotate(std::string& err) override;
 
 protected:
-    void rotate_log();
+    // in_reason is what started the next file, for event_log_finished
+    void rotate_log(const char *in_reason);
 
     // Warn about packets dropped because the writer fell behind; rate limited unless final
     void report_drops(bool final);
@@ -142,6 +144,9 @@ protected:
         return max_duration.count() != 0 &&
             std::chrono::steady_clock::now() - file_opened.load() >= max_duration;
     }
+
+    // A rotate request over the API, taken up by the writer thread
+    std::atomic<bool> rotate_requested;
 
     // Set by close_log() under buffer_mutex, so a rotation can't swap in a buffer
     // close_log() never cancels
