@@ -7,6 +7,10 @@
 // area.activate(id) switches to another of the area's tabs.  Tabs that don't
 // fit across the bar go in a "More" menu; the active tab always stays on the bar.
 //
+// With { minimizable: true }, a button at the end of the bar shrinks the area
+// to its tab bar, remembered across views and reloads; picking a tab or
+// area.setMinimized(false) brings it back.
+//
 // showPane(id) switches to a tab from anywhere on the page (a ribbon stat,
 // say): id is a pane id, or the id given to kismet.ui.addTable.
 
@@ -77,9 +81,19 @@ export function showPane(id) {
     return true;
 }
 
-export function createPaneArea(container, area) {
+export function createPaneArea(container, area, { minimizable = false } = {}) {
     const tabs = el('div', { class: 'tabs', role: 'tablist' });
     const tools = el('div', { class: 'tab-tools' });
+    const minButton = minimizable ?
+        el('button', { class: 'icon-button tab-tool tab-minimize', onclick: () => areaApi.setMinimized(!areaApi.isMinimized()) }) :
+        null;
+
+    function showMinimized(on) {
+        container.classList.toggle('minimized', on);
+        minButton.replaceChildren(icon(on ? 'restore' : 'minimize'));
+        minButton.title = on ? 'Restore' : 'Minimize';
+        minButton.setAttribute('aria-expanded', on ? 'false' : 'true');
+    }
     const moreList = el('div', { class: 'menu-list tab-more-list', role: 'menu', hidden: true });
     const moreButton = el('button', { class: 'tab tab-more-button', 'aria-haspopup': 'menu', title: 'More tabs',
         onclick: (e) => {
@@ -87,19 +101,31 @@ export function createPaneArea(container, area) {
             moreList.hidden ? openMore() : closeMore();
         } }, 'More', icon('down'));
     const more = el('div', { class: 'tab-more', hidden: true }, moreButton, moreList);
-    const bar = el('div', { class: 'tab-bar' }, tabs, more, tools);
+    const bar = el('div', { class: 'tab-bar' }, tabs, more, tools, minButton);
     const bodies = el('div', { class: 'tab-bodies' });
     container.append(bar, bodies);
 
     const expandListeners = new Set();
     const areaApi = {
         setExpanded(on) {
+            if (on)
+                areaApi.setMinimized(false);
             container.classList.toggle('expanded', on);
             for (const fn of expandListeners)
                 fn(on);
         },
         isExpanded: () => container.classList.contains('expanded'),
-        activate: (id) => activate(id),
+        setMinimized(on) {
+            if (!minButton || on === areaApi.isMinimized())
+                return;
+            showMinimized(on);
+            settings.set(`panes.${area}.minimized`, on);
+        },
+        isMinimized: () => container.classList.contains('minimized'),
+        activate: (id) => {
+            areaApi.setMinimized(false);
+            activate(id);
+        },
         onExpand(fn) {
             expandListeners.add(fn);
             return () => expandListeners.delete(fn);
@@ -208,7 +234,7 @@ export function createPaneArea(container, area) {
             if (!built.has(p.id)) {
                 const body = el('div', { class: 'tab-body', role: 'tabpanel', hidden: true });
                 const tab = el('button', { class: 'tab', role: 'tab', 'aria-selected': 'false',
-                    onclick: () => activate(p.id) }, p.title);
+                    onclick: () => areaApi.activate(p.id) }, p.title);
                 let handle = null;
                 try {
                     handle = p.create(body, areaApi) ?? null;
@@ -231,4 +257,7 @@ export function createPaneArea(container, area) {
 
     panes.watch(build);
     build();
+    if (minButton)
+        showMinimized(settings.get(`panes.${area}.minimized`, false) === true);
+    return areaApi;
 }

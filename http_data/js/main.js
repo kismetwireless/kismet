@@ -141,15 +141,16 @@ async function start() {
     createMenu(document.getElementById('menu'));
     createRibbon(document.getElementById('ribbon'));
     createPaneArea(document.getElementById('main'), 'main');
-    createPaneArea(document.getElementById('bottom'), 'bottom');
+    const bottomArea = createPaneArea(document.getElementById('bottom'), 'bottom', { minimizable: true });
     mainOutline.done();
     bottomOutline.done();
-    setupSplit();
+    setupSplit(bottomArea);
     loadServerName();
 }
 
-// Drag the bar between the device list and the bottom panes to resize them
-function setupSplit() {
+// Drag the bar between the device list and the bottom panes to resize them;
+// dragging a minimized bottom area brings it back first
+function setupSplit(bottomArea) {
     const bar = document.getElementById('split');
     const bottom = document.getElementById('bottom');
     const saved = kismet.settings.get('layout.bottomHeight', null);
@@ -158,6 +159,7 @@ function setupSplit() {
 
     bar.addEventListener('pointerdown', (e) => {
         bar.setPointerCapture(e.pointerId);
+        bottomArea.setMinimized(false);
         const startY = e.clientY;
         const startHeight = bottom.offsetHeight;
         const move = (ev) => {
