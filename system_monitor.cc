@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 
@@ -139,6 +140,17 @@ Systemmonitor::Systemmonitor() :
     sensors_init(NULL);
 #endif
 
+    thermal_sensor_id =
+        Globalreg::globalreg->entrytracker->register_field("kismet.system.thermal.sensor",
+                tracker_element_factory<tracked_thermal_sensor>(), "temperature sensor");
+
+    thermal = std::make_shared<tracked_thermal_status>();
+    thermal_history = Globalreg::globalreg->kismet_config->fetch_opt_bool("system_thermal_history", true);
+    thermal_max_sensors =
+        std::clamp(Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("system_thermal_max_sensors", 32),
+                1U, 1024U);
+    thermal->set_history(thermal_history);
+
     auto httpd = 
         Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -159,6 +171,9 @@ Systemmonitor::Systemmonitor() :
                 return memstatus;
             }, monitor_mutex);
     httpd->register_route("/system/memory", {"GET", "POST"}, httpd->RO_ROLE, {}, memory_endp);
+
+    thermal_endp = std::make_shared<kis_net_web_tracked_endpoint>(thermal, monitor_mutex);
+    httpd->register_route("/system/thermal", {"GET", "POST"}, httpd->RO_ROLE, {}, thermal_endp);
 
     timestamp_endp = 
         std::make_shared<kis_net_web_tracked_endpoint>(
@@ -273,6 +288,19 @@ Systemmonitor::Systemmonitor() :
 
                 sevt->get_event_content()->insert(event_stats(), sate);
                 eventbus->publish(sevt);
+
+                // A copy, since the sensor map is refilled on every read while the
+                // event is serialized on other threads
+                auto temps = std::make_shared<tracker_element_string_map>(status->get_sensors_temp()->get_id());
+                for (const auto& t : *status->get_sensors_temp())
+                    temps->insert(t.first, std::make_shared<tracker_element_double>(0,
+                                std::static_pointer_cast<tracker_element_double>(t.second)->get()));
+
+                auto tevt = eventbus->get_eventbus_event(event_thermal());
+                auto tate = std::make_shared<tracker_element_map>();
+                tate->insert(temps);
+                tevt->get_event_content()->insert(event_thermal(), tate);
+                eventbus->publish(tevt);
 
 
                 status->post_serialize();
@@ -479,6 +507,59 @@ int Systemmonitor::timetracker_event(int eventid) {
 
 #endif
 
+    update_temps();
+
+    return 1;
+}
+
+void tracked_thermal_sensor::register_fields() {
+    register_field("kismet.system.thermal.sensor.name",
+            "sensor name, as in kismet.system.sensors.temp", &name);
+    register_field("kismet.system.thermal.sensor.label", "what the sensor measures", &label);
+    register_field("kismet.system.thermal.sensor.temp", "last temperature, in degrees C", &temp);
+    register_field("kismet.system.thermal.sensor.last_time", "last time the sensor was read", &last_time);
+    temp_rrd_id =
+        register_dynamic_field("kismet.system.thermal.sensor.rrd",
+                "temperature history, in degrees C", &temp_rrd);
+}
+
+void tracked_thermal_status::register_fields() {
+    register_field("kismet.system.thermal.history", "temperature history is kept", &history);
+    register_field("kismet.system.thermal.sensors", "temperature sensors, by name", &sensors);
+}
+
+// Called with monitor_mutex held
+void Systemmonitor::record_temp(const std::string& name, const std::string& label, double temp) {
+    time_t now = Globalreg::globalreg->last_tv_sec;
+
+    status->get_sensors_temp()->insert(name, std::make_shared<tracker_element_double>(0, temp));
+
+    auto sensors = thermal->get_sensors();
+    std::shared_ptr<tracked_thermal_sensor> sensor;
+
+    auto si = sensors->find(name);
+    if (si == sensors->end()) {
+        // Sensors are kept once seen, so a host with many is capped
+        if (sensors->size() >= thermal_max_sensors)
+            return;
+
+        sensor = std::make_shared<tracked_thermal_sensor>(thermal_sensor_id);
+        sensor->set_name(name);
+        sensor->set_label(label);
+        sensors->insert(name, sensor);
+    } else {
+        sensor = std::static_pointer_cast<tracked_thermal_sensor>(si->second);
+    }
+
+    sensor->set_temp(temp);
+    sensor->set_last_time(now);
+
+    if (thermal_history)
+        sensor->get_temp_rrd()->add_sample(temp, now);
+}
+
+// Called with monitor_mutex held
+void Systemmonitor::update_temps() {
 #if defined(SYS_LINUX)
     status->get_sensors_fans()->clear();
     status->get_sensors_temp()->clear();
@@ -488,86 +569,82 @@ int Systemmonitor::timetracker_event(int eventid) {
     while (auto chip = sensors_get_detected_chips(NULL, &sensor_nr)) {
         int i = 0;
         while (auto fi = sensors_get_features(chip, &i)) {
-            char *label;
-            char chipname[64];
-            const char* adapter_name;
-            double val;
             const sensors_subfeature *sf;
 
-            std::string synth_name;
+            if (fi->type == SENSORS_FEATURE_TEMP)
+                sf = sensors_get_subfeature(chip, fi, SENSORS_SUBFEATURE_TEMP_INPUT);
+            else if (fi->type == SENSORS_FEATURE_FAN)
+                sf = sensors_get_subfeature(chip, fi, SENSORS_SUBFEATURE_FAN_INPUT);
+            else
+                continue;
 
-            switch (fi->type) {
-                case SENSORS_FEATURE_TEMP:
-                    sf = sensors_get_subfeature(chip, fi, SENSORS_SUBFEATURE_TEMP_INPUT);
+            double val;
 
-                    if (sf == nullptr)
-                        break;
+            if (sf == nullptr || sensors_get_value(chip, sf->number, &val) < 0)
+                continue;
 
-                    adapter_name = sensors_get_adapter_name(&chip->bus);
-                    sensors_snprintf_chip_name(chipname, 64, chip);
-                    label = sensors_get_label(chip, fi);
-                    sensors_get_value(chip, sf->number, &val);
+            char chipname[64];
+            if (sensors_snprintf_chip_name(chipname, sizeof(chipname), chip) < 0)
+                chipname[0] = 0;
 
-                    synth_name = fmt::format("{}-{}-{}", 
-                            munge_to_printable(chipname),
-                            munge_to_printable(label),
-                            munge_to_printable(adapter_name));
+            // Either can be NULL
+            const char *adapter_name = sensors_get_adapter_name(&chip->bus);
+            char *label = sensors_get_label(chip, fi);
 
-                    status->get_sensors_temp()->insert(synth_name, 
-                            std::make_shared<tracker_element_double>(0, val));
+            auto label_s = munge_to_printable(label != nullptr ? label : "");
+            auto chip_s = munge_to_printable(chipname);
 
-                    free(label);
+            auto synth_name = fmt::format("{}-{}-{}", chip_s, label_s,
+                    munge_to_printable(adapter_name != nullptr ? adapter_name : ""));
 
-                    break;
+            free(label);
 
-                case SENSORS_FEATURE_FAN:
-                    sf = sensors_get_subfeature(chip, fi, SENSORS_SUBFEATURE_FAN_INPUT);
-
-                    if (sf == nullptr)
-                        break;
-
-                    adapter_name = sensors_get_adapter_name(&chip->bus);
-                    sensors_snprintf_chip_name(chipname, 64, chip);
-                    label = sensors_get_label(chip, fi);
-                    sensors_get_value(chip, sf->number, &val);
-
-                    synth_name = fmt::format("{}-{}-{}", 
-                            munge_to_printable(chipname),
-                            munge_to_printable(label),
-                            munge_to_printable(adapter_name));
-
-                    status->get_sensors_fans()->insert(synth_name, 
-                            std::make_shared<tracker_element_double>(0, val));
-
-                    free(label);
-
-                    break;
-                default:
-                    break;
-            }
+            if (fi->type == SENSORS_FEATURE_TEMP)
+                record_temp(synth_name, fmt::format("{} ({})", label_s, chip_s), val);
+            else
+                status->get_sensors_fans()->insert(synth_name,
+                        std::make_shared<tracker_element_double>(0, val));
         }
     }
 #endif
 
-    // Try reading the system temperature for newer linuxes
-    FILE *tempf = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
+    // Thermal zones of newer kernels, in millidegrees; zone 0 keeps its old name
+    // of system-thermal-0
+    for (unsigned int z = 0; z < 64; z++) {
+        auto zone = fmt::format("/sys/class/thermal/thermal_zone{}", z);
 
-    if (tempf != NULL) {
-        std::string synth_name = "system-thermal-0";
-        double temp;
+        FILE *tempf = fopen(fmt::format("{}/temp", zone).c_str(), "r");
 
-        if (fscanf(tempf, "%lf", &temp) == 1) {
-            temp = temp / 1000;
-            status->get_sensors_temp()->insert(synth_name, std::make_shared<tracker_element_double>(0, temp));
+        if (tempf == nullptr) {
+            if (access(zone.c_str(), F_OK) != 0)
+                break;
+            continue;
         }
 
-
+        long mdeg;
+        int r = fscanf(tempf, "%ld", &mdeg);
         fclose(tempf);
+
+        // Zones that can't be read right now (a sleeping device) fail the read
+        if (r != 1)
+            continue;
+
+        std::string label = fmt::format("thermal zone {}", z);
+
+        FILE *typef = fopen(fmt::format("{}/type", zone).c_str(), "r");
+        if (typef != nullptr) {
+            char type[64];
+            if (fgets(type, sizeof(type), typef) != nullptr) {
+                type[strcspn(type, "\r\n")] = 0;
+                if (type[0] != 0)
+                    label = munge_to_printable(type);
+            }
+            fclose(typef);
+        }
+
+        record_temp(fmt::format("system-thermal-{}", z), label, mdeg / 1000.0);
     }
-
 #endif
-
-    return 1;
 }
 
 void tracked_system_status::pre_serialize() {

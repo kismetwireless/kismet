@@ -212,6 +212,95 @@ protected:
     std::shared_ptr<tracker_element_string_map> settings;
 };
 
+using kis_tracked_gauge_rrd = kis_tracked_rrd<kis_tracked_rrd_gauge_aggregator>;
+
+// One temperature sensor, for /system/thermal; temperatures in degrees C
+class tracked_thermal_sensor : public tracker_component {
+public:
+    tracked_thermal_sensor() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_thermal_sensor(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_thermal_sensor(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    virtual ~tracked_thermal_sensor() { }
+
+    __Proxy(name, std::string, std::string, std::string, name);
+    __Proxy(label, std::string, std::string, std::string, label);
+    __Proxy(temp, double, double, double, temp);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __ProxyDynamicTrackable(temp_rrd, kis_tracked_gauge_rrd, temp_rrd, temp_rrd_id);
+
+protected:
+    virtual void register_fields() override;
+
+    std::shared_ptr<tracker_element_string> name;
+    std::shared_ptr<tracker_element_string> label;
+    std::shared_ptr<tracker_element_double> temp;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<kis_tracked_gauge_rrd> temp_rrd;
+    uint16_t temp_rrd_id;
+};
+
+// Every temperature sensor seen since the server started, for /system/thermal
+class tracked_thermal_status : public tracker_component {
+public:
+    tracked_thermal_status() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_thermal_status(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    tracked_thermal_status(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    virtual ~tracked_thermal_status() { }
+
+    __Proxy(history, uint8_t, bool, bool, history);
+    __ProxyTrackable(sensors, tracker_element_string_map, sensors);
+
+protected:
+    virtual void register_fields() override;
+
+    std::shared_ptr<tracker_element_uint8> history;
+    std::shared_ptr<tracker_element_string_map> sensors;
+};
+
 class Systemmonitor : public lifetime_global, public time_tracker_event {
 public:
     static std::string global_name() { return "SYSTEMMONITOR"; }
@@ -235,6 +324,7 @@ public:
     static std::string event_timestamp() { return "TIMESTAMP"; }
     static std::string event_battery() { return "BATTERY"; }
     static std::string event_stats() { return "STATISTICS"; }
+    static std::string event_thermal() { return "THERMAL"; }
 
 protected:
     kis_mutex monitor_mutex;
@@ -258,6 +348,15 @@ protected:
 
     void update_proc_memory();
     void update_heap_memory();
+
+    std::shared_ptr<tracked_thermal_status> thermal;
+    std::shared_ptr<kis_net_web_tracked_endpoint> thermal_endp;
+    int thermal_sensor_id;
+    bool thermal_history;
+    size_t thermal_max_sensors;
+
+    void update_temps();
+    void record_temp(const std::string& name, const std::string& label, double temp);
 
     long mem_per_page;
 
