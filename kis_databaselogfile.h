@@ -382,6 +382,28 @@ protected:
     std::atomic<uint64_t> fresh_size;
     bool fresh_size_warned;
 
+    // What a rotation is doing, or what held up the last attempt, for the overdue warning
+    enum class rotate_hold : uint8_t {
+        none, old_devices, log_tracker, writers, finishing_old, opening, open_failed
+    };
+    static const char *rotate_hold_text(rotate_hold h);
+
+    // A due file that isn't started yet.  The rotation timer sets these; a separate watch
+    // timer warns from them, since one attempt can take minutes and the rotation timer
+    // doesn't run again until it returns.
+    std::chrono::steady_clock::time_point rotate_due, rotate_last_tick;
+    std::atomic<rotate_hold> rotate_stage, rotate_held;
+    std::atomic<unsigned int> rotate_attempts;
+    std::atomic<int64_t> rotate_timer_late_s;
+    int rotate_watch_timer;
+    time_t rotate_warned;
+
+    // Runs once a second: rotates a due file, and reports how late it was
+    void rotate_tick();
+    void rotate_overdue_clear();
+    // Runs once a second: warns while a due file stays overdue
+    void rotate_watch();
+
     bool file_due();
     uint64_t current_size();
 

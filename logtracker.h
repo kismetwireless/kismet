@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <memory>
 
 #include "globalregistry.h"
@@ -214,7 +215,16 @@ public:
     __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
     __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);
 
+    virtual void pre_serialize() override {
+        tracker_component::pre_serialize();
+        log_rotate_overdue->set(rotate_overdue_since.load());
+    }
+
 protected:
+    // When the next file was due but held up (unix time), 0 when it isn't; serialized as
+    // kismet.logfile.rotate_overdue_since
+    std::atomic<uint64_t> rotate_overdue_since{0};
+
     // Publish event_log_finished for a file, with the log's uuid while it was written (a
     // kismetdb log takes the uuid of each new file), its path and why it ended: "size",
     // "duration", "api" or "close"
@@ -229,6 +239,9 @@ protected:
         register_field("kismet.logfile.path", "filesystem path to log", &log_path);
         register_field("kismet.logfile.template", "log name template", &log_template);
         register_field("kismet.logfile.open", "log is currently open", &log_open);
+        register_field("kismet.logfile.rotate_overdue_since",
+                "when the next file was due but held up (unix time), 0 when it isn't",
+                &log_rotate_overdue);
 
     }
 
@@ -242,6 +255,7 @@ protected:
     std::shared_ptr<tracker_element_string> log_path;
     std::shared_ptr<tracker_element_uint8> log_open;
     std::shared_ptr<tracker_element_string> log_template;
+    std::shared_ptr<tracker_element_uint64> log_rotate_overdue;
 };
 
 class log_tracker : public tracker_component, public lifetime_global, public deferred_startup, 
