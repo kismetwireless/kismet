@@ -157,6 +157,91 @@ export function register(kismet) {
     });
 
     ui.ribbonStats.add({
+        id: 'cpu', title: 'CPU', priority: 42,
+        description: 'CPU load of the system, and of the Kismet server, over the last minute',
+        create(body) {
+            const spark = kismet.widgets.sparkline({ max: 100 });
+            const v = valueStat('cpu');
+            v.value.textContent = '---';
+            body.append(el('div', { class: 'stat-graph' }, spark.canvas), v.node);
+            const stat = body.parentElement;
+            const pct = (p) => `${p < 10 ? p.toFixed(1) : Math.round(p)}%`;
+            let history = [];
+
+            // A minute of history to start the graph with; servers without it start empty
+            api.get('system/cpu.json').then((c) => {
+                const h = rrd.history(c['kismet.system.cpu.total_rrd'], undefined, 'minute', { blank: null })
+                    .slice(0, -1).filter((x) => x !== null);
+                if (!history.length)
+                    history = h;
+                spark.draw(history);
+            }).catch(() => {});
+
+            const stop = eventbus.subscribe('STATISTICS',
+                ['kismet.system.cpu.available', 'kismet.system.cpu.total', 'kismet.system.cpu.kismet'], (e) => {
+                    // Older servers send none of these; 0 where it can't be read (no /proc)
+                    if (!e['kismet.system.cpu.available']) {
+                        v.value.textContent = '---';
+                        stat.title = 'The server can\'t read its CPU load';
+                        return;
+                    }
+                    const total = e['kismet.system.cpu.total'];
+                    const kis = e['kismet.system.cpu.kismet'];
+                    history = [...history, total].slice(-60);
+                    v.value.textContent = `${pct(total)} / ${pct(kis)}`;
+                    stat.title = `System: ${pct(total)} of the CPUs\nKismet: ${pct(kis)}`;
+                    if (document.visibilityState !== 'hidden')
+                        spark.draw(history);
+                });
+            return () => { stop(); spark.destroy(); };
+        },
+    });
+
+    ui.ribbonStats.add({
+        id: 'thermal', title: 'Thermal', priority: 45,
+        description: 'Temperatures of the Kismet server: the hottest sensor, or the ones chosen below; ' +
+            'click for the thermal window',
+        create(body) {
+            const v = valueStat('thermometer');
+            v.value.textContent = '---';
+            body.append(v.node);
+            const stat = body.parentElement;
+            stat.classList.add('clickable');
+            const open = () => kismet.widgets.thermal.openThermal();
+            stat.addEventListener('click', open);
+            let temps = null;
+            let labels = {};
+            const label = (name) => labels[name] ?? name;
+            // The sensors chosen in settings, or the hottest when none are
+            const show = () => {
+                const chosen = kismet.settings.get('ribbon.thermal', []);
+                if (chosen.length) {
+                    const read = chosen.filter((n) => Number.isFinite(temps?.[n]));
+                    v.value.textContent = read.length ? read.map((n) => format.temperature(temps[n])).join(' · ') : '---';
+                    stat.title = [...(read.length ? read.map((n) => `${label(n)}: ${format.temperature(temps[n], 1)}`) :
+                        ['The chosen sensors aren\'t being read']), 'Click for the thermal window'].join('\n');
+                    return;
+                }
+                const hot = kismet.widgets.thermal.hottest(temps);
+                v.value.textContent = hot ? format.temperature(hot[1]) : '---';
+                stat.title = hot ? `Hottest: ${label(hot[0])}\nClick for the thermal window` :
+                    'No temperature sensors; click for the thermal window';
+            };
+            kismet.widgets.thermal.sensorList().then((list) => {
+                labels = Object.fromEntries(list.map((s) => [s.name, s.label]));
+                show();
+            }).catch(() => {});
+            const stop = eventbus.subscribe('THERMAL', ['kismet.system.sensors.temp'], (e) => {
+                temps = e['kismet.system.sensors.temp'];
+                show();
+            });
+            const stopUnits = kismet.settings.watch('units.temperature', show);
+            const stopChosen = kismet.settings.watch('ribbon.thermal', show);
+            return () => { stop(); stopUnits(); stopChosen(); stat.removeEventListener('click', open); };
+        },
+    });
+
+    ui.ribbonStats.add({
         id: 'gps', title: 'GPS', priority: 50,
         description: 'GPS fix and satellites; click for the GPS window',
         create(body) {

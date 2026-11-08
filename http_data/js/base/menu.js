@@ -31,6 +31,11 @@ export function register(kismet) {
 
     kismet.widgets.packetgraphs.recordEvents();
     ui.menuItems.add({
+        id: 'thermal', title: 'Thermal', icon: 'thermometer',
+        onClick: () => kismet.widgets.thermal.openThermal(),
+    });
+
+    ui.menuItems.add({
         id: 'packets', title: 'Packet rates', icon: 'packets',
         onClick: () => kismet.widgets.packetgraphs.openPackets(),
     });

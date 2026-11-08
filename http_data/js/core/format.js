@@ -2,8 +2,8 @@
 
 import * as settings from './settings.js';
 
-// Display units, chosen in Settings.  Kismet keeps speeds in km/h and
-// lengths in meters.
+// Display units, chosen in Settings.  Kismet keeps speeds in km/h, lengths
+// in meters and temperatures in degrees C.
 export const speedUnits = [
     { id: 'kmh', title: 'km/h', per: 1 },
     { id: 'mph', title: 'mph', per: 1 / 1.609344 },
@@ -13,12 +13,18 @@ export const lengthUnits = [
     { id: 'metric', title: 'Meters and kilometers' },
     { id: 'imperial', title: 'Feet and miles' },
 ];
+export const temperatureUnits = [
+    { id: 'c', title: 'Celsius (°C)' },
+    { id: 'f', title: 'Fahrenheit (°F)' },
+];
 
 const unitOf = (list, key) => list.find((u) => u.id === settings.get(key)) ?? list[0];
 let speedUnit = unitOf(speedUnits, 'units.speed');
 let imperial = unitOf(lengthUnits, 'units.length').id === 'imperial';
 settings.watch('units.speed', () => { speedUnit = unitOf(speedUnits, 'units.speed'); });
 settings.watch('units.length', () => { imperial = unitOf(lengthUnits, 'units.length').id === 'imperial'; });
+let fahrenheit = unitOf(temperatureUnits, 'units.temperature').id === 'f';
+settings.watch('units.temperature', () => { fahrenheit = unitOf(temperatureUnits, 'units.temperature').id === 'f'; });
 
 export const isImperial = () => imperial;
 
@@ -56,6 +62,16 @@ export function distance(m, digits = 0) {
     if (Math.abs(m) < 1000)
         return `${upTo(m, digits)} m`;
     return `${upTo(m / 1000, Math.abs(m) < 100000 ? 1 : 0)} km`;
+}
+
+// A temperature in degrees C, in the chosen unit; tempValue is the bare number,
+// for graphs labelled with tempUnit()
+export const tempUnit = () => fahrenheit ? '°F' : '°C';
+export const tempValue = (c) => fahrenheit ? Number(c) * 9 / 5 + 32 : Number(c);
+export function temperature(c, digits = 0) {
+    if (!finite(c))
+        return '-';
+    return `${fixed(tempValue(c), digits)}${tempUnit()}`;
 }
 
 // A climb or descent in m/s, per minute

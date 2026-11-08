@@ -1429,6 +1429,19 @@ tr.highlighted .bar-graph { fill: currentColor; }
     .mem-row-note { grid-column: 1 / -1; margin-top: -0.2rem; }
 }
 
+/* Thermal window (js/widgets/thermal.js) */
+.thermal-rows { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.9rem; }
+.thermal-row {
+    display: grid; grid-template-columns: auto minmax(8rem, 1.6fr) minmax(4rem, auto) minmax(0, 1.4fr);
+    gap: 0.6rem; align-items: baseline; cursor: pointer;
+}
+.thermal-label { overflow-wrap: anywhere; }
+.thermal-value { font-variant-numeric: tabular-nums; text-align: right; }
+@media (max-width: 640px) {
+    .thermal-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .thermal-row .thermal-value.muted { grid-column: 2 / -1; text-align: left; }
+}
+
 /* GPS window (js/widgets/gps.js) */
 .gps-window { display: flex; flex-direction: column; gap: 1.2rem; }
 .gps-section h3 { margin: 0 0 0.5rem; font-size: 1rem; }

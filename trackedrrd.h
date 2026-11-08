@@ -981,6 +981,45 @@ public:
     }
 };
 
+// Gauge RRD, for readings where 0 and negative values are real (temperatures, load
+// percentages).  The latest sample in a slot wins, and each level averages the slots
+// of the one below that hold a reading; empty slots hold a value no reading has.
+class kis_tracked_rrd_gauge_aggregator {
+public:
+    static constexpr double blank = -100000;
+
+    static double combine_element(const double a, const double b) {
+        return b == blank ? a : b;
+    }
+
+    template<typename C>
+    static double combine_vector(const C& e) {
+        double sum = 0;
+        size_t n = 0;
+
+        for (const auto& v : e) {
+            if (v == blank)
+                continue;
+
+            sum += v;
+            n++;
+        }
+
+        if (n == 0)
+            return blank;
+
+        return sum / n;
+    }
+
+    static constexpr double default_val() {
+        return blank;
+    }
+
+    static std::string name() {
+        return "gauge";
+    }
+};
+
 // Selects the most extreme value of the previous range; expects positive values
 class kis_tracked_rrd_prev_pos_extreme_aggregator {
 public:
