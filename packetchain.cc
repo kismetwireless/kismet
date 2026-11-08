@@ -219,8 +219,73 @@ packet_chain::packet_chain() {
     chains_generation = 0;
 }
 
+void packet_fifo::enqueue(std::shared_ptr<kis_packet> in_pack, std::atomic<uint64_t> *arrival_counter) {
+    bool wake;
+
+    pending.fetch_add(1, std::memory_order_relaxed);
+
+    {
+        std::lock_guard<std::mutex> lk(mutex);
+
+        if (in_pack != nullptr && arrival_counter != nullptr) {
+            in_pack->arrival_no = arrival_counter->fetch_add(1, std::memory_order_relaxed);
+            in_pack->arrival_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+        }
+
+        queue.push_back(std::move(in_pack));
+        wake = waiting;
+    }
+
+    if (wake)
+        cv.notify_one();
+}
+
+void packet_fifo::hold(const kis_packet& p) {
+    held_no.store(p.arrival_no, std::memory_order_release);
+    held_us.store(p.arrival_us, std::memory_order_release);
+}
+
+void packet_fifo::hold_front(const std::deque<std::shared_ptr<kis_packet>>& batch) {
+    for (const auto& p : batch) {
+        if (p != nullptr) {
+            hold(*p);
+            return;
+        }
+    }
+
+    release_held();
+}
+
+bool packet_fifo::oldest_outstanding(uint64_t& out_no, int64_t& out_us) {
+    std::lock_guard<std::mutex> lk(mutex);
+
+    auto n = held_no.load(std::memory_order_acquire);
+    auto u = held_us.load(std::memory_order_acquire);
+
+    // The queue is in arrival order, so its first packet is its oldest
+    for (const auto& p : queue) {
+        if (p == nullptr)
+            continue;
+        n = std::min(n, p->arrival_no);
+        u = std::min(u, p->arrival_us);
+        break;
+    }
+
+    if (n == no_arrival_no)
+        return false;
+
+    out_no = n;
+    out_us = u;
+    return true;
+}
+
 packet_chain::~packet_chain() {
     timetracker->remove_timer(event_timer_id);
+
+    // Before the threads and their queues go; the sweep reads them
+    if (dedupe_sweep_timer_id >= 0)
+        timetracker->remove_timer(dedupe_sweep_timer_id);
 
     {
         // Tell the packet thread we're dying and unlock it
@@ -334,6 +399,12 @@ void packet_chain::start_processing() {
             packet_threads[n]->exited = true;
         });
     }
+
+    dedupe_sweep_timer_id =
+        timetracker->register_timer(dedupe_sweep_interval, true, [this](int) -> int {
+                dedupe_sweep();
+                return 1;
+            });
 }
 
 int packet_chain::register_packet_component(std::string in_component) {
@@ -415,6 +486,9 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
         }
 
         for (auto& packet : batch) {
+            if (packet != nullptr)
+                packet_queue->hold(*packet);
+
             // With a graceful-close source open, spindown doesn't stop the threads;
             // drain_and_stop() ends them once the sources and their last records are in
             if (packet == nullptr ||
@@ -493,6 +567,7 @@ void packet_chain::packet_queue_processor(packet_fifo *packet_queue) {
         }
 
         batch.clear();
+        packet_queue->release_held();
     }
 }
 
@@ -503,6 +578,51 @@ int64_t arrival_distance_us(const kis_packet& a, const kis_packet& b) {
     return d < 0 ? -d : d;
 }
 
+}
+
+void packet_chain::dedupe_sweep() {
+    // Read before the queues: anything numbered later is past both
+    auto cut_no = arrival_packet_no.load(std::memory_order_acquire);
+    auto cut_us = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    for (size_t i = 0; i < n_packet_threads; i++) {
+        uint64_t n;
+        int64_t u;
+
+        if (packet_threads[i] != nullptr && packet_threads[i]->packet_queue.oldest_outstanding(n, u)) {
+            cut_no = std::min(cut_no, n);
+            cut_us = std::min(cut_us, u);
+        }
+    }
+
+    const auto nwindows = dedupe_window_count.load(std::memory_order_acquire);
+
+    // Released after each window's lock is dropped
+    std::vector<std::shared_ptr<kis_packet>> dropped;
+
+    for (size_t w = 0; w < nwindows; w++) {
+        auto& window = dedupe_windows[w];
+
+        {
+            std::lock_guard<std::mutex> lk(window.mutex);
+
+            for (size_t i = 0; i < dedupe_list_sz; i++) {
+                if (window.pkt[i] == nullptr)
+                    continue;
+
+                if (window.arrival_no[i] + dedupe_list_sz < cut_no ||
+                        window.pkt[i]->arrival_us + dedupe_max_age_us < cut_us) {
+                    dropped.push_back(std::move(window.pkt[i]));
+                    window.pkt[i] = nullptr;
+                    window.hash[i] = 0;
+                    window.arrival_no[i] = 0;
+                }
+            }
+        }
+
+        dropped.clear();
+    }
 }
 
 size_t packet_chain::get_dedupe_packets() {
@@ -791,11 +911,8 @@ int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     }
 
 
-    // Queue the packet to the target thread
-    in_pack->arrival_no = arrival_packet_no.fetch_add(1, std::memory_order_relaxed);
-    in_pack->arrival_us = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()).count();
-    packet_threads[processing_id]->packet_queue.enqueue(in_pack);
+    // Queue the packet to the target thread, which numbers it
+    packet_threads[processing_id]->packet_queue.enqueue(in_pack, &arrival_packet_no);
     packet_queue_rrd->add_sample(qsize, now);
 
     return 1;
