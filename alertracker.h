@@ -501,6 +501,8 @@ private:
 public:
     virtual ~alert_tracker();
 
+    int get_alert_backlog() const { return num_backlog; }
+
     virtual void trigger_deferred_startup() override;
 
     // Register an alert and get an alert reference number back.

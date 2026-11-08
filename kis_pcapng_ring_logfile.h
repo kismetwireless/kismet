@@ -48,6 +48,10 @@ public:
     kis_pcapng_ring_logfile(shared_log_builder in_builder);
     virtual ~kis_pcapng_ring_logfile();
 
+    // pcapng_ring_file_size_mb in bytes, and pcapng_ring_file_count
+    static uint64_t configured_file_size_bytes();
+    static unsigned int configured_file_count();
+
     // in_template is unused — ring slots have fixed names inside ring_dir —
     // but the signature is fixed by kis_logfile.
     virtual bool open_log(const std::string& in_template,

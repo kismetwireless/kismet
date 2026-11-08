@@ -26,6 +26,7 @@
 #include <unistd.h>
 
 #include <pwd.h>
+#include <sys/resource.h>
 
 #if defined(__GLIBC__)
 #include <malloc.h>
@@ -35,13 +36,21 @@
 #include <sensors/sensors.h>
 #endif
 
+#include "alertracker.h"
 #include "battery.h"
+#include "datasourcetracker.h"
 #include "entrytracker.h"
 #include "eventbus.h"
 #include "fmt.h"
 #include "globalregistry.h"
 #include "json_adapter.h"
 #include "kis_databaselogfile.h"
+#include "kis_pcapng_ring_logfile.h"
+#include "kis_pcapnglogfile.h"
+#include "manuf.h"
+#include "packetchain.h"
+#include "phy_80211.h"
+#include "phy_sensor.h"
 #include "system_monitor.h"
 #include "util.h"
 #include "version.h"
@@ -131,6 +140,69 @@ Systemmonitor::Systemmonitor() :
             std::make_shared<tracker_element_uint8>(0, devicetracker->get_track_persource_history()));
     memsettings->insert("keep_location_cloud_history",
             std::make_shared<tracker_element_uint8>(0, devicetracker->get_track_history_cloud()));
+    memsettings->insert("tracker_device_presize",
+            std::make_shared<tracker_element_uint64>(0, devicetracker->get_device_presize()));
+
+    if (Globalreg::globalreg->manufdb != nullptr)
+        memsettings->insert("manuf_lookup",
+                std::make_shared<tracker_element_uint8>(0, Globalreg::globalreg->manufdb->get_lookup_enabled()));
+
+    auto alertracker = Globalreg::fetch_global_as<alert_tracker>();
+    if (alertracker != nullptr)
+        memsettings->insert("alertbacklog",
+                std::make_shared<tracker_element_uint64>(0, alertracker->get_alert_backlog()));
+
+    auto packetchain = Globalreg::fetch_global_as<packet_chain>();
+    if (packetchain != nullptr) {
+        memsettings->insert("packet_backlog_warning",
+                std::make_shared<tracker_element_uint64>(0, packetchain->get_backlog_warning()));
+        memsettings->insert("packet_backlog_limit",
+                std::make_shared<tracker_element_uint64>(0, packetchain->get_backlog_limit()));
+    }
+
+    // The data limit in force, whether ulimit_mbytes or the shell that started Kismet set it
+    struct rlimit datalimit;
+    uint64_t datalimit_mb = 0;
+    if (getrlimit(RLIMIT_DATA, &datalimit) == 0 && datalimit.rlim_cur != RLIM_INFINITY)
+        datalimit_mb = static_cast<uint64_t>(datalimit.rlim_cur) / (1024 * 1024);
+    memsettings->insert("ulimit_mbytes", std::make_shared<tracker_element_uint64>(0, datalimit_mb));
+
+    memsettings->insert("pcapng_log_buffer_mb",
+            std::make_shared<tracker_element_uint64>(0, kis_pcapng_logfile::configured_buffer_bytes() / (1024 * 1024)));
+    memsettings->insert("pcapng_ring_file_size_mb",
+            std::make_shared<tracker_element_uint64>(0,
+                kis_pcapng_ring_logfile::configured_file_size_bytes() / (1024 * 1024)));
+    memsettings->insert("pcapng_ring_file_count",
+            std::make_shared<tracker_element_uint64>(0, kis_pcapng_ring_logfile::configured_file_count()));
+
+    auto sensorphy = dynamic_cast<kis_sensor_phy *>(devicetracker->fetch_phy_handler_by_name("RFSENSOR"));
+    if (sensorphy != nullptr)
+        memsettings->insert("rtl433_track_last",
+                std::make_shared<tracker_element_uint8>(0, sensorphy->get_track_last_record()));
+
+    auto dot11phy = dynamic_cast<kis_80211_phy *>(devicetracker->fetch_phy_handler_by_name("IEEE802.11"));
+    if (dot11phy != nullptr) {
+        memsettings->insert("dot11_keep_eapol",
+                std::make_shared<tracker_element_uint8>(0, dot11phy->get_keep_eapol()));
+        memsettings->insert("dot11_keep_ietags",
+                std::make_shared<tracker_element_uint8>(0, dot11phy->get_keep_ie_tags()));
+        memsettings->insert("dot11_fingerprint_devices",
+                std::make_shared<tracker_element_uint8>(0, dot11phy->get_fingerprint_devices()));
+        memsettings->insert("dot11_11d_country_full",
+                std::make_shared<tracker_element_uint8>(0, dot11phy->get_11d_country_full()));
+        memsettings->insert("dot11_view_accesspoints",
+                std::make_shared<tracker_element_uint8>(0, dot11phy->get_view_accesspoints()));
+        memsettings->insert("dot11_ap_only_survey",
+                std::make_shared<tracker_element_uint8>(0, dot11phy->get_ap_only_survey()));
+
+        auto ssidtracker = dot11phy->get_ssidtracker();
+        if (ssidtracker != nullptr) {
+            memsettings->insert("dot11_view_ssids",
+                    std::make_shared<tracker_element_uint8>(0, ssidtracker->get_tracking_enabled()));
+            memsettings->insert("dot11_max_ssid_groups",
+                    std::make_shared<tracker_element_uint64>(0, ssidtracker->get_max_ssid_groups()));
+        }
+    }
 
     status->set_server_name(Globalreg::globalreg->kismet_config->fetch_opt("server_name"));
     status->set_server_description(Globalreg::globalreg->kismet_config->fetch_opt("server_description"));
@@ -176,6 +248,7 @@ Systemmonitor::Systemmonitor() :
     memory_endp = std::make_shared<kis_net_web_tracked_endpoint>(
             [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
                 update_heap_memory();
+                update_capture_memory();
                 return memstatus;
             }, monitor_mutex);
     httpd->register_route("/system/memory", {"GET", "POST"}, httpd->RO_ROLE, {}, memory_endp);
@@ -363,6 +436,33 @@ void tracked_memory_status::register_fields() {
 
     register_field("kismet.system.num_fields_rrd", "tracked element fields RRD", &num_fields_rrd);
 
+    register_field("kismet.system.memory.startup_time",
+            "when Kismet had loaded, before opening data sources (unix time), 0 until then", &startup_time);
+    register_field("kismet.system.memory.startup_rss",
+            "memory RSS in kbytes once Kismet had loaded, before opening data sources", &startup_rss);
+    register_field("kismet.system.memory.startup_rss_anon",
+            "anonymous RSS in kbytes once Kismet had loaded, before opening data sources", &startup_rss_anon);
+    register_field("kismet.system.memory.startup_heap_used",
+            "heap in use in kbytes once Kismet had loaded, before opening data sources, 0 when unknown",
+            &startup_heap_used);
+    register_field("kismet.system.memory.startup_heap_mmap",
+            "large allocations mapped separately in kbytes once Kismet had loaded, before opening data sources",
+            &startup_heap_mmap);
+    register_field("kismet.system.memory.startup_fields",
+            "tracked element fields once Kismet had loaded, before opening data sources", &startup_fields);
+
+    register_field("kismet.system.memory.datasources", "number of data sources", &datasources);
+    register_field("kismet.system.memory.datasource_estimate",
+            "estimated heap each data source holds in Kismet, in kbytes, not counting its devices or "
+            "its capture helper process", &datasource_estimate);
+    register_field("kismet.system.memory.packet_pool", "freed packets kept for reuse", &packet_pool);
+    register_field("kismet.system.memory.packet_pool_estimate",
+            "estimated heap held by freed packets kept for reuse, in kbytes", &packet_pool_estimate);
+    register_field("kismet.system.memory.dedupe_packets",
+            "recent packets kept to recognize duplicates", &dedupe_packets);
+    register_field("kismet.system.memory.dedupe_estimate",
+            "estimated heap held by recent packets kept to recognize duplicates, in kbytes", &dedupe_estimate);
+
     register_field("kismet.system.memory.settings", "device tracker settings affecting memory", &settings);
 }
 
@@ -443,6 +543,60 @@ void Systemmonitor::update_heap_memory() {
     memstatus->set_heap_free(mi.fordblks / 1024);
     memstatus->set_heap_mmap(mi.hblkhd / 1024);
 #endif
+}
+
+// Measured with empty and busy pcapfile sources and synthetic 802.11 beacons on x86_64
+// Linux; estimates for working out what devices cost, not exact.  A packet in the duplicate
+// window keeps its components and frame; a pooled packet has been reset.
+constexpr uint64_t DATASOURCE_ESTIMATE_KB = 480;
+constexpr uint64_t POOLED_PACKET_ESTIMATE_BYTES = 2150;
+constexpr uint64_t DEDUPE_PACKET_ESTIMATE_BYTES = 4600;
+
+void Systemmonitor::update_capture_memory() {
+    auto datasourcetracker = Globalreg::fetch_global_as<datasource_tracker>();
+    memstatus->set_datasources(datasourcetracker != nullptr ? datasourcetracker->get_num_datasources() : 0);
+    memstatus->set_datasource_estimate(DATASOURCE_ESTIMATE_KB);
+
+    auto packetchain = Globalreg::fetch_global_as<packet_chain>();
+    const uint64_t pooled = packetchain != nullptr ? packetchain->get_packet_pool_size() : 0;
+    memstatus->set_packet_pool(pooled);
+    memstatus->set_packet_pool_estimate(pooled * POOLED_PACKET_ESTIMATE_BYTES / 1024);
+
+    const uint64_t dedupe = packetchain != nullptr ? packetchain->get_dedupe_packets() : 0;
+    memstatus->set_dedupe_packets(dedupe);
+    memstatus->set_dedupe_estimate(dedupe * DEDUPE_PACKET_ESTIMATE_BYTES / 1024);
+
+    // Packet processing starts after this list is made, so its thread count is filled in here
+    if (packetchain != nullptr && packetchain->get_packet_threads() > 0)
+        memstatus->get_settings()->insert("kismet_packet_threads",
+                std::make_shared<tracker_element_uint64>(0, packetchain->get_packet_threads()));
+}
+
+void Systemmonitor::record_startup_memory() {
+    kis_lock_guard<kis_mutex> lk(monitor_mutex, "startup memory");
+
+#ifdef SYS_LINUX
+    std::ifstream sf("/proc/self/status");
+    std::string line;
+
+    while (std::getline(sf, line)) {
+        uint64_t v;
+
+        if (sscanf(line.c_str(), "VmRSS: %" SCNu64, &v) == 1)
+            memstatus->set_startup_rss(v);
+        else if (sscanf(line.c_str(), "RssAnon: %" SCNu64, &v) == 1)
+            memstatus->set_startup_rss_anon(v);
+    }
+#endif
+
+#ifdef KIS_HAVE_MALLINFO2
+    auto mi = mallinfo2();
+    memstatus->set_startup_heap_used(mi.uordblks / 1024);
+    memstatus->set_startup_heap_mmap(mi.hblkhd / 1024);
+#endif
+
+    memstatus->set_startup_fields(Globalreg::n_tracked_fields.load(std::memory_order_acquire));
+    memstatus->set_startup_time(time(nullptr));
 }
 
 void tracked_system_status::register_fields() {

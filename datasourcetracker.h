@@ -344,6 +344,11 @@ public:
     // Open the sources from -c or source=, once plugins are active
     void launch_configured_sources();
 
+    size_t get_num_datasources() {
+        kis_lock_guard<kis_mutex> lk(dst_lock, "datasource_tracker get_num_datasources");
+        return datasource_vec->size();
+    }
+
     // Shut down all sources, this happens as kismet is terminating
     virtual void trigger_deferred_shutdown() override;
 

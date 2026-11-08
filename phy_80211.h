@@ -482,6 +482,15 @@ public:
     // Stub
     ~kis_80211_phy();
 
+    // Settings which change how much memory each device uses
+    bool get_keep_ie_tags() const { return keep_ie_tags_per_bssid; }
+    bool get_keep_eapol() const { return keep_eapol_packets; }
+    bool get_11d_country_full() const { return process_11d_country_list; }
+    bool get_view_accesspoints() const { return ap_view != nullptr; }
+    bool get_fingerprint_devices() const { return fingerprint_devices; }
+    bool get_ap_only_survey() const { return filter_survey_only; }
+    std::shared_ptr<phy_80211_ssid_tracker> get_ssidtracker() const { return ssidtracker; }
+
     // Inherited functionality
     kis_80211_phy() :
         kis_phy_handler() { };
@@ -796,6 +805,8 @@ protected:
 
     // Do we keep WPA packets?
     bool keep_eapol_packets;
+
+    bool fingerprint_devices;
 
     // Do we only get signal from beacons?
     bool signal_from_beacon;

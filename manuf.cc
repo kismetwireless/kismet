@@ -41,7 +41,8 @@ kis_manuf::kis_manuf() {
     random_manuf = std::make_shared<tracker_element_string>(manuf_id);
     random_manuf->set("Randomized");
 
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
+    lookup_enabled = Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true);
+    if (!lookup_enabled) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
     }

@@ -184,6 +184,18 @@ private:
 public:
     virtual ~packet_chain();
 
+    unsigned int get_backlog_warning() const { return packet_queue_warning; }
+    unsigned int get_backlog_limit() const { return packet_queue_drop; }
+
+    // Freed packets kept for reuse; they fill to the most packets in flight at once, up to 1024
+    size_t get_packet_pool_size() { return packet_pool.size(); }
+
+    // Packets held in the duplicate windows, up to dedupe_list_sz per packet thread; they
+    // stay until newer packets replace them
+    size_t get_dedupe_packets();
+
+    size_t get_packet_threads() const { return dedupe_window_count.load(std::memory_order_acquire); }
+
     void start_processing();
 
     // When set_drain_at_shutdown() was called, finish every packet already queued,
@@ -413,6 +425,8 @@ protected:
     };
 
     std::unique_ptr<dedupe_window[]> dedupe_windows;
+    // Published once the windows exist; the web server starts before packet processing
+    std::atomic<size_t> dedupe_window_count{0};
 
     // Number the packet or alias it to an identical earlier packet
     void dedupe_packet(const std::shared_ptr<kis_packet>& packet);

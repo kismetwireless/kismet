@@ -1423,10 +1423,15 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .mem-row-value { font-variant-numeric: tabular-nums; text-align: right; }
 .mem-row-note { font-size: 0.85rem; }
 .mem-row code { overflow-wrap: anywhere; }
+/* One grid for every setting, so the name column fits the longest name */
+.mem-settings { display: grid; grid-template-columns: max-content minmax(4rem, auto) minmax(0, 1fr); gap: 0.2rem 0.6rem; align-items: baseline; }
+.mem-settings .mem-row { display: contents; }
+.mem-settings .mem-row code { white-space: nowrap; overflow-wrap: normal; }
 .mem-note { margin: 0.4rem 0 0; font-size: 0.85rem; }
 @media (max-width: 640px) {
     .mem-row { grid-template-columns: minmax(0, 1fr) auto; }
     .mem-row-note { grid-column: 1 / -1; margin-top: -0.2rem; }
+    .mem-settings { grid-template-columns: max-content auto; }
 }
 
 /* Thermal window (js/widgets/thermal.js) */
