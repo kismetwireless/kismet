@@ -4,6 +4,8 @@
 //   openThermal()
 //   hottest(temps) -> [name, degrees C] of the hottest of a THERMAL event's
 //       kismet.system.sensors.temp, or null
+//   sensorList() -> promise of [{ name, label }], every sensor the server has
+//       read, by label
 //
 // /system/thermal holds the sensors and their history; servers without it,
 // or with no sensors, say so instead.
@@ -37,6 +39,15 @@ export function hottest(temps) {
         if (Number.isFinite(c) && (!best || c > best[1]))
             best = [name, c];
     return best;
+}
+
+const byLabel = (a, b) => String(a.label).localeCompare(String(b.label), undefined, { numeric: true });
+
+export async function sensorList() {
+    const t = await api.get('system/thermal.json');
+    return Object.values(t[`${th}.sensors`] ?? {}).map((s) => ({
+        name: s[`${sn}.name`], label: s[`${sn}.label`] || s[`${sn}.name`],
+    })).sort(byLabel);
 }
 
 function tabs(choices, current, onPick) {

@@ -158,7 +158,8 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'thermal', title: 'Thermal', priority: 45,
-        description: 'The hottest temperature sensor of the Kismet server; click for the thermal window',
+        description: 'Temperatures of the Kismet server: the hottest sensor, or the ones chosen below; ' +
+            'click for the thermal window',
         create(body) {
             const v = valueStat('thermometer');
             v.value.textContent = '---';
@@ -168,18 +169,34 @@ export function register(kismet) {
             const open = () => kismet.widgets.thermal.openThermal();
             stat.addEventListener('click', open);
             let temps = null;
+            let labels = {};
+            const label = (name) => labels[name] ?? name;
+            // The sensors chosen in settings, or the hottest when none are
             const show = () => {
+                const chosen = kismet.settings.get('ribbon.thermal', []);
+                if (chosen.length) {
+                    const read = chosen.filter((n) => Number.isFinite(temps?.[n]));
+                    v.value.textContent = read.length ? read.map((n) => format.temperature(temps[n])).join(' · ') : '---';
+                    stat.title = [...(read.length ? read.map((n) => `${label(n)}: ${format.temperature(temps[n], 1)}`) :
+                        ['The chosen sensors aren\'t being read']), 'Click for the thermal window'].join('\n');
+                    return;
+                }
                 const hot = kismet.widgets.thermal.hottest(temps);
                 v.value.textContent = hot ? format.temperature(hot[1]) : '---';
-                stat.title = hot ? `Hottest: ${hot[0]}\nClick for the thermal window` :
+                stat.title = hot ? `Hottest: ${label(hot[0])}\nClick for the thermal window` :
                     'No temperature sensors; click for the thermal window';
             };
+            kismet.widgets.thermal.sensorList().then((list) => {
+                labels = Object.fromEntries(list.map((s) => [s.name, s.label]));
+                show();
+            }).catch(() => {});
             const stop = eventbus.subscribe('THERMAL', ['kismet.system.sensors.temp'], (e) => {
                 temps = e['kismet.system.sensors.temp'];
                 show();
             });
             const stopUnits = kismet.settings.watch('units.temperature', show);
-            return () => { stop(); stopUnits(); stat.removeEventListener('click', open); };
+            const stopChosen = kismet.settings.watch('ribbon.thermal', show);
+            return () => { stop(); stopUnits(); stopChosen(); stat.removeEventListener('click', open); };
         },
     });
 

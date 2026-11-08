@@ -100,6 +100,33 @@ export function register(kismet) {
                     stat.title,
                     stat.description ? el('span', { class: 'muted' }, ` - ${stat.description}`) : null));
             }
+
+            const message = (text) => el('span', { class: 'muted' }, text);
+            const thermalList = el('div', {}, message('Loading the temperature sensors...'));
+            body.append(el('h4', {}, 'Thermal'),
+                el('p', { class: 'muted' }, 'The temperatures the Thermal stat shows; with none checked, it shows the hottest.'),
+                thermalList);
+            kismet.widgets.thermal.sensorList().then((list) => {
+                if (!list.length) {
+                    thermalList.replaceChildren(message('The server has no temperature sensors it can read.'));
+                    return;
+                }
+                const chosen = new Set(settings.get('ribbon.thermal', []));
+                thermalList.replaceChildren(...list.map((s) => el('label', { class: 'check-item' },
+                    el('input', { type: 'checkbox', checked: chosen.has(s.name), onchange: (e) => {
+                        const now = new Set(settings.get('ribbon.thermal', []));
+                        if (e.target.checked)
+                            now.add(s.name);
+                        else
+                            now.delete(s.name);
+                        settings.set('ribbon.thermal', [...now]);
+                    } }),
+                    s.label,
+                    s.label !== s.name ? el('span', { class: 'muted' }, ` - ${s.name}`) : null)));
+            }).catch((err) => {
+                thermalList.replaceChildren(message(err.status === 404 ?
+                    'This server doesn\'t report temperatures.' : `Couldn't read the sensors: ${err.message}`));
+            });
         },
     });
 }
