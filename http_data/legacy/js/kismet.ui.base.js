@@ -33,6 +33,16 @@ $('<link>')
         href: local_uri_prefix + 'css/kismet.ui.base.css'
     });
 
+/* Basic auth header for a login.  Encode it as UTF-8, which is how the server stores and
+ * compares the login; btoa() alone sends Latin-1 and throws on anything outside it */
+function basicAuthHeader(user, pw) {
+    var bytes = new TextEncoder().encode(user + ":" + pw);
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++)
+        bin += String.fromCharCode(bytes[i]);
+    return "Basic " + btoa(bin);
+}
+
 /* Call from index to set the required ajax parameters universally */
 exports.ConfigureAjax = function() {
     $.ajaxSetup({
@@ -40,7 +50,7 @@ exports.ConfigureAjax = function() {
             var user = kismet.getStorage('kismet.base.login.username', 'kismet');
             var pw =  kismet.getStorage('kismet.base.login.password', '');
 
-            xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
+            xhr.setRequestHeader ("Authorization", basicAuthHeader(user, pw));
         },
 
     });
@@ -3269,7 +3279,7 @@ exports.LoginCheck = function(cb, user, pw) {
         url: local_uri_prefix + "session/check_login",
 
         beforeSend: function (xhr) {
-            xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
+            xhr.setRequestHeader ("Authorization", basicAuthHeader(user, pw));
         },
 
         xhrFields: {
