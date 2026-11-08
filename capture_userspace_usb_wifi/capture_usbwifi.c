@@ -401,6 +401,11 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     return chan;
 }
 
+/* Band of a channel, so hop timing reports band switches apart from channel switches */
+unsigned int chanband_callback(kis_capture_handler_t *caph, void *privchan) {
+    return privchan == NULL ? 0 : uwifi_kis_channel_band(privchan);
+}
+
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
     local_usbwifi_t *local = (local_usbwifi_t *) caph->userdata;
 
@@ -514,6 +519,7 @@ int main(int argc, char *argv[]) {
     cf_handler_set_open_cb(caph, open_callback);
     cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
     cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
+    cf_handler_set_chanband_cb(caph, chanband_callback);
     cf_handler_set_capture_cb(caph, capture_thread);
 
     /* Spread hops so adjacent 2.4GHz channels aren't visited consecutively */

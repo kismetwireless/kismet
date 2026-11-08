@@ -192,6 +192,124 @@ protected:
     std::shared_ptr<tracker_element_double> max_hop_rate;
 };
 
+// Channel change timing and hop sync, from the datasource's hop reports.  Times
+// other than the totals cover the switches since the previous report.
+class kis_datasource_hop_timing : public tracker_component {
+public:
+    kis_datasource_hop_timing() :
+        tracker_component(0) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_datasource_hop_timing(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_datasource_hop_timing(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("kis_datasource_hop_timing");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(last_report, uint64_t, uint64_t, uint64_t, last_report);
+
+    __Proxy(chan_switch_total, uint64_t, uint64_t, uint64_t, chan_switch_total);
+    __Proxy(chan_switch_mean_us, uint32_t, uint32_t, uint32_t, chan_switch_mean_us);
+    __Proxy(chan_switch_min_us, uint32_t, uint32_t, uint32_t, chan_switch_min_us);
+    __Proxy(chan_switch_max_us, uint32_t, uint32_t, uint32_t, chan_switch_max_us);
+
+    __Proxy(band_switch_known, uint8_t, bool, bool, band_switch_known);
+    __Proxy(band_switch_total, uint64_t, uint64_t, uint64_t, band_switch_total);
+    __Proxy(band_switch_mean_us, uint32_t, uint32_t, uint32_t, band_switch_mean_us);
+    __Proxy(band_switch_min_us, uint32_t, uint32_t, uint32_t, band_switch_min_us);
+    __Proxy(band_switch_max_us, uint32_t, uint32_t, uint32_t, band_switch_max_us);
+
+    __Proxy(missed_slots, uint64_t, uint64_t, uint64_t, missed_slots);
+    __Proxy(failed_switches, uint64_t, uint64_t, uint64_t, failed_switches);
+
+    __Proxy(sync_state, std::string, std::string, std::string, sync_state);
+    __Proxy(sync_err_us, uint32_t, uint32_t, uint32_t, sync_err_us);
+    __Proxy(sync_offset_us, int64_t, int64_t, int64_t, sync_offset_us);
+    __Proxy(sync_drift_ppb, int32_t, int32_t, int32_t, sync_drift_ppb);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("kismet.datasource.hop_timing.last_report",
+                "time of the last hop timing report", &last_report);
+
+        register_field("kismet.datasource.hop_timing.chan_switch_total",
+                "channel switches, total", &chan_switch_total);
+        register_field("kismet.datasource.hop_timing.chan_switch_mean_us",
+                "mean channel switch time, us", &chan_switch_mean_us);
+        register_field("kismet.datasource.hop_timing.chan_switch_min_us",
+                "shortest channel switch time, us", &chan_switch_min_us);
+        register_field("kismet.datasource.hop_timing.chan_switch_max_us",
+                "longest channel switch time, us", &chan_switch_max_us);
+
+        register_field("kismet.datasource.hop_timing.band_switch_known",
+                "source reports band switches apart from channel switches", &band_switch_known);
+        register_field("kismet.datasource.hop_timing.band_switch_total",
+                "band switches, total", &band_switch_total);
+        register_field("kismet.datasource.hop_timing.band_switch_mean_us",
+                "mean band switch time, us", &band_switch_mean_us);
+        register_field("kismet.datasource.hop_timing.band_switch_min_us",
+                "shortest band switch time, us", &band_switch_min_us);
+        register_field("kismet.datasource.hop_timing.band_switch_max_us",
+                "longest band switch time, us", &band_switch_max_us);
+
+        register_field("kismet.datasource.hop_timing.missed_slots",
+                "hop slots skipped because a switch ran late, total", &missed_slots);
+        register_field("kismet.datasource.hop_timing.failed_switches",
+                "channel switches which failed, total", &failed_switches);
+
+        register_field("kismet.datasource.hop_timing.sync_state",
+                "hop sync: off, local (own clock), or synced", &sync_state);
+        register_field("kismet.datasource.hop_timing.sync_err_us",
+                "hop sync error bound, us", &sync_err_us);
+        register_field("kismet.datasource.hop_timing.sync_offset_us",
+                "server clock minus datasource clock, us", &sync_offset_us);
+        register_field("kismet.datasource.hop_timing.sync_drift_ppb",
+                "datasource clock drift against the server, ppb", &sync_drift_ppb);
+    }
+
+    std::shared_ptr<tracker_element_uint64> last_report;
+
+    std::shared_ptr<tracker_element_uint64> chan_switch_total;
+    std::shared_ptr<tracker_element_uint32> chan_switch_mean_us;
+    std::shared_ptr<tracker_element_uint32> chan_switch_min_us;
+    std::shared_ptr<tracker_element_uint32> chan_switch_max_us;
+
+    std::shared_ptr<tracker_element_uint8> band_switch_known;
+    std::shared_ptr<tracker_element_uint64> band_switch_total;
+    std::shared_ptr<tracker_element_uint32> band_switch_mean_us;
+    std::shared_ptr<tracker_element_uint32> band_switch_min_us;
+    std::shared_ptr<tracker_element_uint32> band_switch_max_us;
+
+    std::shared_ptr<tracker_element_uint64> missed_slots;
+    std::shared_ptr<tracker_element_uint64> failed_switches;
+
+    std::shared_ptr<tracker_element_string> sync_state;
+    std::shared_ptr<tracker_element_uint32> sync_err_us;
+    std::shared_ptr<tracker_element_int64> sync_offset_us;
+    std::shared_ptr<tracker_element_int32> sync_drift_ppb;
+};
+
 
 class kis_datasource : public tracker_component, public kis_external_interface {
 public:
@@ -458,11 +576,27 @@ public:
     __ProxyGetM(source_cap_interface, std::string, std::string, source_cap_interface, data_mutex);
     __ProxyGetM(source_hardware, std::string, std::string, source_hardware, data_mutex);
 
+    // hopgroup= name, and how the source is hopping with the rest of its group; the
+    // state is set by the datasource tracker
+    __ProxyGetM(source_hop_group, std::string, std::string, source_hop_group, data_mutex);
+    __ProxyM(source_hop_group_state, std::string, std::string, std::string,
+            source_hop_group_state, data_mutex);
+
+    bool get_hop_sync() const { return hop_sync; }
+
+    // How long a helper gets to ask for the time after being told to sync; older helpers
+    // never ask, and hop on their own clock
+    static constexpr time_t helper_sync_timeout_s = 10;
+
+    bool get_helper_synced() const { return helper_synced; }
+    bool get_helper_not_syncing() const;
+
     __ProxyGetM(source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
 
     // Don't allow raw access to the vec, we have to copy it under ext_mutex
     // __ProxyTrackableM(source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
     std::vector<std::string> get_source_channels_vec_copy();
+    std::vector<std::string> get_source_hop_vec_copy();
 
 
     // Any alert state passed from the driver we want to be able to consistently
@@ -488,6 +622,11 @@ public:
 
     __ProxyM(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets, data_mutex);
     __ProxyIncDecAtomic(source_num_error_packets, uint64_t, uint64_t, source_num_error_packets);
+
+    __ProxyM(source_num_chanswitch_packets, uint64_t, uint64_t, uint64_t,
+            source_num_chanswitch_packets, data_mutex);
+    __ProxyIncDecAtomic(source_num_chanswitch_packets, uint64_t, uint64_t,
+            source_num_chanswitch_packets);
 
     __ProxyM(source_num_filtered_packets, uint64_t, uint64_t, uint64_t, source_num_filtered_packets, data_mutex);
     __ProxyIncDecAtomic(source_num_filtered_packets, uint64_t, uint64_t, source_num_filtered_packets);
@@ -774,6 +913,12 @@ protected:
             const std::string_view& in_packet,
             std::shared_ptr<boost::asio::streambuf> buffer);
 
+    // Hop clock sync and channel change timing
+    virtual void handle_packet_timesync_req_v3(uint32_t in_seqno, uint64_t in_rx_ns,
+            const std::string_view& in_packet);
+    virtual void handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet);
+
 	virtual void handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
 			kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces);
     virtual void handle_packet_interfaces_report_v3(uint32_t in_seqno, uint16_t code,
@@ -875,6 +1020,7 @@ protected:
     __ProxySetM(int_source_interface, std::string, std::string, source_interface, data_mutex);
     __ProxySetM(int_source_cap_interface, std::string, std::string, source_cap_interface, data_mutex);
     __ProxySetM(int_source_hardware, std::string, std::string, source_hardware, data_mutex);
+    __ProxySetM(int_source_hop_group, std::string, std::string, source_hop_group, data_mutex);
     __ProxySetM(int_source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
     __ProxyTrackableM(int_source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
 
@@ -914,6 +1060,9 @@ protected:
     // Optional hardware
     std::shared_ptr<tracker_element_string> source_hardware;
 
+    std::shared_ptr<tracker_element_string> source_hop_group;
+    std::shared_ptr<tracker_element_string> source_hop_group_state;
+
     // Interface DLT
     std::shared_ptr<tracker_element_uint32> source_dlt;
 
@@ -945,6 +1094,11 @@ protected:
     std::shared_ptr<tracker_element_atomic_uint64> source_num_error_packets;
     std::shared_ptr<tracker_element_atomic_uint64> source_num_filtered_packets;
     std::shared_ptr<tracker_element_atomic_uint64> source_num_dropped_packets;
+    std::shared_ptr<tracker_element_atomic_uint64> source_num_chanswitch_packets;
+
+    // Present once the source sends a hop timing report
+    int hop_timing_id;
+    std::shared_ptr<kis_datasource_hop_timing> hop_timing;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
@@ -1016,6 +1170,14 @@ protected:
 
     // Do we clobber the remote timestamp?
     bool clobber_timestamp;
+
+    // Ask the source to hop on the shared slot grid, and how often to report hop timing
+    std::atomic<bool> hop_sync;
+    unsigned int hop_report_ms;
+
+    // The helper has asked for the time, and when it was first told to sync
+    std::atomic<bool> helper_synced{false};
+    std::atomic<time_t> hop_sync_asked{0};
 
     __ProxySetM(int_source_remote, uint8_t, bool, source_remote, data_mutex);
     std::shared_ptr<tracker_element_uint8> source_remote;

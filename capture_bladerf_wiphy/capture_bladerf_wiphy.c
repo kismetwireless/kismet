@@ -231,6 +231,20 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
 
 /* Channel control callback; actually set a channel.  Determines if our
  * custom channel needs a VHT frequency set. */
+/* Band of a channel, so hop timing reports band switches apart from channel
+ * switches */
+unsigned int chanband_callback(kis_capture_handler_t *caph, void *privchan) {
+    local_channel_t *channel = (local_channel_t *) privchan;
+    unsigned int freq = wifi_chan_to_freq(channel->center_freq1);
+
+    if (freq >= 2400 && freq < 2500)
+        return 2400;
+    if (freq >= 4900 && freq < 5925)
+        return 5000;
+
+    return 0;
+}
+
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
@@ -656,6 +670,7 @@ int main(int argc, char *argv[]) {
 
     /* Set the control cb */
     cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
+    cf_handler_set_chanband_cb(caph, chanband_callback);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);

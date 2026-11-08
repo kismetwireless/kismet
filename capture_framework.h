@@ -201,6 +201,14 @@ typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef void (*cf_callback_chanfree)(void *);
 
+/* Channel band
+ * Optional.  Called with a private channel struct; returns an id for the band the
+ * channel is in (any value the source likes, such as the band's base frequency in
+ * MHz), or 0 if unknown.  Changes between two known, different bands are timed as
+ * band switches in the hop timing report.
+ */
+typedef unsigned int (*cf_callback_chanband)(kis_capture_handler_t *, void *privchan);
+
 /* Unknown frame callback
  * Called when an unknown frame is received on the protocol
  *
@@ -439,6 +447,34 @@ struct kis_capture_handler {
     unsigned int channel_hop_shuffle_spacing;
 
     int channel_hop_offset;
+
+    /* Bumped by every new hop configuration; a hop thread which finds it changed
+     * exits without touching the shared state */
+    unsigned int hop_generation;
+
+    cf_callback_chanband chanband_cb;
+
+    /* Hop on the shared slot grid (the server sent a sync epoch) */
+    int hop_sync;
+    uint64_t hop_sync_epoch_ns;
+
+    /* Send hop timing reports this often; 0 if the server doesn't take them */
+    unsigned int hop_report_ms;
+
+    /* Clock estimate and switch timing, under handler_lock */
+    struct cf_hop_clock *hop_clock;
+    struct cf_hop_timing *hop_timing;
+
+    /* Recent switch windows, for tagging packets.  Written under handler_lock,
+     * read lock-free on the packet path: a capture thread can be cancelled at
+     * any point, so it must never hold a lock the hop thread needs. */
+    struct cf_switch_window *switch_windows;
+    _Atomic unsigned int switch_window_pos;
+
+    /* Realtime ns: start of the switch in progress (0 when none), and end of
+     * the last one */
+    _Atomic uint64_t switch_busy_start_ns;
+    _Atomic uint64_t switch_last_end_ns;
 
     /* Fixed GPS location from command line */
     double gps_fixed_lat, gps_fixed_lon, gps_fixed_alt;
@@ -743,6 +779,7 @@ void cf_handler_set_chantranslate_cb(kis_capture_handler_t *capf,
 void cf_handler_set_chancontrol_cb(kis_capture_handler_t *capf,
         cf_callback_chancontrol cb);
 void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfree cb);
+void cf_handler_set_chanband_cb(kis_capture_handler_t *capf, cf_callback_chanband cb);
 
 void cf_handler_set_spectrumconfig_cb(kis_capture_handler_t *capf,
         cf_callback_spectrumconfig cb);
@@ -1080,6 +1117,10 @@ int cf_send_ping(kis_capture_handler_t *caph);
  *  1   Success
  */
 int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno);
+
+/* Hop sync exchange and hop timing report; the framework sends these itself */
+int cf_send_timesyncreq(kis_capture_handler_t *caph, uint64_t t1);
+int cf_send_hopreport(kis_capture_handler_t *caph);
 
 /* Send a NEWSOURCE command to initiate connecting to a remote server
  *

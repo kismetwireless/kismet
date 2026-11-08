@@ -68,6 +68,9 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
 
     suppress_gps = false;
 
+    hop_sync = false;
+    hop_report_ms = 0;
+
     error_timer_id = -1;
     ping_timer_id = -1;
 
@@ -107,6 +110,18 @@ std::vector<std::string> kis_datasource::get_source_channels_vec_copy() {
     kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource get channel vec copy");
 
     for (const auto& i : *source_channels_vec) {
+        ret.push_back(i);
+    }
+
+    return ret;
+}
+
+std::vector<std::string> kis_datasource::get_source_hop_vec_copy() {
+    std::vector<std::string> ret;
+
+    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource get hop vec copy");
+
+    for (const auto& i : *source_hop_vec) {
         ret.push_back(i);
     }
 
@@ -505,9 +520,19 @@ void kis_datasource::set_channel_hop(double in_rate,
         in_rate = max_rate;
     }
 
+    if (hop_sync && hop_sync_asked == 0)
+        hop_sync_asked = (time_t) Globalreg::globalreg->last_tv_sec;
+
     // Generate the command and send it
     send_configure_channel_hop(in_rate, in_chans, in_shuffle, in_offt,
             in_transaction, in_cb);
+}
+
+bool kis_datasource::get_helper_not_syncing() const {
+    time_t asked = hop_sync_asked;
+
+    return hop_sync && !helper_synced && asked != 0 &&
+        (time_t) Globalreg::globalreg->last_tv_sec - asked >= helper_sync_timeout_s;
 }
 
 void kis_datasource::set_channel_hop_rate(double in_rate, unsigned int in_transaction,
@@ -1055,6 +1080,29 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
     clobber_timestamp = get_definition_opt_bool("timestamp",
             datasourcetracker->get_config_defaults()->get_remote_cap_timestamp());
 
+    // A hop group only stays together on the synced grid, so it turns sync on unless the
+    // source says hopsync=false
+    auto hop_group = get_definition_opt("hopgroup");
+
+    if (hop_group.length() > 32 ||
+            hop_group.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                "0123456789._-") != std::string::npos) {
+        _MSG_ERROR("Source '{}' ignoring hopgroup=; a group name is up to 32 letters, digits, "
+                "'.', '_' or '-'", get_source_name());
+        hop_group = "";
+    }
+
+    set_int_source_hop_group(hop_group);
+    set_source_hop_group_state("");
+    helper_synced = false;
+    hop_sync_asked = 0;
+
+    hop_sync = get_definition_opt_bool("hopsync",
+            hop_group.length() != 0 ||
+            Globalreg::globalreg->kismet_config->fetch_opt_bool("channel_hop_sync", false));
+    hop_report_ms =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("channel_hop_report_ms", 10000);
+
     set_source_info_antenna_type(get_definition_opt("info_antenna_type"));
     set_source_info_antenna_gain(get_definition_opt_double("info_antenna_gain", 0.0f));
     set_source_info_antenna_orientation(get_definition_opt_double("info_antenna_orientation", 0.0f));
@@ -1374,9 +1422,20 @@ unsigned int kis_datasource::send_probe_source(const std::string& in_definition,
     return 0;
 }
 
+namespace {
+    uint64_t realtime_ns() {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        return static_cast<uint64_t>(ts.tv_sec) * 1000000000ULL + static_cast<uint64_t>(ts.tv_nsec);
+    }
+}
+
 bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
         uint16_t command, uint16_t code,
         uint32_t seqno, const std::string_view& content) {
+
+    // Arrival time for a hop sync exchange, before anything else runs
+    const uint64_t rx_ns = command == KIS_EXTERNAL_V3_KDS_TIMESYNCREQ ? realtime_ns() : 0;
 
     if (kis_external_interface::dispatch_rx_packet_v3(buffer, command, code, seqno, content)) {
         return true;
@@ -1401,9 +1460,196 @@ bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambu
         case KIS_EXTERNAL_V3_KDS_PROBEREPORT:
             handle_packet_probesource_report_v3(seqno, code, content);
             return true;
+        case KIS_EXTERNAL_V3_KDS_TIMESYNCREQ:
+            handle_packet_timesync_req_v3(seqno, rx_ns, content);
+            return true;
+        case KIS_EXTERNAL_V3_KDS_HOPREPORT:
+            handle_packet_hop_report_v3(seqno, code, content);
+            return true;
     }
 
     return false;
+}
+
+void kis_datasource::handle_packet_timesync_req_v3(uint32_t in_seqno, uint64_t in_rx_ns,
+        const std::string_view& in_packet) {
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet datasource got unparseable v3 TIMESYNCREQ");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    auto t1 = mpack_node_u64(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_TIMESYNCREQ_FIELD_T1));
+
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 TIMESYNCREQ");
+        return;
+    }
+
+    // A source asks only after a hop config told it to sync; it can't make us send
+    // anything else, and the answer is the same size as the question
+    if (!hop_sync)
+        return;
+
+    helper_synced = true;
+
+    mpack_growable_buf buf;
+    mpack_writer_t writer;
+
+    mpack_writer_init_growable(&writer, &buf.data, &buf.size);
+
+    mpack_build_map(&writer);
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_T1);
+    mpack_write_u64(&writer, t1);
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_RX);
+    mpack_write_u64(&writer, in_rx_ns);
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_TX);
+    mpack_write_u64(&writer, realtime_ns());
+    mpack_complete_map(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource failed serializing v3 TIMESYNCREPORT");
+        return;
+    }
+
+    send_packet_v3(KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT, in_seqno, 1, buf.data, buf.size);
+}
+
+void kis_datasource::handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t code,
+        const std::string_view& in_packet) {
+    mpack_tree_raii tree;
+    mpack_node_t root;
+
+    mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
+
+    if (!mpack_tree_try_parse(&tree)) {
+        _MSG_ERROR("Kismet datasource got unparseable v3 HOPREPORT");
+        return;
+    }
+
+    root = mpack_tree_root(&tree);
+
+    struct switch_stats {
+        // block sent
+        bool present = false;
+        // times sent: the interval had switches
+        bool timed = false;
+        uint64_t total = 0;
+        uint32_t mean_us = 0;
+        uint32_t min_us = 0;
+        uint32_t max_us = 0;
+    };
+
+    auto u32_opt = [&](mpack_node_t map, unsigned int field) -> uint32_t {
+        auto n = mpack_node_map_uint_optional(map, field);
+        return mpack_node_is_missing(n) ? 0 : mpack_node_u32(n);
+    };
+
+    auto u64_opt = [&](mpack_node_t map, unsigned int field) -> uint64_t {
+        auto n = mpack_node_map_uint_optional(map, field);
+        return mpack_node_is_missing(n) ? 0 : mpack_node_u64(n);
+    };
+
+    auto read_switch = [&](unsigned int field) -> switch_stats {
+        switch_stats st;
+        auto n = mpack_node_map_uint_optional(root, field);
+
+        if (mpack_node_is_missing(n))
+            return st;
+
+        st.present = true;
+        st.total = u64_opt(n, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_TOTAL);
+
+        if (u32_opt(n, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_COUNT) > 0) {
+            st.timed = true;
+            st.mean_us = u32_opt(n, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MEAN_US);
+            st.min_us = u32_opt(n, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MIN_US);
+            st.max_us = u32_opt(n, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MAX_US);
+        }
+
+        return st;
+    };
+
+    auto chan = read_switch(KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_CHANSWITCH);
+    auto band = read_switch(KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_BANDSWITCH);
+
+    auto missed = u64_opt(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_MISSED);
+    auto failed = u64_opt(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_FAILED);
+
+    uint8_t state = KIS_EXTERNAL_V3_HOPSYNC_OFF;
+    auto state_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_STATE);
+    if (!mpack_node_is_missing(state_n))
+        state = mpack_node_u8(state_n);
+
+    auto err_us = u32_opt(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_ERR_US);
+
+    int64_t offset_us = 0;
+    auto offset_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_OFFSET_US);
+    if (!mpack_node_is_missing(offset_n))
+        offset_us = mpack_node_i64(offset_n);
+
+    int32_t drift_ppb = 0;
+    auto drift_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_DRIFT_PPB);
+    if (!mpack_node_is_missing(drift_n))
+        drift_ppb = mpack_node_i32(drift_n);
+
+    if (mpack_tree_error(&tree) != mpack_ok) {
+        _MSG_ERROR("Kismet datasource got malformed v3 HOPREPORT");
+        return;
+    }
+
+    std::string state_s;
+    switch (state) {
+        case KIS_EXTERNAL_V3_HOPSYNC_LOCAL:
+            state_s = "local";
+            break;
+        case KIS_EXTERNAL_V3_HOPSYNC_SYNCED:
+            state_s = "synced";
+            break;
+        default:
+            state_s = "off";
+            break;
+    }
+
+    kis_lock_guard<kis_mutex> lk(data_mutex, "datasource handle_packet_hop_report_v3");
+
+    if (hop_timing == nullptr) {
+        hop_timing =
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_datasource_hop_timing>(hop_timing_id);
+        insert(hop_timing);
+    }
+
+    hop_timing->set_last_report(Globalreg::globalreg->last_tv_sec);
+
+    // Times keep the last interval which had switches
+    hop_timing->set_chan_switch_total(chan.total);
+    if (chan.timed) {
+        hop_timing->set_chan_switch_mean_us(chan.mean_us);
+        hop_timing->set_chan_switch_min_us(chan.min_us);
+        hop_timing->set_chan_switch_max_us(chan.max_us);
+    }
+
+    hop_timing->set_band_switch_known(band.present);
+    hop_timing->set_band_switch_total(band.total);
+    if (band.timed) {
+        hop_timing->set_band_switch_mean_us(band.mean_us);
+        hop_timing->set_band_switch_min_us(band.min_us);
+        hop_timing->set_band_switch_max_us(band.max_us);
+    }
+
+    hop_timing->set_missed_slots(missed);
+    hop_timing->set_failed_switches(failed);
+
+    hop_timing->set_sync_state(state_s);
+    hop_timing->set_sync_err_us(err_us);
+    hop_timing->set_sync_offset_us(offset_us);
+    hop_timing->set_sync_drift_ppb(drift_ppb);
 }
 
 void kis_datasource::handle_probesource_report_v3_callback(uint32_t in_seqno, uint16_t code,
@@ -2470,6 +2716,14 @@ kis_datasource::rx_content kis_datasource::handle_rx_datalayer_v3(std::shared_pt
         packet->original_len = content_sz;
     }
 
+    auto flags_n = mpack_node_map_uint_optional(datamap, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_FLAGS);
+    if (!mpack_node_is_missing(flags_n)) {
+        if (mpack_node_u32(flags_n) & KIS_EXTERNAL_V3_PACKET_FLAG_CHANSWITCH) {
+            packet->chanswitch = true;
+            inc_source_num_chanswitch_packets(1);
+        }
+    }
+
     if (mpack_tree_error(tree) != mpack_ok) {
         _MSG_ERROR("Kismet datasource got malformed v3 DATAREPORT");
         trigger_error("invalid v3 DATAREPORT");
@@ -2661,6 +2915,9 @@ unsigned int kis_datasource::send_configure_channel_v3(const std::string& in_cha
     mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL);
     mpack_write_cstr(&writer, in_channel.c_str());
 
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_REPORT_MS);
+    mpack_write_u32(&writer, hop_report_ms);
+
     mpack_complete_map(&writer);
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
@@ -2736,7 +2993,18 @@ unsigned int kis_datasource::send_configure_channel_hop_v3(double in_rate,
 
     mpack_finish_array(&writer); // hop list
 
+    // Slot 0 of the shared grid is the unix epoch, so sources at the same rate hop
+    // together with no coordination beyond the clock
+    if (hop_sync) {
+        mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SYNC_EPOCH);
+        mpack_write_u64(&writer, 0);
+    }
+
     mpack_complete_map(&writer); // chanhop map
+
+    mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_REPORT_MS);
+    mpack_write_u32(&writer, hop_report_ms);
+
     mpack_complete_map(&writer); // total map
 
     if (mpack_writer_destroy(&writer) != mpack_ok) {
@@ -3944,6 +4212,12 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.capture_interface", "Interface", &source_cap_interface);
     register_field("kismet.datasource.hardware", "Hardware / chipset", &source_hardware);
 
+    register_field("kismet.datasource.hop_group", "Hop group (hopgroup= option)",
+            &source_hop_group);
+    register_field("kismet.datasource.hop_group_state",
+            "How the source hops with its hop group: together, only member, or alone and why",
+            &source_hop_group_state);
+
     register_field("kismet.datasource.dlt", "DLT (link type)", &source_dlt);
 
     register_field("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
@@ -3983,6 +4257,13 @@ void kis_datasource::register_fields() {
     register_field("kismet.datasource.num_dropped_packets",
             "Number of packets from source dropped because the packet queue was full",
             &source_num_dropped_packets);
+    register_field("kismet.datasource.num_chanswitch_packets",
+            "Number of packets the source captured while changing channels",
+            &source_num_chanswitch_packets);
+
+    hop_timing_id =
+        register_dynamic_field("kismet.datasource.hop_timing",
+                "channel change timing and hop sync", &hop_timing);
 
     packet_rate_rrd_id =
         register_dynamic_field("kismet.datasource.packets_rrd",

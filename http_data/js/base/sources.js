@@ -119,6 +119,57 @@ export function register(kismet) {
         },
     });
 
+    // Hop sync, hop groups, and how long the source's channel switches take,
+    // from the hop timing reports of capture helpers which send them
+    const ht = `${ds}.hop_timing/${ds}.hop_timing`;
+    const usText = (us) => us >= 1000 ? `${(us / 1000).toFixed(us >= 100000 ? 0 : 1)} ms` : `${us} µs`;
+    const switchText = (s, kind) => {
+        const t = s[`${ds}.hop_timing`] ?? {};
+        const n = t[`${ds}.hop_timing.${kind}_switch_total`];
+        if (!n)
+            return null;
+        const v = (f) => usText(t[`${ds}.hop_timing.${kind}_switch_${f}_us`] ?? 0);
+        return `${v('mean')} average, ${v('min')} to ${v('max')} (${format.count(n)} switches)`;
+    };
+    const syncStates = {
+        synced: 'Synced to the Kismet server\'s clock',
+        local: 'On its own clock until it syncs',
+        off: 'Off',
+    };
+
+    ui.sourceSections.add({
+        id: 'hopsync', title: 'Hop sync', priority: 25, running: true,
+        when: (s) => !!s[`${ds}.hop_timing`] || !!s[`${ds}.hop_group`] || s[`${ds}.num_chanswitch_packets`] > 0,
+        fields: [
+            { title: 'Sync', field: `${ht}.sync_state`, format: (v) => syncStates[v] ?? v,
+                help: 'Synced sources change channel on a shared schedule, so sources at the same hop rate ' +
+                    'switch at the same moment.  Turned on by channel_hop_sync in kismet.conf, or hopsync= on the source.' },
+            { title: 'Clock error', field: `${ht}.sync_err_us`, format: (v) => `within ${usText(v)}`,
+                show: (v, s) => s[`${ds}.hop_timing`]?.[`${ds}.hop_timing.sync_state`] === 'synced',
+                help: 'How far the source\'s clock can be from the server\'s, from the round trip of the last sync.' },
+            { title: 'Clock drift', field: `${ht}.sync_drift_ppb`, format: (v) => `${(v / 1000).toFixed(1)} ppm`,
+                show: (v, s) => s[`${ds}.hop_timing`]?.[`${ds}.hop_timing.sync_state`] === 'synced' },
+            { title: 'Hop group', field: `${ds}.hop_group`, hideEmpty: true,
+                help: 'Sources in the same group (hopgroup= on the source) sit on the same channel at the same time.' },
+            { title: 'In the group', field: `${ds}.hop_group_state`, hideEmpty: true,
+                format: (v) => v === 'together' ? 'Hopping together with the group' :
+                    v === 'only member' ? 'The only source of the group running' :
+                        v.startsWith('alone: ') ? el('span', { class: 'error-text' }, icons.icon('alert'),
+                            ` Hopping on its own: ${v.slice(7)}`) : v,
+                help: 'A source joins its group only if it matches the group\'s first source: the same type, ' +
+                    'hardware, channels, hop list and hop rate, with a capture helper that syncs.' },
+            { title: 'Channel switch', value: (s) => switchText(s, 'chan'),
+                help: 'How long changing channel takes on this source.' },
+            { title: 'Band switch', value: (s) => switchText(s, 'band'),
+                help: 'Changing between bands (2.4 and 5 GHz, say) often takes longer than changing channel within one.' },
+            { title: 'Late switches', field: `${ht}.missed_slots`, format: format.count, hideZero: true,
+                help: 'Hops skipped because a channel switch ran past the start of the next one.' },
+            { title: 'Failed switches', field: `${ht}.failed_switches`, format: format.count, hideZero: true },
+            { title: 'Mid-switch packets', field: `${ds}.num_chanswitch_packets`, format: format.count,
+                help: 'Packets received while the source was changing channel; their channel may be wrong.' },
+        ],
+    });
+
     // Hop or lock, the hop rate, and the channel picker, with the state the
     // picker shares: what the user has chosen but not sent yet
     function channelControl(node, ctx) {

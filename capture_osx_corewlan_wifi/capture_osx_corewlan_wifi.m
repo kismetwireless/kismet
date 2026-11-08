@@ -357,6 +357,17 @@ int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char
 
 /* Channel control callback; actually set a channel.  Determines if our
  * custom channel needs a VHT frequency set. */
+/* Band of a channel, so hop timing reports band switches apart from channel
+ * switches; CoreWLAN channels here are 2.4 and 5GHz only */
+unsigned int chanband_callback(kis_capture_handler_t *caph, void *privchan) {
+    local_channel_t *channel = (local_channel_t *) privchan;
+
+    if (channel->channel == 0)
+        return 0;
+
+    return channel->channel <= 14 ? 2400 : 5000;
+}
+
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
@@ -784,6 +795,7 @@ int main(int argc, char *argv[]) {
 
     /* Set the control cb */
     cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
+    cf_handler_set_chanband_cb(caph, chanband_callback);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);

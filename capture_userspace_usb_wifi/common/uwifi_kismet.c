@@ -235,6 +235,19 @@ const char *uwifi_kis_channel_name(const void *chan) {
     return ((const struct uwifi_kis_chan *) chan)->chan.name;
 }
 
+unsigned int uwifi_kis_channel_band(const void *chan) {
+    switch (((const struct uwifi_kis_chan *) chan)->chan.band) {
+        case NL80211_BAND_2GHZ:
+            return 2400;
+        case NL80211_BAND_5GHZ:
+            return 5000;
+        case NL80211_BAND_6GHZ:
+            return 5925;
+        default:
+            return 0;
+    }
+}
+
 int uwifi_kis_set_channel(struct uwifi_dev *dev, const void *chan) {
     const struct uwifi_kis_chan *kc = chan;
     unsigned long errs = uwifi_error_count();

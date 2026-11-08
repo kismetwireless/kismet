@@ -447,6 +447,85 @@ size_t cf_append_unique_chans(char **in_list1, size_t in_list1_sz,
     return offt;
 }
 
+#define CF_NS_PER_SEC               1000000000ULL
+
+/* Shortest and longest dwell on a channel */
+#define CF_HOP_MIN_DWELL_NS         50000000ULL
+#define CF_HOP_MAX_DWELL_NS         (86400ULL * CF_NS_PER_SEC)
+
+/* Clock sync: a burst of exchanges, keeping the one with the shortest round trip */
+#define CF_SYNC_BURST               5
+#define CF_SYNC_BURST_SPACING_NS    25000000ULL
+#define CF_SYNC_BURST_WAIT_NS       500000000ULL
+#define CF_SYNC_MIN_INTERVAL_NS     (10ULL * CF_NS_PER_SEC)
+#define CF_SYNC_MAX_INTERVAL_NS     (120ULL * CF_NS_PER_SEC)
+/* A sync this far from the prediction is a clock step: start the estimate over */
+#define CF_SYNC_STEP_NS             50000000LL
+#define CF_SYNC_HISTORY             8
+#define CF_SYNC_DRIFT_MIN_SPAN_NS   (30ULL * CF_NS_PER_SEC)
+#define CF_SYNC_MAX_DRIFT_PPB       500000LL
+/* Clock values past 2^62 ns (2116) are refused */
+#define CF_SYNC_MAX_CLOCK_NS        (1ULL << 62)
+/* Drift is applied over at most this long since the last sync */
+#define CF_SYNC_MAX_DRIFT_SPAN_US   (1LL << 40)
+
+#define CF_SWITCH_WINDOWS           8
+
+struct cf_switch_window {
+    _Atomic unsigned int seq;
+    _Atomic uint64_t start_ns;
+    _Atomic uint64_t end_ns;
+};
+
+struct cf_switch_stats {
+    uint64_t total;
+    uint32_t count;
+    uint64_t sum_us;
+    uint32_t min_us;
+    uint32_t max_us;
+    /* smoothed duration, for starting a synced switch early */
+    uint64_t ewma_ns;
+};
+
+struct cf_hop_timing {
+    struct cf_switch_stats chan;
+    struct cf_switch_stats band;
+    int band_known;
+    unsigned int last_band;
+    uint64_t missed;
+    uint64_t failed;
+    uint64_t next_report_ns;
+    /* last channel tuned, so a synced source rejoining the schedule skips a no-op switch */
+    char last_chan[64];
+};
+
+struct cf_hop_clock {
+    int state;
+
+    /* server realtime = local monotonic + offset, plus drift since ref */
+    int64_t offset_ns;
+    int64_t drift_ppb;
+    uint64_t ref_mono_ns;
+    uint32_t err_us;
+
+    unsigned int burst_sent;
+    uint64_t burst_start_ns;
+    uint64_t next_req_ns;
+    uint64_t burst_done_ns;
+    int best_valid;
+    uint64_t best_rtt_ns;
+    int64_t best_offset_ns;
+    uint64_t best_mono_ns;
+
+    uint64_t next_sync_ns;
+    uint64_t interval_ns;
+
+    unsigned int hist_n;
+    uint64_t hist_mono[CF_SYNC_HISTORY];
+    int64_t hist_offset[CF_SYNC_HISTORY];
+    uint64_t hist_rtt[CF_SYNC_HISTORY];
+};
+
 kis_capture_handler_t *cf_handler_init(const char *in_type) {
     kis_capture_handler_t *ch;
     pthread_mutexattr_t mutexattr;
@@ -569,6 +648,19 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->channel_hop_failure_list_sz = 0;
     ch->max_channel_hop_rate = 0;
 
+    ch->hop_generation = 0;
+    ch->chanband_cb = NULL;
+    ch->hop_sync = 0;
+    ch->hop_sync_epoch_ns = 0;
+    ch->hop_report_ms = 0;
+    ch->hop_clock = (struct cf_hop_clock *) calloc(1, sizeof(struct cf_hop_clock));
+    ch->hop_timing = (struct cf_hop_timing *) calloc(1, sizeof(struct cf_hop_timing));
+    ch->switch_windows =
+        (struct cf_switch_window *) calloc(CF_SWITCH_WINDOWS, sizeof(struct cf_switch_window));
+    atomic_init(&ch->switch_window_pos, 0);
+    atomic_init(&ch->switch_busy_start_ns, 0);
+    atomic_init(&ch->switch_last_end_ns, 0);
+
     ch->verbose = 0;
 
     return ch;
@@ -685,6 +777,11 @@ void cf_handler_free(kis_capture_handler_t *caph) {
 		pthread_cancel(caph->signalthread);
 		caph->signal_running = 0;
 	}
+
+    free(caph->hop_clock);
+    free(caph->hop_timing);
+
+    /* Not the switch windows: a capture thread may still be reading them */
 
     pthread_mutex_destroy(&(caph->out_ringbuf_lock));
     pthread_mutex_destroy(&(caph->handler_lock));
@@ -1658,200 +1755,833 @@ static size_t cf_chanhop_index(size_t pos, size_t list_sz, int shuffle, size_t s
     return 0;
 }
 
-/* Internal capture thread which drives channel hopping
+static uint64_t cf_clock_ns(clockid_t clk) {
+    struct timespec ts;
+    clock_gettime(clk, &ts);
+    return (uint64_t) ts.tv_sec * CF_NS_PER_SEC + (uint64_t) ts.tv_nsec;
+}
+
+void cf_handler_set_chanband_cb(kis_capture_handler_t *capf, cf_callback_chanband cb) {
+    pthread_mutex_lock(&(capf->handler_lock));
+    capf->chanband_cb = cb;
+    pthread_mutex_unlock(&(capf->handler_lock));
+}
+
+/* Until a sync completes, assume the server's clock matches our realtime clock;
+ * for a local source it does. */
+static void cf_hop_clock_reset(struct cf_hop_clock *c) {
+    uint64_t mono = cf_clock_ns(CLOCK_MONOTONIC);
+    int64_t offset = (int64_t) (cf_clock_ns(CLOCK_REALTIME) - mono);
+
+    memset(c, 0, sizeof(struct cf_hop_clock));
+
+    c->state = KIS_EXTERNAL_V3_HOPSYNC_LOCAL;
+    c->offset_ns = offset;
+    c->ref_mono_ns = mono;
+    c->next_sync_ns = mono;
+    c->interval_ns = CF_SYNC_MIN_INTERVAL_NS;
+}
+
+static int64_t cf_hop_clock_offset_at(const struct cf_hop_clock *c, uint64_t mono) {
+    int64_t dt_us = ((int64_t) (mono - c->ref_mono_ns)) / 1000;
+
+    if (dt_us > CF_SYNC_MAX_DRIFT_SPAN_US)
+        dt_us = CF_SYNC_MAX_DRIFT_SPAN_US;
+    else if (dt_us < -CF_SYNC_MAX_DRIFT_SPAN_US)
+        dt_us = -CF_SYNC_MAX_DRIFT_SPAN_US;
+
+    return c->offset_ns + dt_us * c->drift_ppb / 1000000LL;
+}
+
+/* Server clock now, ns since the unix epoch */
+static uint64_t cf_hop_server_ns(const struct cf_hop_clock *c, uint64_t mono) {
+    return mono + (uint64_t) cf_hop_clock_offset_at(c, mono);
+}
+
+static uint64_t cf_hop_dwell_ns(kis_capture_handler_t *caph) {
+    double d;
+
+    if (caph->channel_hop_rate <= 0)
+        return CF_HOP_MAX_DWELL_NS;
+
+    d = (double) CF_NS_PER_SEC / caph->channel_hop_rate;
+
+    if (d < (double) CF_HOP_MIN_DWELL_NS)
+        return CF_HOP_MIN_DWELL_NS;
+    if (d > (double) CF_HOP_MAX_DWELL_NS)
+        return CF_HOP_MAX_DWELL_NS;
+
+    return (uint64_t) d;
+}
+
+/* Answer to one exchange; t4 is taken when the frame arrived, before any lock.
+ * Called under handler_lock. */
+static void cf_hop_clock_sample(kis_capture_handler_t *caph, uint64_t t1, uint64_t t2,
+        uint64_t t3, uint64_t t4) {
+    struct cf_hop_clock *c = caph->hop_clock;
+    uint64_t rtt;
+
+    if (c == NULL || !caph->hop_sync || c->burst_sent == 0)
+        return;
+
+    /* Only answers to this burst, in a sane order, from a clock before 2116; that
+     * bound keeps every offset well inside int64 */
+    if (t1 < c->burst_start_ns || t1 > t4 || t3 < t2 || t3 >= CF_SYNC_MAX_CLOCK_NS)
+        return;
+
+    if (t3 - t2 > t4 - t1)
+        return;
+
+    rtt = (t4 - t1) - (t3 - t2);
+
+    if (!c->best_valid || rtt < c->best_rtt_ns) {
+        c->best_valid = 1;
+        c->best_rtt_ns = rtt;
+        c->best_offset_ns = ((int64_t) (t2 - t1) + (int64_t) (t3 - t4)) / 2;
+        c->best_mono_ns = t1 + (t4 - t1) / 2;
+    }
+}
+
+static void cf_hop_clock_drift(struct cf_hop_clock *c) {
+    double sw = 0, sx = 0, sy = 0, sxx = 0, sxy = 0, w, x, y, den, slope, r;
+    unsigned int i;
+
+    if (c->hist_n < 3 ||
+            c->hist_mono[c->hist_n - 1] - c->hist_mono[0] < CF_SYNC_DRIFT_MIN_SPAN_NS)
+        return;
+
+    /* least squares, seconds against ns, relative to the oldest sample; each
+     * sample is weighted by 1/rtt^2 so a slow exchange barely moves the fit */
+    for (i = 0; i < c->hist_n; i++) {
+        r = (double) (c->hist_rtt[i] < 10000 ? 10000 : c->hist_rtt[i]) / 1000.0;
+        w = 1.0 / (r * r);
+        x = (double) (c->hist_mono[i] - c->hist_mono[0]) / (double) CF_NS_PER_SEC;
+        y = (double) (c->hist_offset[i] - c->hist_offset[0]);
+        sw += w;
+        sx += w * x;
+        sy += w * y;
+        sxx += w * x * x;
+        sxy += w * x * y;
+    }
+
+    den = sw * sxx - sx * sx;
+
+    if (den <= 0)
+        return;
+
+    slope = (sw * sxy - sx * sy) / den;
+
+    if (slope > CF_SYNC_MAX_DRIFT_PPB)
+        slope = CF_SYNC_MAX_DRIFT_PPB;
+    else if (slope < -CF_SYNC_MAX_DRIFT_PPB)
+        slope = -CF_SYNC_MAX_DRIFT_PPB;
+
+    c->drift_ppb = (int64_t) slope;
+}
+
+/* End of a burst: take the best exchange and plan the next sync */
+static void cf_hop_clock_finish(struct cf_hop_clock *c, uint64_t now) {
+    int64_t miss;
+
+    c->burst_sent = 0;
+
+    if (!c->best_valid) {
+        c->next_sync_ns = now + CF_SYNC_MIN_INTERVAL_NS;
+        return;
+    }
+
+    miss = c->best_offset_ns - cf_hop_clock_offset_at(c, c->best_mono_ns);
+    if (miss < 0)
+        miss = -miss;
+
+    if (c->state != KIS_EXTERNAL_V3_HOPSYNC_SYNCED || miss > CF_SYNC_STEP_NS) {
+        c->hist_n = 0;
+        c->drift_ppb = 0;
+        c->interval_ns = CF_SYNC_MIN_INTERVAL_NS;
+    } else if (miss > 1000000LL) {
+        c->interval_ns /= 2;
+        if (c->interval_ns < CF_SYNC_MIN_INTERVAL_NS)
+            c->interval_ns = CF_SYNC_MIN_INTERVAL_NS;
+    } else if (miss < 250000LL) {
+        c->interval_ns *= 2;
+        if (c->interval_ns > CF_SYNC_MAX_INTERVAL_NS)
+            c->interval_ns = CF_SYNC_MAX_INTERVAL_NS;
+    }
+
+    if (c->hist_n == CF_SYNC_HISTORY) {
+        memmove(&c->hist_mono[0], &c->hist_mono[1], sizeof(uint64_t) * (CF_SYNC_HISTORY - 1));
+        memmove(&c->hist_offset[0], &c->hist_offset[1], sizeof(int64_t) * (CF_SYNC_HISTORY - 1));
+        memmove(&c->hist_rtt[0], &c->hist_rtt[1], sizeof(uint64_t) * (CF_SYNC_HISTORY - 1));
+        c->hist_n--;
+    }
+
+    c->hist_mono[c->hist_n] = c->best_mono_ns;
+    c->hist_offset[c->hist_n] = c->best_offset_ns;
+    c->hist_rtt[c->hist_n] = c->best_rtt_ns;
+    c->hist_n++;
+
+    c->offset_ns = c->best_offset_ns;
+    c->ref_mono_ns = c->best_mono_ns;
+    c->err_us = (uint32_t) ((c->best_rtt_ns / 2) / 1000);
+    c->state = KIS_EXTERNAL_V3_HOPSYNC_SYNCED;
+
+    cf_hop_clock_drift(c);
+
+    c->next_sync_ns = now + c->interval_ns;
+}
+
+int cf_send_timesyncreq(kis_capture_handler_t *caph, uint64_t t1) {
+    size_t est_len = 24;
+    size_t final_len = 0;
+
+    mpack_writer_t writer;
+    mpack_error_t err;
+    cf_frame_metadata *meta = NULL;
+
+    meta = cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_TIMESYNCREQ,
+            cf_get_next_seqno(caph), 0, est_len);
+
+    if (meta == NULL)
+        return 0;
+
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
+    mpack_build_map(&writer);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_TIMESYNCREQ_FIELD_T1);
+    mpack_write_u64(&writer, t1);
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize TIMESYNCREQ (%u)\n", err);
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
+}
+
+/* Send the next exchange of a burst, or finish it; returns the next time this needs
+ * to run.  Called under handler_lock. */
+static uint64_t cf_hop_clock_step(kis_capture_handler_t *caph, uint64_t now) {
+    struct cf_hop_clock *c = caph->hop_clock;
+
+    if (c->burst_sent == 0) {
+        if (now < c->next_sync_ns)
+            return c->next_sync_ns;
+
+        c->burst_start_ns = now;
+        c->best_valid = 0;
+        c->next_req_ns = now;
+    }
+
+    if (c->burst_sent < CF_SYNC_BURST) {
+        if (now < c->next_req_ns)
+            return c->next_req_ns;
+
+        cf_send_timesyncreq(caph, cf_clock_ns(CLOCK_MONOTONIC));
+        c->burst_sent++;
+        c->next_req_ns = now + CF_SYNC_BURST_SPACING_NS;
+
+        if (c->burst_sent < CF_SYNC_BURST)
+            return c->next_req_ns;
+
+        c->burst_done_ns = now + CF_SYNC_BURST_WAIT_NS;
+        return c->burst_done_ns;
+    }
+
+    if (now < c->burst_done_ns)
+        return c->burst_done_ns;
+
+    cf_hop_clock_finish(c, now);
+    return c->next_sync_ns;
+}
+
+static void cf_write_switch_stats(mpack_writer_t *writer, unsigned int field,
+        struct cf_switch_stats *st) {
+    mpack_write_uint(writer, field);
+    mpack_build_map(writer);
+
+    mpack_write_uint(writer, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_TOTAL);
+    mpack_write_u64(writer, st->total);
+    mpack_write_uint(writer, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_COUNT);
+    mpack_write_u32(writer, st->count);
+
+    if (st->count > 0) {
+        mpack_write_uint(writer, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MEAN_US);
+        mpack_write_u32(writer, (uint32_t) (st->sum_us / st->count));
+        mpack_write_uint(writer, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MIN_US);
+        mpack_write_u32(writer, st->min_us);
+        mpack_write_uint(writer, KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MAX_US);
+        mpack_write_u32(writer, st->max_us);
+    }
+
+    mpack_complete_map(writer);
+
+    st->count = 0;
+    st->sum_us = 0;
+    st->min_us = 0;
+    st->max_us = 0;
+}
+
+/* Called under handler_lock */
+int cf_send_hopreport(kis_capture_handler_t *caph) {
+    size_t est_len = 256;
+    size_t final_len = 0;
+
+    mpack_writer_t writer;
+    mpack_error_t err;
+    cf_frame_metadata *meta = NULL;
+
+    struct cf_hop_timing *t = caph->hop_timing;
+    struct cf_hop_clock *c = caph->hop_clock;
+    uint64_t mono;
+    int64_t offset_us;
+
+    if (t == NULL || c == NULL)
+        return 0;
+
+    meta = cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_HOPREPORT,
+            cf_get_next_seqno(caph), 0, est_len);
+
+    if (meta == NULL)
+        return 0;
+
+    mpack_writer_init(&writer, (char *) meta->frame->data, est_len);
+    mpack_build_map(&writer);
+
+    cf_write_switch_stats(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_CHANSWITCH, &t->chan);
+
+    if (t->band_known)
+        cf_write_switch_stats(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_BANDSWITCH, &t->band);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_MISSED);
+    mpack_write_u64(&writer, t->missed);
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_FAILED);
+    mpack_write_u64(&writer, t->failed);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_STATE);
+    if (caph->hop_sync && caph->hopping_running) {
+        mpack_write_u8(&writer, c->state);
+
+        if (c->state == KIS_EXTERNAL_V3_HOPSYNC_SYNCED) {
+            mono = cf_clock_ns(CLOCK_MONOTONIC);
+            offset_us = ((int64_t) (cf_hop_server_ns(c, mono) -
+                    cf_clock_ns(CLOCK_REALTIME))) / 1000;
+
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_ERR_US);
+            mpack_write_u32(&writer, c->err_us);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_OFFSET_US);
+            mpack_write_i64(&writer, offset_us);
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_DRIFT_PPB);
+            mpack_write_i32(&writer, (int32_t) c->drift_ppb);
+        }
+    } else {
+        mpack_write_u8(&writer, KIS_EXTERNAL_V3_HOPSYNC_OFF);
+    }
+
+    mpack_complete_map(&writer);
+
+    final_len = mpack_writer_buffer_used(&writer);
+
+    if ((err = mpack_writer_destroy(&writer)) != mpack_ok) {
+        fprintf(stderr, "ERROR: Mpack couldn't serialize HOPREPORT (%u)\n", err);
+        cf_cancel_packet(caph, meta);
+        return -1;
+    }
+
+    return cf_commit_packet(caph, meta, final_len);
+}
+
+/* Send a report if one is due; returns when the next one is.  Called under
+ * handler_lock. */
+static uint64_t cf_hop_report_step(kis_capture_handler_t *caph, uint64_t now) {
+    struct cf_hop_timing *t = caph->hop_timing;
+
+    if (caph->hop_report_ms == 0 || t == NULL)
+        return UINT64_MAX;
+
+    if (now >= t->next_report_ns) {
+        cf_send_hopreport(caph);
+        t->next_report_ns = now + (uint64_t) caph->hop_report_ms * 1000000ULL;
+    }
+
+    return t->next_report_ns;
+}
+
+static unsigned int cf_chan_band(kis_capture_handler_t *caph, void *privchan) {
+    if (caph->chanband_cb == NULL || privchan == NULL)
+        return 0;
+
+    return (*(caph->chanband_cb))(caph, privchan);
+}
+
+static int cf_is_band_switch(kis_capture_handler_t *caph, void *privchan) {
+    unsigned int band = cf_chan_band(caph, privchan);
+    unsigned int last = caph->hop_timing != NULL ? caph->hop_timing->last_band : 0;
+
+    return band != 0 && last != 0 && band != last;
+}
+
+static void cf_switch_stats_add(struct cf_switch_stats *st, uint64_t dur_ns) {
+    uint64_t us = dur_ns / 1000;
+
+    if (us > UINT32_MAX)
+        us = UINT32_MAX;
+
+    st->total++;
+    st->count++;
+    st->sum_us += us;
+
+    if (st->count == 1 || us < st->min_us)
+        st->min_us = (uint32_t) us;
+    if (us > st->max_us)
+        st->max_us = (uint32_t) us;
+
+    if (st->ewma_ns == 0)
+        st->ewma_ns = dur_ns;
+    else
+        st->ewma_ns = (st->ewma_ns * 7 + dur_ns) / 8;
+}
+
+/* Run the channel control callback, timing the switch and recording its window for
+ * packet tagging.  Called under handler_lock. */
+static int cf_timed_chancontrol(kis_capture_handler_t *caph, uint32_t seqno,
+        void *privchan, char *msg) {
+    struct cf_hop_timing *t = caph->hop_timing;
+    struct cf_switch_window *w;
+    uint64_t rt_start, rt_end, m0, m1;
+    unsigned int band, pos;
+    int r;
+
+    band = cf_chan_band(caph, privchan);
+
+    rt_start = cf_clock_ns(CLOCK_REALTIME);
+    atomic_store(&caph->switch_busy_start_ns, rt_start);
+    m0 = cf_clock_ns(CLOCK_MONOTONIC);
+
+    r = (*(caph->chancontrol_cb))(caph, seqno, privchan, msg);
+
+    m1 = cf_clock_ns(CLOCK_MONOTONIC);
+    rt_end = cf_clock_ns(CLOCK_REALTIME);
+
+    if (caph->switch_windows != NULL) {
+        pos = atomic_load(&caph->switch_window_pos);
+        w = &caph->switch_windows[pos % CF_SWITCH_WINDOWS];
+
+        atomic_fetch_add(&w->seq, 1);
+        atomic_store(&w->start_ns, rt_start);
+        atomic_store(&w->end_ns, rt_end);
+        atomic_fetch_add(&w->seq, 1);
+
+        atomic_store(&caph->switch_window_pos, pos + 1);
+    }
+
+    atomic_store(&caph->switch_last_end_ns, rt_end);
+    atomic_store(&caph->switch_busy_start_ns, 0);
+
+    if (t == NULL)
+        return r;
+
+    if (r > 0) {
+        if (band != 0) {
+            if (t->last_band != 0 && band != t->last_band)
+                cf_switch_stats_add(&t->band, m1 - m0);
+            else
+                cf_switch_stats_add(&t->chan, m1 - m0);
+
+            t->band_known = 1;
+            t->last_band = band;
+        } else {
+            cf_switch_stats_add(&t->chan, m1 - m0);
+        }
+    } else {
+        t->failed++;
+    }
+
+    return r;
+}
+
+/* Packet flags for a frame captured at ts; lock-free, see switch_windows */
+static uint32_t cf_packet_flags(kis_capture_handler_t *caph, struct timeval ts) {
+    uint64_t t, busy, last, start, end;
+    unsigned int i, s1, s2, tries;
+    struct cf_switch_window *w;
+
+    if (ts.tv_sec <= 0 || caph->switch_windows == NULL)
+        return 0;
+
+    t = (uint64_t) ts.tv_sec * CF_NS_PER_SEC + (uint64_t) ts.tv_usec * 1000ULL;
+
+    busy = atomic_load(&caph->switch_busy_start_ns);
+    if (busy != 0 && t >= busy)
+        return KIS_EXTERNAL_V3_PACKET_FLAG_CHANSWITCH;
+
+    last = atomic_load(&caph->switch_last_end_ns);
+    if (last == 0 || t > last)
+        return 0;
+
+    for (i = 0; i < CF_SWITCH_WINDOWS; i++) {
+        w = &caph->switch_windows[i];
+
+        for (tries = 0; tries < 3; tries++) {
+            s1 = atomic_load(&w->seq);
+            start = atomic_load(&w->start_ns);
+            end = atomic_load(&w->end_ns);
+            s2 = atomic_load(&w->seq);
+
+            if (s1 == s2 && (s1 & 1) == 0)
+                break;
+        }
+
+        if (tries == 3)
+            continue;
+
+        if (start != 0 && t >= start && t <= end)
+            return KIS_EXTERNAL_V3_PACKET_FLAG_CHANSWITCH;
+    }
+
+    return 0;
+}
+
+/* Sleep until a CLOCK_MONOTONIC time.  The hop thread runs with cancellation
+ * disabled except here, so it is never cancelled holding a lock or partway
+ * through a channel change. */
+static void cf_hop_sleep_until(uint64_t target_ns) {
+    struct timespec ts;
+
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_testcancel();
+
+#if defined(__linux__) || defined(__FreeBSD__)
+    ts.tv_sec = target_ns / CF_NS_PER_SEC;
+    ts.tv_nsec = target_ns % CF_NS_PER_SEC;
+
+    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) == EINTR)
+        ;
+#else
+    while (1) {
+        uint64_t now = cf_clock_ns(CLOCK_MONOTONIC);
+
+        if (now >= target_ns)
+            break;
+
+        ts.tv_sec = (target_ns - now) / CF_NS_PER_SEC;
+        ts.tv_nsec = (target_ns - now) % CF_NS_PER_SEC;
+        nanosleep(&ts, NULL);
+    }
+#endif
+
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+}
+
+/* Remember a channel which could not be tuned; returns 1 if it is new */
+static int cf_hop_note_failure(kis_capture_handler_t *caph, size_t hopidx) {
+    struct cf_channel_error *err;
+
+    for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+            err != NULL; err = err->next) {
+        if (err->channel_pos == hopidx)
+            return 0;
+    }
+
+    err = (struct cf_channel_error *) malloc(sizeof(struct cf_channel_error));
+    if (err == NULL)
+        return 0;
+
+    err->channel_pos = hopidx;
+    err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
+    caph->channel_hop_failure_list = err;
+    caph->channel_hop_failure_list_sz++;
+
+    return 1;
+}
+
+static int cf_hop_is_failed(kis_capture_handler_t *caph, size_t hopidx) {
+    struct cf_channel_error *err;
+
+    for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+            err != NULL; err = err->next) {
+        if (err->channel_pos == hopidx)
+            return 1;
+    }
+
+    return 0;
+}
+
+/* Drop the channels which failed from the hop list.  Only for hopping on our own
+ * timer; a synced source keeps its list so it stays on the shared schedule.
+ * Returns -1 if hopping must stop. */
+static int cf_hop_prune_failures(kis_capture_handler_t *caph) {
+    char errstr[STATUS_MAX];
+    char **channel_hop_list_new;
+    void **custom_channel_hop_list_new;
+    size_t new_sz;
+    size_t i, ni;
+    struct cf_channel_error *err, *errnext;
+
+    if (caph->channel_hop_failure_list_sz > caph->channel_hop_list_sz) {
+        snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
+                "in error state, but there were more error channels (%lu) than "
+                "assigned channels (%lu), something is wrong internally.",
+                caph->channel_hop_failure_list_sz,
+                caph->channel_hop_list_sz);
+        cf_send_error(caph, 0, errstr);
+        return -1;
+    }
+
+    /* shrink the channel list and the custom list, and copy only the
+     * valid ones, eliminating the bogus ones */
+    new_sz = caph->channel_hop_list_sz - caph->channel_hop_failure_list_sz;
+
+    channel_hop_list_new = (char **) malloc(sizeof(char *) * new_sz);
+    custom_channel_hop_list_new = (void **) malloc(sizeof(void *) * new_sz);
+
+    if (channel_hop_list_new == NULL || custom_channel_hop_list_new == NULL) {
+        free(channel_hop_list_new);
+        free(custom_channel_hop_list_new);
+        return 0;
+    }
+
+    for (i = 0, ni = 0; i < caph->channel_hop_list_sz && ni < new_sz; i++) {
+        /* If it's in error, free it */
+        if (cf_hop_is_failed(caph, i)) {
+            free(caph->channel_hop_list[i]);
+            if (caph->chanfree_cb != NULL)
+                (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
+            else
+                free(caph->custom_channel_hop_list[i]);
+            continue;
+        }
+
+        /* Otherwise move the pointer to our new list */
+        channel_hop_list_new[ni] = caph->channel_hop_list[i];
+        custom_channel_hop_list_new[ni] = caph->custom_channel_hop_list[i];
+        ni++;
+    }
+
+    /* Remove the old lists and swap in the new ones */
+    free(caph->channel_hop_list);
+    free(caph->custom_channel_hop_list);
+
+    caph->channel_hop_list = channel_hop_list_new;
+    caph->custom_channel_hop_list = custom_channel_hop_list_new;
+    caph->channel_hop_list_sz = new_sz;
+
+    /* Spam a configresp which should trigger a reconfigure */
+    snprintf(errstr, STATUS_MAX, "Removed %lu channels from the channel list "
+            "because the source could not tune to them",
+            caph->channel_hop_failure_list_sz);
+    cf_send_configresp(caph, 0, 1, errstr);
+
+    /* Clear out the old list */
+    err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+    while (err != NULL) {
+        errnext = err->next;
+        free(err);
+        err = errnext;
+    }
+    caph->channel_hop_failure_list = NULL;
+    caph->channel_hop_failure_list_sz = 0;
+
+    return 0;
+}
+
+/* Internal capture thread which drives channel hopping.
+ *
+ * Synced, every source hops on the same grid of slots (1/rate long, counted from
+ * the server's epoch), so sources at the same rate change channels together and
+ * the channel for a slot is fixed: no per-hop traffic, and a source joins in step.
+ * A switch starts early by its expected duration, so it lands on the slot
+ * boundary.  Not synced, the source hops on its own timer as before.
  */
 void *cf_int_chanhop_thread(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
 
-    /* Set us cancelable */
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    unsigned int gen;
 
-    /* Position in the hop cycle, and the channel index it maps to */
+    /* Own timer: next position in the hop cycle, and when to move to it */
     size_t hoppos;
-    size_t hopidx;
+    uint64_t next_ns;
 
-    /* How long we're waiting until the next time */
-    unsigned int wait_sec = 0;
-    unsigned int wait_usec = 0;
+    /* Synced: the last slot switched into */
+    uint64_t last_slot = 0;
+    int have_slot = 0;
+
+    size_t hopidx, pos;
+    uint64_t now, wake, dwell, srv, rel, slot, target, lead, start_srv, step;
+    struct cf_hop_timing *t;
 
     char errstr[STATUS_MAX];
 
     int r = 0;
+    int skip, joining;
 
-    /* Figure out where we are in the hopping vec, and set us to actively hopping
-     * right now; this will block until the thread launcher brings us up */
+    /* Cancelled only while sleeping; see cf_hop_sleep_until */
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+
     pthread_mutex_lock(&(caph->handler_lock));
+    gen = caph->hop_generation;
     hoppos = caph->channel_hop_offset;
-    caph->hopping_running = 1;
+    next_ns = cf_clock_ns(CLOCK_MONOTONIC) + cf_hop_dwell_ns(caph);
     pthread_mutex_unlock(&(caph->handler_lock));
-
 
     while (1) {
         pthread_mutex_lock(&(caph->handler_lock));
 
+        /* A newer configuration owns the hop state now */
+        if (gen != caph->hop_generation) {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            return NULL;
+        }
+
         /* Cancel thread if we're no longer hopping */
-        if (caph->channel_hop_rate == 0 || caph->hopping_running == 0) {
+        if (caph->channel_hop_rate == 0 || caph->hopping_running == 0 ||
+                caph->chancontrol_cb == NULL || caph->channel_hop_list_sz == 0) {
             caph->hopping_running = 0;
             pthread_mutex_unlock(&(caph->handler_lock));
             return NULL;
         }
 
-        wait_usec = 1000000L / caph->channel_hop_rate;
+        t = caph->hop_timing;
+        now = cf_clock_ns(CLOCK_MONOTONIC);
+        dwell = cf_hop_dwell_ns(caph);
+        wake = UINT64_MAX;
+        hopidx = 0;
+        skip = 0;
+        target = 0;
 
-        if (wait_usec < 50000) {
-            wait_sec = 0;
-            wait_usec = 50000;
-        } else if (wait_usec > 1000000L) {
-            wait_sec = wait_usec / 1000000L;
-            wait_usec = wait_usec % 1000000L;
-        }
+        step = cf_hop_report_step(caph, now);
+        if (step < wake)
+            wake = step;
 
-        pthread_mutex_unlock(&(caph->handler_lock));
+        if (caph->hop_sync) {
+            step = cf_hop_clock_step(caph, now);
+            if (step < wake)
+                wake = step;
 
-        /* Sleep until the next wakeup */
-        sleep(wait_sec);
-        usleep(wait_usec);
+            srv = cf_hop_server_ns(caph->hop_clock, now);
+            rel = srv > caph->hop_sync_epoch_ns ? srv - caph->hop_sync_epoch_ns : 0;
+            slot = rel / dwell;
 
-        pthread_mutex_lock(&caph->handler_lock);
+            if (!have_slot) {
+                /* Start on the channel of the slot we're in */
+                target = slot;
+            } else {
+                target = last_slot + 1;
 
-        if (caph->channel_hop_rate == 0 || caph->chancontrol_cb == NULL) {
-            caph->hopping_running = 0;
-            pthread_mutex_unlock(&caph->handler_lock);
-            return NULL;
-        }
-
-        hopidx = cf_chanhop_index(hoppos, caph->channel_hop_list_sz,
-                caph->channel_hop_shuffle, caph->channel_hop_shuffle_spacing);
-
-        errstr[0] = 0;
-        if ((r = (caph->chancontrol_cb)(caph, 0,
-                    caph->custom_channel_hop_list[hopidx], errstr)) < 0) {
-            fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
-            cf_send_error(caph, 0, errstr);
-            caph->hopping_running = 0;
-            pthread_mutex_unlock(&caph->handler_lock);
-            cf_handler_spindown(caph);
-            return NULL;
-        } else if (r == 0) {
-            /* Append to the linked list */
-            struct cf_channel_error *err;
-            int err_seen = 0;
-
-            for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
-                    err != NULL; err = err->next) {
-                if (err->channel_pos == hopidx) {
-                    err_seen = 1;
-                    break;
+                /* Late by more than a slot: rejoin the schedule where it is now */
+                if (slot > target) {
+                    if (t != NULL)
+                        t->missed += slot - target;
+                    target = slot;
                 }
             }
 
-            // Only add error positions we haven't seen in error before
-            if (!err_seen) {
-                err = (struct cf_channel_error *) malloc(sizeof(struct cf_channel_error));
-                if (err != NULL) {
-                    err->channel_pos = hopidx;
-                    err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
-                    caph->channel_hop_failure_list = err;
-                    caph->channel_hop_failure_list_sz++;
-                }
+            pos = (size_t) ((target % caph->channel_hop_list_sz +
+                        (uint64_t) caph->channel_hop_offset % caph->channel_hop_list_sz) %
+                    caph->channel_hop_list_sz);
+            hopidx = cf_chanhop_index(pos, caph->channel_hop_list_sz,
+                    caph->channel_hop_shuffle, caph->channel_hop_shuffle_spacing);
+
+            lead = 0;
+            if (t != NULL) {
+                if (cf_is_band_switch(caph, caph->custom_channel_hop_list[hopidx]))
+                    lead = t->band.ewma_ns;
+                else
+                    lead = t->chan.ewma_ns;
             }
+            if (lead > dwell / 2)
+                lead = dwell / 2;
+
+            start_srv = caph->hop_sync_epoch_ns + target * dwell;
+            start_srv = start_srv > lead ? start_srv - lead : 0;
+
+            if (have_slot && srv < start_srv) {
+                /* Not yet; sleep until the switch should start */
+                if (now + (start_srv - srv) < wake)
+                    wake = now + (start_srv - srv);
+                pthread_mutex_unlock(&(caph->handler_lock));
+                cf_hop_sleep_until(wake);
+                continue;
+            }
+
+            joining = !have_slot;
+            have_slot = 1;
+            last_slot = target;
+
+            /* Synced sources keep failed channels in the list and sit out their slots */
+            skip = cf_hop_is_failed(caph, hopidx);
+
+            /* Joining the schedule on the channel we're already on */
+            if (joining && t != NULL && caph->channel_hop_list[hopidx] != NULL &&
+                    strcmp(t->last_chan, caph->channel_hop_list[hopidx]) == 0)
+                skip = 1;
+        } else {
+            if (now < next_ns) {
+                if (next_ns < wake)
+                    wake = next_ns;
+                pthread_mutex_unlock(&(caph->handler_lock));
+                cf_hop_sleep_until(wake);
+                continue;
+            }
+
+            hopidx = cf_chanhop_index(hoppos, caph->channel_hop_list_sz,
+                    caph->channel_hop_shuffle, caph->channel_hop_shuffle_spacing);
         }
 
-        hoppos = (hoppos + 1) % caph->channel_hop_list_sz;
+        if (!skip) {
+            errstr[0] = 0;
+            r = cf_timed_chancontrol(caph, 0, caph->custom_channel_hop_list[hopidx], errstr);
 
-        /* If we've gotten back to 0, look at the failed channel list.  This is super
-         * inefficient because it has to do multiple crawls of a linked list, but
-         * it should only happen once per interface to clean out the bogons. */
-        if (hoppos == 0 &&
-                caph->channel_hop_failure_list_sz != 0) {
-            char **channel_hop_list_new;
-            void **custom_channel_hop_list_new;
-            size_t new_sz;
-            size_t i, ni;
-            struct cf_channel_error *err, *errnext;
+            if (r > 0 && t != NULL && caph->channel_hop_list[hopidx] != NULL)
+                snprintf(t->last_chan, sizeof(t->last_chan), "%s", caph->channel_hop_list[hopidx]);
 
-            /* Safety net */
-            if (caph->channel_hop_failure_list_sz == caph->channel_hop_list_sz) {
-                snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
+            if (r < 0) {
+                fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
                 cf_send_error(caph, 0, errstr);
                 caph->hopping_running = 0;
                 pthread_mutex_unlock(&caph->handler_lock);
                 cf_handler_spindown(caph);
                 return NULL;
-            }
-
-            if (caph->channel_hop_failure_list_sz > caph->channel_hop_list_sz) {
-                snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
-                        "in error state, but there were more error channels (%lu) than "
-                        "assigned channels (%lu), something is wrong internally.",
-                        caph->channel_hop_failure_list_sz,
-                        caph->channel_hop_list_sz);
-                cf_send_error(caph, 0, errstr);
-                caph->hopping_running = 0;
-                pthread_mutex_unlock(&caph->handler_lock);
-                cf_handler_spindown(caph);
-                return NULL;
-            }
-
-            /* shrink the channel list and the custom list, and copy only the
-             * valid ones, eliminating the bogus ones */
-            new_sz = caph->channel_hop_list_sz - caph->channel_hop_failure_list_sz;
-
-            channel_hop_list_new = (char **) malloc(sizeof(char *) * new_sz);
-            custom_channel_hop_list_new = (void **) malloc(sizeof(void *) * new_sz);
-
-            for (i = 0, ni = 0; i < caph->channel_hop_list_sz && ni < new_sz; i++) {
-                int err_seen = 0;
-
-                for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
-                        err != NULL; err = err->next) {
-                    if (err->channel_pos == i) {
-                        err_seen = 1;
-                        break;
-                    }
+            } else if (r == 0) {
+                if (cf_hop_note_failure(caph, hopidx) && caph->hop_sync) {
+                    snprintf(errstr, STATUS_MAX, "Could not tune to channel %s; skipping it "
+                            "while hopping", caph->channel_hop_list[hopidx]);
+                    cf_send_warning(caph, errstr);
                 }
 
-                /* If it's in error, free it */
-                if (err_seen) {
-                    free(caph->channel_hop_list[i]);
-                    if (caph->chanfree_cb != NULL)
-                        (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
-                    else
-                        free(caph->custom_channel_hop_list[i]);
-                    continue;
+                /* Safety net */
+                if (caph->channel_hop_failure_list_sz >= caph->channel_hop_list_sz) {
+                    snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
+                    cf_send_error(caph, 0, errstr);
+                    caph->hopping_running = 0;
+                    pthread_mutex_unlock(&caph->handler_lock);
+                    cf_handler_spindown(caph);
+                    return NULL;
                 }
-
-                /* Otherwise move the pointer to our new list */
-                channel_hop_list_new[ni] = caph->channel_hop_list[i];
-                custom_channel_hop_list_new[ni] = caph->custom_channel_hop_list[i];
-                ni++;
             }
+        }
 
-            /* Remove the old lists and swap in the new ones */
-            free(caph->channel_hop_list);
-            free(caph->custom_channel_hop_list);
+        if (!caph->hop_sync) {
+            hoppos = (hoppos + 1) % caph->channel_hop_list_sz;
 
-            caph->channel_hop_list = channel_hop_list_new;
-            caph->custom_channel_hop_list = custom_channel_hop_list_new;
-            caph->channel_hop_list_sz = new_sz;
+            /* Hop again a dwell after the last one, or after this one if it ran long */
+            now = cf_clock_ns(CLOCK_MONOTONIC);
+            next_ns += dwell;
+            if (next_ns < now)
+                next_ns = now + dwell;
 
-            /* Spam a configresp which should trigger a reconfigure */
-            snprintf(errstr, STATUS_MAX, "Removed %lu channels from the channel list "
-                    "because the source could not tune to them",
-                    caph->channel_hop_failure_list_sz);
-            cf_send_configresp(caph, 0, 1, errstr);
-
-
-            /* Clear out the old list */
-            err = (struct cf_channel_error *) caph->channel_hop_failure_list;
-            while (err != NULL) {
-                errnext = err->next;
-                free(err);
-                err = errnext;
+            /* Once around the list, drop the channels the source can't tune */
+            if (hoppos == 0 && caph->channel_hop_failure_list_sz != 0) {
+                if (cf_hop_prune_failures(caph) < 0) {
+                    caph->hopping_running = 0;
+                    pthread_mutex_unlock(&caph->handler_lock);
+                    cf_handler_spindown(caph);
+                    return NULL;
+                }
             }
-            caph->channel_hop_failure_list = NULL;
-            caph->channel_hop_failure_list_sz = 0;
         }
 
         pthread_mutex_unlock(&caph->handler_lock);
@@ -1873,16 +2603,25 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
         caph->hopping_running = 0;
     }
 
-    /* pthread_create returns an error number, never a negative value */
+    caph->hop_generation++;
+
+    /* A new hop list keeps the clock estimate; only the first synced hop starts one */
+    if (caph->hop_sync && caph->hop_clock != NULL &&
+            caph->hop_clock->state == KIS_EXTERNAL_V3_HOPSYNC_OFF)
+        cf_hop_clock_reset(caph->hop_clock);
+
+    /* Running before the thread starts, so a thread which reads it never sees a
+     * stale 0 */
+    caph->hopping_running = 1;
+
     if (pthread_create(&(caph->hopthread), &attr, cf_int_chanhop_thread, caph) != 0) {
+        caph->hopping_running = 0;
         pthread_mutex_unlock(&(caph->handler_lock));
         pthread_attr_destroy(&attr);
         cf_send_error(caph, 0, "failed to launch channel hopping thread");
         cf_handler_spindown(caph);
         return -1;
     }
-
-    caph->hopping_running = 1;
 
     pthread_mutex_unlock(&(caph->handler_lock));
     pthread_attr_destroy(&attr);
@@ -1897,6 +2636,13 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
     char msgstr[STATUS_MAX];
     size_t i;
 
+    /* Arrival time of a sync answer, taken before waiting on the lock, which a
+     * channel change holds */
+    uint64_t rx_mono_ns = 0;
+
+    if (cmd == KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT)
+        rx_mono_ns = cf_clock_ns(CLOCK_MONOTONIC);
+
     pthread_mutex_lock(&(caph->handler_lock));
 
     if (cmd == KIS_EXTERNAL_V3_CMD_PING) {
@@ -1906,6 +2652,30 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         goto finish;
     } else if (cmd == KIS_EXTERNAL_V3_CMD_PONG) {
         cbret = 1;
+        goto finish;
+    } else if (cmd == KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT) {
+        mpack_tree_t tree;
+        mpack_node_t root;
+        uint64_t t1, t2, t3;
+
+        cbret = 1;
+
+        mpack_tree_init_data(&tree, (const char *) data, packet_sz);
+
+        if (!mpack_tree_try_parse(&tree)) {
+            mpack_tree_destroy(&tree);
+            goto finish;
+        }
+
+        root = mpack_tree_root(&tree);
+        t1 = mpack_node_u64(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_T1));
+        t2 = mpack_node_u64(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_RX));
+        t3 = mpack_node_u64(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT_FIELD_TX));
+
+        if (mpack_tree_error(&tree) == mpack_ok)
+            cf_hop_clock_sample(caph, t1, t2, t3, rx_mono_ns);
+
+        mpack_tree_destroy(&tree);
         goto finish;
     } else if (cmd == KIS_EXTERNAL_V3_KDS_CLOSEREQ) {
         /* Graceful close.  An opted-in source with a running capture
@@ -2155,6 +2925,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         void **chanhop_priv_channels = NULL;
         size_t chanhop_channels_sz = 0, szi = 0;
         int chanhop_shuffle = 0, chanhop_shuffle_spacing = 1, chanhop_offset = 0;
+        int chanhop_sync = 0;
+        uint64_t chanhop_sync_epoch = 0;
         void *translate_chan = NULL;
 
         mpack_tree_t tree;
@@ -2184,6 +2956,26 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
         root = mpack_tree_root(&tree);
 
+        /* Only a server which takes hop timing reports asks for them */
+        if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_REPORT_MS)) {
+            uint32_t report_ms =
+                mpack_node_u32(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_REPORT_MS));
+
+            if (mpack_tree_error(&tree) != mpack_ok) {
+                fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack report interval.\n");
+                cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            if (report_ms != 0 && report_ms < 1000)
+                report_ms = 1000;
+            else if (report_ms > 3600000)
+                report_ms = 3600000;
+
+            caph->hop_report_ms = report_ms;
+        }
+
         if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL)) {
             char channel[1024];
             mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL), channel, 1024);
@@ -2210,17 +3002,29 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
              * contains '='. */
             if (caph->hopping_running && strchr(channel, '=') == NULL) {
                 pthread_cancel(caph->hopthread);
+                caph->hop_generation++;
                 caph->hopping_running = 0;
             }
 
             msgstr[0] = 0;
-            cbret = (*(caph->chancontrol_cb))(caph, seqno, translate_chan, msgstr);
+
+            /* Settings aren't channel changes; don't time them or tag packets */
+            if (strchr(channel, '=') == NULL) {
+                cbret = cf_timed_chancontrol(caph, seqno, translate_chan, msgstr);
+                cf_hop_report_step(caph, cf_clock_ns(CLOCK_MONOTONIC));
+            } else {
+                cbret = (*(caph->chancontrol_cb))(caph, seqno, translate_chan, msgstr);
+            }
 
             /* Log the channel we're set to */
             if (cbret > 0) {
                 if (caph->channel != NULL)
                     free(caph->channel);
                 caph->channel = strdup(channel);
+
+                if (caph->hop_timing != NULL && strchr(channel, '=') == NULL)
+                    snprintf(caph->hop_timing->last_chan, sizeof(caph->hop_timing->last_chan),
+                            "%s", channel);
             }
 
             /* Send a response based on the channel set success */
@@ -2342,12 +3146,22 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 chanhop_offset = caph->channel_hop_offset;
             }
 
+            /* Each hop configuration says whether to hop on the shared grid */
+            if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SYNC_EPOCH)) {
+                chanhop_sync = 1;
+                chanhop_sync_epoch = mpack_node_u64(mpack_node_map_uint(chanhop,
+                            KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SYNC_EPOCH));
+            }
+
             if (mpack_tree_error(&tree) != mpack_ok) {
                 fprintf(stderr, "FATAL: Invalid configure request received, unable to process channel hop command.\n");
                 cbret = -1;
                 mpack_tree_destroy(&tree);
                 goto finish;
             }
+
+            caph->hop_sync = chanhop_sync;
+            caph->hop_sync_epoch_ns = chanhop_sync_epoch;
 
             /* Set the hop data, which will handle our thread */
             cf_handler_assign_hop_channels(caph, chanhop_channels,
@@ -4453,6 +5267,7 @@ int cf_send_data(kis_capture_handler_t *caph,
     cf_frame_metadata *meta = NULL;
 
     uint32_t seqno;
+    uint32_t flags;
 
     if (msg != NULL) {
         if (caph->verbose) {
@@ -4496,6 +5311,9 @@ int cf_send_data(kis_capture_handler_t *caph,
     }
 
     KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(est_len, packet_sz);
+
+    /* packet flags */
+    est_len += 8;
 
     est_len = est_len * 1.5;
 
@@ -4652,6 +5470,11 @@ int cf_send_data(kis_capture_handler_t *caph,
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH);
     mpack_write_u32(&writer, original_sz);
 
+    if ((flags = cf_packet_flags(caph, ts)) != 0) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_FLAGS);
+        mpack_write_u32(&writer, flags);
+    }
+
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT);
     mpack_write_bin(&writer, (const char *) pack, packet_sz);
 
@@ -4687,6 +5510,7 @@ int cf_send_data_multi(kis_capture_handler_t *caph,
     cf_frame_metadata *meta = NULL;
 
     uint32_t seqno;
+    uint32_t flags;
 
     uint32_t synth_packet_sz = header_sz + packet_sz + footer_sz;
     uint32_t synth_original_sz = header_sz + original_sz + footer_sz;
@@ -4733,6 +5557,9 @@ int cf_send_data_multi(kis_capture_handler_t *caph,
     }
 
     KIS_EXTERNAL_V3_KDS_SUB_PACKET_EST_LEN(est_len, synth_packet_sz);
+
+    /* packet flags */
+    est_len += 8;
 
     est_len = est_len * 1.5;
 
@@ -4888,6 +5715,11 @@ int cf_send_data_multi(kis_capture_handler_t *caph,
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_LENGTH);
     mpack_write_u32(&writer, synth_original_sz);
+
+    if ((flags = cf_packet_flags(caph, ts)) != 0) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_FLAGS);
+        mpack_write_u32(&writer, flags);
+    }
 
     mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_PACKET_FIELD_CONTENT);
     mpack_start_bin(&writer, synth_packet_sz);

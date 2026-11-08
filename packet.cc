@@ -47,6 +47,7 @@ kis_packet::kis_packet() {
 	filtered = 0;
     duplicate = 0;
     dedupe_exempt = false;
+    chanswitch = false;
     dedupe_source = nullptr;
     hash = 0;
     hash_frame = std::string_view();
@@ -80,6 +81,7 @@ void kis_packet::reset() {
     filtered = 0;
     duplicate = 0;
     dedupe_exempt = false;
+    chanswitch = false;
 
     common_info.reset();
 
