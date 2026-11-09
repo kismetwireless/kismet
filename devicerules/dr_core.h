@@ -129,6 +129,8 @@ struct field_slot {
     vtype type;
     ftype leaf;
     bool multi;
+    // lat() and lon(): the element of a [lon, lat] list, or -1 for the whole field
+    int index = -1;
 };
 
 // Resolves names to field ids and types; the kismet side uses the entry tracker

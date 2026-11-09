@@ -57,11 +57,14 @@
 #   kismet.device.base.signal/kismet.common.signal.last_signal.  A path through a list
 #   or map of records matches when any record matches.  Short names: mac, name, phy,
 #   type, manuf, crypt, channel, frequency, packets, datasize, first_time, last_time,
-#   mod_time, num_alerts, signal, min_signal, max_signal, seenby.
+#   mod_time, num_alerts, signal, min_signal, max_signal, seenby, location (the
+#   average location) and last_location.
 #
 #   Numbers compare with == != < <= > >=, and take + - * / % (put spaces around '/'
 #   for division).  Durations such as 30s, 5m, 2h and 1d are seconds; 'now' is the
-#   current time and age(field) is now - field.
+#   current time and age(field) is now - field.  lat(field) and lon(field) are the
+#   latitude and longitude of a location, such as lat(location); a device without
+#   a location doesn't match.
 #
 #   Strings compare with == and !=, or with contains, icontains (any case),
 #   startswith, endswith and matches (a PCRE regex), against a "string".  The
@@ -160,4 +163,11 @@
 #     description "Busy devices that have gone quiet"
 #     when age(last_time) > 10m and packets > 1000
 #     tag "quiet"
+# }
+#
+# rule quad {
+#     description "Devices seen inside a lat/lon box"
+#     when lat(location) >= 10.0 and lat(location) <= 10.1 and lon(location) >= 20.0 and lon(location) <= 20.1
+#     tag "quad"
+#     view "Devices in the quad"
 # }

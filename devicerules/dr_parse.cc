@@ -1261,6 +1261,18 @@ private:
             return n;
         }
 
+        if (w == "lat" || w == "lon") {
+            advance();
+            expect(tok::lparen, "'('");
+            if (cur.t != tok::ident || is_keyword(cur.text))
+                error("expected a location field name");
+            auto f = field();
+            expect(tok::rparen, "')'");
+            // Index into the [lon, lat] point
+            f->aux = w == "lat" ? 1 : 0;
+            return f;
+        }
+
         if (w == "text") {
             auto n = mk(nkind::text);
             advance();
@@ -1290,7 +1302,7 @@ private:
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "text", "when", "tag", "color", "view", "alert", "live", "webhook", "rule",
+            "count", "age", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "webhook", "rule",
             "sort", "by", "asc", "desc", "include" };
 
         for (auto k : kw)

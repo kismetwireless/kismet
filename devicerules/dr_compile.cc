@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <sstream>
@@ -52,6 +53,8 @@ constexpr alias aliases[] = {
     { "min_signal", "kismet.device.base.signal/kismet.common.signal.min_signal" },
     { "max_signal", "kismet.device.base.signal/kismet.common.signal.max_signal" },
     { "seenby", "kismet.device.base.seenby" },
+    { "location", "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.geopoint" },
+    { "last_location", "kismet.device.base.location/kismet.common.location.last/kismet.common.location.geopoint" },
 };
 
 // Fields whose string values match without regard to case
@@ -232,7 +235,7 @@ private:
         throw e;
     }
 
-    int resolve_field(const node *n, const std::string& text) {
+    int resolve_field(const node *n, const std::string& text, int index = -1) {
         std::string full = text;
 
         if (text.find('.') == std::string::npos && text.find('/') == std::string::npos) {
@@ -248,7 +251,8 @@ private:
                 error(n, "unknown field '" + text + "'");
         }
 
-        auto sm = slot_map.find(full);
+        auto key = index < 0 ? full : full + (index == 1 ? "#lat" : "#lon");
+        auto sm = slot_map.find(key);
         if (sm != slot_map.end())
             return sm->second;
 
@@ -308,12 +312,21 @@ private:
                 break;
         }
 
+        if (index >= 0) {
+            if (fs.leaf != ftype::real_list)
+                error(n, std::string(index == 1 ? "lat" : "lon") + "() needs a [lon, lat] point such as location");
+            fs.index = index;
+            fs.type = vtype::real;
+            // Still several values when the path crosses a container
+            fs.multi = std::find(fs.fanout.begin(), fs.fanout.end(), true) != fs.fanout.end();
+        }
+
         if (rs.fields.size() >= 65535)
             error(n, "too many fields");
 
         int slot = rs.fields.size();
         rs.fields.push_back(std::move(fs));
-        slot_map[full] = slot;
+        slot_map[key] = slot;
         return slot;
     }
 
@@ -432,7 +445,7 @@ private:
                 break;
 
             case nkind::field: {
-                n->slot = resolve_field(n.get(), n->str);
+                n->slot = resolve_field(n.get(), n->str, n->aux);
                 const auto& f = rs.fields[n->slot];
                 if (f.type == vtype::none) {
                     if (f.leaf == ftype::map || f.leaf == ftype::container)
