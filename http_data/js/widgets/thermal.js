@@ -140,6 +140,7 @@ export function openThermal() {
 
     let timer = null;
     let reading = false;
+    let fitted = false;
     let listKey = '';
     const stopUnits = settings.watch('units.temperature', () => read());
     const rowsByName = new Map();
@@ -247,6 +248,11 @@ export function openThermal() {
                 status.textContent = err.status === 404 ? 'This server doesn\'t report temperatures' : err.message;
             } finally {
                 reading = false;
+            }
+            // Once, so a size the user dragged it to stays
+            if (!fitted) {
+                fitted = true;
+                d.fitContent({ grow: false });
             }
         }
         timer = setTimeout(read, refresh[span] * 1000);
