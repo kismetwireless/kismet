@@ -52,6 +52,7 @@ import * as gps from './widgets/gps.js';
 import * as packetgraphs from './widgets/packetgraphs.js';
 import * as memory from './widgets/memory.js';
 import * as thermal from './widgets/thermal.js';
+import * as cpu from './widgets/cpu.js';
 import * as devicerules from './widgets/devicerules.js';
 import * as loading from './widgets/loading.js';
 import * as panesWidget from './widgets/panes.js';
@@ -95,6 +96,7 @@ export const kismet = {
         packetgraphs,
         memory,
         thermal,
+        cpu,
         devicerules,
         loading,
         panes: panesWidget,

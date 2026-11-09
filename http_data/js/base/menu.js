@@ -15,6 +15,11 @@ export function register(kismet) {
     });
 
     ui.menuItems.add({
+        id: 'cpu', title: 'CPU', icon: 'cpu',
+        onClick: () => kismet.widgets.cpu.openCpu(),
+    });
+
+    ui.menuItems.add({
         id: 'devicerules', title: 'Device rules', icon: 'list',
         onClick: () => kismet.widgets.devicerules.openRules(),
     });
