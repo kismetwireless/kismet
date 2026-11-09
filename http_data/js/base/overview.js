@@ -678,7 +678,8 @@ export function register(kismet) {
                             color: series(i) })));
                     note.textContent = !data.thermal ? 'This server doesn\'t report temperatures' :
                         !all.length ? 'The server has no temperature sensors it can read' :
-                            graphed ? `In ${format.tempUnit()}` : 'No history; set system_thermal_history=true for graphs';
+                            graphed ? '' : 'No history; set system_thermal_history=true for graphs';
+                    note.hidden = !note.textContent;
                     draw();
                 },
             };

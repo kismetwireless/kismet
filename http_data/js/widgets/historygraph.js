@@ -76,10 +76,12 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
             return;
         legendKey = key;
         legend.hidden = !lines;
-        // The legend goes under the plot, which keeps the graph's height
-        node.style.height = lines ? 'auto' : height;
-        canvas.style.height = lines ? height : '';
-        canvas.style.flex = lines ? 'none' : '';
+        // The legend goes under the plot, which keeps the graph's height; a
+        // graph filling its space (no height) shrinks the plot to fit it
+        const fixed = lines && height;
+        node.style.height = fixed ? 'auto' : (height ?? '');
+        canvas.style.height = fixed ? height : '';
+        canvas.style.flex = fixed ? 'none' : '';
         legend.replaceChildren(...(lines ?? []).map((l) =>
             el('span', { class: 'graph-legend-item' }, el('span', { class: 'graph-swatch', style: { background: l.color } }), l.label)));
     }
