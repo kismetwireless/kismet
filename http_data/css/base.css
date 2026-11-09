@@ -1423,6 +1423,9 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .mem-insight.mem-ok { border-left-color: var(--ok); }
 .mem-insight.mem-warn { border-left-color: var(--warn); }
 .mem-insight.mem-error { border-left-color: var(--error); }
+.mem-insight { position: relative; padding-right: 2rem; }
+.mem-insight-close { position: absolute; top: 0.2rem; right: 0.2rem; }
+.mem-reopen { margin-top: 0.4rem; }
 .mem-rows { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; }
 .mem-row { display: grid; grid-template-columns: minmax(9rem, 1.2fr) minmax(5rem, 0.8fr) minmax(0, 2fr); gap: 0.6rem; align-items: baseline; }
 .mem-row-value { font-variant-numeric: tabular-nums; text-align: right; }
