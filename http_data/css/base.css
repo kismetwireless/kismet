@@ -1123,6 +1123,12 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-paths { display: flex; align-items: center; gap: 0.4em; font-size: 0.9rem; }
 .map-paths label { display: flex; align-items: center; gap: 0.4em; white-space: nowrap; }
 .map-paths select { flex: 1; min-width: 0; }
+.map-overlays { border-top: 1px solid var(--border); padding-top: 0.3rem; }
+.map-overlays .icon-button { padding: 0 0.2em; }
+.map-pane path.map-overlay-shape { stroke: var(--accent); stroke-linejoin: round; }
+.map-pane .map-overlay-shape:not(path) { background: none; border: none; }
+.map-overlay-glyph { display: grid; place-items: center; width: 24px; height: 24px; font-size: 20px; color: var(--accent);
+    filter: drop-shadow(0 0 1px var(--bg)) drop-shadow(0 0 1px var(--bg)); }
 .map-range-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; font-size: 0.9rem; }
 .map-range-pick label { flex-basis: 100%; white-space: nowrap; }
 .map-range-pick select { flex: 1; min-width: 0; }

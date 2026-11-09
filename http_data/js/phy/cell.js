@@ -241,6 +241,17 @@ export function register(kismet) {
         match: (row) => (isCell(row) ? icons.icon('tower', 'Cell tower') : null),
     });
 
+    // Towers are drawn around where they were heard; a cell only heard as a
+    // neighbor (no global identity) is drawn fainter
+    ui.mapSources.add({
+        id: 'cell', title: 'Cell towers', priority: 55, icon: 'tower', view: 'phy-Cellular', position: 'average',
+        fields: [[`${cd}/cellular.cell.rat`, 'rat'], [`${cd}/cellular.cell.key`, 'cellkey'],
+            [`${cd}/cellular.cell.operator`, 'operator']],
+        label: (d) => d.cellkey || d.name,
+        detail: (d) => [d.rat, d.operator, d.type === 'Cell (Partial)' ? 'neighbor only' : null].filter(Boolean).join(' '),
+        color: (d) => (d.type === 'Cell (Partial)' ? 'var(--muted)' : 'hsl(28 90% 55%)'),
+    });
+
     ui.deviceColumns.add({
         id: 'cell_rat', title: 'Cell RAT', priority: 120, group: 'Cellular', width: '6em',
         description: 'The cell\'s radio access technology (GSM, UMTS, LTE, NR)',

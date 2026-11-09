@@ -67,6 +67,29 @@ export const mapSources = createRegistry('mapSources', {
     defaults: { view: 'all', icon: 'gps', maxAge: 600, position: 'reported', paths: true, defaultVisible: true },
 });
 
+// Shapes drawn over the map tab, above the background and under the devices,
+// each overlay with a checkbox in the map's list.  Plugins add one for an
+// area or route of their own, such as a survey boundary.
+//   id, title, priority, defaultVisible, icon (for the checkbox),
+//   shapes() -> [shape, ...], called whenever the overlay is drawn,
+//   watch(redraw) -> optional cleanup function; call redraw() when the shapes
+//     change,
+//   legend() -> optional node shown on the map while the overlay is visible
+// A shape is one of
+//   { type: 'polygon', points: [[lon, lat], ...] }
+//   { type: 'line', points: [[lon, lat], ...] }
+//   { type: 'rect', bounds: [[lon, lat], [lon, lat]] }  (opposite corners)
+//   { type: 'circle', center: [lon, lat], radius: meters }
+//   { type: 'marker', center: [lon, lat], icon: icon name }
+// with any of color and fillColor (CSS colors, including var(--ok) and the
+// other theme colors), weight (line px), dash (as '4 4'), fill (polygons,
+// rects and circles are filled unless false), fillOpacity, label (text shown
+// on hover), and className (extra classes, letters, digits, - and _).
+export const mapOverlays = createRegistry('mapOverlays', {
+    required: ['title', 'shapes'],
+    defaults: { icon: 'target', defaultVisible: true },
+});
+
 // Cards on the Overview tab.
 //   id, title, priority,
 //   w, h: the card's starting size on the 12-column grid, in columns and

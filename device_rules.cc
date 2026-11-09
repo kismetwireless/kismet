@@ -72,6 +72,8 @@ public:
         auto e = walk(root, f, 0, f.path.size());
         if (e == nullptr)
             return false;
+        if (f.index >= 0)
+            return element(e, f.index, out);
         return leaf(e, out);
     }
 
@@ -187,6 +189,29 @@ private:
         return true;
     }
 
+    // One element of a list of doubles, as lat() and lon() of a [lon, lat] point
+    static bool element(tracker_element *e, int index, value& out) {
+        out = value{};
+        if (e->get_type() == tracker_type::tracker_pair_double) {
+            const auto& p = static_cast<tracker_element_pair_double *>(e)->get();
+            if (index == 0)
+                out.f = p.first;
+            else if (index == 1)
+                out.f = p.second;
+            else
+                return false;
+        } else if (e->get_type() == tracker_type::tracker_vector_double) {
+            auto v = static_cast<tracker_element_vector_double *>(e);
+            if (index < 0 || (size_t) index >= v->size())
+                return false;
+            out.f = (*v)[index];
+        } else {
+            return false;
+        }
+        out.valid = 1;
+        return true;
+    }
+
     template<typename C, typename F>
     static bool each_value(C *c, F fn) {
         for (const auto& i : *c)
@@ -266,6 +291,8 @@ private:
                 return static_cast<tracker_element_vector_string *>(c)->size();
             case tracker_type::tracker_vector_double:
                 return static_cast<tracker_element_vector_double *>(c)->size();
+            case tracker_type::tracker_pair_double:
+                return 2;
             default: {
                 int64_t n = 0;
                 each(c, [&n](tracker_element *) { n++; return false; });
@@ -289,6 +316,17 @@ private:
             }
 
             i++;
+        }
+
+        if (f.index >= 0) {
+            if (cnt != nullptr) {
+                (*cnt)++;
+                return false;
+            }
+            value v;
+            if (!element(e, f.index, v))
+                return false;
+            return fn(v, arg);
         }
 
         // Lists of plain values at the end of the path
@@ -318,6 +356,19 @@ private:
                 v.f = d;
                 v.valid = 1;
                 if (fn(v, arg))
+                    return true;
+            }
+            return false;
+        }
+
+        if (e->get_type() == tracker_type::tracker_pair_double) {
+            for (int k = 0; k < 2; k++) {
+                if (cnt != nullptr) {
+                    (*cnt)++;
+                    continue;
+                }
+                value v;
+                if (element(e, k, v) && fn(v, arg))
                     return true;
             }
             return false;
@@ -409,6 +460,8 @@ public:
                 t = ftype::string_list;
                 break;
             case tracker_type::tracker_vector_double:
+            // [lon, lat] points
+            case tracker_type::tracker_pair_double:
                 t = ftype::real_list;
                 break;
             default:
