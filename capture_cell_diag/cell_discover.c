@@ -21,6 +21,10 @@
 #if defined(CELL_SELFTEST) && defined(CELL_DISCOVER_SELFTEST)
 #define _XOPEN_SOURCE 700
 #define _DEFAULT_SOURCE
+/* _XOPEN_SOURCE puts Darwin's headers in strict mode, which hides major(),
+ * minor(), makedev(), mkdtemp() and O_NOFOLLOW. _DEFAULT_SOURCE brings them
+ * back on glibc only; this is the Darwin spelling. */
+#define _DARWIN_C_SOURCE
 #endif
 
 #include <ctype.h>
