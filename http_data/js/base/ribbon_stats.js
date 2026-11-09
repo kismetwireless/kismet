@@ -158,13 +158,16 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'cpu', title: 'CPU', priority: 42,
-        description: 'CPU load of the system, and of the Kismet server, over the last minute',
+        description: 'CPU load of the system, and of the Kismet server, over the last minute; click for the CPU window',
         create(body) {
             const spark = kismet.widgets.sparkline({ max: 100 });
             const v = valueStat('cpu');
             v.value.textContent = '---';
             body.append(el('div', { class: 'stat-graph' }, spark.canvas), v.node);
             const stat = body.parentElement;
+            stat.classList.add('clickable');
+            const open = () => kismet.widgets.cpu.openCpu();
+            stat.addEventListener('click', open);
             const pct = (p) => `${p < 10 ? p.toFixed(1) : Math.round(p)}%`;
             let history = [];
 
@@ -193,7 +196,7 @@ export function register(kismet) {
                     if (document.visibilityState !== 'hidden')
                         spark.draw(history);
                 });
-            return () => { stop(); spark.destroy(); };
+            return () => { stop(); spark.destroy(); stat.removeEventListener('click', open); };
         },
     });
 

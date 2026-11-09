@@ -1,5 +1,6 @@
 // The Thermal window: the temperature sensors of the system the Kismet server
-// runs on, over the last minute, hour or day, with each sensor's range.
+// runs on, over the last minute, hour or day, with each sensor's range, and the
+// CPU load of the system and of Kismet against the right axis.
 //
 //   openThermal()
 //   hottest(temps) -> [name, degrees C] of the hottest of a THERMAL event's
@@ -8,7 +9,8 @@
 //       read, by label
 //
 // /system/thermal holds the sensors and their history; servers without it,
-// or with no sensors, say so instead.
+// or with no sensors, say so instead.  The CPU load is from /system/cpu, when
+// the server has it.
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
@@ -22,6 +24,7 @@ import { series } from './charts.js';
 
 const th = 'kismet.system.thermal';
 const sn = 'kismet.system.thermal.sensor';
+const cpu = 'kismet.system.cpu';
 
 const spans = { minute: ['Minute', '-60s'], hour: ['Hour', '-60m'], day: ['Day', '-24h'] };
 const binSeconds = { minute: 1, hour: 60, day: 3600 };
@@ -101,6 +104,7 @@ export function openThermal() {
     // The unit is in the heading, since it can change while the window is open
     const graph = historyGraph({ type: 'line', height: '13rem', joinGaps: true, pointLabel, fmt: tempText });
     const graphTitle = el('h3', {}, 'Temperatures');
+    const cpuText = (v) => Number.isFinite(v) ? `${v < 10 ? v.toFixed(1) : Math.round(v)}%` : '-';
 
     const status = el('span', { class: 'muted' });
     const stats = el('div', { class: 'mem-stats' });
@@ -172,7 +176,8 @@ export function openThermal() {
         if (!reading && document.visibilityState !== 'hidden') {
             reading = true;
             try {
-                const t = await api.get('system/thermal.json');
+                const [t, c] = await Promise.all([api.get('system/thermal.json'),
+                    api.get('system/cpu.json').catch(() => null)]);
                 const now = clock.isKnown() ? clock.now() : undefined;
                 const at = now ?? Date.now() / 1000;
                 const history = !!t[`${th}.history`];
@@ -197,12 +202,21 @@ export function openThermal() {
                     [...readings].filter((s) => s.live).sort((a, b) => b.temp - a.temp).slice(0, defaultGraphed);
                 const graphedNames = new Set(graphed.map((s) => s.name));
 
-                shown = { now: at, count: graphed[0]?.hist.length ?? 0 };
-                graphTitle.textContent = `Temperatures, ${format.tempUnit()}`;
-                if (history && graphed.length)
-                    graph.draw(graphed.map((s, i) => ({ label: s.label, color: series(i), values: s.hist })),
-                        [spans[span][1], 'now']);
-                graph.node.hidden = !history || !graphed.length;
+                const cpuHist = (f) => rrd.history(c[`${cpu}.${f}`], now, span, { blank: NaN }).slice(0, -1);
+                const cpuLines = c?.[`${cpu}.available`] ? [
+                    { label: 'System CPU', values: cpuHist('total_rrd') },
+                    { label: 'Kismet CPU', values: cpuHist('kismet_rrd') },
+                ] : [];
+                const tempLines = history ? graphed.map((s) => ({ label: s.label, values: s.hist })) : [];
+                const lines = [...tempLines, ...cpuLines.map((l) => ({ ...l, axis: 'right', unit: '%', fill: false, fmt: cpuText }))]
+                    .map((l, i) => ({ ...l, color: series(i) }));
+
+                shown = { now: at, count: lines[0]?.values.length ?? 0 };
+                graphTitle.textContent = [tempLines.length && `Temperatures, ${format.tempUnit()}`,
+                    cpuLines.length && 'CPU load'].filter(Boolean).join(', and ') || 'Temperatures';
+                if (lines.length)
+                    graph.draw(lines, [spans[span][1], 'now']);
+                graph.node.hidden = !lines.length;
 
                 const live = readings.filter((s) => s.live);
                 const hot = [...live].sort((a, b) => b.temp - a.temp)[0];

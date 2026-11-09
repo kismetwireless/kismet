@@ -9,6 +9,7 @@
 // from /system/status.
 
 import { el } from '../core/dom.js';
+import { icon } from '../core/icons.js';
 import * as api from '../core/api.js';
 import * as rrd from '../core/rrd.js';
 import * as clock from '../core/clock.js';
@@ -161,6 +162,9 @@ function deviceMemoryText(dm) {
     return `${dm.basis === 'heap' ? 'Heap in use' : 'Kismet\'s memory'} (${kb(dm.used)}), less ${last}, divided by the devices.`;
 }
 
+const estimateCaveat = 'These are estimates and can be well off, especially soon after Kismet starts: packet buffers are ' +
+    'still filling, and with few devices one-time costs are spread over too few of them.';
+
 const finitePairs = (a, b) => a.map((v, i) => [v, b[i]]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 
 // Memory per device: how memory moved with the device count, over the hour
@@ -208,7 +212,7 @@ function insights({ status, detail, hist, views }) {
     const devices = status[`${sys}.devices.count`] ?? 0;
 
     if (!rss) {
-        out.push({ level: 'info', title: 'Memory use not available',
+        out.push({ id: 'unavailable', level: 'info', title: 'Memory use not available',
             text: 'This server can\'t read its own memory use; Kismet reads it from /proc on Linux.' });
         return out;
     }
@@ -220,16 +224,17 @@ function insights({ status, detail, hist, views }) {
     const per = perDevice(hist);
     const dm = deviceMemory(detail, rss);
     if (per)
-        out.push({ level: 'info', title: `About ${format.size(per.kb * 1024)} per new device`,
+        out.push({ id: 'per-device', level: 'info', title: `About ${format.size(per.kb * 1024)} per new device`,
             text: `How memory rose with the device count over the last ${per.span}.` +
                 (dm?.devices ? ` ${format.count(dm.devices)} devices now hold about ${kb(dm.device)}, ${format.size(dm.per * 1024)} each.` :
-                    devices ? ` ${format.count(devices)} devices now, about ${format.size(rss * 1024 / devices)} each counting everything else Kismet holds.` : '') });
+                    devices ? ` ${format.count(devices)} devices now, about ${format.size(rss * 1024 / devices)} each counting everything else Kismet holds.` : '') +
+                `  ${estimateCaveat}` });
     else if (dm?.devices)
-        out.push({ level: 'info', title: `About ${format.size(dm.per * 1024)} per device`,
-            text: `${deviceMemoryText(dm)}  The cost of a new device shows once the device count has changed enough over the hour.` });
+        out.push({ id: 'per-device', level: 'info', title: `About ${format.size(dm.per * 1024)} per device`,
+            text: `${deviceMemoryText(dm)}  The cost of a new device shows once the device count has changed enough over the hour.  ${estimateCaveat}` });
     else if (devices)
-        out.push({ level: 'info', title: `${format.size(rss * 1024 / devices)} per device, overall`,
-            text: 'Kismet\'s memory divided by its devices.  The cost of a new device shows once the device count has changed enough over the hour.' });
+        out.push({ id: 'per-device', level: 'info', title: `${format.size(rss * 1024 / devices)} per device, overall`,
+            text: `Kismet's memory divided by its devices.  The cost of a new device shows once the device count has changed enough over the hour.  ${estimateCaveat}` });
 
     const g = growth(hist);
     const forgets = set && (set.tracker_device_timeout > 0 || set.tracker_max_devices > 0);
@@ -244,9 +249,9 @@ function insights({ status, detail, hist, views }) {
         }
         if (set && !forgets)
             text.push('Devices are kept until Kismet restarts; tracker_device_timeout or tracker_max_devices in kismet_memory.conf caps them.');
-        out.push({ level, title: 'Memory is growing', text: text.join(' ') });
+        out.push({ id: 'growing', level, title: 'Memory is growing', text: text.join(' ') });
     } else if (g && Math.abs(g.rate) <= 1024) {
-        out.push({ level: 'ok', title: 'Memory is steady', text: `No real change over the last ${g.span}.` });
+        out.push({ id: 'steady', level: 'ok', title: 'Memory is steady', text: `No real change over the last ${g.span}.` });
     }
 
     // Growth with no new devices points away from device data
@@ -256,7 +261,7 @@ function insights({ status, detail, hist, views }) {
     if (hr && hd && hr.last - hr.first > Math.max(20 * 1024, hr.first * 0.05) &&
             Math.abs(hd.last - hd.first) <= Math.max(5, hd.first * 0.01)) {
         const fieldsGrew = hf && hf.last - hf.first > hf.first * 0.05;
-        out.push({ level: 'warn', title: 'Memory grew without new devices',
+        out.push({ id: 'grew-no-devices', level: 'warn', title: 'Memory grew without new devices',
             text: `${kb(hr.last - hr.first)} over the last hour while the device count held at ${format.count(hd.last)}. ` +
                 (fieldsGrew ? 'Tracked fields grew too, so it is data kept in the devices (clients, probed SSIDs, history).' :
                     hf ? 'Tracked fields did not grow, so it is outside device data: packet queues, HTTP clients, or the allocator holding freed memory.' : '') });
@@ -265,37 +270,37 @@ function insights({ status, detail, hist, views }) {
     if (total > 0 && avail > 0) {
         const left = avail / total;
         if (left < 0.05)
-            out.push({ level: 'error', title: 'System memory nearly gone', text: `${kb(avail)} of ${kb(total)} left.` });
+            out.push({ id: 'system-low', level: 'error', title: 'System memory nearly gone', text: `${kb(avail)} of ${kb(total)} left.` });
         else if (left < 0.1)
-            out.push({ level: 'warn', title: 'System memory is low', text: `${kb(avail)} of ${kb(total)} left.` });
-        out.push({ level: rss / total > 0.5 ? 'warn' : 'info', title: `Kismet uses ${pct(rss, total)} of system memory`,
+            out.push({ id: 'system-low', level: 'warn', title: 'System memory is low', text: `${kb(avail)} of ${kb(total)} left.` });
+        out.push({ id: 'share', level: rss / total > 0.5 ? 'warn' : 'info', title: `Kismet uses ${pct(rss, total)} of system memory`,
             text: `${kb(rss)} of ${kb(total)}; ${kb(avail)} is free for other programs.` });
     }
 
     const swap = detail?.[`${mem}.swap`] ?? 0;
     if (swap > 0)
-        out.push({ level: 'warn', title: `${kb(swap)} swapped out`,
+        out.push({ id: 'swap', level: 'warn', title: `${kb(swap)} swapped out`,
             text: 'Part of Kismet is on disk; looking up devices that were swapped out is slow.' });
 
     const peak = detail?.[`${mem}.peak_rss`] ?? 0;
     if (peak > rss * 1.5 && peak - rss > 50 * 1024)
-        out.push({ level: 'info', title: `Peaked at ${kb(peak)}`,
+        out.push({ id: 'peak', level: 'info', title: `Peaked at ${kb(peak)}`,
             text: 'Memory was once much higher than now: a burst of devices or packets, or a large download from the server.' });
 
     if (detail?.[`${mem}.heap_known`]) {
         const used = detail[`${mem}.heap_used`] ?? 0;
         const free = detail[`${mem}.heap_free`] ?? 0;
         if (free > 64 * 1024 && free > (used + free) * 0.3)
-            out.push({ level: 'info', title: `${kb(free)} held free`,
+            out.push({ id: 'held-free', level: 'info', title: `${kb(free)} held free`,
                 text: 'Freed memory the allocator keeps for reuse instead of returning it; usual after devices are forgotten or a burst passes.' });
     }
 
     if (set) {
         if (set.keep_location_cloud_history)
-            out.push({ level: 'info', title: 'Location clouds are kept',
+            out.push({ id: 'location-clouds', level: 'info', title: 'Location clouds are kept',
                 text: 'keep_location_cloud_history keeps a location history for every device; turning it off saves memory.' });
         if (set.keep_per_datasource_stats)
-            out.push({ level: 'info', title: 'Per data source history is kept',
+            out.push({ id: 'per-source-stats', level: 'info', title: 'Per data source history is kept',
                 text: 'keep_per_datasource_stats keeps signal and packet history for every device from each data source.' });
     }
 
@@ -304,7 +309,7 @@ function insights({ status, detail, hist, views }) {
     const phyTotal = phys.reduce((a, v) => a + v['kismet.devices.view.size'], 0);
     const top = [...phys].sort((a, b) => b['kismet.devices.view.size'] - a['kismet.devices.view.size'])[0];
     if (top && phys.length > 1 && phyTotal >= 100 && top['kismet.devices.view.size'] / phyTotal > 0.6)
-        out.push({ level: 'info', title: `Most devices are ${top['kismet.devices.view.description'] || top['kismet.devices.view.id'].slice(4)}`,
+        out.push({ id: 'phy-share', level: 'info', title: `Most devices are ${top['kismet.devices.view.description'] || top['kismet.devices.view.id'].slice(4)}`,
             text: `${pct(top['kismet.devices.view.size'], phyTotal)} of devices, so most of the device memory.` });
 
     const order = { error: 0, warn: 1, info: 2, ok: 3 };
@@ -345,6 +350,10 @@ export function openMemory() {
     const status = el('span', { class: 'muted' });
     const stats = el('div', { class: 'mem-stats' });
     const insightList = el('ul', { class: 'mem-insights' });
+    const reopenInsights = el('button', { type: 'button', class: 'link-button mem-reopen', hidden: true, onclick: () => {
+        settings.set('memory.closedInsights', []);
+        showInsights();
+    } });
     const breakdown = el('div', { class: 'mem-rows' });
     const settingList = el('div', { class: ['mem-rows', 'mem-settings'] });
     const sysTitle = el('h3', {}, 'System memory used');
@@ -365,7 +374,7 @@ export function openMemory() {
             el('button', { type: 'button', class: 'link-button pk-channels', title: 'Packet rates and queues',
                 onclick: () => openPackets() }, 'Packet rates')),
         stats,
-        el('section', {}, el('h3', {}, 'Insights'), insightList),
+        el('section', {}, el('h3', {}, 'Insights'), insightList, reopenInsights),
         el('section', {}, el('h3', {}, 'Memory and devices'), memGraph.node),
         fieldSection, sysSection, detailSections);
 
@@ -388,6 +397,32 @@ export function openMemory() {
     let hasDetail = true;
     let views = null;
     let insightKey = '';
+    let found = [];
+
+    // A closed insight stays closed until it turns more serious
+    const closedKey = (f) => `${f.id}:${f.level}`;
+    function closeInsight(f) {
+        settings.set('memory.closedInsights', [...new Set([...settings.get('memory.closedInsights', []), closedKey(f)])]);
+        showInsights();
+    }
+
+    // Only redraw the list when it changes, so it keeps its place
+    function showInsights() {
+        const closed = new Set(settings.get('memory.closedInsights', []));
+        const open = found.filter((f) => !closed.has(closedKey(f)));
+        const hidden = found.length - open.length;
+        reopenInsights.hidden = hidden === 0;
+        reopenInsights.textContent = `Show ${format.count(hidden)} closed insight${hidden === 1 ? '' : 's'}`;
+        const key = JSON.stringify(open);
+        if (key === insightKey)
+            return;
+        insightKey = key;
+        insightList.replaceChildren(...open.map((f) =>
+            el('li', { class: ['mem-insight', `mem-${f.level}`] },
+                el('button', { type: 'button', class: 'icon-button mem-insight-close', title: 'Close',
+                    'aria-label': `Close ${f.title}`, onclick: () => closeInsight(f) }, icon('close')),
+                el('strong', {}, f.title), el('span', { class: 'muted' }, f.text))));
+    }
 
     async function readDetail(force) {
         const t = Date.now() / 1000;
@@ -410,8 +445,9 @@ export function openMemory() {
     function perDeviceReadout(rss, devices) {
         const dm = deviceMemory(detail, rss);
         if (dm?.devices)
-            return readout('Per device', format.size(dm.per * 1024), deviceMemoryText(dm));
-        return rss && devices ? readout('Per device', format.size(rss * 1024 / devices), 'Kismet\'s memory divided by its devices') : null;
+            return readout('Per device', `~${format.size(dm.per * 1024)}`, `${deviceMemoryText(dm)}\n${estimateCaveat}`);
+        return rss && devices ? readout('Per device', `~${format.size(rss * 1024 / devices)}`,
+            `Kismet's memory divided by its devices.\n${estimateCaveat}`) : null;
     }
 
     function showStats(s, now) {
@@ -512,15 +548,8 @@ export function openMemory() {
                 showStats(s, at);
                 showDetail();
 
-                // Only redraw the list when it changes, so it keeps its place
-                const found = insights({ status: s, detail, hist, views });
-                const key = JSON.stringify(found);
-                if (key !== insightKey) {
-                    insightKey = key;
-                    insightList.replaceChildren(...found.map((f) =>
-                        el('li', { class: ['mem-insight', `mem-${f.level}`] },
-                            el('strong', {}, f.title), el('span', { class: 'muted' }, f.text))));
-                }
+                found = insights({ status: s, detail, hist, views });
+                showInsights();
                 status.textContent = `Updated ${format.time(at)}`;
             } catch (err) {
                 status.textContent = err.message;

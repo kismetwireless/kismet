@@ -217,6 +217,23 @@ export function dialog({ title, body, modal = true, closable = true, className =
             place(wanted);
             fill();
         },
+        // Shrink or grow a panel to the height of its content (no taller than
+        // fits), keeping its top where it is
+        fitContent() {
+            if (modal || node.classList.contains('full'))
+                return;
+            const p = currentPosition();
+            // The body's scroll height is never less than the panel gives it, so measure what's in it
+            const pad = getComputedStyle(content);
+            const inner = [...content.children].reduce((a, c) => a + c.offsetHeight, 0);
+            const h = header.offsetHeight + inner + parseFloat(pad.paddingTop) + parseFloat(pad.paddingBottom) +
+                node.offsetHeight - node.clientHeight;
+            if (h === p.height)
+                return;
+            wanted = { ...p, height: h };
+            place(wanted);
+            fill();
+        },
     };
 }
 
