@@ -31,8 +31,10 @@
 
 #define _GNU_SOURCE
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -80,6 +82,13 @@ typedef struct {
     struct usbwifi_qent *qhead, *qtail;
     size_t qbytes;
     uint64_t qdrops;
+
+    /* The framework cancels the capture thread asynchronously when the server goes away,
+     * which can leave qlock or the framework's own locks held, so the thread runs with
+     * cancellation off.  main() stops it with these instead, under qlock, before closing
+     * the device. */
+    bool cap_started, cap_stop, cap_done;
+    pthread_cond_t donecond;
 } local_usbwifi_t;
 
 static void usbwifi_enqueue(local_usbwifi_t *local, unsigned int msgflags, const uint8_t *data,
@@ -422,6 +431,40 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     return 1;
 }
 
+static bool usbwifi_stopping(local_usbwifi_t *local) {
+    bool r;
+
+    pthread_mutex_lock(&local->qlock);
+    r = local->cap_stop;
+    pthread_mutex_unlock(&local->qlock);
+
+    return r;
+}
+
+/* Stop the capture thread and wait for it, so nothing uses the device as it closes */
+static void usbwifi_stop_capture(local_usbwifi_t *local) {
+    struct timespec deadline;
+    int r = 0;
+
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += 5;
+
+    pthread_mutex_lock(&local->qlock);
+    local->cap_stop = true;
+    pthread_cond_signal(&local->qcond);
+
+    while (local->cap_started && !local->cap_done && r != ETIMEDOUT)
+        r = pthread_cond_timedwait(&local->donecond, &local->qlock, &deadline);
+
+    pthread_mutex_unlock(&local->qlock);
+
+    /* A hung helper never gets restarted; exit and let --daemonize start a new one */
+    if (r == ETIMEDOUT) {
+        fprintf(stderr, "FATAL: %s capture thread did not stop\n", local->name ? local->name : "usbwifi");
+        _exit(1);
+    }
+}
+
 static int usbwifi_send(local_usbwifi_t *local, struct usbwifi_qent *e) {
     int r;
 
@@ -442,6 +485,10 @@ static int usbwifi_send(local_usbwifi_t *local, struct usbwifi_qent *e) {
         if (r > 0)
             return 0;
 
+        /* A server that went away never drains the buffer */
+        if (usbwifi_stopping(local))
+            return -1;
+
         /* Wait for the write buffer to drain */
         cf_handler_wait_ringbuffer(local->caph);
     }
@@ -454,8 +501,16 @@ void capture_thread(kis_capture_handler_t *caph) {
     uint64_t drops, reported_drops = 0;
     time_t last_check = 0, last_drop_report = 0;
     struct timespec deadline;
+    bool stop;
 
-    while (!local->error && caph->spindown == 0) {
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    pthread_mutex_lock(&local->qlock);
+    stop = local->cap_stop;
+    local->cap_started = !stop;
+    pthread_mutex_unlock(&local->qlock);
+
+    while (!stop && !local->error && caph->spindown == 0) {
         time_t now = time(NULL);
 
         if (now != last_check) {
@@ -470,10 +525,14 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         pthread_mutex_lock(&local->qlock);
-        if (local->qhead == NULL) {
+        if (local->qhead == NULL && !local->cap_stop) {
             clock_gettime(CLOCK_REALTIME, &deadline);
             deadline.tv_sec += 1;
             pthread_cond_timedwait(&local->qcond, &local->qlock, &deadline);
+        }
+        if ((stop = local->cap_stop)) {
+            pthread_mutex_unlock(&local->qlock);
+            break;
         }
         batch = local->qhead;
         local->qhead = local->qtail = NULL;
@@ -497,6 +556,11 @@ void capture_thread(kis_capture_handler_t *caph) {
     }
 
     cf_handler_spindown(caph);
+
+    pthread_mutex_lock(&local->qlock);
+    local->cap_done = true;
+    pthread_cond_broadcast(&local->donecond);
+    pthread_mutex_unlock(&local->qlock);
 }
 
 int main(int argc, char *argv[]) {
@@ -512,6 +576,7 @@ int main(int argc, char *argv[]) {
     local.caph = caph;
     pthread_mutex_init(&local.qlock, NULL);
     pthread_cond_init(&local.qcond, NULL);
+    pthread_cond_init(&local.donecond, NULL);
     cf_handler_set_userdata(caph, &local);
 
     cf_handler_set_listdevices_cb(caph, list_callback);
@@ -538,6 +603,8 @@ int main(int argc, char *argv[]) {
     cf_drop_most_caps(caph);
 
     cf_handler_loop(caph);
+
+    usbwifi_stop_capture(&local);
 
     if (local.dev)
         uwifi_kis_close(local.dev);
