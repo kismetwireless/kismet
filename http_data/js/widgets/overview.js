@@ -14,6 +14,9 @@
 //              second over the last minute (pps, ending at ppst)
 //   devices    every device heard in the chosen time window, with the
 //              fields in deviceFields (renamed short), for counting
+//   cpu        /system/cpu: system and Kismet CPU load, with their RRDs
+//   thermal    /system/thermal: the temperature sensors and their RRDs
+// cpu and thermal are null on servers without them.
 // plus `now` (server time) and `window` (seconds, or 0 for all devices).
 //
 // Until all of a card's data has arrived it shows a loading outline in the
@@ -89,7 +92,18 @@ const loaders = {
     alerts: () => api.get('alerts/last-time/-3600/alerts.json'),
     sources: () => api.post('datasource/all_sources.json', { fields: sourceFields }),
     talkers: () => api.post('devices/views/all/last-time/-15/devices.json', { fields: talkerFields }),
+    cpu: () => orMissing(api.get('system/cpu.json')),
+    thermal: () => orMissing(api.get('system/thermal.json')),
 };
+
+// null from servers older than the endpoint
+function orMissing(p) {
+    return p.catch((err) => {
+        if (err?.status === 404)
+            return null;
+        throw err;
+    });
+}
 
 // Grid layout, in cells.  An item is { id, x, y, w, h }.
 

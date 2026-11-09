@@ -1,7 +1,8 @@
 // The Overview tab and its standard cards: the last 24 hours as a clock,
 // device counts, activity, packet rates, what kinds of device are around, Wi-Fi security, manufacturers,
 // new arrivals, signal strength, the busiest channels, alerts, the top
-// talkers, and the data sources.
+// talkers, the data sources, and the server's CPU load, memory and
+// temperatures.
 
 const base = 'kismet.device.base';
 
@@ -553,6 +554,132 @@ export function register(kismet) {
                         list.replaceChildren(el('li', { class: 'muted' }, 'No data sources'));
                     else
                         list.querySelector(':scope > li.muted')?.remove();
+                },
+            };
+        },
+    });
+
+    // The server's own health: CPU load, memory and temperatures, a row of
+    // three under the rest; each opens its window when clicked
+    const pctText = (v) => Number.isFinite(v) ? `${v < 10 ? v.toFixed(1) : Math.round(v)}%` : '-';
+    // The newest bin is still filling
+    const past = (r, now, span) => rrd.history(r, now, span, { blank: NaN }).slice(0, -1);
+
+    ui.dashboardCards.add({
+        id: 'cpu', title: 'CPU', loading: ['stat', 'tabs', 'graph'], priority: 110, w: 4, h: 6, needs: ['cpu'],
+        onClick: () => widgets.cpu.openCpu(),
+        create(body) {
+            const now = stat('system load');
+            const tabs = spanTabs('cpu', () => draw());
+            const graph = historyGraph({ type: 'line', unit: '%', min: 0, height: null, joinGaps: true });
+            const note = el('div', { class: 'muted ov-note', hidden: true });
+            body.append(now.node, tabs.node, graph.node, note);
+            let last = null;
+            const c = (f) => last?.cpu?.[`kismet.system.cpu.${f}`];
+            function draw() {
+                if (!c('available'))
+                    return;
+                graph.draw([
+                    { label: 'System', color: series(0), values: past(c('total_rrd'), last.now, tabs.span) },
+                    { label: 'Kismet', color: series(1), values: past(c('kismet_rrd'), last.now, tabs.span), fill: false },
+                ], spanLabels[tabs.span]);
+            }
+            return {
+                update(data) {
+                    last = data;
+                    const ok = !!c('available');
+                    graph.node.hidden = !ok;
+                    note.hidden = ok;
+                    note.textContent = data.cpu ? 'The server can\'t read its CPU load' : 'This server doesn\'t report its CPU load';
+                    now.update(ok ? pctText(c('total')) : '---', ok ? `system load; Kismet ${pctText(c('kismet'))}` : 'system load');
+                    draw();
+                },
+            };
+        },
+    });
+
+    ui.dashboardCards.add({
+        id: 'memory', title: 'Memory', loading: ['stat', 'tabs', 'graph'], priority: 120, w: 4, h: 6, needs: ['status'],
+        onClick: () => widgets.memory.openMemory(),
+        create(body) {
+            const now = stat('used by Kismet');
+            const tabs = spanTabs('memory', () => draw());
+            const graph = historyGraph({ type: 'line', unit: 'MB', height: null, fill: true, joinGaps: true });
+            body.append(now.node, tabs.node, graph.node);
+            let last = null;
+            function draw() {
+                if (!last?.status)
+                    return;
+                const kb = past(last.status['kismet.system.memory.rrd'], last.now, tabs.span);
+                graph.draw(kb.map((v) => v / 1024), spanLabels[tabs.span]);
+            }
+            return {
+                update(data) {
+                    last = data;
+                    // 0 where the server can't read its memory use (no /proc)
+                    const kb = data.status?.['kismet.system.memory.rss'];
+                    const devices = data.status?.['kismet.system.devices.count'] ?? 0;
+                    now.update(kb ? format.size(kb * 1024) : 'n/a',
+                        kb && devices ? `used by Kismet; ${format.count(devices)} devices` : 'used by Kismet');
+                    draw();
+                },
+            };
+        },
+    });
+
+    // The sensors the Thermal window graphs: the ones picked there, or the hottest few
+    const th = 'kismet.system.thermal';
+    const sn = 'kismet.system.thermal.sensor';
+    const thermalShown = 4;
+    const staleSeconds = 10;
+
+    ui.dashboardCards.add({
+        id: 'thermal', title: 'Temperatures', loading: ['stat', 'tabs', 'graph'], priority: 130, w: 4, h: 6, needs: ['thermal'],
+        onClick: () => widgets.thermal.openThermal(),
+        create(body) {
+            const hot = stat('hottest sensor');
+            const tabs = spanTabs('thermal', () => draw());
+            const graph = historyGraph({ type: 'line', height: null, joinGaps: true,
+                fmt: (v) => Number.isFinite(v) ? `${v.toFixed(1)}${format.tempUnit()}` : '-' });
+            const bars = barList({ fmt: (v) => format.temperature(v), empty: '' });
+            const note = el('div', { class: 'muted ov-note' });
+            body.append(hot.node, tabs.node, graph.node, bars.node, note);
+            let last = null;
+            let sensors = [];
+            const history = () => !!last?.thermal?.[`${th}.history`];
+            function draw() {
+                if (!history() || !sensors.length)
+                    return;
+                graph.draw(sensors.map((s, i) => ({ label: s.label, color: series(i),
+                    values: past(s.rrd, last.now, tabs.span).map((v) => Number.isFinite(v) ? format.tempValue(v) : NaN) })),
+                spanLabels[tabs.span]);
+            }
+            return {
+                update(data) {
+                    last = data;
+                    const all = Object.values(data.thermal?.[`${th}.sensors`] ?? {}).map((s) => ({
+                        name: s[`${sn}.name`], label: s[`${sn}.label`] || s[`${sn}.name`], temp: s[`${sn}.temp`],
+                        rrd: s[`${sn}.rrd`], live: data.now - (s[`${sn}.last_time`] ?? 0) <= staleSeconds,
+                    }));
+                    const live = all.filter((s) => s.live && Number.isFinite(s.temp)).sort((a, b) => b.temp - a.temp);
+                    const picked = new Set(kismet.settings.get('thermal.graphed', []));
+                    const chosen = all.filter((s) => picked.has(s.name));
+                    sensors = chosen.length ? chosen : live.slice(0, thermalShown);
+
+                    hot.update(live.length ? format.temperature(live[0].temp) : '---',
+                        live.length ? `hottest: ${live[0].label}` : 'hottest sensor');
+                    // Without history, the current readings instead of a graph
+                    const graphed = history() && sensors.length > 0;
+                    graph.node.hidden = !graphed;
+                    tabs.node.hidden = !graphed;
+                    bars.node.hidden = graphed || !live.length;
+                    if (!graphed)
+                        bars.update(live.slice(0, thermalShown).map((s, i) => ({ id: s.name, label: s.label, value: s.temp,
+                            color: series(i) })));
+                    note.textContent = !data.thermal ? 'This server doesn\'t report temperatures' :
+                        !all.length ? 'The server has no temperature sensors it can read' :
+                            graphed ? `In ${format.tempUnit()}` : 'No history; set system_thermal_history=true for graphs';
+                    draw();
                 },
             };
         },
