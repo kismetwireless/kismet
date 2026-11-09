@@ -368,6 +368,7 @@ export function openSources() {
         body,
         modal: false,
         className: 'datasources-panel',
+        fullSize: true,
         position: saved ?? { left: Math.round((window.innerWidth - w) / 2), top: Math.round(window.innerHeight * 0.06), width: w, height: h },
         onMove: (pos) => settings.set('sources.position', pos),
         onClose: () => {

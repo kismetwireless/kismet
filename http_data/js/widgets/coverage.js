@@ -278,6 +278,7 @@ export function openCoverage({ view: startView = null } = {}) {
         body,
         modal: false,
         className: 'coverage-panel',
+        fullSize: true,
         position: { left: Math.round((window.innerWidth - w) / 2), top: Math.round((window.innerHeight - h) / 2), width: w, height: h },
         onClose: () => {
             closed = true;

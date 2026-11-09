@@ -9,8 +9,9 @@
 // resized from their corner; position { left, top, width, height } places
 // one, and onMove(position) is told where the user put it.  A panel that
 // would cover nearly the whole window (most panels on a phone) fills it
-// instead, below the menu and name.  Modal dialogs keep the size their
-// content gives them.
+// instead, below the menu and name.  fullSize: true gives a panel a button
+// to fill the window and go back.  Modal dialogs keep the size their content
+// gives them.
 
 import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -34,14 +35,21 @@ document.addEventListener('keydown', (e) => {
 });
 
 export function dialog({ title, body, modal = true, closable = true, className = '', onClose = null,
-    position = null, onMove = null }) {
+    position = null, onMove = null, fullSize = false }) {
     const closeButton = closable ?
         el('button', { class: 'icon-button', title: 'Close', onclick: () => close() }, icon('close')) : null;
 
     const titleEl = el('h2', {}, title);
     const content = el('div', { class: 'dialog-body' }, body);
 
-    const header = el('header', { class: 'dialog-header' }, titleEl, closeButton);
+    // Filling the window by choice, not because the window is small
+    let maxed = false;
+    const fullButton = fullSize && !modal ? el('button', { class: 'icon-button', onclick: () => {
+        maxed = !maxed;
+        fill();
+    } }) : null;
+
+    const header = el('header', { class: 'dialog-header' }, titleEl, fullButton, closeButton);
     // The size a panel was given, and when fill() last changed it
     let wanted = position;
     let filled = 0;
@@ -117,7 +125,15 @@ export function dialog({ title, body, modal = true, closable = true, className =
             place(wanted);
         const r = node.getBoundingClientRect();
         const below = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-bottom')) || 0;
-        if (r.width < window.innerWidth * 0.85 || r.height < (window.innerHeight - below) * 0.75)
+        const full = maxed || (r.width >= window.innerWidth * 0.85 && r.height >= (window.innerHeight - below) * 0.75);
+        if (fullButton) {
+            // Nothing to go back to when the window is too small for the panel anyway
+            fullButton.hidden = full && !maxed;
+            fullButton.replaceChildren(icon(maxed ? 'collapse' : 'expand'));
+            fullButton.title = maxed ? 'Back to its size' : 'Fill the window';
+            fullButton.setAttribute('aria-pressed', maxed ? 'true' : 'false');
+        }
+        if (!full)
             return;
         node.classList.remove('placed');
         for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height'])

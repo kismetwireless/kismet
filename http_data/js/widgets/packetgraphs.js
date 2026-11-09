@@ -164,7 +164,7 @@ export function openPackets() {
     const w = Math.min(820, window.innerWidth - 32);
     const h = Math.min(Math.round(window.innerHeight * 0.85), 860);
     const d = dialog({
-        title: 'Packet rates', body, modal: false, className: 'pk-panel',
+        title: 'Packet rates', body, modal: false, className: 'pk-panel', fullSize: true,
         position: { left: Math.round((window.innerWidth - w) / 2), top: 70, width: w, height: h },
         onClose: () => {
             clearTimeout(timer);
