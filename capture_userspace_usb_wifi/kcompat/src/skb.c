@@ -18,7 +18,13 @@
 
 /* sk_buff, pages, page_pool and net_device */
 
+/* musl has no backtrace() */
+#if defined(__has_include)
+#if __has_include(<execinfo.h>)
 #include <execinfo.h>
+#define KC_HAVE_BACKTRACE 1
+#endif
+#endif
 
 #include <kcompat/kcompat.h>
 
@@ -193,8 +199,10 @@ void *kc_skb_over_panic(struct sk_buff *skb, unsigned int len, const char *what)
     kc_printk(KERN_EMERG "skb_%s: overflow len %u, data %u, head %ld, tail %ld, end %ld\n", what, len,
             skb->len, (long) (skb->data - skb->head), (long) (skb->tail - skb->head),
             (long) (skb->end - skb->head));
+#ifdef KC_HAVE_BACKTRACE
     void *bt[32];
     backtrace_symbols_fd(bt, backtrace(bt, 32), 2);
+#endif
     abort();
     return NULL;
 }
