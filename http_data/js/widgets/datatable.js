@@ -798,13 +798,14 @@ export function createDataTable(container, {
 
     // Toolbar: the owner's controls, the search, the count, the edit button
     const handle = { restart, draw, element: container };
-    toolbarEl.append(...[toolbar?.(handle)].flat().filter(Boolean),
+    // append() writes a null (no pause button) as the text "null"
+    toolbarEl.append(...[...[toolbar?.(handle)].flat(),
         el('label', { class: 'search-box' }, icon('search'), searchInput),
         pauseButton,
         queryError,
         el('div', { class: 'spacer' }),
         countInfo,
-        editButton);
+        editButton].filter(Boolean));
 
     buildHeader();
     columns.watch(() => {
