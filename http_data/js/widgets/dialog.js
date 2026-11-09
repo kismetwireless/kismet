@@ -218,17 +218,24 @@ export function dialog({ title, body, modal = true, closable = true, className =
             fill();
         },
         // Shrink or grow a panel to the height of its content (no taller than
-        // fits), keeping its top where it is
-        fitContent() {
+        // fits), keeping its top where it is; { grow: false } only shrinks it
+        fitContent({ grow = true } = {}) {
             if (modal || node.classList.contains('full'))
                 return;
             const p = currentPosition();
             // The body's scroll height is never less than the panel gives it, so measure what's in it
+            // with unrounded sizes and the children's margins, or it's a pixel short and scrolls
             const pad = getComputedStyle(content);
-            const inner = [...content.children].reduce((a, c) => a + c.offsetHeight, 0);
-            const h = header.offsetHeight + inner + parseFloat(pad.paddingTop) + parseFloat(pad.paddingBottom) +
-                node.offsetHeight - node.clientHeight;
-            if (h === p.height)
+            const kids = [...content.children].filter((c) => c.getClientRects().length);
+            let inner = 0;
+            if (kids.length) {
+                const first = kids[0], last = kids.at(-1);
+                inner = last.getBoundingClientRect().bottom + parseFloat(getComputedStyle(last).marginBottom) -
+                    first.getBoundingClientRect().top + parseFloat(getComputedStyle(first).marginTop);
+            }
+            const h = Math.ceil(header.getBoundingClientRect().height + inner + parseFloat(pad.paddingTop) +
+                parseFloat(pad.paddingBottom) + node.offsetHeight - node.clientHeight);
+            if (h === p.height || (!grow && h > p.height))
                 return;
             wanted = { ...p, height: h };
             place(wanted);
