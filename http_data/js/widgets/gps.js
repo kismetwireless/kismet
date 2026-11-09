@@ -268,6 +268,7 @@ export function openGps() {
     }
     const body = el('div', { class: 'gps-window' }, el('div', { class: 'muted' }, 'Waiting for the GPS status…'));
     const states = new Map();
+    let fitted = false;
     const w = Math.min(760, window.innerWidth - 32);
     const h = Math.min(Math.round(window.innerHeight * 0.85), 900);
     const d = dialog({
@@ -297,6 +298,11 @@ export function openGps() {
         body.replaceChildren(...sections.map((s) => s.node));
         sections.forEach((s) => s.draw());
         scroller.scrollTop = scroll;
+        // Once, so a size the user dragged it to stays
+        if (!fitted) {
+            fitted = true;
+            d.fitContent({ grow: false });
+        }
     });
     openWindow = d;
     return d;
