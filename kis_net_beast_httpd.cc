@@ -463,7 +463,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     amap->insert(std::make_pair("kismet.httpd.auth.role",
                                 std::make_shared<tracker_element_string>(a->role())));
                     amap->insert(std::make_pair("kismet.httpd.auth.expiration",
-                                std::make_shared<tracker_element_uint64>(a->expires())));
+                                std::make_shared<tracker_element_uint64>(0, a->expires())));
 
                     if (allow_auth_view)
                         amap->insert(std::make_pair("kismet.httpd.auth.token",
