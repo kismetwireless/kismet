@@ -10,6 +10,9 @@
 // path joins those with the server's location history, when it keeps one.
 // The same positions build the receiver range outline (maprange.js).
 //
+// Plugins can draw their own shapes over the map, such as a survey area, from
+// kismet.ui.mapOverlays; each overlay has a checkbox under the kinds of device.
+//
 // The map background comes from a tile server, so nothing is loaded from it
 // until the user agrees to that server (see askTiles); agreeing covers that
 // tile address only, and a different one is asked about again.  Without tiles
@@ -27,7 +30,7 @@ import * as clock from '../core/clock.js';
 import * as tracks from './tracks.js';
 import { createRangeStore, destination, outlineOf, ringStep } from './maprange.js';
 import { icon } from '../core/icons.js';
-import { mapSources } from '../registry/ui.js';
+import { mapSources, mapOverlays } from '../registry/ui.js';
 import { openDevice } from './detailpanel.js';
 import { confirm } from './dialog.js';
 import { expandTool } from './panes.js';
@@ -40,6 +43,8 @@ const maxMarkers = 5000;
 const rangeLimit = 500000;          // m; further positions are taken as bad decodes
 const rangeMs = 30000;              // how often the server's range is read
 const rangeMoved = 2000;            // m; a receiver that strayed further is mobile
+const maxOverlayShapes = 1000;      // per overlay
+const maxShapePoints = 10000;
 
 export const defaultTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const defaultAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
@@ -230,6 +235,18 @@ function legacyServer() {
 
 let leafletLoad = null;
 
+// Open maps, and an overlay to zoom to once a map is ready
+const liveMaps = new Set();
+let pendingZoom = null;
+
+// Zoom the map to a plugin overlay's shapes (kismet.ui.mapOverlays); a map
+// that isn't drawn yet zooms there when it is.  Pair with showing the map tab.
+export function zoomToOverlay(id) {
+    pendingZoom = id;
+    for (const m of liveMaps)
+        m.zoomOverlay(id);
+}
+
 // Leaflet is only loaded when the map is first shown
 function loadLeaflet() {
     if (window.L)
@@ -310,12 +327,14 @@ export function createMap(container, area = null) {
     const inViewOnly = el('input', { type: 'checkbox', checked: settings.get('map.listInView', false),
         onchange: () => { settings.set('map.listInView', inViewOnly.checked); render(); } });
     const layerList = el('div', { class: 'map-layers' });
+    const overlayList = el('div', { class: 'map-layers map-overlays', hidden: true });
     const summary = el('div', { class: 'map-summary muted' });
     const list = el('ul', { class: 'map-list' });
 
     const side = el('aside', { class: 'map-side' },
         search,
         layerList,
+        overlayList,
         el('label', { class: 'map-age' }, 'Heard in the last ', ageSelect),
         el('div', { class: 'map-paths' }, el('label', {}, pathBox, 'Show paths for'), pathSelect),
         pathNote,
@@ -336,6 +355,7 @@ export function createMap(container, area = null) {
     let markerLayer = null;
     let linkLayer = null;
     let rangeLayer = null;
+    let overlayLayer = null;
     let rangeShapes = [];
     // Whether the server keeps the range: unknown until asked
     let serverRange = null;
@@ -479,6 +499,7 @@ export function createMap(container, area = null) {
         map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
         L.control.scale({ position: 'bottomleft' }).addTo(map);
         rangeLayer = L.layerGroup().addTo(map);
+        overlayLayer = L.layerGroup().addTo(map);
         linkLayer = L.layerGroup().addTo(map);
         markerLayer = L.layerGroup().addTo(map);
 
@@ -495,6 +516,9 @@ export function createMap(container, area = null) {
             render();
         });
 
+        syncOverlays();
+        if (pendingZoom)
+            zoomOverlay(pendingZoom);
         legacy = await legacyServer();
         await loadServerTiles();
         applyTiles();
@@ -1110,13 +1134,230 @@ export function createMap(container, area = null) {
             rowEl.hidden = !!viewSizes && src.view !== 'all' && !viewSizes.get(src.view) && !counts.get(src.id);
         }
 
-        legends.replaceChildren(...sources.filter((s) => enabled(s) && s.legend && !layerRows.get(s.id).row.hidden).map((s) => {
-            try {
-                return s.legend();
-            } catch {
-                return null;
+        sourceLegends = sources.filter((s) => enabled(s) && s.legend && !layerRows.get(s.id).row.hidden)
+            .map((s) => legendOf(s)).filter(Boolean);
+        showLegends();
+    }
+
+    let sourceLegends = [];
+    let overlayLegends = [];
+
+    function legendOf(s) {
+        try {
+            return s.legend();
+        } catch {
+            return null;
+        }
+    }
+
+    function showLegends() {
+        legends.replaceChildren(...sourceLegends, ...overlayLegends);
+    }
+
+    // Plugin overlays: id -> { ov, group, stop, queued }
+    const overlays = new Map();
+
+    function overlayOn(ov) {
+        return settings.get(`map.overlays.${ov.id}`, ov.defaultVisible) !== false;
+    }
+
+    // Overlays come and go with the plugins that add them
+    function syncOverlays() {
+        if (!map)
+            return;
+        const list = mapOverlays.list();
+        for (const [id, st] of overlays) {
+            if (mapOverlays.get(id) !== st.ov)
+                dropOverlay(id, st);
+        }
+        for (const ov of list) {
+            if (overlays.has(ov.id))
+                continue;
+            const st = { ov, group: L.featureGroup().addTo(overlayLayer), stop: null, queued: false };
+            overlays.set(ov.id, st);
+            if (typeof ov.watch === 'function') {
+                try {
+                    const stop = ov.watch(() => queueOverlay(ov.id));
+                    st.stop = typeof stop === 'function' ? stop : null;
+                } catch (err) {
+                    console.error(`map overlay ${ov.id}: watch failed:`, err);
+                }
             }
-        }).filter(Boolean));
+            drawOverlay(st);
+        }
+        overlayRows(list);
+    }
+
+    function dropOverlay(id, st) {
+        try {
+            st.stop?.();
+        } catch (err) {
+            console.error(`map overlay ${id}: cleanup failed:`, err);
+        }
+        st.group.remove();
+        overlays.delete(id);
+    }
+
+    // Several changes at once draw once
+    function queueOverlay(id) {
+        const st = overlays.get(id);
+        if (!st || st.queued)
+            return;
+        st.queued = true;
+        requestAnimationFrame(() => {
+            st.queued = false;
+            if (overlays.get(id) === st)
+                drawOverlay(st);
+        });
+    }
+
+    function drawOverlay(st) {
+        st.group.clearLayers();
+        if (overlayOn(st.ov)) {
+            let shapes = [];
+            try {
+                shapes = st.ov.shapes();
+            } catch (err) {
+                console.error(`map overlay ${st.ov.id}: shapes failed:`, err);
+            }
+            for (const sh of Array.isArray(shapes) ? shapes.slice(0, maxOverlayShapes) : []) {
+                const layer = overlayShape(sh);
+                if (layer)
+                    paintShape(layer.addTo(st.group), sh);
+            }
+        }
+        overlayLegends = [...overlays.values()].filter((o) => o.ov.legend && overlayOn(o.ov))
+            .map((o) => legendOf(o.ov)).filter(Boolean);
+        showLegends();
+    }
+
+    // [lat, lng] for Leaflet from a [lon, lat], or null if it isn't one
+    function shapePoint(p) {
+        return Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) &&
+            Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90 ? [p[1], p[0]] : null;
+    }
+
+    function shapeColor(c) {
+        return typeof c === 'string' && c.length <= 64 && CSS.supports('color', c) ? c : null;
+    }
+
+    function shapeNumber(v, min, max, fallback) {
+        const n = Number(v);
+        return v !== undefined && v !== null && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+    }
+
+    function overlayShape(sh) {
+        if (!sh || typeof sh !== 'object')
+            return null;
+        const extra = typeof sh.className === 'string' ?
+            sh.className.split(/\s+/).filter((c) => /^[A-Za-z0-9_-]{1,40}$/.test(c)).slice(0, 4) : [];
+        const area = ['polygon', 'rect', 'circle'].includes(sh.type);
+        const opts = {
+            className: ['map-overlay-shape', ...extra].join(' '),
+            weight: shapeNumber(sh.weight, 0, 20, 2),
+            dashArray: typeof sh.dash === 'string' && /^[0-9. ,]{1,40}$/.test(sh.dash) ? sh.dash : null,
+            fill: area && sh.fill !== false,
+            fillOpacity: shapeNumber(sh.fillOpacity, 0, 1, 0.12),
+            interactive: !!sh.label,
+        };
+        let layer;
+        switch (sh.type) {
+        case 'polygon':
+        case 'line': {
+            const pts = Array.isArray(sh.points) ? sh.points.slice(0, maxShapePoints).map(shapePoint).filter(Boolean) : [];
+            if (pts.length < (sh.type === 'polygon' ? 3 : 2))
+                return null;
+            layer = sh.type === 'polygon' ? L.polygon(pts, opts) : L.polyline(pts, opts);
+            break;
+        }
+        case 'rect': {
+            const a = shapePoint(sh.bounds?.[0]);
+            const b = shapePoint(sh.bounds?.[1]);
+            if (!a || !b)
+                return null;
+            layer = L.rectangle([a, b], opts);
+            break;
+        }
+        case 'circle': {
+            const c = shapePoint(sh.center);
+            const r = Number(sh.radius);
+            if (!c || !(r > 0) || r > 2e7)
+                return null;
+            layer = L.circle(c, { ...opts, radius: r });
+            break;
+        }
+        case 'marker': {
+            const c = shapePoint(sh.center);
+            if (!c)
+                return null;
+            const glyph = el('span', { class: 'map-overlay-glyph' }, icon(typeof sh.icon === 'string' ? sh.icon : 'target'));
+            const color = shapeColor(sh.color);
+            if (color)
+                glyph.style.color = color;
+            layer = L.marker(c, { keyboard: false, interactive: !!sh.label,
+                icon: L.divIcon({ className: opts.className, html: glyph, iconSize: [24, 24], iconAnchor: [12, 12] }) });
+            break;
+        }
+        default:
+            return null;
+        }
+        if (sh.label)
+            layer.bindTooltip(el('div', {}, String(sh.label)), { className: 'map-tip', direction: 'top', sticky: sh.type !== 'marker' });
+        return layer;
+    }
+
+    // Colors go on as styles, so theme colors such as var(--ok) work
+    function paintShape(layer, sh) {
+        const path = sh.type !== 'marker' && layer.getElement?.();
+        if (!path)
+            return;
+        const color = shapeColor(sh.color);
+        if (color)
+            path.style.stroke = color;
+        if (layer.options.fill)
+            path.style.fill = shapeColor(sh.fillColor) ?? color ?? 'var(--accent)';
+    }
+
+    function zoomOverlay(id) {
+        const b = overlays.get(id)?.group.getBounds();
+        if (!map || !b?.isValid())
+            return;
+        if (pendingZoom === id)
+            pendingZoom = null;
+        fitted = true;
+        // A map in a hidden tab has no size yet
+        requestAnimationFrame(() => {
+            map.invalidateSize();
+            map.fitBounds(b, { padding: [32, 32], maxZoom: 16 });
+        });
+    }
+    const liveMap = { zoomOverlay };
+    liveMaps.add(liveMap);
+
+    let overlayIds = '';
+
+    function overlayRows(list) {
+        const ids = list.map((o) => o.id).join(' ');
+        if (ids === overlayIds)
+            return;
+        overlayIds = ids;
+        overlayList.hidden = !list.length;
+        overlayList.replaceChildren(...list.map((ov) => {
+            const box = el('input', { type: 'checkbox', checked: overlayOn(ov),
+                onchange: () => {
+                    settings.set(`map.overlays.${ov.id}`, box.checked);
+                    const st = overlays.get(ov.id);
+                    if (st)
+                        drawOverlay(st);
+                } });
+            const zoom = el('button', { type: 'button', class: 'icon-button', title: `Zoom to ${ov.title}`,
+                onclick: (ev) => {
+                    ev.preventDefault();
+                    zoomOverlay(ov.id);
+                } }, icon('target'));
+            return el('label', { class: 'map-layer' }, box, icon(typeof ov.icon === 'string' ? ov.icon : 'target'),
+                el('span', {}, ov.title), zoom);
+        }));
     }
 
     // The side list, newest first, with the devices inside the view marked
@@ -1302,6 +1543,9 @@ export function createMap(container, area = null) {
         }),
         settings.watch('map.pathsAge', () => tracks.prune(clock.now() - pathAge())),
         mapSources.watch(() => refresh()),
+        mapOverlays.watch(() => syncOverlays()),
+        () => { for (const [id, st] of overlays) dropOverlay(id, st); },
+        () => liveMaps.delete(liveMap),
         settings.watch('map.range', () => { rangeAt = 0; loadRange(); drawRange(); }),
         settings.watch('map.rangeWindow', () => { windowSelect.value = rangeWindow(); drawRange(); }),
         () => { window.removeEventListener('pagehide', flushRange); range.flush(); },
