@@ -884,7 +884,8 @@ static int mm_mac_load_bcf(struct mm_mac *m, const struct firmware **bcf, char *
 
     if (chosen == NULL) {
         dev_err(&m->intf->dev, "no board config for board type 0x%04x; they're at "
-                "https://github.com/MorseMicro/morse-firmware, or choose one with --boardfile",
+                "https://github.com/MorseMicro/morse-firmware, or choose one with the board "
+                "config option (uwifi --boardfile, Kismet boardfile=)",
                 m->dev.board_type);
         return -ENOENT;
     }
@@ -892,7 +893,8 @@ static int mm_mac_load_bcf(struct mm_mac *m, const struct firmware **bcf, char *
     /* Only the board type's own config is known to match the adapter */
     if (m->dev.board_type == 0 || chosen != names[0])
         dev_warn(&m->intf->dev, "%s; using board config %s.  If the adapter needs a different "
-                "one, choose it with --boardfile", m->dev.board_type == 0 ?
+                "one, choose it with the board config option (uwifi --boardfile, Kismet "
+                "boardfile=)", m->dev.board_type == 0 ?
                 "no board type in OTP" : "unknown board type", chosen);
 
     snprintf(name, name_len, "%s", chosen);
