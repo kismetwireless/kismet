@@ -795,7 +795,7 @@ void Systemmonitor::record_temp(const std::string& name, const std::string& labe
             return;
 
         sensor = std::make_shared<tracked_thermal_sensor>(thermal_sensor_id);
-        sensor->set_name(name);
+        sensor->set_sensor_name(name);
         sensor->set_label(label);
         sensors->insert(name, sensor);
     } else {
