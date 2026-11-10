@@ -47,6 +47,7 @@
 #include "packet_ieee80211.h"
 #include "phy_cell_decisions.h"
 #include "version.h"
+#include "wiglecsv_crypt.h"
 
 #ifdef HAVE_LIBPCRE1
 #include <pcre.h>
@@ -111,64 +112,19 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
 
     double ret =
         (2 * asin(sqrt(pow(sin(diff_lat / 2), 2) +
-                       cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6731000.0f;
+                       cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6371000.0;
 
     return ret;
 }
 
-std::string WifiCryptToString(uint64_t cryptset) {
-    std::stringstream ss;
-
-    if (cryptset & dot11_crypt_akm_wps)
-        ss << "[WPS] ";
-
-    if (cryptset & dot11_crypt_general_wep)
-        ss << "[WEP] ";
-
-    if (cryptset & dot11_crypt_general_wpa) {
-
-        std::string cryptver = "";
-
-        if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip)) {
-            if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128)) {
-                cryptver = "CCMP+TKIP";
-            } else {
-                cryptver = "TKIP";
-            }
-        } else if (cryptset & dot11_crypt_pairwise_ccmp128) {
-            cryptver = "CCMP";
-        }
-
-        std::string authver = "";
-
-        if (cryptset & dot11_crypt_akm_psk) {
-            authver = "PSK";
-        } else if (cryptset & dot11_crypt_akm_1x) {
-            authver = "EAP";
-        } else if (cryptset & dot11_crypt_akm_owe) {
-            authver = "OWE";
-        } else {
-            authver = "UNKNOWN";
-        }
-
-        if ((cryptset & dot11_crypt_general_wpa2) && (cryptset & dot11_crypt_general_wpa1)) {
-            ss << "[WPA-" << authver << "-" << cryptver << "] ";
-            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if (cryptset & dot11_crypt_general_wpa2) {
-            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if ((cryptset & dot11_crypt_general_wpa3) || (cryptset & dot11_crypt_akm_owe)) {
-            ss << "[WPA3-" << authver << "-" << cryptver << "] ";
-        } else {
-            ss << "[WPA-" << authver << "-" << cryptver << "] ";
-        }
+bool in_exclusion_zone(const std::vector<std::tuple<double, double, double>>& zones,
+        double lat, double lon) {
+    for (const auto& ez : zones) {
+        if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez))
+            return true;
     }
 
-    auto retstr = ss.str();
-
-    if (retstr.length() > 0)
-        return retstr.substr(0, retstr.length() - 1);
-
-    return "";
+    return false;
 }
 
 void print_help(char *argv) {
@@ -594,7 +550,7 @@ int main(int argc, char *argv[]) {
 
         // Handle the aliased ssid_record for modern info
         if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-            crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
+            crypt = wiglecsv_crypt_string(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
         } else {
             if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null())
                 throw std::runtime_error("No last beaconed checksum");
@@ -605,7 +561,7 @@ int main(int argc, char *argv[]) {
 
             ss << last_ssid_key;
 
-            crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
+            crypt = wiglecsv_crypt_string(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
         }
 
         crypt += "[ESS]";
@@ -789,23 +745,18 @@ int main(int argc, char *argv[]) {
             alt = sqlite3_column_as<double>(p, 7);
         }
 
+        // Every record is checked against the exclusion zones, not just the first
+        // one seen for a device
+        if (in_exclusion_zone(exclusion_zones, lat, lon)) {
+            auto hi = mbssid_hosted.find(sourcemac);
+            n_discarded_logs_zones += 1 + (hi != mbssid_hosted.end() ? hi->second.size() : 0);
+            continue;
+        }
+
         auto hi = mbssid_hosted.find(sourcemac);
 
         if (hi != mbssid_hosted.end()) {
-            bool violates_exclusion = false;
-            for (auto ez : exclusion_zones) {
-                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                    violates_exclusion = true;
-                    break;
-                }
-            }
-
             for (const auto& h : hi->second) {
-                if (violates_exclusion) {
-                    n_discarded_logs_zones++;
-                    continue;
-                }
-
                 if (h.second->filtered)
                     continue;
 
@@ -849,20 +800,6 @@ int main(int argc, char *argv[]) {
 
             if (dev == dev_query.end()) {
                 // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
-                continue;
-            }
-
-            // Check to see if we lie in any exclusion zones
-            bool violates_exclusion = false;
-            for (auto ez : exclusion_zones) {
-                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                    violates_exclusion = true;
-                    break;
-                }
-            }
-
-            if (violates_exclusion) {
-                n_discarded_logs_zones++;
                 continue;
             }
 
@@ -1011,6 +948,11 @@ int main(int argc, char *argv[]) {
                 signal = sqlite3_column_as<int>(p, 6);
             }
 
+            if (in_exclusion_zone(exclusion_zones, lat, lon)) {
+                n_discarded_logs_zones++;
+                continue;
+            }
+
             auto ci = device_cache_map.find(sourcemac);
             std::shared_ptr<cache_obj> cached;
 
@@ -1026,20 +968,6 @@ int main(int argc, char *argv[]) {
 
                 if (dev == dev_query.end()) {
                     // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
-                    continue;
-                }
-
-                // Check to see if we lie in any exclusion zones
-                bool violates_exclusion = false;
-                for (auto ez : exclusion_zones) {
-                    if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                        violates_exclusion = true;
-                        break;
-                    }
-                }
-
-                if (violates_exclusion) {
-                    n_discarded_logs_zones++;
                     continue;
                 }
 
@@ -1251,15 +1179,7 @@ int main(int argc, char *argv[]) {
             if (json_str.empty())
                 continue;
 
-            // Check exclusion zones
-            bool violates_exclusion = false;
-            for (auto ez : exclusion_zones) {
-                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                    violates_exclusion = true;
-                    break;
-                }
-            }
-            if (violates_exclusion) {
+            if (in_exclusion_zone(exclusion_zones, lat, lon)) {
                 n_cell_skipped_zones++;
                 continue;
             }

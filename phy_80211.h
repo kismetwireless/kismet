@@ -241,6 +241,8 @@ class dot11_packinfo : public packet_component {
             mbssid.reset();
             droneid.reset();
             s1g.reset();
+            s1g_operation.reset();
+            csa.reset();
 
             airmax_ac.reset();
             airmax_m.reset();
