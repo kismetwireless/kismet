@@ -64,6 +64,7 @@
 
 /* Kernel log levels */
 #define KLOG_ERR 3
+#define KLOG_WARNING 4
 #define KLOG_INFO 6
 
 /* Frames and driver messages waiting for the capture thread */
@@ -154,7 +155,10 @@ static void mm8108_log(void *ctx, int level, const char *msg) {
     if (local == NULL || local->caph == NULL)
         return;
 
-    if (level > KLOG_ERR && !local->verbose)
+    /* Without verbose: warnings, and the driver's own notices (the boot summary, restarts),
+     * but not its "mm8108: " step by step messages */
+    if (!local->verbose && level > KLOG_WARNING &&
+            (level > KLOG_INFO || strncmp(msg, "mm8108: ", 8) == 0))
         return;
 
     snprintf(buf, sizeof(buf), "%s: %s", local->name ? local->name : "mm8108", msg);
@@ -183,7 +187,7 @@ static int mm8108_init(local_mm8108_t *local, const char *fw_dir) {
     for (size_t i = 0; i < num_sys; i++)
         paths[n++] = sys_dirs[i];
 
-    return mm_kis_init(paths, n, mm8108_log, local, local->verbose ? KLOG_INFO : KLOG_ERR);
+    return mm_kis_init(paths, n, mm8108_log, local, KLOG_INFO);
 }
 
 static bool flag_true(char *definition, const char *flag, bool dfl) {
