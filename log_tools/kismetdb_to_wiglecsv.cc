@@ -117,6 +117,16 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
     return ret;
 }
 
+bool in_exclusion_zone(const std::vector<std::tuple<double, double, double>>& zones,
+        double lat, double lon) {
+    for (const auto& ez : zones) {
+        if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez))
+            return true;
+    }
+
+    return false;
+}
+
 void print_help(char *argv) {
     printf("Kismetdb to WigleCSV\n");
     printf("A simple tool for converting the packet data from a KismetDB log file to\n"
@@ -735,23 +745,18 @@ int main(int argc, char *argv[]) {
             alt = sqlite3_column_as<double>(p, 7);
         }
 
+        // Every record is checked against the exclusion zones, not just the first
+        // one seen for a device
+        if (in_exclusion_zone(exclusion_zones, lat, lon)) {
+            auto hi = mbssid_hosted.find(sourcemac);
+            n_discarded_logs_zones += 1 + (hi != mbssid_hosted.end() ? hi->second.size() : 0);
+            continue;
+        }
+
         auto hi = mbssid_hosted.find(sourcemac);
 
         if (hi != mbssid_hosted.end()) {
-            bool violates_exclusion = false;
-            for (auto ez : exclusion_zones) {
-                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                    violates_exclusion = true;
-                    break;
-                }
-            }
-
             for (const auto& h : hi->second) {
-                if (violates_exclusion) {
-                    n_discarded_logs_zones++;
-                    continue;
-                }
-
                 if (h.second->filtered)
                     continue;
 
@@ -795,20 +800,6 @@ int main(int argc, char *argv[]) {
 
             if (dev == dev_query.end()) {
                 // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
-                continue;
-            }
-
-            // Check to see if we lie in any exclusion zones
-            bool violates_exclusion = false;
-            for (auto ez : exclusion_zones) {
-                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                    violates_exclusion = true;
-                    break;
-                }
-            }
-
-            if (violates_exclusion) {
-                n_discarded_logs_zones++;
                 continue;
             }
 
@@ -957,6 +948,11 @@ int main(int argc, char *argv[]) {
                 signal = sqlite3_column_as<int>(p, 6);
             }
 
+            if (in_exclusion_zone(exclusion_zones, lat, lon)) {
+                n_discarded_logs_zones++;
+                continue;
+            }
+
             auto ci = device_cache_map.find(sourcemac);
             std::shared_ptr<cache_obj> cached;
 
@@ -972,20 +968,6 @@ int main(int argc, char *argv[]) {
 
                 if (dev == dev_query.end()) {
                     // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
-                    continue;
-                }
-
-                // Check to see if we lie in any exclusion zones
-                bool violates_exclusion = false;
-                for (auto ez : exclusion_zones) {
-                    if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                        violates_exclusion = true;
-                        break;
-                    }
-                }
-
-                if (violates_exclusion) {
-                    n_discarded_logs_zones++;
                     continue;
                 }
 
@@ -1197,15 +1179,7 @@ int main(int argc, char *argv[]) {
             if (json_str.empty())
                 continue;
 
-            // Check exclusion zones
-            bool violates_exclusion = false;
-            for (auto ez : exclusion_zones) {
-                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
-                    violates_exclusion = true;
-                    break;
-                }
-            }
-            if (violates_exclusion) {
+            if (in_exclusion_zone(exclusion_zones, lat, lon)) {
                 n_cell_skipped_zones++;
                 continue;
             }
