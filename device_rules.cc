@@ -1031,6 +1031,7 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
 
     size_t n = as->rs->size();
     as->live_want.assign(n, 0);
+    as->now_want.assign(n, 0);
     as->views.assign(n, nullptr);
     as->hooks.resize(n);
     as->hook_repeat.assign(n, 0);
@@ -1055,6 +1056,8 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
             as->live_want[i] = 1;
             as->any_live = true;
         }
+        if (rd.uses_now)
+            as->now_want[i] = 1;
 
         for (size_t h = 0; h < rd.webhooks.size(); h++) {
             if (webhooks == nullptr)
@@ -1795,12 +1798,14 @@ void device_rules::timer_pass() {
         return;
 
     bool full;
+    bool reload;
     time_t since;
 
     {
         kis_lock_guard<kis_mutex> lk(mutex, "device_rules timer_pass");
 
         pass_count++;
+        reload = full_pending;
         full = full_pending ||
             (as->rs->uses_now() && full_interval > 0 && pass_count % full_interval == 0);
         full_pending = false;
@@ -1818,13 +1823,14 @@ void device_rules::timer_pass() {
     uint64_t evaluated = 0;
     std::vector<pending_change> changes;
 
-    // Live rules are evaluated on packets; a reload evaluates everything once
-    const uint8_t *want = nullptr;
-
+    // A reload evaluates everything once; otherwise devices that changed get every rule,
+    // and the full passes for 'now' give the others only the rules using it
     device_tracker_view_function_worker worker(
             [&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                if (!full && (time_t) dev->get_mod_time() < since)
+                const bool changed = (time_t) dev->get_mod_time() >= since;
+                if (!full && !changed)
                     return false;
+                const uint8_t *want = (reload || changed) ? nullptr : as->now_want.data();
                 eval_device(*as, pass->ctx, dev, want, pass->out, pass->prev, changes);
                 evaluated++;
                 return false;
