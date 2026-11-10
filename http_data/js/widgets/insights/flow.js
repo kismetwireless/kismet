@@ -22,7 +22,8 @@ const aboutGraph = [
         'arranged in columns: devices probing for networks, the networks (SSIDs) being advertised or ' +
         'probed for, the access points, and the devices connected to those access points.',
     'The graph combines the addresses of a single access point (such as multiple radios, or multiple ' +
-        'networks served by the same device) into one entry.',
+        'networks served by the same device, including the networks an access point lists in its multiple ' +
+        'BSSID element) into one entry.',
     'Each line represents all of the links between two entries; the more links, the thicker the line.  ' +
         'The color and style of a line show the type of link, as listed in the legend.  Clicking an access ' +
         'point or a group of devices lists the devices in it.  A yellow ring marks an entry which has a ' +
