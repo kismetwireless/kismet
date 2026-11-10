@@ -217,6 +217,90 @@ void kis_wiglecsv_logfile::close_log() {
     csvfile = nullptr;
 }
 
+void kis_wiglecsv_logfile::print_wifi_row(const std::shared_ptr<kis_tracked_device_base>& dev,
+        const std::shared_ptr<dot11_tracked_device>& dot11,
+        const std::shared_ptr<kis_packet>& in_pack, int signal) {
+    auto timestamp = dev->get_first_time();
+    auto name = std::string("");
+    auto crypt = std::string("");
+
+    if (dot11->has_last_beaconed_ssid_record()) {
+        auto last_ssid_a = dot11->get_last_beaconed_ssid_record();
+        auto last_ssid = last_ssid_a->get_as<dot11_advertised_ssid>();
+
+        if (last_ssid != nullptr) {
+            name = munge_for_csv(last_ssid->get_ssid());
+            crypt = wifi_crypt_to_string(last_ssid->get_crypt_set());
+        }
+
+    }
+
+    crypt += "[ESS]";
+
+    std::time_t timet(timestamp);
+    std::tm tm;
+    std::stringstream ts;
+
+    gmtime_r(&timet, &tm);
+
+    char tmstr[256];
+    strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+    ts << tmstr;
+
+    auto channel = frequency_to_wifi_channel(dev->get_frequency());
+
+    // [BSSID],[SSID],[Capabilities],[First timestamp seen],[Channel],[Frequency],[RSSI],
+    //    [Latitude],[Longitude],[Altitude],[Accuracy],[RCOIs],[MfgrId],[Type]
+    fmt::print(csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
+            dev->get_macaddr(),
+            name,
+            crypt,
+            ts.str(),
+            (int) channel,
+            dev->get_frequency() / 1000,
+            signal,
+            in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
+            0, // TODO - derive a gps accuracy
+            "", // rcoi blank
+            "", // no mfgr id for wifi
+            "WIFI");
+}
+
+void kis_wiglecsv_logfile::log_mbssid_hosted(const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<kis_tracked_device_info>& devs, const mac_addr& transmitter,
+        int signal) {
+    for (const auto& dr : devs->devrefs) {
+        const auto& hdev = dr.second;
+
+        if (hdev == nullptr || dr.first == transmitter)
+            continue;
+
+        {
+            kis_lock_guard<kis_mutex> tlk(timer_mutex, "wigle timer_map");
+
+            const auto& time_k = timer_map.find(hdev->get_key());
+
+            if (time_k != timer_map.end() && time(0) < time_k->second)
+                continue;
+        }
+
+        kis_device_lock hlk(hdev, true);
+
+        auto hdot11 = dot11_phy->fetch_dot11_record(hdev);
+
+        // A BSS with beacons of its own is logged from them
+        if (hdot11 == nullptr || !hdot11->has_mbssid_transmitter() ||
+                hdot11->get_mbssid_transmitter() != transmitter ||
+                hdot11->get_last_beacon_timestamp() != 0)
+            continue;
+
+        print_wifi_row(hdev, hdot11, in_pack, signal);
+
+        kis_lock_guard<kis_mutex> tlk(timer_mutex, "wigle timer_map");
+        timer_map[hdev->get_key()] = time(0) + throttle_seconds;
+    }
+}
+
 int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (in_pack->filtered)
         return 1;
@@ -270,6 +354,11 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
 
     auto dev = d_k->second;
 
+    // BSSs an AP advertises in its multiple BSSID element came with the same frame, and
+    // have their own throttle
+    if (in_pack->common_info.phyid == wigle->dot11_phy->fetch_phy_id())
+        wigle->log_mbssid_hosted(in_pack, devs, dev->get_macaddr(), signal);
+
     // Stop looking at all if we're w/in the timeout for logging this device
     {
         kis_lock_guard<kis_mutex> tlk(wigle->timer_mutex, "wigle timer_map");
@@ -291,51 +380,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         if (dot11 == nullptr)
             return 1;
 
-        auto timestamp = dev->get_first_time();
-        auto name = std::string("");
-        auto crypt = std::string("");
-
-        if (dot11->has_last_beaconed_ssid_record()) {
-            auto last_ssid_a = dot11->get_last_beaconed_ssid_record();
-            auto last_ssid = last_ssid_a->get_as<dot11_advertised_ssid>();
-
-            if (last_ssid != nullptr) {
-                name = munge_for_csv(last_ssid->get_ssid());
-                crypt = wifi_crypt_to_string(last_ssid->get_crypt_set());
-            }
-
-        }
-
-        crypt += "[ESS]";
-
-        std::time_t timet(timestamp);
-        std::tm tm;
-        std::stringstream ts;
-
-        gmtime_r(&timet, &tm);
-
-        char tmstr[256];
-        strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
-        ts << tmstr;
-
-        auto channel = frequency_to_wifi_channel(dev->get_frequency());
-
-        // [BSSID],[SSID],[Capabilities],[First timestamp seen],[Channel],[Frequency],[RSSI],
-        //    [Latitude],[Longitude],[Altitude],[Accuracy],[RCOIs],[MfgrId],[Type]
-        fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
-                dev->get_macaddr(),
-                name,
-                crypt,
-                ts.str(),
-                (int) channel,
-                dev->get_frequency() / 1000,
-                signal,
-                in_pack->gps_info.lat, in_pack->gps_info.lon, in_pack->gps_info.alt,
-                0, // TODO - derive a gps accuracy
-                "", // rcoi blank
-                "", // no mfgr id for wifi
-                "WIFI");
-
+        wigle->print_wifi_row(dev, dot11, in_pack, signal);
     } else if (wigle->bt_phy->device_is_a(dev)) {
         auto bt = wigle->bt_phy->fetch_bluetooth_record(dev);
 

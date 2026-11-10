@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -72,6 +73,8 @@ alert_tracker::alert_tracker() : lifetime_global() {
     // Register the alert component
     pack_comp_alert =
         packetchain->register_packet_component("alert");
+    pack_comp_alert_suppress =
+        packetchain->register_packet_component("alert_suppress");
 
     // Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
@@ -360,6 +363,13 @@ int alert_tracker::raise_alert(int in_ref, kis_packet* in_pack,
     shared_alert_def arec = aritr->second;
 
     if (in_pack != nullptr) {
+        auto suppress = in_pack->fetch<kis_alert_suppress_component>(pack_comp_alert_suppress);
+
+        if (suppress != nullptr &&
+                std::find(suppress->headers.begin(), suppress->headers.end(),
+                    arec->get_header()) != suppress->headers.end())
+            return 0;
+
         in_pack->tag_map["ALERT"] = true;
         in_pack->tag_map[fmt::format("ALERT_{}", arec->get_header())] = true;
     }

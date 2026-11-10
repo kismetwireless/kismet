@@ -1364,6 +1364,16 @@ struct dot11_ctrl_peers {
 #define DOT11_DEVICE_TYPE_INFERRED_WIRED    (1 << 7)
 // Device has responded to probes, looking like an AP
 #define DOT11_DEVICE_TYPE_PROBE_AP          (1 << 8)
+// Advertised in the multiple BSSID element of another AP's beacons or probe responses
+#define DOT11_DEVICE_TYPE_MBSSID            (1 << 9)
+
+// A BSS advertised in a transmitting AP's multiple BSSID element, with the checksum of
+// the IE tags it ends up with
+struct dot11_mbssid_hosted {
+    mac_addr bssid;
+    uint8_t index;
+    uint32_t ietag_csum;
+};
 
 // The last beacon or probe response of a BSSID without a channel switch announcement, to
 // compare the TSF of announcements with
@@ -1494,6 +1504,10 @@ public:
             __ImportId(randomized_mac_id, p);
             __ImportId(alias_group_id, p);
             __ImportId(alias_method_id, p);
+
+            __ImportId(mbssid_transmitter_id, p);
+            __ImportId(mbssid_index_id, p);
+            __ImportId(mbssid_max_bssids_id, p);
 
             __ImportField(last_beacon_timestamp, p);
 
@@ -1627,6 +1641,14 @@ public:
     __Proxy(last_beacon_timestamp, uint64_t, time_t,
             time_t, last_beacon_timestamp);
 
+    // Only present on BSSs advertised by another AP's multiple BSSID element
+    __ProxyDynamic(mbssid_transmitter, mac_addr, mac_addr, mac_addr, mbssid_transmitter,
+            mbssid_transmitter_id);
+    __ProxyDynamic(mbssid_index, uint8_t, uint8_t, uint8_t, mbssid_index, mbssid_index_id);
+    // Only present on APs advertising other BSSs
+    __ProxyDynamic(mbssid_max_bssids, uint16_t, uint16_t, uint16_t, mbssid_max_bssids,
+            mbssid_max_bssids_id);
+
     __Proxy(wps_m3_count, uint64_t, uint64_t, uint64_t, wps_m3_count);
     __ProxyIncDec(wps_m3_count, uint64_t, uint64_t, wps_m3_count);
 
@@ -1649,6 +1671,18 @@ public:
     uint32_t get_last_adv_ie_csum() { return last_adv_ie_csum; }
     void set_last_adv_ie_csum(uint32_t csum) { last_adv_ie_csum = csum; }
     dot11_beacon_ref& beacon_ref() { return beacon_ref_; }
+
+    // Hosted BSSs of each recent multiple BSSID content (EMA APs rotate profiles across
+    // beacons), keyed by a checksum of the content and the transmitter's own IE tags;
+    // caller holds the device lock
+    static constexpr size_t mbssid_cache_max = 8;
+    std::vector<std::pair<uint32_t, std::vector<dot11_mbssid_hosted>>>& mbssid_cache() {
+        return mbssid_cache_;
+    }
+    uint32_t mbssid_alerted_key = 0;
+    // Alert headers raised for this AP by its last full IE parse, which its hosted BSSs
+    // inherit and don't raise again
+    std::vector<std::string> mbssid_tx_alerts;
 
     // Allocated with the first channel switch announcement of the BSSID
     dot11_csa_state& csa_state() {
@@ -1841,6 +1875,16 @@ protected:
                 "unix timestamp of last beacon frame",
                 &last_beacon_timestamp);
 
+        mbssid_transmitter_id =
+            register_dynamic_field("dot11.device.mbssid_transmitter",
+                    "AP advertising this BSS in its multiple BSSID element", &mbssid_transmitter);
+        mbssid_index_id =
+            register_dynamic_field("dot11.device.mbssid_index",
+                    "index of this BSS in the multiple BSSID set", &mbssid_index);
+        mbssid_max_bssids_id =
+            register_dynamic_field("dot11.device.mbssid_max_bssids",
+                    "size of the multiple BSSID set this AP advertises", &mbssid_max_bssids);
+
         register_field("dot11.device.wps_m3_count", "WPS M3 message count", &wps_m3_count);
         register_field("dot11.device.wps_m3_last", "WPS M3 last message", &wps_m3_last);
 
@@ -2021,6 +2065,8 @@ protected:
     dot11_beacon_ref beacon_ref_;
     std::unique_ptr<dot11_csa_state> csa_state_;
 
+    std::vector<std::pair<uint32_t, std::vector<dot11_mbssid_hosted>>> mbssid_cache_;
+
     std::shared_ptr<tracker_element_uint64> bss_timestamp;
 
     std::shared_ptr<tracker_element_uint64> num_fragments;
@@ -2040,6 +2086,13 @@ protected:
     uint16_t alias_method_id;
 
     std::shared_ptr<tracker_element_uint64> last_beacon_timestamp;
+
+    std::shared_ptr<tracker_element_mac_addr> mbssid_transmitter;
+    uint16_t mbssid_transmitter_id;
+    std::shared_ptr<tracker_element_uint8> mbssid_index;
+    uint16_t mbssid_index_id;
+    std::shared_ptr<tracker_element_uint16> mbssid_max_bssids;
+    uint16_t mbssid_max_bssids_id;
 
     std::shared_ptr<tracker_element_uint64> wps_m3_count;
     std::shared_ptr<tracker_element_uint64> wps_m3_last;

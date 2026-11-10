@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iostream>
 
+#include <algorithm>
 #include <functional>
 #include <optional>
 
@@ -678,10 +679,11 @@ int kis_80211_phy::packet_dot11_assign_thread(kis_packet *in_pack) {
 // or the HT operation primary channel 61), and the QBSS load (11), and return the checksum the
 // classifier uses to skip unchanged tags.  The checksum leaves out the contents of the TIM (5),
 // which changes every beacon with the DTIM count and the buffered traffic, and of the QBSS load;
-// the TIM keeps only its number, since its length follows the traffic bitmap.  With neither
-// present it is the CRC of the whole tag list.
+// the TIM keeps only its number, since its length follows the traffic bitmap.  Multiple BSSID
+// elements (71) keep only their number too, and are summed into mbssid_csum instead.  With none
+// of these present it is the CRC of the whole tag list.
 static uint32_t walk_adv_ies(const uint8_t *ies, size_t len, dot11_chan_switch& cs,
-        dot11_qbss_load& qbss) {
+        dot11_qbss_load& qbss, uint32_t& mbssid_csum) {
     uint8_t ds_channel = 0, ht_channel = 0;
     uint32_t csum = 0;
     size_t pos = 0;
@@ -711,6 +713,14 @@ static uint32_t walk_adv_ies(const uint8_t *ies, size_t len, dot11_chan_switch& 
             cs.op_class = d[1];
             cs.new_channel = d[2];
             cs.count = d[3];
+        }
+
+        // Multiple BSSID elements (71) get their own checksum, since EMA APs rotate them
+        // between beacons without anything else changing
+        if (tag == 71) {
+            csum = crc32_fast(ies + run, pos - run + 1, csum);
+            run = pos + 2 + tag_len;
+            mbssid_csum = crc32_fast(ies + pos, 2 + tag_len, mbssid_csum);
         }
 
         if (tag == 5 || tag == 11) {
@@ -1181,7 +1191,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->ietag_csum =
                     walk_adv_ies(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
                         chunk->length() - packinfo->header_offset, packinfo->chan_switch,
-                        packinfo->qbss_load);
+                        packinfo->qbss_load, packinfo->mbssid_csum);
 
                 break;
 
@@ -1223,7 +1233,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet* in_pack) {
                 packinfo->ietag_csum =
                     walk_adv_ies(reinterpret_cast<const uint8_t *>(chunk->data()) + packinfo->header_offset,
                         chunk->length() - packinfo->header_offset, packinfo->chan_switch,
-                        packinfo->qbss_load);
+                        packinfo->qbss_load, packinfo->mbssid_csum);
 
                 break;
 
@@ -1889,6 +1899,134 @@ void kis_80211_phy::packet_dot11_parse_ie_list(kis_packet* in_pack, dot11_packin
     }
 }
 
+unsigned int kis_80211_phy::packet_dot11_parse_mbssid(kis_packet* in_pack, dot11_packinfo* packinfo) {
+    packinfo->mbssid.reset();
+
+    if (packinfo->ie_tags.size() == 0) {
+        auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (chunk == nullptr || chunk->dlt != KDLT_IEEE802_11 ||
+                packinfo->header_offset >= chunk->length())
+            return 0;
+
+        membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]),
+                (char *) &(chunk->data()[chunk->length()]));
+        std::istream istream_ietags(&tags_membuf);
+
+        try {
+            auto stream_ietags = kaitai::kstream(&istream_ietags);
+            packinfo->ie_tags.parse(stream_ietags);
+        } catch (const std::exception& e) {
+            packinfo->ie_tags.reset();
+            return 0;
+        }
+    }
+
+    unsigned int truncated = 0;
+
+    for (const auto& ie_tag : packinfo->ie_tags.tags()) {
+        if (ie_tag.tag_num() != 71)
+            continue;
+
+        try {
+            packinfo->mbssid.parse(ie_tag.tag_data());
+        } catch (const std::exception& e) {
+            truncated++;
+        }
+    }
+
+    return truncated;
+}
+
+std::shared_ptr<dot11_packinfo> kis_80211_phy::build_mbssid_packinfo(const dot11_packinfo *tx,
+        const dot11_ie_71_mbssid::nontransmitted_profile& profile, const mac_addr& bssid) {
+    // Elements are matched by id, extension tags by extension id, and vendor tags by OUI
+    // and type, the way the Linux cfg80211 inheritance does
+    auto match_key = [](const dot11_ie::dot11_ie_tag& t) -> uint64_t {
+        const auto& d = t.tag_data();
+
+        if (t.tag_num() == 255 && d.length() >= 1)
+            return (1ULL << 32) | (uint8_t) d[0];
+
+        if (t.tag_num() == 221 && d.length() >= 4)
+            return (2ULL << 32) | ((uint32_t) (uint8_t) d[0] << 24) |
+                ((uint32_t) (uint8_t) d[1] << 16) | ((uint32_t) (uint8_t) d[2] << 8) |
+                (uint8_t) d[3];
+
+        return t.tag_num();
+    };
+
+    dot11_ie profile_tags;
+
+    try {
+        profile_tags.parse(profile.elements());
+    } catch (const std::exception& e) {
+        return nullptr;
+    }
+
+    std::vector<uint64_t> profile_keys;
+    for (const auto& t : profile_tags.tags())
+        profile_keys.push_back(match_key(t));
+
+    const auto& no_ids = profile.non_inherit_ids();
+    const auto& no_ext = profile.non_inherit_ext_ids();
+
+    // Inherited tags of the transmitter, then the profile's own
+    std::string merged;
+
+    for (const auto& t : tx->ie_tags.tags()) {
+        // The SSID is never inherited, and the multiple BSSID tags describe the transmitter
+        if (t.tag_num() == 0 || t.tag_num() == 71)
+            continue;
+
+        if (t.tag_num() == 255) {
+            if (t.tag_data().length() >= 1 &&
+                    std::find(no_ext.begin(), no_ext.end(), (uint8_t) t.tag_data()[0]) != no_ext.end())
+                continue;
+        } else if (std::find(no_ids.begin(), no_ids.end(), t.tag_num()) != no_ids.end()) {
+            continue;
+        }
+
+        if (std::find(profile_keys.begin(), profile_keys.end(), match_key(t)) != profile_keys.end())
+            continue;
+
+        merged.push_back((char) t.tag_num());
+        merged.push_back((char) t.tag_len());
+        merged.append(t.tag_data());
+    }
+
+    merged.append(profile.elements());
+
+    auto pi = packetchain->new_packet_component<dot11_packinfo>();
+
+    pi->type = tx->type;
+    pi->subtype = tx->subtype;
+    pi->distrib = tx->distrib;
+    pi->timestamp = tx->timestamp;
+    pi->beacon_interval = tx->beacon_interval;
+    pi->sequence_number = tx->sequence_number;
+    pi->channel = tx->channel;
+    pi->dest_mac = tx->dest_mac;
+    pi->transmit_mac = tx->source_mac;
+    pi->source_mac = bssid;
+    pi->bssid_mac = bssid;
+    pi->ess = profile.capability() & 0x01;
+    pi->ibss = (profile.capability() >> 1) & 0x01;
+
+    try {
+        pi->ie_tags.parse(merged);
+    } catch (const std::exception& e) {
+        return nullptr;
+    }
+
+    // Changes only when what the BSS advertises changes, like the transmitter's checksum
+    uint32_t mbssid_csum = 0;
+    pi->ietag_csum = walk_adv_ies(reinterpret_cast<const uint8_t *>(merged.data()), merged.length(),
+            pi->chan_switch, pi->qbss_load, mbssid_csum);
+
+    return pi;
+}
+
 int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo* packinfo) {
 
     // Called opportunistically by the main dot11 processor when the checksum over all IE
@@ -1904,6 +2042,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
+
+    packinfo->ie_dissected = true;
 
     // Do a first-order processing of the tags to make sure it's a valid frame
     if (packinfo->ie_tags.size() == 0) {
