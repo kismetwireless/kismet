@@ -89,7 +89,7 @@ public:
         uint8_t m_width;
     };
 
-    dot11_ie_232_s1g_operation() : m_parsed{false} { }
+    dot11_ie_232_s1g_operation() { reset(); }
     ~dot11_ie_232_s1g_operation() { }
 
     constexpr bool parsed() const {
@@ -122,6 +122,10 @@ public:
         m_parsed = false;
 
         m_width.reset();
+        m_opclass = 0;
+        m_primary = 0;
+        m_channel_center = 0;
+        m_mcs_nss_set = 0;
     }
 
 protected:
