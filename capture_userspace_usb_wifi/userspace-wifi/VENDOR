@@ -1,0 +1,5 @@
+Vendored from https://github.com/kismetwireless/userspace-wifi
+Commit 830348e (Merge branch 'mm8108-monitor')
+
+An unmodified copy of the upstream tree; make changes upstream and vendor them again.
+Kismet's glue (capture_usbwifi.c, common/uwifi_kismet.*, Makefile.in) lives outside it.

@@ -1693,6 +1693,9 @@ if test x"$want_mm8108" = x"auto"; then
     elif test x"$have_usb" != x"yes"; then
         want_mm8108=no
         mm8108_reason="libusb-1.0 not found"
+    elif test x"$ac_cv_c_bigendian" = x"yes"; then
+        want_mm8108=no
+        mm8108_reason="kcompat supports little-endian hosts only"
     else
         want_mm8108=yes
     fi
@@ -1701,6 +1704,9 @@ fi
 if test x"$want_mm8108" = x"yes"; then
     if test x"$have_usb" != "xyes"; then
         AC_MSG_ERROR([libusb-1.0 required for MM8108 HaLow support])
+    fi
+    if test x"$ac_cv_c_bigendian" = x"yes"; then
+        AC_MSG_ERROR([MM8108 HaLow support needs a little-endian host])
     fi
     BUILD_CAPTURE_MM8108=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_MM8108)"

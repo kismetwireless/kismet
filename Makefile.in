@@ -533,10 +533,16 @@ $(CAPTURE_BLADERF_WIPHY): $(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 $(CAPTURE_HAK5_COCONUT): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_hak5_wifi_coconut && $(MAKE))
 
-$(CAPTURE_USBWIFI): $(DATASOURCE_COMMON_A) FORCE
+# The userspace-wifi archives the usbwifi and MM8108 captures share, made once before either
+UWIFI_LIBS = capture_userspace_usb_wifi/libuwifi.a
+
+$(UWIFI_LIBS): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_userspace_usb_wifi && $(MAKE) libs)
+
+$(CAPTURE_USBWIFI): $(UWIFI_LIBS) FORCE
 	(cd capture_userspace_usb_wifi && $(MAKE))
 
-$(CAPTURE_MM8108): $(DATASOURCE_COMMON_A) FORCE
+$(CAPTURE_MM8108): $(UWIFI_LIBS) FORCE
 	(cd capture_morse_mm8108_usb_halow && $(MAKE))
 
 $(CAPTURE_SERIAL_RADVIEW): $(DATASOURCE_COMMON_A) FORCE
@@ -629,13 +635,15 @@ binsuidinstall: $(DATASOURCE_BINS)
 	@if test "$(BUILD_CAPTURE_USBWIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_USBWIFI) $(BIN)/`basename $(CAPTURE_USBWIFI)` && \
 		mkdir -p $(SHARE)/firmware/mediatek && \
-		cp -R capture_userspace_usb_wifi/firmware/* $(SHARE)/firmware/ ; \
+		for f in mediatek rtw88 mt7662.bin mt7662_rom_patch.bin; do \
+			cp -R capture_userspace_usb_wifi/userspace-wifi/firmware/$$f $(SHARE)/firmware/ || exit 1; \
+		done ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` && \
 		mkdir -p $(SHARE)/firmware/morse && \
-		cp -R capture_morse_mm8108_usb_halow/firmware/morse/* $(SHARE)/firmware/morse/ ; \
+		cp -R capture_userspace_usb_wifi/userspace-wifi/firmware/morse/* $(SHARE)/firmware/morse/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SERIAL_RADVIEW)"x = "1"x; then \
@@ -795,13 +803,15 @@ commoninstall: $(INSTBINS)
 	@if test "$(BUILD_CAPTURE_USBWIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_USBWIFI) $(BIN)/`basename $(CAPTURE_USBWIFI)` && \
 		mkdir -p $(SHARE)/firmware/mediatek && \
-		cp -R capture_userspace_usb_wifi/firmware/* $(SHARE)/firmware/ ; \
+		for f in mediatek rtw88 mt7662.bin mt7662_rom_patch.bin; do \
+			cp -R capture_userspace_usb_wifi/userspace-wifi/firmware/$$f $(SHARE)/firmware/ || exit 1; \
+		done ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_MM8108)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_MM8108) $(BIN)/`basename $(CAPTURE_MM8108)` && \
 		mkdir -p $(SHARE)/firmware/morse && \
-		cp -R capture_morse_mm8108_usb_halow/firmware/morse/* $(SHARE)/firmware/morse/ ; \
+		cp -R capture_userspace_usb_wifi/userspace-wifi/firmware/morse/* $(SHARE)/firmware/morse/ ; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433V2)"x = "1"x; then \
