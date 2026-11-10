@@ -112,7 +112,7 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
 
     double ret =
         (2 * asin(sqrt(pow(sin(diff_lat / 2), 2) +
-                       cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6731000.0f;
+                       cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6371000.0;
 
     return ret;
 }
