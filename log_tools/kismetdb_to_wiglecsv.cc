@@ -47,6 +47,7 @@
 #include "packet_ieee80211.h"
 #include "phy_cell_decisions.h"
 #include "version.h"
+#include "wiglecsv_crypt.h"
 
 #ifdef HAVE_LIBPCRE1
 #include <pcre.h>
@@ -114,61 +115,6 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
                        cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6731000.0f;
 
     return ret;
-}
-
-std::string WifiCryptToString(uint64_t cryptset) {
-    std::stringstream ss;
-
-    if (cryptset & dot11_crypt_akm_wps)
-        ss << "[WPS] ";
-
-    if (cryptset & dot11_crypt_general_wep)
-        ss << "[WEP] ";
-
-    if (cryptset & dot11_crypt_general_wpa) {
-
-        std::string cryptver = "";
-
-        if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip)) {
-            if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128)) {
-                cryptver = "CCMP+TKIP";
-            } else {
-                cryptver = "TKIP";
-            }
-        } else if (cryptset & dot11_crypt_pairwise_ccmp128) {
-            cryptver = "CCMP";
-        }
-
-        std::string authver = "";
-
-        if (cryptset & dot11_crypt_akm_psk) {
-            authver = "PSK";
-        } else if (cryptset & dot11_crypt_akm_1x) {
-            authver = "EAP";
-        } else if (cryptset & dot11_crypt_akm_owe) {
-            authver = "OWE";
-        } else {
-            authver = "UNKNOWN";
-        }
-
-        if ((cryptset & dot11_crypt_general_wpa2) && (cryptset & dot11_crypt_general_wpa1)) {
-            ss << "[WPA-" << authver << "-" << cryptver << "] ";
-            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if (cryptset & dot11_crypt_general_wpa2) {
-            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if ((cryptset & dot11_crypt_general_wpa3) || (cryptset & dot11_crypt_akm_owe)) {
-            ss << "[WPA3-" << authver << "-" << cryptver << "] ";
-        } else {
-            ss << "[WPA-" << authver << "-" << cryptver << "] ";
-        }
-    }
-
-    auto retstr = ss.str();
-
-    if (retstr.length() > 0)
-        return retstr.substr(0, retstr.length() - 1);
-
-    return "";
 }
 
 void print_help(char *argv) {
@@ -594,7 +540,7 @@ int main(int argc, char *argv[]) {
 
         // Handle the aliased ssid_record for modern info
         if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-            crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
+            crypt = wiglecsv_crypt_string(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
         } else {
             if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null())
                 throw std::runtime_error("No last beaconed checksum");
@@ -605,7 +551,7 @@ int main(int argc, char *argv[]) {
 
             ss << last_ssid_key;
 
-            crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
+            crypt = wiglecsv_crypt_string(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
         }
 
         crypt += "[ESS]";

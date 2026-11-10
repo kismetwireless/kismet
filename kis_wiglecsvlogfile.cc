@@ -26,6 +26,7 @@
 #include "phy_btle.h"
 #include "phy_cell_decisions.h"
 #include "version.h"
+#include "wiglecsv_crypt.h"
 
 // Aggressive additional mangle of text to handle converting ',' and '"' to
 // hexcode for CSV
@@ -45,61 +46,6 @@ std::string munge_for_csv(const std::string& in_data) {
 	}
 
 	return ret;
-}
-
-std::string wifi_crypt_to_string(unsigned long cryptset) {
-    std::stringstream ss;
-
-    if (cryptset & dot11_crypt_akm_wps)
-        ss << "[WPS] ";
-
-    if (cryptset & dot11_crypt_general_wep)
-        ss << "[WEP] ";
-
-    if (cryptset & dot11_crypt_general_wpa) {
-
-        std::string cryptver = "";
-
-        if ((cryptset & dot11_crypt_pairwise_tkip) || (cryptset & dot11_crypt_group_tkip)) {
-            if ((cryptset & dot11_crypt_pairwise_ccmp128) || (cryptset & dot11_crypt_group_ccmp128)) {
-                cryptver = "CCMP+TKIP";
-            } else {
-                cryptver = "TKIP";
-            }
-        } else if (cryptset & dot11_crypt_pairwise_ccmp128) {
-            cryptver = "CCMP";
-        }
-
-        std::string authver = "";
-
-        if (cryptset & dot11_crypt_akm_psk) {
-            authver = "PSK";
-        } else if (cryptset & dot11_crypt_akm_1x) {
-            authver = "EAP";
-        } else if (cryptset & dot11_crypt_akm_owe) {
-            authver = "OWE";
-        } else {
-            authver = "UNKNOWN";
-        }
-
-        if ((cryptset & dot11_crypt_general_wpa2) && (cryptset & dot11_crypt_general_wpa1)) {
-            ss << "[WPA-" << authver << "-" << cryptver << "] ";
-            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if (cryptset & dot11_crypt_general_wpa2) {
-            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
-        } else if ((cryptset & dot11_crypt_general_wpa3) || (cryptset & dot11_crypt_akm_owe)) {
-            ss << "[WPA3-" << authver << "-" << cryptver << "] ";
-        } else {
-            ss << "[WPA-" << authver << "-" << cryptver << "] ";
-        }
-    }
-
-    auto retstr = ss.str();
-
-    if (retstr.length() > 0)
-        return retstr.substr(0, retstr.length() - 1);
-
-    return "";
 }
 
 int frequency_to_wifi_channel(double in_freq) {
@@ -230,7 +176,7 @@ void kis_wiglecsv_logfile::print_wifi_row(const std::shared_ptr<kis_tracked_devi
 
         if (last_ssid != nullptr) {
             name = munge_for_csv(last_ssid->get_ssid());
-            crypt = wifi_crypt_to_string(last_ssid->get_crypt_set());
+            crypt = wiglecsv_crypt_string(last_ssid->get_crypt_set());
         }
 
     }
