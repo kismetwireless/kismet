@@ -506,7 +506,7 @@ struct cf_hop_clock {
     int64_t offset_ns;
     int64_t drift_ppb;
     uint64_t ref_mono_ns;
-    uint32_t err_us;
+    uint32_t sync_err_us;
 
     unsigned int burst_sent;
     uint64_t burst_start_ns;
@@ -1922,7 +1922,7 @@ static void cf_hop_clock_finish(struct cf_hop_clock *c, uint64_t now) {
 
     c->offset_ns = c->best_offset_ns;
     c->ref_mono_ns = c->best_mono_ns;
-    c->err_us = (uint32_t) ((c->best_rtt_ns / 2) / 1000);
+    c->sync_err_us = (uint32_t) ((c->best_rtt_ns / 2) / 1000);
     c->state = KIS_EXTERNAL_V3_HOPSYNC_SYNCED;
 
     cf_hop_clock_drift(c);
@@ -2070,7 +2070,7 @@ int cf_send_hopreport(kis_capture_handler_t *caph) {
                     cf_clock_ns(CLOCK_REALTIME))) / 1000;
 
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_ERR_US);
-            mpack_write_u32(&writer, c->err_us);
+            mpack_write_u32(&writer, c->sync_err_us);
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_OFFSET_US);
             mpack_write_i64(&writer, offset_us);
             mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_DRIFT_PPB);

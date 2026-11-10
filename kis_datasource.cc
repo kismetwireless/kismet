@@ -1587,7 +1587,7 @@ void kis_datasource::handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t cod
     if (!mpack_node_is_missing(state_n))
         state = mpack_node_u8(state_n);
 
-    auto err_us = u32_opt(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_ERR_US);
+    auto sync_err_us = u32_opt(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_ERR_US);
 
     int64_t offset_us = 0;
     auto offset_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_HOPREPORT_FIELD_SYNC_OFFSET_US);
@@ -1647,7 +1647,7 @@ void kis_datasource::handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t cod
     hop_timing->set_failed_switches(failed);
 
     hop_timing->set_sync_state(state_s);
-    hop_timing->set_sync_err_us(err_us);
+    hop_timing->set_sync_err_us(sync_err_us);
     hop_timing->set_sync_offset_us(offset_us);
     hop_timing->set_sync_drift_ppb(drift_ppb);
 }

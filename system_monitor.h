@@ -282,7 +282,7 @@ public:
 
     virtual ~tracked_thermal_sensor() { }
 
-    __Proxy(name, std::string, std::string, std::string, name);
+    __Proxy(sensor_name, std::string, std::string, std::string, name);
     __Proxy(label, std::string, std::string, std::string, label);
     __Proxy(temp, double, double, double, temp);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
