@@ -69,7 +69,7 @@ public:
     tracker_element *root = nullptr;
 
     virtual bool load(const field_slot& f, value& out) override {
-        auto e = walk(root, f, 0, f.path.size());
+        auto e = walk(root, f);
         if (e == nullptr)
             return false;
         if (f.index >= 0)
@@ -83,7 +83,7 @@ public:
 
     virtual int64_t count(const field_slot& f) override {
         if (!f.multi) {
-            auto e = walk(root, f, 0, f.path.size());
+            auto e = walk(root, f);
             if (e == nullptr)
                 return 0;
             return container_size(e);
@@ -106,22 +106,32 @@ private:
     // Children of lazily built maps only live as long as we hold them
     std::vector<shared_tracker_element> holds;
 
-    tracker_element *child(tracker_element *e, int id) {
+    // Where each path element was found in its map on the last device.  Devices of a
+    // phy lay their fields out alike, so the next lookup usually skips the search.
+    // Only ever a guess: stale or shared between rule sets, it is checked before use.
+    std::vector<uint16_t> hints;
+
+    // Child i of a field's path
+    tracker_element *child(tracker_element *e, const field_slot& f, size_t i) {
         e = deref_alias(e);
         if (e == nullptr || e->get_type() != tracker_type::tracker_map)
             return nullptr;
 
+        const size_t h = (size_t) f.hint + i;
+        if (h >= hints.size())
+            hints.resize(h + 1 + f.path.size(), 0);
+
         shared_tracker_element hold;
-        auto c = static_cast<tracker_element_map *>(e)->peek_sub(id, hold);
+        auto c = static_cast<tracker_element_map *>(e)->peek_sub(f.path[i], hold, hints[h]);
         if (hold != nullptr)
             holds.push_back(std::move(hold));
         return deref_alias(c);
     }
 
-    // Walk plain path elements [from, to)
-    tracker_element *walk(tracker_element *e, const field_slot& f, size_t from, size_t to) {
-        for (size_t i = from; i < to && e != nullptr; i++)
-            e = child(e, f.path[i]);
+    // Walk a path with no containers along it
+    tracker_element *walk(tracker_element *e, const field_slot& f) {
+        for (size_t i = 0; i < f.path.size() && e != nullptr; i++)
+            e = child(e, f, i);
         return e;
     }
 
@@ -305,7 +315,7 @@ private:
     bool fan(tracker_element *e, const field_slot& f, size_t i,
             bool (*fn)(const value&, const void *), const void *arg, int64_t *cnt) {
         while (i < f.path.size()) {
-            e = child(e, f.path[i]);
+            e = child(e, f, i);
             if (e == nullptr)
                 return false;
 
@@ -387,7 +397,7 @@ private:
 
     bool found(tracker_element *e, const field_slot& f, size_t i) {
         while (i < f.path.size()) {
-            e = child(e, f.path[i]);
+            e = child(e, f, i);
             if (e == nullptr)
                 return false;
 
@@ -1071,7 +1081,7 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
 }
 
 bool device_rules::sort_devices(const std::string& sort, std::shared_ptr<tracker_element_vector>& devices,
-        std::string& err) {
+        std::string& err, size_t first) {
     auto as = get_current();
 
     if (as == nullptr) {
@@ -1104,7 +1114,7 @@ bool device_rules::sort_devices(const std::string& sort, std::shared_ptr<tracker
         env.root = nullptr;
     }
 
-    auto order = table.order();
+    auto order = table.order(first);
 
     auto sorted = std::make_shared<tracker_element_vector>();
     sorted->reserve(order.size());
@@ -1199,7 +1209,8 @@ std::shared_ptr<devicerules::ruleset> device_rules::compile_query(const std::str
 }
 
 void device_rules::filter_devices(const std::string& filter, const std::string& sort,
-        const std::vector<std::string>& text_fields, std::shared_ptr<tracker_element_vector>& devices) {
+        const std::vector<std::string>& text_fields, std::shared_ptr<tracker_element_vector>& devices,
+        size_t first) {
     if (filter.empty() && sort.empty())
         return;
 
@@ -1253,7 +1264,7 @@ void device_rules::filter_devices(const std::string& filter, const std::string& 
     }
 
     if (table != nullptr) {
-        auto order = table->order();
+        auto order = table->order(first);
         auto sorted = std::make_shared<tracker_element_vector>();
         sorted->reserve(order.size());
         for (auto r : order)

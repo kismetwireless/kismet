@@ -131,6 +131,8 @@ struct field_slot {
     bool multi;
     // lat() and lon(): the element of a [lon, lat] list, or -1 for the whole field
     int index = -1;
+    // First of this path's entries, one per element, in a table an env may keep
+    uint32_t hint = 0;
 };
 
 // Resolves names to field ids and types; the kismet side uses the entry tracker
@@ -306,12 +308,24 @@ struct sort_def {
 constexpr size_t max_sorts = 256;
 constexpr size_t max_sort_keys = 8;
 
+// Lets string sets be searched with a view of a field, without copying it
+struct string_view_hash {
+    using is_transparent = void;
+    using is_avalanching = void;
+
+    uint64_t operator()(std::string_view s) const noexcept {
+        return ankerl::unordered_dense::hash<std::string_view>{}(s);
+    }
+};
+
 // Constant sets for 'in'
 struct value_set {
     vtype type;
     ankerl::unordered_dense::set<int64_t> ints;
     std::vector<double> reals;
-    ankerl::unordered_dense::set<std::string> strings;
+    ankerl::unordered_dense::set<std::string, string_view_hash, std::equal_to<>> strings;
+    // Longest string in the set; nothing longer can be in it
+    size_t max_str = 0;
     ankerl::unordered_dense::set<uint64_t> macs;
     // Masked macs, mac then mask
     std::vector<std::pair<uint64_t, uint64_t>> masked;
@@ -497,6 +511,8 @@ public:
     std::vector<std::unique_ptr<rule_def>> rules;
     std::vector<std::unique_ptr<sort_def>> sorts;
     std::vector<field_slot> fields;
+    // Path elements over every field
+    uint32_t hint_count;
     // Fields text() searches; text() is an error when there are none
     std::vector<std::string> text_fields;
     std::vector<value> consts;
@@ -531,7 +547,8 @@ protected:
     friend class jit_builder;
 };
 
-// Lower-case ASCII compare helpers shared by the backends
+// ASCII compare helpers shared by the backends, ignoring case; the needle of
+// str_icontains must already be lower case
 bool str_icontains(const char *h, size_t hl, const char *n, size_t nl);
 bool str_ieq(const char *a, size_t al, const char *b, size_t bl);
 
@@ -549,8 +566,10 @@ public:
 
     size_t size() const { return rows; }
 
-    // Row numbers in sorted order
-    std::vector<uint32_t> order() const;
+    // Row numbers in sorted order.  With first below the row count only that many
+    // leading rows are in order, which is all a page of a list needs; the rest
+    // follow in no order.
+    std::vector<uint32_t> order(size_t first = SIZE_MAX) const;
 
     // -1, 0 or 1 as row a sorts before, with or after row b, ignoring the tie break
     int compare(uint32_t a, uint32_t b) const;

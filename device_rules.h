@@ -139,15 +139,17 @@ public:
     };
 
     // Order devices by a sort from the active rules; false with the reason when there's
-    // no such sort
+    // no such sort.  Only the first 'first' devices need to come back in order.
     bool sort_devices(const std::string& sort, std::shared_ptr<tracker_element_vector>& devices,
-            std::string& err);
+            std::string& err, size_t first = SIZE_MAX);
 
     // Keep the devices matching a device list filter, and order them by sort keys
     // written as in a sort's 'by'; either may be empty.  text() in the filter searches
-    // text_fields.  Throws parse_error for a bad filter or sort.
+    // text_fields.  Only the first 'first' devices need to come back in order.  Throws
+    // parse_error for a bad filter or sort.
     void filter_devices(const std::string& filter, const std::string& sort,
-            const std::vector<std::string>& text_fields, std::shared_ptr<tracker_element_vector>& devices);
+            const std::vector<std::string>& text_fields, std::shared_ptr<tracker_element_vector>& devices,
+            size_t first = SIZE_MAX);
 
     // A compiled rule set and what goes with it; replaced whole, never changed
     struct active_set {

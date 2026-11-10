@@ -138,14 +138,19 @@ int sort_table::compare(uint32_t a, uint32_t b) const {
     return 0;
 }
 
-std::vector<uint32_t> sort_table::order() const {
+std::vector<uint32_t> sort_table::order(size_t first) const {
     std::vector<uint32_t> o(rows);
     std::iota(o.begin(), o.end(), 0);
 
-    std::sort(o.begin(), o.end(), [this](uint32_t a, uint32_t b) {
-            int c = compare(a, b);
-            return c != 0 ? c < 0 : a < b;
-        });
+    const auto before = [this](uint32_t a, uint32_t b) {
+        int c = compare(a, b);
+        return c != 0 ? c < 0 : a < b;
+    };
+
+    if (first < rows)
+        std::partial_sort(o.begin(), o.begin() + first, o.end(), before);
+    else
+        std::sort(o.begin(), o.end(), before);
 
     return o;
 }
