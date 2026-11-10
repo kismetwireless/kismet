@@ -3820,6 +3820,16 @@ static void ws_destroy_msg(void *in_msg) {
     msg->payload = NULL;
     msg->len = 0;
 }
+
+/* A helper can warn before cf_handler_loop starts the websocket service, such as
+ * when it can't jail itself or drop caps; call with out_ringbuf_lock held */
+static int cf_ws_ring_ready(kis_capture_handler_t *caph) {
+    if (caph->lwsring == NULL)
+        caph->lwsring =
+            lws_ring_create(sizeof(struct cf_ws_msg), CAP_FRAMEWORK_WS_BUF_SZ, ws_destroy_msg);
+
+    return caph->lwsring != NULL;
+}
 #endif
 
 int cf_handler_loop(kis_capture_handler_t *caph) {
@@ -4277,10 +4287,11 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         }
     } else if (caph->use_ws) {
 #ifdef HAVE_LIBWEBSOCKETS
-        caph->lwsring =
-            lws_ring_create(sizeof(struct cf_ws_msg), CAP_FRAMEWORK_WS_BUF_SZ, ws_destroy_msg);
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
+        ret = cf_ws_ring_ready(caph);
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
-        if (!caph->lwsring) {
+        if (!ret) {
             fprintf(stderr, "FATAL:  Cannot allocate websocket ringbuffer\n");
             return -1;
         }
@@ -4353,6 +4364,11 @@ int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
     struct cf_ws_msg wsmsg;
 
     pthread_mutex_lock(&caph->out_ringbuf_lock);
+
+    if (!cf_ws_ring_ready(caph)) {
+        pthread_mutex_unlock(&caph->out_ringbuf_lock);
+        return -1;
+    }
 
     n = lws_ring_get_count_free_elements(caph->lwsring);
     if (n == 0) {
@@ -4524,6 +4540,11 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
     int n;
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+    if (!cf_ws_ring_ready(caph)) {
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        return NULL;
+    }
 
     n = lws_ring_get_count_free_elements(caph->lwsring);
     if (n == 0) {
