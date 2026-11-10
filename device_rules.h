@@ -162,6 +162,10 @@ public:
         std::vector<uint8_t> live_want;
         bool any_live;
 
+        // Rules using 'now', the only ones a device that hasn't changed can start or stop
+        // matching
+        std::vector<uint8_t> now_want;
+
         // Webhooks of each rule, and which rules have one that sees repeat matches
         std::vector<std::vector<std::shared_ptr<webhook_binding>>> hooks;
         std::vector<uint8_t> hook_repeat;
