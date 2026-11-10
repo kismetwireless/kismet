@@ -439,7 +439,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         goto out;
     }
 
-    (*ret_interface)->chanset = strdup(mm_kis_channel_name(start));
+    /* Only an explicit channel is reported; a hopping source has none, as with usbwifi */
+    if (chan_def != NULL)
+        (*ret_interface)->chanset = strdup(mm_kis_channel_name(start));
 
     if (mm_kis_start(local->dev, mm8108_rx, local) < 0 || mm_kis_set_channel(local->dev, start) < 0) {
         snprintf(msg, STATUS_MAX, "%s could not enter monitor mode", local->name);
