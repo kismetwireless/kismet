@@ -810,6 +810,10 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         }
     }
 
+    // A rules sort only has to order the devices up to the end of the window
+    const size_t sort_first = in_window_len > 0 ?
+        (size_t) in_window_start + (size_t) in_window_len : SIZE_MAX;
+
     // Filters and their sorts replace the vector, so they go before the window is
     // taken from it
     if (filter.length() > 0 || filter_sort.length() > 0) {
@@ -822,7 +826,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         }
 
         try {
-            rules->filter_devices(filter, filter_sort, text_fields, next_work_vec);
+            rules->filter_devices(filter, filter_sort, text_fields, next_work_vec, sort_first);
         } catch (const devicerules::parse_error& e) {
             con->set_status(400);
             con->set_mime_type("application/json");
@@ -843,7 +847,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
         auto rules = Globalreg::fetch_global_as<device_rules>();
         std::string err = "device rules aren't available";
 
-        if (rules == nullptr || !rules->sort_devices(rule_sort, next_work_vec, err)) {
+        if (rules == nullptr || !rules->sort_devices(rule_sort, next_work_vec, err, sort_first)) {
             con->set_status(400);
             os << "Invalid rule_sort: " << err << "\n";
             return;

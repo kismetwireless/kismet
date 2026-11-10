@@ -324,6 +324,9 @@ private:
         if (rs.fields.size() >= 65535)
             error(n, "too many fields");
 
+        fs.hint = rs.hint_count;
+        rs.hint_count += fs.path.size();
+
         int slot = rs.fields.size();
         rs.fields.push_back(std::move(fs));
         slot_map[key] = slot;
@@ -636,6 +639,8 @@ private:
 
             if (o == op::matches)
                 n->aux = add_regex(n.get(), n->b->str);
+            else if (o == op::icontains)
+                n->aux = add_string(lower_copy(n->b->str.data(), n->b->str.size()));
             else
                 n->aux = add_string(n->b->str);
             return;
@@ -724,6 +729,7 @@ private:
                     break;
                 case vtype::string:
                     vs.strings.insert(n->icase ? lower_copy(e->str.data(), e->str.size()) : e->str);
+                    vs.max_str = std::max(vs.max_str, e->str.size());
                     break;
                 default:
                     if (e->mask == ~(uint64_t) 0)
@@ -993,6 +999,7 @@ private:
 };
 
 ruleset::ruleset() :
+    hint_count{0},
     nregs_max{1},
     any_now{false},
     compiled_ok{false},
@@ -1058,21 +1065,44 @@ void eval_ctx::bind(const ruleset *in_rs, env *in_e) {
 #endif
 }
 
+// n is already lower case
 bool str_icontains(const char *h, size_t hl, const char *n, size_t nl) {
     if (nl == 0)
         return true;
     if (nl > hl)
         return false;
 
-    for (size_t i = 0; i + nl <= hl; i++) {
-        size_t j = 0;
-        while (j < nl && ascii_lower(h[i + j]) == ascii_lower(n[j]))
+    // Candidates are the places the first byte is found, in either case
+    const char lo = n[0];
+    const char up = (lo >= 'a' && lo <= 'z') ? lo - 32 : lo;
+    const char *end = h + (hl - nl) + 1;
+
+    auto next = [end](const char *p, char c) {
+        if (p >= end)
+            return end;
+        auto r = static_cast<const char *>(memchr(p, c, end - p));
+        return r == nullptr ? end : r;
+    };
+
+    const char *a = next(h, lo);
+    const char *b = up != lo ? next(h, up) : end;
+
+    while (true) {
+        const char *c = a < b ? a : b;
+        if (c == end)
+            return false;
+
+        size_t j = 1;
+        while (j < nl && ascii_lower(c[j]) == n[j])
             j++;
         if (j == nl)
             return true;
-    }
 
-    return false;
+        if (c == a)
+            a = next(c + 1, lo);
+        else
+            b = next(c + 1, up);
+    }
 }
 
 bool str_ieq(const char *a, size_t al, const char *b, size_t bl) {
@@ -1162,10 +1192,25 @@ bool ruleset::leaf_test(eval_ctx& ctx, bc o, const value& v, uint32_t k) const {
                 if (f == v.f)
                     return true;
             return false;
-        case bc::ins:
-            return sets[k].strings.find(std::string(v.s, v.len)) != sets[k].strings.end();
-        case bc::insi:
-            return sets[k].strings.find(lower_copy(v.s, v.len)) != sets[k].strings.end();
+        case bc::ins: {
+            const auto& vs = sets[k];
+            if (v.len > vs.max_str)
+                return false;
+            return vs.strings.find(std::string_view(v.s, v.len)) != vs.strings.end();
+        }
+        case bc::insi: {
+            const auto& vs = sets[k];
+            if (v.len > vs.max_str)
+                return false;
+
+            char buf[128];
+            if (v.len > sizeof(buf))
+                return vs.strings.find(lower_copy(v.s, v.len)) != vs.strings.end();
+
+            for (uint32_t i = 0; i < v.len; i++)
+                buf[i] = ascii_lower(v.s[i]);
+            return vs.strings.find(std::string_view(buf, v.len)) != vs.strings.end();
+        }
         case bc::inm: {
             const auto& vs = sets[k];
             if (vs.macs.find(v.m) != vs.macs.end())

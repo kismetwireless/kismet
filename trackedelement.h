@@ -1789,6 +1789,28 @@ public:
         return v->second.get();
     }
 
+    // peek_sub for repeated walks of maps with the same layout: pos is where the id
+    // was found last time and is tried first, then updated
+    tracker_element *peek_sub(int id, shared_tracker_element& hold, uint16_t& pos) {
+        if (present_set & 0x04) {
+            hold = get_lazy_sub(id);
+            return hold.get();
+        }
+
+        const auto b = map.begin();
+
+        if (pos < map.size() && b[pos].first == id)
+            return b[pos].second.get();
+
+        auto v = map.find(id);
+
+        if (v == map.end())
+            return nullptr;
+
+        pos = (uint16_t) (v - b);
+        return v->second.get();
+    }
+
     template<typename T>
     std::shared_ptr<T> get_sub_as(int id) {
         if (present_set & 0x04)
