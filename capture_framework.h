@@ -725,7 +725,8 @@ int cf_handler_close_requested(kis_capture_handler_t *caph);
  *
  * Returns
  * -1   Error pivoting into restricted namespace
- *  0   Not compiled on Linux, or not running as root
+ *  0   Not compiled on Linux, not running as root, or new namespaces are denied
+ *      (unshare fails with EPERM or ENOSYS, as in a container without CAP_SYS_ADMIN)
  *  1   Success
  */
 int cf_jail_filesystem(kis_capture_handler_t *caph);

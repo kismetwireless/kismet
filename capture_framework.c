@@ -4428,6 +4428,17 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
+    /* A helper can warn before cf_handler_loop allocates the IPC buffer, such as when
+     * it can't jail itself or drop caps; the warning goes out once the loop starts */
+    if (caph->out_ringbuf == NULL) {
+        caph->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
+
+        if (caph->out_ringbuf == NULL) {
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            return NULL;
+        }
+    }
+
     rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer,
             estimated_len + sizeof(kismet_external_frame_v3_t));
 
@@ -6362,6 +6373,15 @@ int cf_jail_filesystem_keep(kis_capture_handler_t *caph, const char **writable) 
         return 0;
 
     if (unshare(CLONE_NEWNS) < 0) {
+        /* A container without CAP_SYS_ADMIN, or a seccomp filter, refuses new
+         * namespaces; the helper runs without the jail */
+        if (errno == EPERM || errno == ENOSYS) {
+            snprintf(errstr, STATUS_MAX, "datasource running without a read-only "
+                    "filesystem jail, unshare(CLONE_NEWNS) was denied: %s", strerror(errno));
+            cf_send_warning(caph, errstr);
+            return 0;
+        }
+
         snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
                 strerror(errno));
         cf_send_warning(caph, errstr);
