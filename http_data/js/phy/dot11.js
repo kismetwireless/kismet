@@ -1262,6 +1262,25 @@ function registerDetails(kismet) {
             },
 
             {
+                group: 'Multiple BSSID',
+                show: (dev) => notZeroMac(api.field(dev, `${d}/${d}.mbssid_transmitter`)) ||
+                    hasKeys(api.field(dev, `${base}.related_devices/dot11_mbssid`)),
+                help: 'One access point radio can host several networks, each with its own BSSID, and list them all in a multiple BSSID element in its own beacons.  The hosted networks may never send beacons of their own.',
+                fields: [
+                    { title: 'Advertised by', field: `${d}/${d}.mbssid_transmitter`, show: notZeroMac,
+                        draw: (cell, v) => macLink(cell, v),
+                        help: 'The access point whose beacons list this network.' },
+                    { title: 'BSSID index', field: `${d}/${d}.mbssid_index`,
+                        show: (v, dev) => notZeroMac(api.field(dev, `${d}/${d}.mbssid_transmitter`)),
+                        help: 'Where this network sits in the access point\'s list; its BSSID is worked out from the access point\'s and this index.' },
+                    { title: 'Maximum BSSIDs', field: `${d}/${d}.mbssid_max_bssids`, hideZero: true,
+                        help: 'How many networks the access point says it can host.' },
+                    { ...relatedTable('mbssid', `${base}.related_devices/dot11_mbssid`),
+                        show: (v, dev) => hasKeys(v) && !notZeroMac(api.field(dev, `${d}/${d}.mbssid_transmitter`)) },
+                ],
+            },
+
+            {
                 group: 'Shared hardware (uptime)',
                 show: (dev) => hasKeys(api.field(dev, `${base}.related_devices/dot11_bssts_similar`)),
                 help: 'Access points send a high-precision timestamp in their beacons.  Devices with nearly identical timestamps are usually one physical access point advertising several BSSIDs.',

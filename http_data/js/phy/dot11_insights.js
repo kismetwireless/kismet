@@ -15,6 +15,7 @@ const fields = [
     [`${ssidRec}/dot11.advertisedssid.first_time`, 'd11_ssid_first'],
     [`dot11.device/dot11.device.probed_ssid_map`, 'd11_probed'],
     [`dot11.device/dot11.device.responded_ssid_map`, 'd11_responded'],
+    [`dot11.device/dot11.device.mbssid_transmitter`, 'd11_mbssid_tx'],
 ];
 
 const list = (v) => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
@@ -51,6 +52,10 @@ export function registerInsights(kismet) {
                 return;
             const type = rec[`${base}.type`] ?? '';
             g.role(n, /AP/.test(type) ? 'ap' : /Bridged|Wired/.test(type) ? 'bridge' : /Client/.test(type) ? 'client' : 'other');
+
+            // A network listed in another access point's multiple BSSID
+            // element is served by that access point's radio
+            g.same(g.mac(rec.d11_mbssid_tx), n);
 
             const ssid = rec.d11_ssid;
             if (typeof ssid === 'string') {
