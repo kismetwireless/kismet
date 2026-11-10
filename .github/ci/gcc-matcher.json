@@ -1,0 +1,37 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "kismet-compiler",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^(?:/github/workspace/)?([^\\s:][^:]*):(\\d+):(\\d+): (?:fatal )?error: (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      ]
+    },
+    {
+      "owner": "kismet-linker",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^(?:\\S*ld(?:\\.\\w+)?: )?(.*(?:undefined reference to|multiple definition of|cannot find -l).*)$",
+          "message": 1
+        }
+      ]
+    },
+    {
+      "owner": "kismet-configure",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^configure: error: (.*)$",
+          "message": 1
+        }
+      ]
+    }
+  ]
+}

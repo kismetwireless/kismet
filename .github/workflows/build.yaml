@@ -1,0 +1,146 @@
+name: Build
+
+on:
+  pull_request:
+    branches: [master]
+    paths-ignore: &skip
+      - 'http_data/**'
+      - '**.md'
+      - 'README*'
+      - 'LICENSE'
+      - '.github/FUNDING.yml'
+  push:
+    branches: [master]
+    paths-ignore: *skip
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # A merged PR gets a new commit SHA but, when master hasn't moved since the
+  # PR was tested, the same tree as the merge the PR run built. Every run that
+  # passes records its tree as an artifact, and a run whose tree is recorded
+  # skips the builds.
+  check:
+    name: Already tested?
+    runs-on: ubuntu-24.04
+    outputs:
+      tree: ${{ steps.tree.outputs.tree }}
+      tested: ${{ steps.tree.outputs.tested }}
+    steps:
+      - id: tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if ! tree="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" --jq .commit.tree.sha)"; then
+            echo "::warning::Could not look up the tree of ${GITHUB_SHA}, building anyway"
+            exit 0
+          fi
+          echo "tree=${tree}" >> "${GITHUB_OUTPUT}"
+          if [ "${EVENT}" = workflow_dispatch ]; then
+            echo "Manual run: building tree \`${tree}\`." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=tested-tree-${tree}" \
+            --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')" || run=
+          if [ -n "${run}" ]; then
+            echo "tested=true" >> "${GITHUB_OUTPUT}"
+            echo "Tree \`${tree}\` already passed every build in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${run}, skipping the builds." >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "Tree \`${tree}\` has not passed yet, building." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+  build:
+    name: ${{ matrix.distro.name }} / ${{ matrix.build }}
+    needs: check
+    if: needs.check.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - { name: Alpine, image: build-alpine-amd64 }
+          - { name: Ubuntu 24.04, image: build-ubuntu-noble-amd64 }
+          - { name: Ubuntu 26.04, image: build-ubuntu-resolute-amd64 }
+        build: [default, all, all-no-wext]
+    env:
+      # Forks have no images of their own, so always use upstream's.
+      IMAGE: ghcr.io/kismetwireless/kismet/${{ matrix.distro.image }}:latest
+      BUILD: ${{ matrix.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Pull the ${{ matrix.distro.name }} image
+        run: docker pull "${IMAGE}"
+
+      - name: Build (${{ matrix.build }})
+        run: |
+          echo "::add-matcher::.github/ci/gcc-matcher.json"
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/github/workspace" \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+            --entrypoint "/${BUILD}-build.sh" \
+            "${IMAGE}"
+
+  selftest:
+    name: CI self-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/ci
+      - run: .github/ci/selftest.sh
+
+  result:
+    name: All builds
+    needs: [check, build, selftest]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - if: needs.build.result != 'skipped'
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/ci
+
+      - name: Summarize
+        if: needs.build.result != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" --jq '.jobs[]' |
+            jq -rs -f .github/ci/build-summary.jq >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Record the tree as tested
+        if: needs.build.result == 'success' && needs.selftest.result == 'success' && needs.check.outputs.tree != ''
+        env:
+          TREE: ${{ needs.check.outputs.tree }}
+        run: echo "${TREE}" > tested-tree
+
+      - if: needs.build.result == 'success' && needs.selftest.result == 'success' && needs.check.outputs.tree != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: tested-tree-${{ needs.check.outputs.tree }}
+          path: tested-tree
+
+      - name: Check every build passed
+        if: needs.check.result != 'success' || needs.selftest.result != 'success' || (needs.build.result != 'success' && needs.build.result != 'skipped')
+        env:
+          CHECK: ${{ needs.check.result }}
+          BUILD: ${{ needs.build.result }}
+          SELFTEST: ${{ needs.selftest.result }}
+        run: |
+          echo "::error::Builds did not all pass (check: ${CHECK}, builds: ${BUILD}, self-test: ${SELFTEST})"
+          exit 1
