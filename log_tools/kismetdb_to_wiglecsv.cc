@@ -563,6 +563,70 @@ int main(int argc, char *argv[]) {
 
     std::map<std::string, std::shared_ptr<cache_obj>> device_cache_map;
 
+    // Name, encryption and first time of a Wi-Fi AP device record; nullptr for other devices
+    auto wifi_ap_entry = [](nlohmann::json& json) -> std::shared_ptr<cache_obj> {
+        if (json["kismet.device.base.first_time"].is_null())
+            throw std::runtime_error("No first_time in record");
+
+        auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
+        auto name = std::string{""};
+        auto crypt = std::string{""};
+        auto type = json["kismet.device.base.type"].get<std::string>();
+
+        if (type != "Wi-Fi AP")
+            return nullptr;
+
+        if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
+            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
+        } else if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
+            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
+        } else {
+            name = "";
+        }
+
+        if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
+            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
+        } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].is_string()) {
+            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
+        } else {
+            name = "";
+        }
+
+        // Handle the aliased ssid_record for modern info
+        if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
+            crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
+        } else {
+            if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null())
+                throw std::runtime_error("No last beaconed checksum");
+
+            auto last_ssid_key =
+                json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].get<uint64_t>();
+            std::stringstream ss;
+
+            ss << last_ssid_key;
+
+            crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
+        }
+
+        crypt += "[ESS]";
+
+
+        std::time_t timet(timestamp);
+        std::tm tm;
+        std::stringstream ts;
+
+        gmtime_r(&timet, &tm);
+
+        char tmstr[256];
+        strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+        ts << tmstr;
+
+        // because apparently gcc4 is still a thing?
+        // ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+
+        return std::make_shared<cache_obj>(ts.str(), name, crypt);
+    };
+
     if (verbose)
         fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
@@ -619,6 +683,63 @@ int main(int argc, char *argv[]) {
             _WHERE("lat", NEQ, 0, AND, "lon", NEQ, 0));
     bt_query.append_where(AND, _WHERE("phyname", EQ, "Bluetooth", OR, "phyname", EQ, "BTLE"));
 
+    // BSSs advertised in another AP's multiple BSSID element have no packets of their own,
+    // and are logged with the packets of the AP advertising them; one with beacons of its
+    // own is logged from those
+    std::map<std::string, std::vector<std::pair<std::string, std::shared_ptr<cache_obj>>>> mbssid_hosted;
+
+    {
+        // Device records are blobs, which LIKE doesn't reliably match, so look for the field
+        // before parsing the record
+        auto hosted_query = _SELECT(db, "devices", {"devmac", "device"},
+                _WHERE("phyname", EQ, "IEEE802.11"));
+
+        for (auto h : hosted_query) {
+            auto devmac = sqlite3_column_as<std::string>(h, 0);
+            auto record = sqlite3_column_as<std::string>(h, 1);
+
+            if (record.find("dot11.device.mbssid_transmitter") == std::string::npos)
+                continue;
+
+            try {
+                nlohmann::json json;
+                std::stringstream ss(record);
+                ss >> json;
+
+                const auto& d11 = json["dot11.device"];
+
+                if (!d11["dot11.device.mbssid_transmitter"].is_string())
+                    continue;
+
+                if (d11.value("dot11.device.last_beacon_timestamp", uint64_t{0}) != 0)
+                    continue;
+
+                auto entry = wifi_ap_entry(json);
+
+                if (entry == nullptr)
+                    continue;
+
+#if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
+                for (const auto& i : pcre_list) {
+                    if (i->match(entry->name))
+                        entry->filter(true);
+                }
+#endif
+
+                mbssid_hosted[d11["dot11.device.mbssid_transmitter"].get<std::string>()].emplace_back(
+                        devmac, entry);
+            } catch (const std::exception& e) {
+                std::cerr <<
+                    fmt::format("WARNING:  Could not process device info for {}, skipping: {}",
+                            devmac, e.what()) << std::endl;
+            }
+        }
+
+        if (verbose && !mbssid_hosted.empty())
+            fmt::print(stderr, "* Found {} APs advertising other BSSs in multiple BSSID elements\n",
+                    mbssid_hosted.size());
+    }
+
     unsigned long n_logs = 0;
     unsigned long n_saved = 0;
     unsigned long n_discarded_logs_rate = 0;
@@ -668,6 +789,51 @@ int main(int argc, char *argv[]) {
             alt = sqlite3_column_as<double>(p, 7);
         }
 
+        auto hi = mbssid_hosted.find(sourcemac);
+
+        if (hi != mbssid_hosted.end()) {
+            bool violates_exclusion = false;
+            for (auto ez : exclusion_zones) {
+                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                    violates_exclusion = true;
+                    break;
+                }
+            }
+
+            for (const auto& h : hi->second) {
+                if (violates_exclusion) {
+                    n_discarded_logs_zones++;
+                    continue;
+                }
+
+                if (h.second->filtered)
+                    continue;
+
+                if (rate_limit != 0 && h.second->last_time_sec != 0 &&
+                        ts < h.second->last_time_sec + rate_limit) {
+                    n_discarded_logs_rate++;
+                    continue;
+                }
+                h.second->last_time_sec = ts;
+
+                fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
+                        h.first,
+                        h.second->name,
+                        h.second->crypto,
+                        h.second->first_time,
+                        (int) FrequencyToWifiChannel(frequency),
+                        frequency / 1000,
+                        signal,
+                        lat, lon, alt,
+                        0,
+                        "",
+                        "",
+                        "WIFI");
+
+                n_saved++;
+            }
+        }
+
         auto ci = device_cache_map.find(sourcemac);
         std::shared_ptr<cache_obj> cached;
 
@@ -706,74 +872,16 @@ int main(int argc, char *argv[]) {
             try {
                 ss >> json;
 
-                if (json["kismet.device.base.first_time"].is_null())
-                    throw std::runtime_error("No first_time in record");
+                cached = wifi_ap_entry(json);
 
-                auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
-                auto name = std::string{""};
-                auto crypt = std::string{""};
-                auto type = json["kismet.device.base.type"].get<std::string>();
-
-                if (phy == "IEEE802.11") {
-                    if (type != "Wi-Fi AP")
-                        continue;
-
-                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
-                    } else if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
-                    } else {
-                        name = "";
-                    }
-
-                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
-                    } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].is_string()) {
-                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
-                    } else {
-                        name = "";
-                    }
-
-                    // Handle the aliased ssid_record for modern info
-                    if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
-                    } else {
-                        if (json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].is_null())
-                            throw std::runtime_error("No last beaconed checksum");
-
-                        auto last_ssid_key =
-                            json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].get<uint64_t>();
-                        std::stringstream ss;
-
-                        ss << last_ssid_key;
-
-                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()].value("dot11.advertisedssid.crypt_bitfield", uint64_t{0}));
-                    }
-
-                    crypt += "[ESS]";
-
-                }
-
-                std::time_t timet(timestamp);
-                std::tm tm;
-                std::stringstream ts;
-
-                gmtime_r(&timet, &tm);
-
-                char tmstr[256];
-                strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
-                ts << tmstr;
-
-                // because apparently gcc4 is still a thing?
-                // ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-
-                cached = std::make_shared<cache_obj>(ts.str(), name, crypt);
+                if (cached == nullptr)
+                    continue;
 
                 device_cache_map[sourcemac] = cached;
 
 #if defined(HAVE_LIBPCRE1) || defined(HAVE_LIBPCRE2)
                 for (const auto& i : pcre_list) {
-                    if (i->match(name))
+                    if (i->match(cached->name))
                         cached->filter(true);
                 }
 #endif

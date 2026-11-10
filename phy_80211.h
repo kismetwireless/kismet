@@ -74,6 +74,7 @@
 #include "dot11_parsers/dot11_ie_48_rsn.h"
 #include "dot11_parsers/dot11_ie_54_mobility.h"
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
+#include "dot11_parsers/dot11_ie_71_mbssid.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_mikrotik.h"
@@ -188,6 +189,8 @@ class dot11_packinfo : public packet_component {
 
             // Many of these will not be available until the IE tags are parsed
             ietag_csum = 0;
+            mbssid_csum = 0;
+            ie_dissected = false;
 
             dot11d_country = "";
 
@@ -235,6 +238,7 @@ class dot11_packinfo : public packet_component {
             dot11ht.reset();
             owe_transition.reset();
             rsn.reset();
+            mbssid.reset();
             droneid.reset();
             s1g.reset();
 
@@ -320,6 +324,10 @@ class dot11_packinfo : public packet_component {
 
         uint32_t ssid_csum;
         uint32_t ietag_csum;
+        // Multiple BSSID elements are left out of ietag_csum and summed here, 0 when absent
+        uint32_t mbssid_csum;
+        // The full IE tag dissector ran for this frame
+        bool ie_dissected;
 
         // Tupled hash map
         std::multimap<std::tuple<uint8_t, uint32_t, uint8_t>, size_t> ietag_hash_map;
@@ -367,6 +375,7 @@ class dot11_packinfo : public packet_component {
         dot11_ie_192_vht_op dot11vht;
         dot11_ie_221_owe_transition owe_transition;
         dot11_ie_48_rsn rsn;
+        dot11_ie_71_mbssid mbssid;
 
         dot11_s1g s1g;
         dot11_ie_232_s1g_operation s1g_operation;
@@ -525,6 +534,16 @@ public:
     // IE tags to the best of our ability
     int packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo* in_dot11info);
 
+    // Collect the multiple BSSID elements of a beacon or probe response into
+    // packinfo->mbssid, parsing the IE tags if needed; returns the number of truncated
+    // elements
+    unsigned int packet_dot11_parse_mbssid(kis_packet* in_pack, dot11_packinfo* packinfo);
+
+    // Packet info for a hosted BSS: the transmitter's IE tags with the profile's inheritance
+    // applied, addressed from the hosted BSSID; nullptr if the tags don't parse
+    std::shared_ptr<dot11_packinfo> build_mbssid_packinfo(const dot11_packinfo *tx,
+            const dot11_ie_71_mbssid::nontransmitted_profile& profile, const mac_addr& bssid);
+
     // Parse a list of IE tag tuples into a packinfo
     void packet_dot11_parse_ie_list(kis_packet* in_pack, dot11_packinfo* in_dot11info);
 
@@ -634,6 +653,11 @@ protected:
     void handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
             const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<dot11_packinfo>& dot11info);
+
+    // Create and update the BSSs a transmitting AP advertises in its multiple BSSID
+    // elements; called with no device locks held
+    void handle_mbssid(const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
     // Check the channel switch announcement of a beacon, probe response or action frame
@@ -747,7 +771,11 @@ protected:
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
         alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref,
         alert_dot11_csa_spoof_ref,
-        alert_bcmwps_ref, alert_wpsfraglen_ref, alert_wpsfragprobe_ref;
+        alert_bcmwps_ref, alert_wpsfraglen_ref, alert_wpsfragprobe_ref, alert_mbssid_ref,
+        alert_mbssid_excess_ref;
+
+    // Most hosted BSSs taken from one frame; real APs host far fewer
+    static constexpr size_t mbssid_max_hosted = 64;
 
     // EAP-WSC fragment reassembly per AP and station; only WSC frames touch it, and it is
     // bounded in size and age

@@ -124,6 +124,15 @@ public:
     std::vector<std::shared_ptr<kis_alert_info>> alert_vec;
 };
 
+// Alert headers a packet won't raise while attached, such as alerts already raised for the
+// AP of a frame which also describes the other BSSs it hosts
+class kis_alert_suppress_component : public packet_component {
+public:
+    kis_alert_suppress_component() { }
+
+    std::vector<std::string> headers;
+};
+
 class tracked_alert : public tracker_component, public censor::marked_view_source {
 public:
     tracked_alert() :
@@ -513,6 +522,10 @@ public:
     // Find a reference from a name
     int fetch_alert_ref(std::string in_header);
 
+    int get_pack_comp_alert_suppress() const {
+        return pack_comp_alert_suppress;
+    }
+
     // Will an alert succeed?
     int potential_alert(int in_ref);
 
@@ -573,6 +586,7 @@ protected:
     int parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
     int pack_comp_alert;
+    int pack_comp_alert_suppress;
     int alert_ref_kismet;
 
     int next_alert_id;

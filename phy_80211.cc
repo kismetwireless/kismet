@@ -517,6 +517,24 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "Specific attacks have their own alerts; this indicates a general, but "
                 "otherwise unknown, malformed tag.",
                 phyid);
+    alert_mbssid_ref =
+        alertracker->activate_configured_alert("MBSSIDCORRUPT",
+                "EXPLOIT", kis_alert_severity::high,
+                "Access points hosting several BSSs advertise them in multiple BSSID "
+                "elements, which nest a profile of IE tags for each BSS.  Malformed "
+                "elements or profiles, such as truncated elements, nested multiple BSSID "
+                "elements, or invalid BSSID indexes, may indicate an attempt to exploit "
+                "drivers which parse them, such as the Linux cfg80211 issues CVE-2022-41674 "
+                "and CVE-2022-42719 through CVE-2022-42721.",
+                phyid);
+    alert_mbssid_excess_ref =
+        alertracker->activate_configured_alert("MBSSIDEXCESSIVE",
+                "DENIAL", kis_alert_severity::medium,
+                "An access point advertised more BSSs in the multiple BSSID elements of one "
+                "frame than Kismet tracks (64).  Real access points host far fewer; a frame "
+                "advertising this many may be an attempt to flood device tracking with fake "
+                "BSSs.  Only the first 64 are tracked.",
+                phyid);
     alert_rtlwifi_p2p_ref =
         alertracker->activate_configured_alert("RTLWIFIP2P",
                 "EXPLOIT", kis_alert_severity::high,
@@ -1558,6 +1576,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         dev_held.unlock();
+
+        // BSSs the transmitting AP advertises for others on the same radio
+        d11phy->handle_mbssid(in_pack, dot11info);
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
                 dot11info->source_mac != Globalreg::globalreg->empty_mac &&
@@ -2909,6 +2930,284 @@ static const char *csa_source_name(dot11_chan_switch::source src, ieee_80211_sub
             return "public extended CSA action frame";
         default:
             return "unknown";
+    }
+}
+
+void kis_80211_phy::handle_mbssid(const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info) {
+    if (dot11info->mbssid_csum == 0 || dot11info->bssid_dev == nullptr ||
+            dot11info->bssid_dot11 == nullptr || dot11info->ibss ||
+            dot11info->source_mac != dot11info->bssid_mac ||
+            (dot11info->subtype != packet_sub_beacon &&
+             dot11info->subtype != packet_sub_probe_resp))
+        return;
+
+    // Packet info is only built when the multiple BSSID content is new to the transmitter
+    struct mbssid_target {
+        dot11_mbssid_hosted hosted;
+        std::shared_ptr<dot11_packinfo> pi;
+    };
+
+    std::vector<mbssid_target> targets;
+    const auto tx_mac = dot11info->bssid_mac;
+    const auto key = crc32_fast(&dot11info->ietag_csum, sizeof(dot11info->ietag_csum),
+            dot11info->mbssid_csum);
+
+    // Alerts raised for the AP, by this frame or by the last full parse of its IE tags; the
+    // hosted BSSs inherit what raised them and don't raise them again
+    std::vector<std::string> suppress;
+
+    {
+        kis_device_lock lk(dot11info->bssid_dev, false);
+
+        auto& tx_alerts = dot11info->bssid_dot11->mbssid_tx_alerts;
+
+        if (dot11info->ie_dissected)
+            tx_alerts.clear();
+
+        for (const auto& t : in_pack->tag_map) {
+            if (t.first.rfind("ALERT_", 0) != 0)
+                continue;
+
+            auto h = t.first.substr(6);
+            if (std::find(tx_alerts.begin(), tx_alerts.end(), h) == tx_alerts.end())
+                tx_alerts.push_back(h);
+        }
+
+        suppress = tx_alerts;
+
+        auto& cache = dot11info->bssid_dot11->mbssid_cache();
+        auto ci = std::find_if(cache.begin(), cache.end(),
+                [key](const auto& e) { return e.first == key; });
+
+        if (ci != cache.end()) {
+            for (const auto& h : ci->second)
+                targets.push_back(mbssid_target{h, nullptr});
+        } else {
+            const auto truncated = packet_dot11_parse_mbssid(in_pack.get(), dot11info.get());
+            const auto& mb = dot11info->mbssid;
+            const auto n = mb.max_bssid_indicator();
+
+            // The MAC is kept in the top 48 bits
+            const uint64_t tx48 = tx_mac.get_as_long() >> 16;
+
+            unsigned int malformed = 0, invalid = 0, duplicate = 0, excess = 0;
+            std::vector<dot11_mbssid_hosted> hosted;
+
+            for (const auto& p : mb.profiles()) {
+                if (p.malformed()) {
+                    malformed++;
+                    continue;
+                }
+
+                if (!p.valid(n)) {
+                    invalid++;
+                    continue;
+                }
+
+                if (std::find_if(hosted.begin(), hosted.end(),
+                            [&p](const auto& h) { return h.index == p.bssid_index(); }) != hosted.end()) {
+                    duplicate++;
+                    continue;
+                }
+
+                if (hosted.size() >= mbssid_max_hosted) {
+                    excess++;
+                    continue;
+                }
+
+                const auto b48 = dot11_ie_71_mbssid::derive_bssid(tx48, n, p.bssid_index());
+                uint8_t mb_bytes[6];
+                for (unsigned int i = 0; i < 6; i++)
+                    mb_bytes[i] = (b48 >> (40 - (i * 8))) & 0xFF;
+                const auto bssid = mac_addr(mb_bytes, 6);
+
+                auto pi = build_mbssid_packinfo(dot11info.get(), p, bssid);
+
+                if (pi == nullptr) {
+                    malformed++;
+                    continue;
+                }
+
+                const auto h = dot11_mbssid_hosted{bssid, p.bssid_index(), pi->ietag_csum};
+                hosted.push_back(h);
+                targets.push_back(mbssid_target{h, pi});
+            }
+
+            const auto n_hosted = hosted.size();
+
+            if (cache.size() >= dot11_tracked_device::mbssid_cache_max)
+                cache.erase(cache.begin());
+            cache.emplace_back(key, std::move(hosted));
+
+            if (mb.max_bssids() != 0 && !mb.indicator_invalid())
+                dot11info->bssid_dot11->set_mbssid_max_bssids(mb.max_bssids());
+
+            std::vector<std::string> problems;
+
+            if (truncated)
+                problems.push_back(fmt::format("{} truncated element(s)", truncated));
+            if (mb.indicator_invalid())
+                problems.push_back(fmt::format("invalid or inconsistent max BSSID indicator {}", n));
+            if (malformed)
+                problems.push_back(fmt::format("{} malformed profile(s)", malformed));
+            if (invalid)
+                problems.push_back(fmt::format("{} profile(s) without a capability or a usable "
+                            "BSSID index", invalid));
+            if (duplicate)
+                problems.push_back(fmt::format("{} duplicate BSSID index(es)", duplicate));
+
+            const bool alerted = dot11info->bssid_dot11->mbssid_alerted_key == key;
+
+            if ((!problems.empty() || excess) && !alerted)
+                dot11info->bssid_dot11->mbssid_alerted_key = key;
+
+            if (excess && !alerted && alertracker->potential_alert(alert_mbssid_excess_ref)) {
+                auto al = censor::format("IEEE80211 Access Point BSSID {} advertised {} BSSs in the "
+                        "multiple BSSID elements of one frame; only the first {} are tracked.  This "
+                        "may be an attempt to flood device tracking with fake BSSs.",
+                        tx_mac, n_hosted + excess, mbssid_max_hosted);
+
+                alertracker->raise_alert(alert_mbssid_excess_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
+            }
+
+            if (!problems.empty() && !alerted && alertracker->potential_alert(alert_mbssid_ref)) {
+                std::string problem_str;
+                for (const auto& pr : problems) {
+                    if (!problem_str.empty())
+                        problem_str += ", ";
+                    problem_str += pr;
+                }
+
+                auto al = censor::format("IEEE80211 Access Point BSSID {} sent a malformed multiple "
+                        "BSSID element ({}).  This may be an attempt to exploit drivers which parse "
+                        "the nontransmitted BSSID profiles, such as the Linux cfg80211 issues "
+                        "CVE-2022-41674 and CVE-2022-42719 through CVE-2022-42721, but could also be "
+                        "caused by a misbehaving access point.",
+                        tx_mac, problem_str);
+
+                alertracker->raise_alert(alert_mbssid_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
+            }
+        }
+    }
+
+    bool stale = false;
+
+    unsigned int bflags = UCD_UPDATE_SEENBY | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION |
+        UCD_UPDATE_DEFER_VIEWS;
+
+    if ((signal_from_beacon && dot11info->subtype == packet_sub_beacon) || !signal_from_beacon)
+        bflags |= UCD_UPDATE_SIGNAL;
+
+    // Attached while the hosted BSSs are processed, and removed on every way out
+    struct suppress_guard {
+        kis_packet *pack;
+        int comp;
+        ~suppress_guard() {
+            if (pack != nullptr)
+                pack->erase(comp);
+        }
+    } sguard{nullptr, alertracker->get_pack_comp_alert_suppress()};
+
+    if (!suppress.empty() && !targets.empty()) {
+        auto sc = std::make_shared<kis_alert_suppress_component>();
+        sc->headers = std::move(suppress);
+        in_pack->insert(sguard.comp, sc);
+        sguard.pack = in_pack.get();
+    }
+
+    // Each hosted BSS is locked in turn; the frame isn't its traffic, so it counts no
+    // packets and takes no encryption from it
+    for (const auto& t : targets) {
+        std::shared_ptr<kis_tracked_device_base> dev;
+        bool link = false;
+
+        {
+            kis_device_lock held;
+
+            dev = devicetracker->update_common_device(t.hosted.bssid, this, in_pack,
+                    bflags, "Wi-Fi Device", held);
+
+            if (dev == nullptr)
+                continue;
+
+            auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+            if (dot11 == nullptr) {
+                _MSG_INFO("Detected new 802.11 Wi-Fi access point {} advertised by {}",
+                        dev->get_macaddr(), tx_mac);
+
+                dot11 = std::make_shared<dot11_tracked_device>(dot11_builder.get());
+                dot11_tracked_device::attach_base_parent(dot11, dev);
+            }
+
+            if (!dot11->has_mbssid_transmitter() || dot11->get_mbssid_transmitter() != tx_mac) {
+                dot11->set_mbssid_transmitter(tx_mac);
+                link = true;
+            }
+
+            dot11->set_mbssid_index(t.hosted.index);
+
+            // A BSS which beacons for itself keeps what its own beacons say, and is only linked
+            if (dot11->get_last_beacon_timestamp() == 0) {
+                dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_AP);
+                dev->set_type_string_ifnot([this]() {
+                    return devtype_ap;
+                }, (KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER));
+
+                dot11->bitset_type_set(DOT11_DEVICE_TYPE_MBSSID |
+                        (dot11info->subtype == packet_sub_beacon ?
+                         DOT11_DEVICE_TYPE_BEACON_AP : DOT11_DEVICE_TYPE_PROBE_AP));
+                dot11->set_last_bssid(dev->get_macaddr());
+
+                auto pi = t.pi;
+
+                // Cached content only refreshes a BSS whose record matches it; otherwise the
+                // next frame with this content rebuilds it
+                if (pi == nullptr) {
+                    if (dot11->get_last_adv_ie_csum() == t.hosted.ietag_csum) {
+                        pi = packetchain->new_packet_component<dot11_packinfo>();
+                        pi->type = dot11info->type;
+                        pi->subtype = dot11info->subtype;
+                        pi->channel = dot11info->channel;
+                        pi->dest_mac = dot11info->dest_mac;
+                        pi->transmit_mac = tx_mac;
+                        pi->source_mac = t.hosted.bssid;
+                        pi->bssid_mac = t.hosted.bssid;
+                        pi->ietag_csum = t.hosted.ietag_csum;
+                        pi->qbss_load = dot11info->qbss_load;
+                    } else {
+                        stale = true;
+                    }
+                }
+
+                if (pi != nullptr)
+                    handle_ssid(dev, dot11, in_pack, pi);
+
+                dot11->update_randomized_mac(*dev);
+            }
+
+            devicetracker->update_view_device(dev);
+        }
+
+        if (link) {
+            kis_device_pair_lock plk(dot11info->bssid_dev, dev);
+            dot11info->bssid_dev->add_related_device("dot11_mbssid", dev->get_key());
+            dev->add_related_device("dot11_mbssid", dot11info->bssid_dev->get_key());
+        }
+    }
+
+    if (stale) {
+        kis_device_lock lk(dot11info->bssid_dev, false);
+        auto& cache = dot11info->bssid_dot11->mbssid_cache();
+        cache.erase(std::remove_if(cache.begin(), cache.end(),
+                    [key](const auto& e) { return e.first == key; }), cache.end());
     }
 }
 

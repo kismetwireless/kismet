@@ -43,6 +43,17 @@ public:
 protected:
     static int packet_handler(CHAINCALL_PARMS);
 
+    // One Wi-Fi AP row; caller holds the log mutex and the device lock
+    void print_wifi_row(const std::shared_ptr<kis_tracked_device_base>& dev,
+            const std::shared_ptr<dot11_tracked_device>& dot11,
+            const std::shared_ptr<kis_packet>& in_pack, int signal);
+
+    // Rows for the BSSs the transmitter of this frame advertises in its multiple BSSID
+    // element; caller holds the log mutex and no device lock
+    void log_mbssid_hosted(const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<kis_tracked_device_info>& devs, const mac_addr& transmitter,
+            int signal);
+
     FILE *csvfile;
 
     int pack_comp_80211, pack_comp_device;
