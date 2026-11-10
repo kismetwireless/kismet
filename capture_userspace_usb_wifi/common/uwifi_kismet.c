@@ -20,7 +20,7 @@
 
 #include <kcompat/host.h>
 
-#include "uwifi.h"
+#include "common/uwifi.h"
 #include "uwifi_kismet.h"
 #include "../../wifi_ht_channels.h"
 
