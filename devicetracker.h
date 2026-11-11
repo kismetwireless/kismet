@@ -246,6 +246,9 @@ public:
     bool remove_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
             const std::string& in_tag);
 
+    // Check the device rules against a device the user just named or tagged
+    void recheck_rules(std::shared_ptr<kis_tracked_device_base> in_dev);
+
     // CLI extension
     static void usage(const char *name);
 

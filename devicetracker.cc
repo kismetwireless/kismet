@@ -41,6 +41,7 @@
 #include "datasourcetracker.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
+#include "device_rules.h"
 #include "devicetracker_view.h"
 #include "entrytracker.h"
 #include "globalregistry.h"
@@ -457,6 +458,7 @@ device_tracker::device_tracker() :
                     std::string name = con->json()["username"];
 
                     set_device_user_name(dev, name);
+                    recheck_rules(dev);
 
                     std::ostream os(&con->response_stream());
                     os << "Device name set\n";
@@ -480,6 +482,7 @@ device_tracker::device_tracker() :
                     std::string content = con->json()["tagvalue"];
 
                     set_device_tag(dev, tag, content);
+                    recheck_rules(dev);
 
                     std::ostream os(&con->response_stream());
                     os << "Device tag set\n";
@@ -503,6 +506,7 @@ device_tracker::device_tracker() :
 
                     if (!remove_device_tag(dev, tag))
                         throw std::runtime_error("no such tag");
+                    recheck_rules(dev);
 
                     std::ostream os(&con->response_stream());
                     os << "Device tag deleted\n";
@@ -747,13 +751,15 @@ device_tracker::device_tracker() :
                                 auto last_tm = std::make_shared<time_t>(0);
 
                                 // Generate a timer event that goes and looks for the devices and
-                                // serializes them with the fields record
+                                // serializes them with the fields record.  Mod times are whole
+                                // seconds, so a device changed in the second of the last send
+                                // (such as a tag set on a quiet device) is sent again, not lost
                                 auto tid =
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
                                             [this, con, dev_r, dev_k, dev_m, json, ws, last_tm, rename_map, format_t](int) -> int {
                                                 if (dev_r == "*") {
                                                     auto worker = device_tracker_view_function_worker([json, last_tm, format_t, this, ws](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                                                        if (dev->get_mod_time() > *last_tm) {
+                                                        if (dev->get_mod_time() >= *last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
                                                             auto data = ss.str();
@@ -769,7 +775,7 @@ device_tracker::device_tracker() :
 
                                                     auto dev = fetch_device(dev_k);
                                                     if (dev != nullptr) {
-                                                        if (dev->get_mod_time() > *last_tm) {
+                                                        if (dev->get_mod_time() >= *last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
                                                             auto data = ss.str();
@@ -781,7 +787,7 @@ device_tracker::device_tracker() :
 
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                                                        if (mmpi->second->get_mod_time() > *last_tm) {
+                                                        if (mmpi->second->get_mod_time() >= *last_tm) {
                                                             std::stringstream ss;
                                                             entrytracker->serialize_with_json_summary(format_t, ss, mmpi->second, json);
                                                             auto data = ss.str();
@@ -2165,6 +2171,14 @@ void device_tracker::lookup_stored_tags(const std::string& keystring, stored_dev
     // Reset so the statement doesn't hold a read transaction or keystring between devices
     sqlite3_reset(stmt);
     sqlite3_clear_bindings(stmt);
+}
+
+// Device rules see a name or tag change at once, so the views it moves the device between
+// update without waiting for the next rules pass
+void device_tracker::recheck_rules(std::shared_ptr<kis_tracked_device_base> in_dev) {
+    auto rules = Globalreg::fetch_global_as<device_rules>();
+    if (rules != nullptr)
+        rules->check_device(in_dev);
 }
 
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,

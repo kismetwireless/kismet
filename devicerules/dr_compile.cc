@@ -235,7 +235,8 @@ private:
         throw e;
     }
 
-    int resolve_field(const node *n, const std::string& text, int index = -1) {
+    int resolve_field(const node *n, const std::string& text, int index = -1,
+            const std::string& map_key = std::string()) {
         std::string full = text;
 
         if (text.find('.') == std::string::npos && text.find('/') == std::string::npos) {
@@ -252,6 +253,8 @@ private:
         }
 
         auto key = index < 0 ? full : full + (index == 1 ? "#lat" : "#lon");
+        if (!map_key.empty())
+            key = full + "#key=" + map_key;
         auto sm = slot_map.find(key);
         if (sm != slot_map.end())
             return sm->second;
@@ -319,6 +322,12 @@ private:
             fs.type = vtype::real;
             // Still several values when the path crosses a container
             fs.multi = std::find(fs.fanout.begin(), fs.fanout.end(), true) != fs.fanout.end();
+        }
+
+        if (!map_key.empty()) {
+            if (fs.leaf != ftype::container || fs.multi)
+                error(n, "'" + full + "' isn't a map of tags");
+            fs.key = map_key;
         }
 
         if (rs.fields.size() >= 65535)
@@ -461,7 +470,7 @@ private:
 
             case nkind::exists:
             case nkind::count: {
-                n->slot = resolve_field(n.get(), n->str);
+                n->slot = resolve_field(n.get(), n->str, -1, n->key);
                 const auto& f = rs.fields[n->slot];
                 if (n->kind == nkind::count && !f.multi && f.leaf != ftype::container)
                     error(n.get(), "count() needs a field that holds several values");
@@ -1311,6 +1320,8 @@ std::string ruleset::disassemble(size_t r) const {
             case bc::exists:
             case bc::count:
                 ss << "\t; " << fields[in.b].text;
+                if (!fields[in.b].key.empty())
+                    ss << "[\"" << fields[in.b].key << "\"]";
                 break;
             case bc::jf:
             case bc::jt:

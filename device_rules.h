@@ -138,6 +138,10 @@ public:
         std::vector<std::vector<rules_chunk>> includes;
     };
 
+    // Check every rule against one unlocked device now, rather than on the next pass,
+    // such as when the user names or tags it
+    void check_device(const std::shared_ptr<kis_tracked_device_base>& dev);
+
     // Order devices by a sort from the active rules; false with the reason when there's
     // no such sort.  Only the first 'first' devices need to come back in order.
     bool sort_devices(const std::string& sort, std::shared_ptr<tracker_element_vector>& devices,

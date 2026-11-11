@@ -75,6 +75,8 @@
 #
 #   'x in [a, b, c]' and 'x not in [...]' test against a list of values.
 #   exists(field) tests that a field is present, and count(field) counts entries.
+#   has_tag("<name>") tests that the device has the user tag <name>, such as the
+#   "baseline" tag the web UI sets from the device details.
 #   Combine conditions with and, or, not, and parentheses.
 #
 #   A comparison with a field the device doesn't have is false.
@@ -171,3 +173,18 @@
 #     tag "quad"
 #     view "Devices in the quad"
 # }
+
+# Baseline: devices you've marked as known with "Add to baseline" in the web UI's
+# device details, which tags them "baseline", and every other device.
+
+rule baseline {
+    description "Devices in the baseline"
+    when has_tag("baseline")
+    view "Baseline devices"
+}
+
+rule unknown {
+    description "Devices not in the baseline"
+    when not has_tag("baseline")
+    view "Unknown devices"
+}

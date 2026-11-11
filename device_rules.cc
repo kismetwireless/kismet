@@ -95,6 +95,14 @@ public:
     }
 
     virtual bool exists(const field_slot& f) override {
+        if (!f.key.empty()) {
+            auto e = walk(root, f);
+            if (e == nullptr || e->get_type() != tracker_type::tracker_string_map)
+                return false;
+            auto m = static_cast<tracker_element_string_map *>(e);
+            return m->find(f.key) != m->end();
+        }
+
         return found(root, f, 0);
     }
 
@@ -1877,6 +1885,27 @@ int device_rules::packet_hook(const std::shared_ptr<kis_packet>& in_pack) {
     apply_changes(lc.changes);
 
     return 1;
+}
+
+void device_rules::check_device(const std::shared_ptr<kis_tracked_device_base>& dev) {
+    auto as = get_current();
+    if (dev == nullptr || as == nullptr || as->rs->size() == 0)
+        return;
+
+    thread_local live_ctx lc;
+
+    if (lc.gen != as->gen) {
+        lc.set = as;
+        lc.ctx.bind(as->rs.get(), &lc.env);
+        lc.gen = as->gen;
+    }
+
+    {
+        kis_device_lock dlk(dev, false);
+        eval_device(*as, lc.ctx, dev, nullptr, lc.out, lc.prev, lc.changes);
+    }
+
+    apply_changes(lc.changes);
 }
 
 std::shared_ptr<tracker_element> device_rules::rules_endpoint() {

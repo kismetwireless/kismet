@@ -796,8 +796,16 @@ export function createDataTable(container, {
         state.timer = setTimeout(tick, refreshSeconds * 1000);
     }
 
+    // Fetch what's on screen now, as after a change the user made, unless paused
+    function refresh() {
+        if (!state.paused) {
+            rows.refresh();
+            draw();
+        }
+    }
+
     // Toolbar: the owner's controls, the search, the count, the edit button
-    const handle = { restart, draw, element: container };
+    const handle = { restart, refresh, draw, element: container };
     // append() writes a null (no pause button) as the text "null"
     toolbarEl.append(...[...[toolbar?.(handle)].flat(),
         el('label', { class: 'search-box' }, icon('search'), searchInput),
