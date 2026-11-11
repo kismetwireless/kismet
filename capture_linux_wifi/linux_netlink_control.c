@@ -109,6 +109,11 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
     if (in_freq < 250)
         return in_freq;
 
+    /* No channel number below 2.4GHz, as in iw; the unsigned 2.4GHz formula
+     * below would wrap */
+    if (in_freq < 2412)
+        return 0;
+
     /* revamped from iw */
     if (in_freq == 2484)
         return 14;
@@ -828,6 +833,10 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                         /* fprintf(stderr, "DEBUG - freq %u disabled\n", freq);  */
                         continue;
                     }
+
+                    /* Such as the S1G band around 900MHz, which we can't tune by channel */
+                    if (mac80211_freq_to_chan(freq) == 0)
+                        continue;
 
                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
 
