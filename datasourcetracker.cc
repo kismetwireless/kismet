@@ -114,6 +114,11 @@ std::string datasource_tracker_source_probe::get_decline_reason() {
     return decline_reason;
 }
 
+std::string datasource_tracker_source_probe::get_hardware_reason() {
+    kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe get_hardware_reason");
+    return hardware_reason;
+}
+
 void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned int in_transaction,
         std::string in_reason) {
 
@@ -131,11 +136,17 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
             // _MSG_DEBUG("successful probe response");
             source_builder = v->second->get_source_builder();
         } else {
-            // Keep the first reason from a driver that owns this definition
+            // Keep the first reason from a driver that owns this definition, or
+            // else from one that found the device: its decline names the hardware
             auto b = v->second->get_source_builder();
-            if (decline_reason.empty() && !in_reason.empty() && b != nullptr &&
-                    datasource_reason_is_own_definition(definition, b->get_source_type()))
-                decline_reason = in_reason;
+            if (!in_reason.empty() && b != nullptr) {
+                if (datasource_reason_is_own_definition(definition, b->get_source_type())) {
+                    if (decline_reason.empty())
+                        decline_reason = in_reason;
+                } else if (hardware_reason.empty() && v->second->get_probe_found_hardware()) {
+                    hardware_reason = fmt::format("{}: {}", b->get_source_type(), munge_to_printable(in_reason));
+                }
+            }
         }
 
         // Move them to the completed vec
@@ -1366,24 +1377,8 @@ void datasource_tracker::launch_configured_sources() {
     auto simul_open_delay =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_delay", 10);
 
-    auto launch_func = [](datasource_tracker *dst, std::string src) {
-            // _MSG_DEBUG("launching ds {}", src);
-            dst->open_datasource(src,
-                    [src](bool success, std::string reason, shared_datasource) {
-                if (success) {
-                    _MSG_INFO("Data source '{}' launched successfully", kis_datasource::redact_source_definition(src));
-                } else {
-                    if (reason.length() != 0) {
-                        _MSG_ERROR("Data source '{}' failed to launch: {}", kis_datasource::redact_source_definition(src), reason);
-                    } else {
-                        _MSG_ERROR("Data source '{}' failed to launch, no error provided.", kis_datasource::redact_source_definition(src));
-                    }
-                }
-            });
-    };
-
     // Each group waits for its turn, and stops waiting or launching once shutdown starts
-    auto launch_group = [this, launch_func, simul_open_delay](std::stop_token st,
+    auto launch_group = [this, simul_open_delay](std::stop_token st,
             const std::vector<std::string> group_vec, unsigned int gn, bool staggered) {
         if (gn > 0) {
             std::mutex m;
@@ -1401,7 +1396,7 @@ void datasource_tracker::launch_configured_sources() {
         for (const auto& i : group_vec) {
             if (st.stop_requested())
                 return;
-            launch_func(this, i);
+            launch_config_source(i, 0);
         }
     };
 
@@ -1416,7 +1411,7 @@ void datasource_tracker::launch_configured_sources() {
         for (const auto& i : src_vec) {
             work_vec.push_back(i);
 
-            if (work_vec.size() > simul_open) {
+            if (work_vec.size() >= simul_open) {
                 launch_threads.emplace_back(launch_group, work_vec, group_number, true);
                 work_vec.clear();
                 group_number++;
@@ -1428,21 +1423,70 @@ void datasource_tracker::launch_configured_sources() {
     }
 }
 
-void datasource_tracker::stop_launch_threads() {
+void datasource_tracker::launch_config_source(const std::string& src, unsigned int attempt) {
+    open_datasource(src,
+            [this, src, attempt](bool success, std::string reason, shared_datasource ds) {
+        if (success) {
+            _MSG_INFO("Data source '{}' launched successfully", kis_datasource::redact_source_definition(src));
+            return;
+        }
+
+        // A source that opened and then failed retries by itself; one no driver
+        // claimed is gone, and a busy system can lose a probe, so probe it again
+        if (ds == nullptr && attempt < config_probe_retries) {
+            _MSG_INFO("Data source '{}' found no driver, probing it again in {} seconds",
+                    kis_datasource::redact_source_definition(src), config_probe_retry_s);
+            retry_config_source(src, attempt + 1);
+            return;
+        }
+
+        if (reason.length() != 0) {
+            _MSG_ERROR("Data source '{}' failed to launch: {}", kis_datasource::redact_source_definition(src), reason);
+        } else {
+            _MSG_ERROR("Data source '{}' failed to launch, no error provided.", kis_datasource::redact_source_definition(src));
+        }
+    });
+}
+
+void datasource_tracker::retry_config_source(const std::string& src, unsigned int attempt) {
     std::lock_guard lk(launch_threads_mutex);
 
-    for (auto& t : launch_threads)
+    if (launch_stopped)
+        return;
+
+    launch_threads.emplace_back([this, src, attempt](std::stop_token st) {
+        std::mutex m;
+        std::condition_variable_any cv;
+        std::unique_lock lk(m);
+        cv.wait_for(lk, st, std::chrono::seconds(config_probe_retry_s), [] { return false; });
+
+        if (st.stop_requested())
+            return;
+
+        launch_config_source(src, attempt);
+    });
+}
+
+void datasource_tracker::stop_launch_threads() {
+    // Joined without the lock, as a launch can be queueing a retry
+    std::vector<std::jthread> threads;
+
+    {
+        std::lock_guard lk(launch_threads_mutex);
+        launch_stopped = true;
+        threads.swap(launch_threads);
+    }
+
+    for (auto& t : threads)
         t.request_stop();
 
-    for (auto& t : launch_threads) {
+    for (auto& t : threads) {
         // A launch which itself ends up shutting down the server can't wait on itself
         if (t.get_id() == std::this_thread::get_id())
             t.detach();
         else if (t.joinable())
             t.join();
     }
-
-    launch_threads.clear();
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
@@ -1717,6 +1761,8 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                         "installed.", i->second->get_definition());
 
                 auto reason = i->second->get_decline_reason();
+                if (reason.empty())
+                    reason = i->second->get_hardware_reason();
                 if (reason.length())
                     ss += fmt::format("  The closest matching driver said: {}", reason);
                 _MSG(ss, MSGFLAG_ERROR);

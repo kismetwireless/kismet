@@ -219,6 +219,8 @@ cleanup() {
 		done
 	fi
 	nm_unignore_hwsim
+	# kismet writes its logs as kismetci; the artifact upload runs as the runner
+	chmod -R a+rX "${logdir}"
 }
 trap cleanup EXIT
 

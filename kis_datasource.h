@@ -395,6 +395,10 @@ public:
     virtual void probe_interface(std::string in_definition, unsigned int in_transaction,
             probe_callback_t in_cb);
 
+    // The helper's probe response named the hardware, so it found the device, even
+    // if it declined it
+    bool get_probe_found_hardware() { return probe_found_hardware; }
+
     // 'Open' callback - called with the caller-supplied transaction id,
     // success (or not) of open command, and a string message of any failure
     // data if there was a MESSAGE key in the OPENRESP or there was a
@@ -1212,6 +1216,8 @@ protected:
 
     // We've gotten our response from an operation, don't report additional errors
     bool quiet_errors;
+
+    std::atomic<bool> probe_found_hardware{false};
 
     // We suppress automatically adding GPS to packets from this source
     bool suppress_gps;
