@@ -4412,6 +4412,18 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
  * the capture framework handler is locked for the duration until the
  * commit is called.
  */
+/* The buffers are only made when the handler loop starts; anything sent
+ * before then, such as a failure to jail, has nowhere to go */
+static int cf_link_ready(kis_capture_handler_t *caph) {
+    if (caph->use_tcp || caph->use_ipc)
+        return caph->out_ringbuf != NULL;
+#ifdef HAVE_LIBWEBSOCKETS
+    if (caph->use_ws)
+        return caph->lwsring != NULL;
+#endif
+    return 0;
+}
+
 kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
         unsigned int command, uint32_t seqno, uint16_t code,
         size_t estimated_len) {
@@ -4639,6 +4651,10 @@ cf_frame_metadata *cf_prepare_packet(kis_capture_handler_t *caph,
 
     cf_frame_metadata *meta = NULL;
 
+    if (!cf_link_ready(caph)) {
+        return NULL;
+    }
+
     if (caph->use_tcp || caph->use_ipc) {
         kismet_external_frame_v3_t *frame =
             cf_prep_rb_packet(caph, command, seqno, code, estimated_len);
@@ -4754,6 +4770,11 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
 
     mpack_writer_t writer;
     mpack_error_t err;
+
+    if (!cf_link_ready(caph)) {
+        fprintf(stderr, "%s\n", msg);
+        return 0;
+    }
 
     meta =
         cf_prepare_packet(caph, KIS_EXTERNAL_V3_CMD_MESSAGE, seqno, 0, est_len);
