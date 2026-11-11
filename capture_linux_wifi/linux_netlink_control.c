@@ -121,16 +121,25 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
     if (in_freq < 2484)
         return (in_freq - 2407) / 5;
 
-    /* handle up to 6e channels linearly */
-    if (in_freq < 5955)
-	return in_freq / 5 - 1000;
+    /* 4.9GHz public safety channels, as in the kernel */
+    if (in_freq >= 4910 && in_freq <= 4980)
+        return (in_freq - 4000) / 5;
+
+    if (in_freq >= 5000 && in_freq < 5925)
+        return in_freq / 5 - 1000;
+
+    /* 6GHz channel 2 sits below channel 1 */
+    if (in_freq == 5935)
+        return 2;
+
+    if (in_freq >= 5955 && in_freq < 7200)
+        return (in_freq - 5950) / 5;
 
     /* 60GHz (DMG) channels are numbered from 1 again, as in the kernel */
     if (in_freq >= 58320 && in_freq <= 70200)
         return (in_freq - 56160) / 2160;
 
-    /* handle 6ghz channels resetting to channel 1 */
-    return (in_freq / 5 - 1000) - 190;
+    return 0;
 }
 
 int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr) {
@@ -850,7 +859,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                         /* Kismet takes 60GHz channel numbers for 2.4GHz ones, so
                          * list them by frequency */
                         snprintf(channel_str, 32, "%u", freq);
-		    } else if (freq >= 5955) {
+		    } else if (freq >= 5935) {
                         snprintf(channel_str, 32, "%uW6e", mac80211_freq_to_chan(freq));
 		    } else if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20) {
                         snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
@@ -869,7 +878,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     /* If we support HT, and expand HT20 instead of default to it, add a HT20 channel */
                     if ((chanb->extended_flags & MAC80211_GET_HT) && !glob_freqlist_default_ht20 &&
-                            glob_freqlist_expand_ht20 && freq < 58320) {
+                            glob_freqlist_expand_ht20 && freq < 5925) {
 
                         chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
                         snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
