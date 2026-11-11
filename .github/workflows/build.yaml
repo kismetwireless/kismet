@@ -25,8 +25,10 @@ concurrency:
 jobs:
   # A merged PR gets a new commit SHA but, when master hasn't moved since the
   # PR was tested, the same tree as the merge the PR run built. Every run that
-  # passes records its tree as an artifact, and a run whose tree is recorded
-  # skips the builds.
+  # passes records its tree as an artifact, and a push whose tree is recorded
+  # skips the builds. Pull requests can upload artifacts of any name, so only a
+  # push skips, and only on a record made by a run of this repository or of a
+  # commit the push merged.
   check:
     name: Already tested?
     runs-on: ubuntu-24.04
@@ -39,22 +41,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
         run: |
-          if ! tree="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" --jq .commit.tree.sha)"; then
+          if ! commit="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}")"; then
             echo "::warning::Could not look up the tree of ${GITHUB_SHA}, building anyway"
             exit 0
           fi
+          tree="$(jq -r .commit.tree.sha <<< "${commit}")"
           echo "tree=${tree}" >> "${GITHUB_OUTPUT}"
-          if [ "${EVENT}" = workflow_dispatch ]; then
-            echo "Manual run: building tree \`${tree}\`." >> "${GITHUB_STEP_SUMMARY}"
+          if [ "${EVENT}" != push ]; then
+            echo "Building tree \`${tree}\`; only pushes skip a tree that already passed." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
-          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=tested-tree-${tree}" \
-            --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')" || run=
+          # The heads this push merged: every parent but the first
+          merged="$(jq -c '[.parents[1:][].sha]' <<< "${commit}")"
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=tested-tree-${tree}" |
+            jq -r --argjson merged "${merged}" '[.artifacts[] | select(.expired | not)
+              | select(.workflow_run.head_repository_id == .workflow_run.repository_id
+                or (.workflow_run.head_sha as $h | any($merged[]; . == $h)))][0].workflow_run.id // empty')" || run=
           if [ -n "${run}" ]; then
             echo "tested=true" >> "${GITHUB_OUTPUT}"
             echo "Tree \`${tree}\` already passed every build in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${run}, skipping the builds." >> "${GITHUB_STEP_SUMMARY}"
           else
-            echo "Tree \`${tree}\` has not passed yet, building." >> "${GITHUB_STEP_SUMMARY}"
+            echo "Tree \`${tree}\` has not passed in a run this push can trust, building." >> "${GITHUB_STEP_SUMMARY}"
           fi
 
   build:
