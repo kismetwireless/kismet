@@ -131,6 +131,8 @@ struct field_slot {
     bool multi;
     // lat() and lon(): the element of a [lon, lat] list, or -1 for the whole field
     int index = -1;
+    // has_tag(): the key looked up in the string map at the end of the path
+    std::string key;
     // First of this path's entries, one per element, in a table an env may keep
     uint32_t hint = 0;
 };
@@ -159,7 +161,8 @@ public:
     // Number of leaves along the path, or the size of a container leaf
     virtual int64_t count(const field_slot& f) = 0;
 
-    // Whether the path leads anywhere, through any branch of a multi path
+    // Whether the path leads anywhere, through any branch of a multi path; with a key,
+    // whether the string map it leads to holds that key
     virtual bool exists(const field_slot& f) = 0;
 
     // Drop anything held for the last device
@@ -202,6 +205,8 @@ struct node {
     value lit;
     uint64_t mask;
     std::string str;
+    // has_tag(): the tag name
+    std::string key;
     int slot;
     int aux;
     // String == != and 'in' ignore case
@@ -281,6 +286,10 @@ struct rule_def {
 
 // The field path of a short name such as 'signal', or null
 const char *field_alias(const std::string& name);
+
+// The device's user tags, which has_tag() looks in
+constexpr const char *user_tags_field = "kismet.device.base.tags";
+constexpr size_t max_tag_name = 256;
 
 struct compiled_rule {
     size_t entry;

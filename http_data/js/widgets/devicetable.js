@@ -14,6 +14,21 @@ import { openDevice } from './detailpanel.js';
 import { createDataTable } from './datatable.js';
 import { openSettings } from './settingsdialog.js';
 
+// Device lists on screen, to refresh at once when the user changes a device
+const tables = new Set();
+
+export function refreshAll() {
+    for (const t of tables) {
+        if (t.table.element.isConnected) {
+            t.table.refresh();
+            // The view picker's counts too
+            t.loadViews();
+        } else {
+            tables.delete(t);
+        }
+    }
+}
+
 export function createDeviceTable(container) {
     let view = settings.get('devicelist.view', 'all');
     let lastViews = null;
@@ -131,6 +146,8 @@ export function createDeviceTable(container) {
         query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list(),
             filterHints.list(), serverPhys)),
     });
+
+    tables.add({ table, loadViews: () => loadViews() });
 
     async function loadPhys() {
         try {

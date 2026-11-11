@@ -40,7 +40,7 @@ export function register(kismet) {
     const { dialog } = kismet.widgets.dialog;
 
     let shown = new Set();
-    // Rule name -> { name, description, source, origin, tags }
+    // Rule name -> { name, description, source, origin, tags, listed }
     let ruleInfo = new Map();
     // [tag, rule color] in rule order
     let tagList = [];
@@ -63,7 +63,11 @@ export function register(kismet) {
             if (typeof name === 'string')
                 info.set(name, { name, description: r['kismet.devicerules.rule.description'] ?? '',
                     source: r['kismet.devicerules.rule.source'] ?? '', origin: r['kismet.devicerules.rule.origin'] ?? '',
-                    tags: (r['kismet.devicerules.rule.tags'] ?? []).filter((t) => typeof t === 'string') });
+                    tags: (r['kismet.devicerules.rule.tags'] ?? []).filter((t) => typeof t === 'string'),
+                    // A rule that only collects a view, such as the baseline's, is left out of a
+                    // device's tags; the view shows it
+                    listed: !(r['kismet.devicerules.rule.view'] && !(r['kismet.devicerules.rule.tags'] ?? []).length &&
+                        !r['kismet.devicerules.rule.color'] && !r['kismet.devicerules.rule.alert']) });
             const color = r['kismet.devicerules.rule.color'];
             for (const t of r['kismet.devicerules.rule.tags'] ?? []) {
                 if (typeof t !== 'string' || t === '')
@@ -164,6 +168,10 @@ export function register(kismet) {
 
     ui.searchFields.add({ id: 'rule_tags', description: 'Device rule tags', fields: [tagsField] });
 
+    // Matched rules worth listing with a device's tags
+    const otherRules = (dev) => (dev[rules]?.['kismet.device.rules.matched'] ?? [])
+        .map((n) => ruleInfo.get(n)).filter((rd) => rd && rd.listed);
+
     // A device's tags, each with the rules that set it, then any matched rules without a tag
     function deviceTags(dev) {
         const tags = dev[rules]?.['kismet.device.rules.tags'] ?? [];
@@ -178,7 +186,7 @@ export function register(kismet) {
                         'aria-label': `Show the rule for ${tag}`, onclick: () => showRules(tag, list) }, icons.icon('info'))),
                 list.length ? el('ul', { class: 'device-tag-rules' }, list.map(ruleLine)) : null);
         });
-        const untagged = matched.map((n) => ruleInfo.get(n)).filter((rd) => rd && !rd.tags.some((t) => tags.includes(t)));
+        const untagged = otherRules(dev).filter((rd) => !rd.tags.some((t) => tags.includes(t)));
         if (untagged.length)
             out.push(el('div', { class: 'device-tag' }, el('div', { class: 'muted' }, 'Other matching rules'),
                 el('ul', { class: 'device-tag-rules' }, untagged.map(ruleLine))));
@@ -187,7 +195,7 @@ export function register(kismet) {
 
     ui.deviceDetails.add({
         id: 'device_rules', title: 'Tags', priority: -10,
-        match: (dev) => (dev[rules]?.['kismet.device.rules.matched']?.length ?? 0) > 0 ||
+        match: (dev) => otherRules(dev).length > 0 ||
             (dev[rules]?.['kismet.device.rules.tags']?.length ?? 0) > 0,
         fields: [
             { id: 'tags', wide: true, value: (dev) => dev, format: (dev) => deviceTags(dev),

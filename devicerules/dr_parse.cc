@@ -1261,6 +1261,22 @@ private:
             return n;
         }
 
+        if (w == "has_tag") {
+            // exists() of one key of the user tag map
+            auto n = mk(nkind::exists);
+            advance();
+            expect(tok::lparen, "'('");
+            if (cur.t != tok::string || cur.text.empty())
+                error("has_tag() needs a tag name");
+            if (cur.text.size() > max_tag_name)
+                error("tag name is too long");
+            n->str = user_tags_field;
+            n->key = cur.text;
+            advance();
+            expect(tok::rparen, "')'");
+            return n;
+        }
+
         if (w == "lat" || w == "lon") {
             advance();
             expect(tok::lparen, "'('");
@@ -1302,7 +1318,7 @@ private:
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "webhook", "rule",
+            "count", "age", "has_tag", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "webhook", "rule",
             "sort", "by", "asc", "desc", "include" };
 
         for (auto k : kw)

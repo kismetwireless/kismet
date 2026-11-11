@@ -158,6 +158,39 @@ export function register(kismet) {
                     });
                 },
             },
+            {
+                id: 'baseline', title: 'Baseline',
+                help: 'Add the devices you know to the baseline; the Baseline devices and Unknown devices views ' +
+                    'list the devices in it and not in it.  Kept by the server, with the device\'s name and notes.',
+                draw: (cell, _v, dev, state) => {
+                    // The tag holds when the device was added
+                    const since = dev[`${base}.tags`]?.baseline;
+                    // Redraw only when it changes, so an update doesn't undo a click in progress
+                    if (state.since === since && cell.childElementCount)
+                        return;
+                    state.since = since;
+
+                    const inBaseline = since !== undefined;
+                    const key = encodeURIComponent(dev[`${base}.key`]);
+                    const t = Number(since);
+                    const text = inBaseline ?
+                        (t > 0 ? `In the baseline since ${format.time(t)}` : 'In the baseline') :
+                        muted('Not in the baseline');
+                    const button = el('button', { type: 'button', onclick: () => {
+                        button.disabled = true;
+                        const sent = inBaseline ?
+                            api.command(`devices/by-key/${key}/delete_tag.cmd`, { tagname: 'baseline' }) :
+                            api.command(`devices/by-key/${key}/set_tag.cmd`,
+                                { tagname: 'baseline', tagvalue: String(Math.floor(now() ?? Date.now() / 1000)) });
+                        // Show its move between the baseline views in the device list at once
+                        sent.then(() => kismet.widgets.devicetable.refreshAll(), (err) => {
+                            button.disabled = false;
+                            alert(`Could not change the baseline: ${err.message}`);
+                        });
+                    } }, inBaseline ? 'Remove from baseline' : 'Add to baseline');
+                    cell.replaceChildren(el('span', {}, text), ' ', button);
+                },
+            },
             { title: 'MAC address', field: `${base}.macaddr`,
                 format: (v) => el('span', {}, el('span', { class: 'mono' }, v), copyButton(v)) },
             { title: 'Manufacturer', field: `${base}.manuf`, empty: muted('Unknown') },
