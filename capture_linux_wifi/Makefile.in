@@ -11,6 +11,14 @@ MONITOR_OBJS = \
 
 MONITOR_BIN = kismet_cap_linux_wifi
 
+# The channel numbering test; built on request (make -C capture_linux_wifi
+# freq_to_chan_test), not by 'all'
+TEST_FREQ_TO_CHAN = ../test/linuxwifi_channels/freq_to_chan_test
+TEST_FREQ_TO_CHAN_O = \
+	../test/linuxwifi_channels/freq_to_chan_test.c.o \
+	../wifi_ht_channels.c.o \
+	linux_netlink_control.c.o
+
 PCAPLIBS=@PCAPLIBS@
 NMLIBS=@NMLIBS@
 NETLINKLIBS=@NLLIBS@
@@ -21,8 +29,14 @@ all: $(MONITOR_BIN)
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
 
+freq_to_chan_test: $(TEST_FREQ_TO_CHAN)
+
+$(TEST_FREQ_TO_CHAN): $(TEST_FREQ_TO_CHAN_O)
+		$(CCLD) $(LDFLAGS) -o $@ $(TEST_FREQ_TO_CHAN_O) $(NETLINKLIBS)
+
 clean:
-	@-rm -f $(MONITOR_BIN)
+	@-rm -f $(MONITOR_BIN) $(TEST_FREQ_TO_CHAN)
+	@-rm -f ../test/linuxwifi_channels/*.o ../test/linuxwifi_channels/*.d
 	@-rm -f *.o
 	@-rm -f *.d
 
