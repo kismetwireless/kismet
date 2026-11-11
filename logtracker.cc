@@ -19,7 +19,7 @@
 #include "config.h"
 
 #include <getopt.h>
-
+#include "json_adapter.h"
 #include "logtracker.h"
 #include "globalregistry.h"
 #include "messagebus.h"
@@ -284,6 +284,10 @@ void log_tracker::trigger_deferred_startup() {
 
                     if (builder == nullptr)
                         throw std::runtime_error("invalid logclass");
+                    
+                    if (!con->json()["title"].is_null()) {
+                        set_int_log_title(json_adapter::sanitize_string(con->json()["title"]));
+                    }
 
                     // An optional title names only this log; the session title is unchanged
                     auto title = get_log_title();
