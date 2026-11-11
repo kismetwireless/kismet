@@ -6,10 +6,13 @@
 #
 #  0. kismet alone, with no sources, for SETTLE seconds (60);
 #  1. RADIOS (50) kismet_cap_linux_wifi helpers, run on their own in a second
-#     container and connected over the websocket remote capture, for SOAK1
-#     seconds (120);
-#  2. kismet launching the helpers itself from source= lines, for SOAK2
-#     seconds (60).
+#     container and connected over the websocket remote capture (sources
+#     hwsimNN-ws), for SOAK1 seconds (120);
+#  2. the same over the legacy TCP remote capture (hwsimNN-tcp), with a fresh
+#     kismet;
+#  3. the same with every other helper on websockets and the rest on TCP;
+#  4. kismet launching the helpers itself from source= lines (hwsimNN), for
+#     SOAK2 seconds (60).
 #
 # Two more radios stay on the host as hostapd access points on channels 1 and
 # 6, which each phase has to see, and a third as a monitor that checks they're
@@ -32,11 +35,13 @@
 # every source's options.
 #
 # CI_FAULT=kismet-early|kismet-late|helper sends SIGSEGV to kismet in phase 0,
-# kismet in phase 1 or one helper in phase 1, to check the annotations.
+# or to kismet or one helper (a TCP one in phase 3) 10 s into the soak of the
+# phase CI_FAULT_PHASE=ws|tcp|mixed (ws: 1, tcp: 2, mixed: 3), to check the
+# annotations.
 #
 # DEBUG_TAP=1 runs the host's tcpdump (with nsenter) on the first three
-# sources' monitor interfaces for 30 s of the phase 1 soak, and samples their
-# channel, into LOGDIR/phase1/tap-*.
+# sources' monitor interfaces for 30 s of each helper phase's soak, and samples
+# their channel, into LOGDIR/phaseN/tap-*.
 
 set -uo pipefail
 export LC_ALL=C
@@ -49,6 +54,7 @@ soak2="${SOAK2:-60}"
 attach_wait="${ATTACH_WAIT:-120}"
 port="${KISMET_CI_PORT:-12501}"
 fault="${CI_FAULT:-}"
+fault_phase="${CI_FAULT_PHASE:-ws}"
 stagger="${HELPER_STAGGER:-0.5}"
 source_opts="${SOURCE_OPTS:+,${SOURCE_OPTS}}"
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -62,7 +68,18 @@ failed=0
 loaded_hwsim=0
 ap_ifaces=()
 ap_bssids=()
+ifaces=()
 sources=()
+phase_args=()
+
+case "${fault}" in
+	''|kismet-early|kismet-late|helper) ;;
+	*) echo "CI_FAULT=${fault}: expected kismet-early, kismet-late or helper" >&2; exit 2 ;;
+esac
+case "${fault_phase}" in
+	ws|tcp|mixed) ;;
+	*) echo "CI_FAULT_PHASE=${fault_phase}: expected ws, tcp or mixed" >&2; exit 2 ;;
+esac
 
 if [ "$(id -u)" -ne 0 ]; then
 	echo "Run it as root" >&2
@@ -243,6 +260,9 @@ start_kismet() {
 		echo "httpd_password=${password}"
 		echo "log_prefix=/logs/"
 		echo "log_title=${phase}"
+		echo "remote_capture_enabled=true"
+		echo "remote_capture_listen=127.0.0.1"
+		echo "remote_capture_port=3501"
 	} > "${logdir}/${phase}/kismet_site.conf"
 	if [ "$#" -gt 0 ]; then
 		printf 'source=%s\n' "$@" >> "${logdir}/${phase}/kismet_site.conf"
@@ -284,9 +304,24 @@ wait_sources() {
 	return 1
 }
 
-# Checks what kismet saw during a phase; prints annotations, returns 1 on error
+# by_transport TEXT: how many websocket and TCP sources TEXT names, for phase 3
+by_transport() {
+	local ws tcp
+	ws="$(grep -oE 'hwsim[0-9]+-ws' <<< "$1" | sort -u | grep -c .)"
+	tcp="$(grep -oE 'hwsim[0-9]+-tcp' <<< "$1" | sort -u | grep -c .)"
+	printf ' (%d of %d websocket, %d of %d TCP)' "${ws}" "$(((radios + 1) / 2))" "${tcp}" "$((radios / 2))"
+}
+
+# Packets captured by the sources whose names end in $2
+packets_of() {
+	jq --arg s "$2" '[.[] | select(.["kismet.datasource.name"] | startswith("hwsim") and endswith($s))
+		| .["kismet.datasource.num_packets"]] | add // 0' <<< "$1"
+}
+
+# check_capture PHASE WHAT [mixed]: checks what kismet saw during a phase;
+# prints annotations, returns 1 on error
 check_capture() {
-	local phase="$1" what="$2" json devices bssid not_running quiet packets
+	local phase="$1" what="$2" mixed="${3:-}" json devices bssid not_running quiet packets split="" t n
 	json="$(api "http://127.0.0.1:${port}/datasource/all_sources.json")" || {
 		annotate error "Kismet stopped answering (${what})" "kismet is running but its REST API didn't answer at the end of the ${phase} soak"
 		return 1
@@ -296,16 +331,29 @@ check_capture() {
 		| select(.["kismet.datasource.running"] != 1)
 		| "\(.["kismet.datasource.name"]) (\(.["kismet.datasource.interface"])): \(.["kismet.datasource.error_reason"] // "not running")"' <<< "${json}")"
 	if [ -n "${not_running}" ]; then
-		annotate error "Capture sources stopped (${what})" "$(grep -c . <<< "${not_running}") of ${radios} sources were not running at the end of the ${phase} soak:
+		[ -n "${mixed}" ] && split="$(by_transport "${not_running}")"
+		annotate error "Capture sources stopped (${what})" "$(grep -c . <<< "${not_running}") of ${radios} sources were not running at the end of the ${phase} soak${split}:
 ${not_running}"
 	fi
-	packets="$(jq '[.[] | select(.["kismet.datasource.name"] | startswith("hwsim")) | .["kismet.datasource.num_packets"]] | add // 0' <<< "${json}")"
+	packets="$(packets_of "${json}" "")"
 	quiet="$(jq -r '[.[] | select(.["kismet.datasource.name"] | startswith("hwsim"))
 		| select(.["kismet.datasource.num_packets"] == 0) | .["kismet.datasource.name"]] | join(" ")' <<< "${json}")"
 	if [ "${packets}" -eq 0 ]; then
 		annotate error "No packets captured (${what})" "none of the ${radios} sources captured a packet during the ${phase} soak"
-	elif [ -n "${quiet}" ]; then
-		annotate warning "Sources without packets (${what})" "these sources captured nothing during the ${phase} soak: ${quiet}"
+	else
+		if [ -n "${mixed}" ]; then
+			for t in websocket TCP; do
+				n="$(packets_of "${json}" "$([ "${t}" = TCP ] && echo -tcp || echo -ws)")"
+				if [ "${n}" -eq 0 ]; then
+					annotate error "No packets captured over ${t} (${what})" "the ${t} sources captured nothing during the ${phase} soak, while the others captured ${packets} packets"
+				fi
+			done
+			packets="${packets} (websocket $(packets_of "${json}" -ws), TCP $(packets_of "${json}" -tcp))"
+		fi
+		if [ -n "${quiet}" ]; then
+			[ -n "${mixed}" ] && split="$(by_transport "${quiet}")"
+			annotate warning "Sources without packets (${what})" "these sources captured nothing during the ${phase} soak${split}: ${quiet}"
+		fi
 	fi
 	devices="$(api -d 'json={"fields":["kismet.device.base.macaddr"]}' \
 		"http://127.0.0.1:${port}/devices/last-time/0/devices.json" |
@@ -495,33 +543,22 @@ fi
 summary "| settle | none | - | - | - |"
 echo "Phase 0: kismet ran ${settle} s with no sources"
 
-# --- phase 1: helpers run on their own -----------------------------------------
+# --- phases 1-3: helpers run on their own ------------------------------------
 
 pid="$(docker inspect -f '{{.State.Pid}}' "${netns}")"
 n=0
 for phy in "${phys[@]:3:${radios}}"; do
 	iface="$(phy_iface "${phy}")"
 	iw phy "${phy}" set netns "${pid}"
+	ifaces+=("${iface}")
 	sources+=("${iface}:name=$(printf 'hwsim%02d' "${n}")${source_opts}")
 	n=$((n + 1))
 done
 
-mkdir -p "${logdir}/phase1/helpers"
-: > "${logdir}/phase1/helpers.status"
-chown -R "${uid}" "${logdir}/phase1"
-# The setuid-root helper gets net_admin and net_raw from the bounding set,
-# as it does when a user in the kismet group runs it
-docker run -d --name "${helpers}" --init --network "container:${netns}" \
-	--cap-drop all --cap-add net_admin --cap-add net_raw --user kismetci \
-	-e KISMET_USER="${user}" -e KISMET_PASSWORD="${password}" -e HELPER_STAGGER="${stagger}" \
-	-v "${here}/run-helpers.sh:/ci/run-helpers.sh:ro" -v "${logdir}/phase1:/logs" \
-	--entrypoint sh "${run_image}" /ci/run-helpers.sh /logs/helpers.status /logs/helpers \
-	"${sources[@]}" > /dev/null
-
 # A helper killed by a signal crashed; one that exited with a status failed,
 # and its last error says why
 helper_title() {
-	if awk '$2 > 128 { found = 1 } END { exit !found }' "${logdir}/phase1/helpers.status"; then
+	if awk '$2 > 128 { found = 1 } END { exit !found }' "${logdir}/$1/helpers.status"; then
 		echo "Capture helper crashed"
 	else
 		echo "Capture helper failed"
@@ -529,146 +566,204 @@ helper_title() {
 }
 
 helper_crashes() {
-	local iface code name s out=""
+	local phase="$1" iface code name a out=""
 	while read -r iface code; do
 		[ -n "${iface}" ] || continue
 		name=""
-		for s in "${sources[@]}"; do
-			if [ "${s%%:*}" = "${iface}" ]; then
-				name="${s#*:name=}"
+		for a in "${phase_args[@]}"; do
+			a="${a#*/}"
+			if [ "${a%%:*}" = "${iface}" ]; then
+				name="${a#*:name=}"
 				name="${name%%,*}"
 			fi
 		done
-		out="${out}${iface}: $(describe_exit "${code}")"
+		out="${out}${name:-?} (${iface}): $(describe_exit "${code}")"
 		if [ "${code}" -le 128 ] && [ -n "${name}" ]; then
-			out="${out}: $(grep -E '^(ERROR|FATAL)' "${logdir}/phase1/helpers/${name}.log" | head -n 1)"
+			out="${out}: $(grep -E '^(ERROR|FATAL)' "${logdir}/${phase}/helpers/${name}.log" | head -n 1)"
 		fi
 		out="${out}"$'\n'
-	done < "${logdir}/phase1/helpers.status"
+	done < "${logdir}/${phase}/helpers.status"
 	printf '%s' "${out}"
+}
+
+running_names() {
+	api "http://127.0.0.1:${port}/datasource/all_sources.json" 2> /dev/null |
+		jq -r '.[] | select(.["kismet.datasource.running"] == 1) | .["kismet.datasource.name"]' 2> /dev/null
 }
 
 # What the first three sources' monitor interfaces receive beside kismet, and
 # the channel they're on every 0.1 s, for 30 s
 tap_capture() {
-	local s mon
-	for s in "${sources[@]:0:3}"; do
-		mon="${s%%:*}mon"
+	local phase="$1" iface mon
+	for iface in "${ifaces[@]:0:3}"; do
+		mon="${iface}mon"
 		nsenter -t "${pid}" -n timeout 30 tcpdump -i "${mon}" -nn -e -l "type mgt subtype beacon" \
-			> "${logdir}/phase1/tap-${mon}.txt" 2> /dev/null &
+			> "${logdir}/${phase}/tap-${mon}.txt" 2> /dev/null &
 		(
 			for _ in $(seq 1 300); do
 				echo "$(date +%s.%N | cut -c1-14) $(nsenter -t "${pid}" -n iw dev "${mon}" info | grep -o 'channel .*')"
 				sleep 0.1
 			done
-		) > "${logdir}/phase1/tap-${mon}-channels.txt" &
+		) > "${logdir}/${phase}/tap-${mon}-channels.txt" &
 	done
 	wait
 }
 
-phase1_ok=1
-if ! wait_sources "${logdir}/phase1/helpers.status"; then
-	phase1_ok=0
-	read -r running total <<< "$(count_sources)"
-	save_logs phase1
+# Starts a fresh kismet for a helper phase; annotates and returns 1 if it fails
+start_helper_kismet() {
+	local phase="$1" what="$2"
+	start_kismet "${phase}"
+	wait_api "${settle}" && return 0
+	save_logs "${phase}"
 	if kismet_died; then
-		annotate error "Kismet crashed after capture sources were added" "${died} while ${running} of ${radios} helpers had connected"
-		log_tail phase1
-	elif [ -s "${logdir}/phase1/helpers.status" ]; then
-		annotate error "$(helper_title)" "helpers exited while connecting, with ${running} of ${radios} sources running:
-$(helper_crashes)"
+		annotate error "Kismet failed to start (${what})" "${died} before any capture helper connected"
 	else
-		annotate error "Capture sources did not start" "only ${running} of ${radios} sources (${total} known to kismet) were running after ${attach_wait} s"
+		annotate error "Kismet failed to start (${what})" "kismet's REST API didn't answer within ${settle} s"
 	fi
-fi
+	log_tail "${phase}"
+	summary "| ${phase} | ${what} | - | - | - |"
+	docker rm -f "${kismet}" > /dev/null
+	return 1
+}
 
-if [ "${phase1_ok}" = 1 ]; then
-	echo "Phase 1: ${radios} helpers connected, soaking ${soak1} s"
-	for i in $(seq 1 "${soak1}"); do
-		if [ "${fault}" = kismet-late ] && [ "${i}" = 10 ]; then
-			kill_in "${kismet}" kismet ''
+# helper_phase PHASE WHAT ws|tcp|mixed: connects a helper per radio to the
+# running kismet from a container of their own, soaks, checks and stops kismet
+helper_phase() {
+	local phase="$1" what="$2" transport="$3" ok=1 i n=0 t iface victim="" split="" running total
+	phase_args=()
+	for iface in "${ifaces[@]}"; do
+		t="${transport}"
+		if [ "${t}" = mixed ]; then
+			t=ws
+			[ $((n % 2)) = 1 ] && t=tcp
 		fi
-		if [ "${fault}" = helper ] && [ "${i}" = 10 ]; then
-			kill_in "${helpers}" kismet_cap_linux_wifi " ${sources[0]%%:*}:"
+		phase_args+=("${t}/${iface}:name=$(printf 'hwsim%02d' "${n}")-${t}${source_opts}")
+		if [ -z "${victim}" ] && { [ "${transport}" != mixed ] || [ "${t}" = tcp ]; }; then
+			victim="${iface}"
 		fi
-		if [ "${DEBUG_TAP:-0}" = 1 ] && [ "${i}" = 10 ]; then
-			tap_capture &
-		fi
-		if kismet_died; then
-			save_logs phase1
-			annotate error "Kismet crashed after capture sources were added" "${died} ${i} s into the ${soak1} s soak with ${radios} independent capture helpers"
-			log_tail phase1
-			phase1_ok=0
-			break
-		fi
-		if [ -s "${logdir}/phase1/helpers.status" ]; then
-			annotate error "$(helper_title)" "helpers exited ${i} s into the soak while kismet kept running:
-$(helper_crashes)"
-			phase1_ok=0
-			break
-		fi
-		sleep 1
+		n=$((n + 1))
 	done
-fi
 
-if ! kismet_died; then
-	if [ "${phase1_ok}" = 1 ]; then
-		check_beacons "after the phase 1 soak"
-		check_capture phase1 "independent helpers"
-	else
-		summary "| phase1 | independent helpers | - | - | - |"
+	mkdir -p "${logdir}/${phase}/helpers"
+	: > "${logdir}/${phase}/helpers.status"
+	chown -R "${uid}" "${logdir}/${phase}"
+	# The setuid-root helper gets net_admin and net_raw from the bounding set,
+	# as it does when a user in the kismet group runs it
+	docker run -d --name "${helpers}" --init --network "container:${netns}" \
+		--cap-drop all --cap-add net_admin --cap-add net_raw --user kismetci \
+		-e KISMET_USER="${user}" -e KISMET_PASSWORD="${password}" -e HELPER_STAGGER="${stagger}" \
+		-v "${here}/run-helpers.sh:/ci/run-helpers.sh:ro" -v "${logdir}/${phase}:/logs" \
+		--entrypoint sh "${run_image}" /ci/run-helpers.sh /logs/helpers.status /logs/helpers \
+		"${phase_args[@]}" > /dev/null
+
+	if ! wait_sources "${logdir}/${phase}/helpers.status"; then
+		ok=0
+		read -r running total <<< "$(count_sources)"
+		save_logs "${phase}"
+		if kismet_died; then
+			annotate error "Kismet crashed after capture sources were added (${what})" "${died} while ${running} of ${radios} helpers had connected"
+			log_tail "${phase}"
+		elif [ -s "${logdir}/${phase}/helpers.status" ]; then
+			[ "${transport}" = mixed ] && split="$(by_transport "$(helper_crashes "${phase}")")"
+			annotate error "$(helper_title "${phase}") (${what})" "helpers exited while connecting${split}, with ${running} of ${radios} sources running:
+$(helper_crashes "${phase}")"
+		else
+			[ "${transport}" = mixed ] && split="$(by_transport "$(running_names)")"
+			annotate error "Capture sources did not start (${what})" "only ${running} of ${radios} sources (${total} known to kismet) were running after ${attach_wait} s${split}"
+		fi
 	fi
-	stop_kismet phase1 "independent helpers" "$([ "${phase1_ok}" = 1 ] || echo nopackets)"
-else
-	summary "| phase1 | independent helpers | - | - | - |"
-	docker rm "${kismet}" > /dev/null
-fi
-docker rm -f "${helpers}" > /dev/null 2>&1
 
-# --- phase 2: kismet launches the helpers --------------------------------------
+	if [ "${ok}" = 1 ]; then
+		echo "${phase}: ${radios} ${what} connected, soaking ${soak1} s"
+		for i in $(seq 1 "${soak1}"); do
+			if [ "${fault_phase}" = "${transport}" ] && [ "${i}" = 10 ]; then
+				[ "${fault}" = kismet-late ] && kill_in "${kismet}" kismet ''
+				[ "${fault}" = helper ] && kill_in "${helpers}" kismet_cap_linux_wifi " ${victim}:"
+			fi
+			if [ "${DEBUG_TAP:-0}" = 1 ] && [ "${i}" = 10 ]; then
+				tap_capture "${phase}" &
+			fi
+			if kismet_died; then
+				save_logs "${phase}"
+				annotate error "Kismet crashed after capture sources were added (${what})" "${died} ${i} s into the ${soak1} s soak with ${radios} independent capture helpers"
+				log_tail "${phase}"
+				ok=0
+				break
+			fi
+			if [ -s "${logdir}/${phase}/helpers.status" ]; then
+				[ "${transport}" = mixed ] && split="$(by_transport "$(helper_crashes "${phase}")")"
+				annotate error "$(helper_title "${phase}") (${what})" "helpers exited ${i} s into the soak${split} while kismet kept running:
+$(helper_crashes "${phase}")"
+				ok=0
+				break
+			fi
+			sleep 1
+		done
+	fi
+
+	if ! kismet_died; then
+		if [ "${ok}" = 1 ]; then
+			check_beacons "after the ${phase} soak"
+			check_capture "${phase}" "${what}" "$([ "${transport}" = mixed ] && echo mixed)"
+		else
+			summary "| ${phase} | ${what} | - | - | - |"
+		fi
+		stop_kismet "${phase}" "${what}" "$([ "${ok}" = 1 ] || echo nopackets)"
+	else
+		summary "| ${phase} | ${what} | - | - | - |"
+		docker rm "${kismet}" > /dev/null
+	fi
+	docker rm -f "${helpers}" > /dev/null 2>&1
+}
+
+helper_phase phase1 "websocket helpers" ws
+start_helper_kismet phase2 "TCP helpers" && helper_phase phase2 "TCP helpers" tcp
+start_helper_kismet phase3 "websocket + TCP helpers" && helper_phase phase3 "websocket + TCP helpers" mixed
+
+# --- phase 4: kismet launches the helpers --------------------------------------
 
 # kismet needs the helpers' capabilities in its bounding set to run them
 kismet_caps=(--cap-drop all --cap-add net_admin --cap-add net_raw)
-start_kismet phase2 "${sources[@]}"
+start_kismet phase4 "${sources[@]}"
 if ! wait_api "${settle}"; then
-	save_logs phase2
+	save_logs phase4
 	if kismet_died; then
 		annotate error "Kismet failed to start (kismet-launched sources)" "${died} while starting with ${radios} source= lines"
 	else
 		annotate error "Kismet failed to start (kismet-launched sources)" "kismet's REST API didn't answer within ${settle} s"
 	fi
-	log_tail phase2
+	log_tail phase4
 	exit 1
 fi
 if ! wait_sources; then
 	read -r running total <<< "$(count_sources)"
-	save_logs phase2
+	save_logs phase4
 	if kismet_died; then
-		annotate error "Kismet crashed while opening its capture sources" "${died} with ${running} of ${radios} sources running"
-		log_tail phase2
+		annotate error "Kismet crashed while opening its capture sources (kismet-launched sources)" "${died} with ${running} of ${radios} sources running"
+		log_tail phase4
 		exit 1
 	fi
 	annotate error "Capture sources did not start (kismet-launched sources)" "only ${running} of ${radios} sources (${total} defined) were running after ${attach_wait} s; kismet said:
-$(grep -E '^ERROR: ' "${logdir}/phase2/kismet.log" | sort | uniq -c | sort -rn | head -n 5)"
-	summary "| phase2 | kismet-launched sources | ${running}/${radios} | - | - |"
-	stop_kismet phase2 "kismet-launched sources" nopackets
+$(grep -E '^ERROR: ' "${logdir}/phase4/kismet.log" | sort | uniq -c | sort -rn | head -n 5)"
+	summary "| phase4 | kismet-launched sources | ${running}/${radios} | - | - |"
+	stop_kismet phase4 "kismet-launched sources" nopackets
 	exit 1
 fi
-echo "Phase 2: soaking ${soak2} s"
+echo "phase4: soaking ${soak2} s"
 for i in $(seq 1 "${soak2}"); do
 	if kismet_died; then
-		save_logs phase2
-		annotate error "Kismet crashed with kismet-launched sources" "${died} ${i} s into the ${soak2} s soak"
-		log_tail phase2
+		save_logs phase4
+		annotate error "Kismet crashed after capture sources were added (kismet-launched sources)" "${died} ${i} s into the ${soak2} s soak"
+		log_tail phase4
 		exit 1
 	fi
 	sleep 1
 done
-check_beacons "after the phase 2 soak"
-check_capture phase2 "kismet-launched sources"
-stop_kismet phase2 "kismet-launched sources"
+check_beacons "after the phase4 soak"
+check_capture phase4 "kismet-launched sources"
+stop_kismet phase4 "kismet-launched sources"
 
 if [ "${failed}" = 0 ]; then
-	echo "kismet ran with no sources, with ${radios} independent helpers and with ${radios} sources of its own"
+	echo "kismet ran with no sources, with ${radios} independent helpers over websockets, over TCP and over both, and with ${radios} sources of its own"
 fi
 exit "${failed}"

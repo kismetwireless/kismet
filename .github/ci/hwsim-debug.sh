@@ -281,7 +281,7 @@ variant() {
 	shift
 	env SETTLE=10 SOAK1=90 SOAK2=90 "$@" LOGDIR="${logdir}/${name}" \
 		"${here}/runtime-test.sh" "${image}" > "${logdir}/${name}.txt" 2>&1
-	for phase in phase1 phase2; do
+	for phase in phase1 phase2 phase3 phase4; do
 		f="${logdir}/${name}/${phase}/all_sources.json"
 		if [ -s "${f}" ]; then
 			say "${name} ${phase}: $(jq -r '[.[] | select(.["kismet.datasource.name"] | startswith("hwsim"))]
