@@ -639,7 +639,7 @@ enum wifi_chan_band wifi_freq_to_band(unsigned int in_freq) {
         return wifi_band_5ghz;
     }
 
-    if (in_freq >= 5935 && in_freq <= 7115) {
+    if (in_freq == 5935 || (in_freq >= 5955 && in_freq <= 7115)) {
         return wifi_band_6ghz;
     }
 
@@ -1124,7 +1124,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
              * ones are named as the netlink list names them */
             if (iw_chanlist[ci] >= 58320)
                 snprintf(conv_chan, 16, "%u", iw_chanlist[ci]);
-            else if (iw_chanlist[ci] >= 5935)
+            else if (iw_chanlist[ci] == 5935 || iw_chanlist[ci] >= 5955)
                 snprintf(conv_chan, 16, "%uW6e", wifi_freq_to_chan(iw_chanlist[ci]));
             else
                 snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
