@@ -1066,21 +1066,21 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
 
     if (ret < 0 || chanlist_fetch_sz == 0) {
 #ifdef HAVE_LINUX_WIRELESS
-        snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink, falling "
+        snprintf(status, STATUS_MAX, "%s could not fetch channels over netlink (%s), falling "
                 "back to WEXT ioctls.  This interface will not be able to tune to HT channels.",
-                local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
-        cf_send_message(caph, msg, MSGFLAG_ERROR);
+                interface, msg);
+        cf_send_message(caph, status, MSGFLAG_ERROR);
 
         ret = iwconfig_get_chanlist(interface, msg, &iw_chanlist, &chan_sz);
 
         /* We can't seem to get any channels from this interface, either
          * through mac80211 or siocgiwfreq so we can't do anything */
         if (ret < 0 || chan_sz == 0) {
-            snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink or "
-                    "via WEXT ioctls.  Can not open device with automatic channels, try "
+            snprintf(status, STATUS_MAX, "%s could not fetch channels over netlink or "
+                    "via WEXT ioctls (%s).  Can not open device with automatic channels, try "
                     "specifying a list of channels in the source definition.",
-                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
-            cf_send_message(caph, msg, MSGFLAG_ERROR);
+                    interface, msg);
+            cf_send_message(caph, status, MSGFLAG_ERROR);
             return -1;
         }
 
@@ -1133,11 +1133,11 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
 
         *chanlist_sz = mod_chan_sz;
 #else
-        snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink and "
+        snprintf(status, STATUS_MAX, "%s could not fetch channels over netlink (%s) and "
                 "was not compiled with WEXT ioctls.  To control this device, try rebuilding "
                 "with the legacy WEXT kernel controls enabled in Kismet.",
-                local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
-        cf_send_message(caph, msg, MSGFLAG_ERROR);
+                interface, msg);
+        cf_send_message(caph, status, MSGFLAG_ERROR);
         return -1;
 
 #endif
@@ -1527,11 +1527,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     (*ret_interface)->hardware = strdup(driver);
 
-    free(interface);
-
     if (ret < 0) {
+        snprintf(msg, STATUS_MAX, "Could not get the channels of %s: %s", interface, errstr);
+        free(interface);
         return 0;
     }
+
+    free(interface);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
@@ -3061,6 +3063,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, default_ht_20, expand_ht_20,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
+        snprintf(msg, STATUS_MAX, "%s %s/%s could not get its channels: %s",
+                local_wifi->name, local_wifi->interface, local_wifi->cap_interface, errstr);
         return -1;
     }
 

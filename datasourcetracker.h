@@ -113,6 +113,8 @@ public:
 
     // Why the driver that owns this definition declined it, or ""
     std::string get_decline_reason();
+    // Why a driver that found the device declined it, or ""
+    std::string get_hardware_reason();
 
     // Cancel all pending probes, ultimately calls the callback from
     // probe_sources when complete
@@ -139,6 +141,7 @@ protected:
 
     // Guarded by probe_lock
     std::string decline_reason;
+    std::string hardware_reason;
 
     // Transaction ID
     std::atomic<unsigned int> transaction_id;
@@ -517,7 +520,14 @@ protected:
     // closes the sources, and declared last so they're gone before anything they use
     std::mutex launch_threads_mutex;
     std::vector<std::jthread> launch_threads;
+    bool launch_stopped = false;
     void stop_launch_threads();
+
+    // Probes of a configured source no driver claimed, after the first
+    static constexpr unsigned int config_probe_retries = 2;
+    static constexpr unsigned int config_probe_retry_s = 5;
+    void launch_config_source(const std::string& src, unsigned int attempt);
+    void retry_config_source(const std::string& src, unsigned int attempt);
 
     friend class datasource_tracker_remote_server;
 };

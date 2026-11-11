@@ -1295,6 +1295,10 @@ void kis_datasource::cancel_all_commands(std::string in_error) {
 }
 
 void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
+    // Every driver's helper sees each probed source; the one that opens it reports
+    if (mode_probing || mode_listing)
+        return;
+
     if (get_source_remote())
         _MSG(fmt::format("{} - {}", get_source_name(), msg), type);
     else
@@ -1768,6 +1772,7 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
             }
 
             set_int_source_hardware(std::string(mpack_node_data(hw_n), hw_sz));
+            probe_found_hardware = hw_sz > 0;
         }
     }
 
