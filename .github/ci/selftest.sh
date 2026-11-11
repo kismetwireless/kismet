@@ -3,7 +3,7 @@
 #
 # Checks the CI helpers in this directory without GitHub: the problem matcher
 # against real g++ and ld output, and build-summary.jq against sample jobs.
-# Needs g++ (or CXX), jq and python3.
+# Needs g++ (or CXX), jq and python3; shellcheck is used if installed.
 
 set -euo pipefail
 export LC_ALL=C
@@ -56,18 +56,29 @@ check "warnings ignored" "0" "$(grep -c 'unused' matches || true)"
 jobs='[
  {"name":"Already tested?","conclusion":"success","html_url":"u0"},
  {"name":"Alpine / default","conclusion":"success","html_url":"u1"},
- {"name":"Alpine / all","conclusion":"failure","html_url":"u2"},
+ {"name":"Alpine / all","conclusion":"failure","html_url":"u2","steps":[{"name":"Build (all)","conclusion":"failure"}]},
  {"name":"Ubuntu 24.04 / default","conclusion":"success","html_url":"u3"},
  {"name":"Ubuntu 24.04 / all","conclusion":"cancelled","html_url":"u4"},
  {"name":"Ubuntu 26.04 / default","conclusion":null,"html_url":"u5"},
+ {"name":"Ubuntu 26.04 / all","conclusion":"failure","html_url":"u7","steps":[{"name":"Build (all)","conclusion":"success"},{"name":"Run kismet on 50 hwsim radios","conclusion":"failure"}]},
+ {"name":"Ubuntu 24.04 / all-no-wext","conclusion":"failure","html_url":"u8"},
  {"name":"All builds","conclusion":null,"html_url":"u6"}
 ]'
 check "summary grid" \
-	"| | default | all |
-|---|---|---|
-| **Alpine** | ✅ | [❌](u2) |
-| **Ubuntu 24.04** | ✅ | [🚫](u4) |
-| **Ubuntu 26.04** | [❔](u5) | ❔ |" \
+	"| | default | all | all-no-wext |
+|---|---|---|---|
+| **Alpine** | ✅ | [❌ build](u2) | ❔ |
+| **Ubuntu 24.04** | ✅ | [🚫](u4) | [❌](u8) |
+| **Ubuntu 26.04** | [❔](u5) | [❌ run](u7) | ❔ |" \
 	"$(jq -c '.[]' <<< "${jobs}" | jq -rs -f "${here}/build-summary.jq")"
+
+for f in "${here}"/*.sh; do
+	check "syntax ${f##*/}" "" "$(bash -n "$f" 2>&1)"
+done
+if command -v shellcheck > /dev/null; then
+	check "shellcheck" "" "$(shellcheck -e SC1091 "${here}"/*.sh 2>&1 || true)"
+else
+	echo "ok   shellcheck skipped (not installed)"
+fi
 
 exit "${fail}"

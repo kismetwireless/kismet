@@ -69,7 +69,7 @@ jobs:
     needs: check
     if: needs.check.outputs.tested != 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -87,17 +87,53 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up mac80211_hwsim and hostapd
+        run: |
+          sudo apt-get update --error-on=any
+          sudo apt-get install -y iw rfkill hostapd tcpdump
+          sudo systemctl stop hostapd.service || true
+          sudo systemctl mask hostapd.service || true
+          if ! modinfo mac80211_hwsim > /dev/null 2>&1; then
+            sudo apt-get install -y --no-install-recommends "linux-modules-extra-$(uname -r)" || true
+          fi
+          if ! modinfo mac80211_hwsim > /dev/null 2>&1; then
+            sudo apt-get install -y --no-install-recommends "linux-headers-$(uname -r)"
+            "${GITHUB_WORKSPACE}/.github/ci/build_mac80211_hwsim.sh" "${RUNNER_TEMP}"
+            sudo install -D -m 644 "${RUNNER_TEMP}/mac80211_hwsim.ko" "/lib/modules/$(uname -r)/updates/mac80211_hwsim.ko"
+            sudo depmod -a
+          fi
+          if ! sudo modprobe mac80211_hwsim radios=2; then
+            echo "::error::mac80211_hwsim can't be loaded on this runner (kernel $(uname -r)), so kismet can't be run"
+            sudo dmesg | tail -n 5
+            exit 1
+          fi
+          sudo modprobe -r mac80211_hwsim
+
       - name: Pull the ${{ matrix.distro.name }} image
         run: docker pull "${IMAGE}"
 
       - name: Build (${{ matrix.build }})
         run: |
           echo "::add-matcher::.github/ci/gcc-matcher.json"
-          docker run --rm \
+          docker run --name kismet-build \
             -v "${GITHUB_WORKSPACE}:/github/workspace" \
             -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
             --entrypoint "/${BUILD}-build.sh" \
             "${IMAGE}"
+          docker commit kismet-build kismet-ci:build
+          docker rm kismet-build
+
+      - name: Run kismet on 50 hwsim radios
+        env:
+          LOGDIR: ${{ runner.temp }}/kismet-runtime
+        run: sudo --preserve-env=LOGDIR,GITHUB_STEP_SUMMARY .github/ci/runtime-test.sh kismet-ci:build
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-${{ matrix.distro.image }}-${{ matrix.build }}
+          path: ${{ runner.temp }}/kismet-runtime
+          if-no-files-found: ignore
 
   selftest:
     name: CI self-test
