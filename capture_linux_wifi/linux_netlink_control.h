@@ -153,6 +153,8 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
         unsigned int default_ht20, unsigned int expand_ht20,
         char ***ret_chanlist, size_t *ret_chanlist_len);
 
+/* The channel number of a frequency in MHz */
+unsigned int mac80211_freq_to_chan(unsigned int in_freq);
 
 #endif
 

@@ -1120,7 +1120,11 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
                     continue;
             }
 
-            snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
+            /* 60GHz channel numbers would be taken for 2.4GHz ones */
+            if (iw_chanlist[ci] >= 58320)
+                snprintf(conv_chan, 16, "%u", iw_chanlist[ci]);
+            else
+                snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
             (*chanlist)[cp] = strdup(conv_chan);
             cp++;
         }
@@ -1204,6 +1208,8 @@ unsigned int chanband_callback(kis_capture_handler_t *caph, void *privchan) {
         return 5000;
     if (channel->control_freq >= 5925 && channel->control_freq < 7200)
         return 5925;
+    if (channel->control_freq >= 58320 && channel->control_freq <= 70200)
+        return 58320;
 
     return 0;
 }
