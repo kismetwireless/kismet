@@ -639,7 +639,7 @@ enum wifi_chan_band wifi_freq_to_band(unsigned int in_freq) {
         return wifi_band_5ghz;
     }
 
-    if (in_freq >= 5955 && in_freq <= 7115) {
+    if (in_freq >= 5935 && in_freq <= 7115) {
         return wifi_band_6ghz;
     }
 
@@ -995,7 +995,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
 void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     if (chan->chan_band == wifi_band_6ghz) {
         /* 6ghz */
-        snprintf(chanstr, STATUS_MAX, "%uW6e", chan->control_freq);
+        snprintf(chanstr, STATUS_MAX, "%uW6e", wifi_freq_to_chan(chan->control_freq));
     } else if (chan->chan_type == 0 && chan->chan_width == 0) {
         /* Basic channel with no HT/VHT */
         snprintf(chanstr, STATUS_MAX, "%u", chan->control_freq);
@@ -1120,9 +1120,12 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
                     continue;
             }
 
-            /* 60GHz channel numbers would be taken for 2.4GHz ones */
+            /* 60GHz channel numbers would be taken for 2.4GHz ones, and 6GHz
+             * ones are named as the netlink list names them */
             if (iw_chanlist[ci] >= 58320)
                 snprintf(conv_chan, 16, "%u", iw_chanlist[ci]);
+            else if (iw_chanlist[ci] >= 5935)
+                snprintf(conv_chan, 16, "%uW6e", wifi_freq_to_chan(iw_chanlist[ci]));
             else
                 snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
             (*chanlist)[cp] = strdup(conv_chan);
