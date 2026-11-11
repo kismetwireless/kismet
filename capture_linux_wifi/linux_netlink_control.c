@@ -125,6 +125,10 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
     if (in_freq < 5955)
 	return in_freq / 5 - 1000;
 
+    /* 60GHz (DMG) channels are numbered from 1 again, as in the kernel */
+    if (in_freq >= 58320 && in_freq <= 70200)
+        return (in_freq - 56160) / 2160;
+
     /* handle 6ghz channels resetting to channel 1 */
     return (in_freq / 5 - 1000) - 190;
 }
@@ -842,7 +846,11 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     /* Default to HT20 if we support HT and are always using it, otherwise default to 
                      * basic channels */
-		    if (freq >= 5955) {
+		    if (freq >= 58320) {
+                        /* Kismet takes 60GHz channel numbers for 2.4GHz ones, so
+                         * list them by frequency */
+                        snprintf(channel_str, 32, "%u", freq);
+		    } else if (freq >= 5955) {
                         snprintf(channel_str, 32, "%uW6e", mac80211_freq_to_chan(freq));
 		    } else if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20) {
                         snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
@@ -861,7 +869,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     /* If we support HT, and expand HT20 instead of default to it, add a HT20 channel */
                     if ((chanb->extended_flags & MAC80211_GET_HT) && !glob_freqlist_default_ht20 &&
-                            glob_freqlist_expand_ht20) {
+                            glob_freqlist_expand_ht20 && freq < 58320) {
 
                         chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
                         snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
