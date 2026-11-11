@@ -125,9 +125,14 @@ save_logs() {
 	docker logs "${kismet}" > "${logdir}/$1/kismet.log" 2>&1
 }
 
+# Kismet's output isn't read as workflow commands
 log_tail() {
+	local token
+	token="$(od -An -tx1 -N8 /dev/urandom | tr -d ' \n')"
 	echo "::group::Last 60 lines of kismet's output ($1)"
+	echo "::stop-commands::${token}"
 	tail -n 60 "${logdir}/$1/kismet.log"
+	echo "::${token}::"
 	echo "::endgroup::"
 }
 
@@ -191,14 +196,14 @@ nm_ignore_hwsim() {
 	echo 'SUBSYSTEM=="net", DRIVERS=="mac80211_hwsim", ENV{NM_UNMANAGED}="1"' > "${nm_rule}"
 	udevadm control --reload
 }
-# shellcheck disable=SC2329 # run by cleanup
+# shellcheck disable=SC2317,SC2329 # run by cleanup
 nm_unignore_hwsim() {
 	[ -e "${nm_rule}" ] || return 0
 	rm -f "${nm_rule}"
 	udevadm control --reload
 }
 
-# shellcheck disable=SC2329 # run by the EXIT trap
+# shellcheck disable=SC2317,SC2329 # run by the EXIT trap
 cleanup() {
 	local pidfile i
 	docker rm -f "${helpers}" "${kismet}" "${netns}" > /dev/null 2>&1

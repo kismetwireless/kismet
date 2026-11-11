@@ -129,7 +129,7 @@ jobs:
         run: sudo --preserve-env=LOGDIR,GITHUB_STEP_SUMMARY .github/ci/runtime-test.sh kismet-ci:build
 
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: runtime-${{ matrix.distro.image }}-${{ matrix.build }}
           path: ${{ runner.temp }}/kismet-runtime
