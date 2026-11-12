@@ -28,11 +28,14 @@ const pduTypes = {
 export function register(kismet) {
     const { ui, icons, format } = kismet;
     // Search box names for the BTLE details
-    const filterHint = (id, names, path) =>
-        ui.filterHints.add({ id, phy: 'BTLE', names, fields: [`${b}/${b}.${path}`], filterEmpty: '' });
+    const filterHint = (id, names, path, more = {}) =>
+        ui.filterHints.add({ id, phy: 'BTLE', names, fields: [`${b}/${b}.${path}`], filterEmpty: '', ...more });
     filterHint('btle_company_id', ['company_id'], 'manuf_company_id');
     filterHint('btle_version', ['bt_version'], 'lmp_version');
     filterHint('btle_chip', ['chip', 'chip_maker'], 'chip_manufacturer');
+    // Addresses in a device's related group, itself included: related > 1 lists the
+    // devices with related devices
+    filterHint('btle_related', ['related', 'related_count'], 'related_count', { filterKind: 'number', filterEmpty: 0 });
 
     const isBtle = (row) => row[`${base}.phyname`] === 'BTLE';
     const supported = (v) => (v ? 'Supported' : 'Not supported');
