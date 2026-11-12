@@ -43,6 +43,7 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "randomized_alias.h"
+#include "btle_related.h"
 
 #include "bluetooth_parsers/btle_tracker.h"
 #include "bluetooth_ids.h"
@@ -642,6 +643,15 @@ public:
    __ProxyDynamic(alias_group, std::string, std::string, std::string, alias_group, alias_group_id);
    __ProxyDynamic(alias_method, std::string, std::string, std::string, alias_method, alias_method_id);
 
+   // Set with btle_related for rotating random addresses; see btle_related_tracker
+   __ProxyDynamic(related_group, uint64_t, uint64_t, uint64_t, related_group, related_group_id);
+   __ProxyDynamic(related_count, uint32_t, uint32_t, uint32_t, related_count, related_count_id);
+   __ProxyDynamic(old_address, uint8_t, bool, bool, old_address, old_address_id);
+   __ProxyDynamic(related_newest, device_key, device_key, device_key, related_newest, related_newest_id);
+   __ProxyDynamic(related_truncated, uint8_t, bool, bool, related_truncated, related_truncated_id);
+   // Only with btle_random=hide_unmatched
+   __ProxyDynamic(unmatched_random, uint8_t, bool, bool, unmatched_random, unmatched_random_id);
+
    // Only created for devices advertising as a location tracker
    __ProxyDynamicTrackable(tracker, btle_tracked_tracker, tracker, tracker_id);
    __ProxyDynamicTrackable(battery, btle_tracked_battery, battery, battery_id);
@@ -699,6 +709,30 @@ protected:
         alias_method_id =
             register_dynamic_field("btle.device.alias_method",
                     "how this address was linked to the previous one (payload)", &alias_method);
+
+        related_group_id =
+            register_dynamic_field("btle.device.related_group",
+                    "random addresses advertising the same payload share a related group; 0 when none",
+                    &related_group);
+        related_count_id =
+            register_dynamic_field("btle.device.related_count",
+                    "addresses in this address's related group, itself included", &related_count);
+        old_address_id =
+            register_dynamic_field("btle.device.old_address",
+                    "quiet, and a newer address with the same payload appeared after it",
+                    &old_address);
+        related_newest_id =
+            register_dynamic_field("btle.device.related_newest",
+                    "device key of the most recent address in this address's related group",
+                    &related_newest);
+        related_truncated_id =
+            register_dynamic_field("btle.device.related_truncated",
+                    "older addresses were dropped from this address's related group to save memory",
+                    &related_truncated);
+        unmatched_random_id =
+            register_dynamic_field("btle.device.unmatched_random",
+                    "rotating random address whose payload no other address shares",
+                    &unmatched_random);
 
         tracker_id =
             register_dynamic_field("btle.device.tracker", "location tracker advertisement", &tracker);
@@ -794,6 +828,19 @@ protected:
     uint16_t alias_group_id;
     std::shared_ptr<tracker_element_string> alias_method;
     uint16_t alias_method_id;
+
+    std::shared_ptr<tracker_element_uint64> related_group;
+    uint16_t related_group_id;
+    std::shared_ptr<tracker_element_uint32> related_count;
+    uint16_t related_count_id;
+    std::shared_ptr<tracker_element_device_key> related_newest;
+    uint16_t related_newest_id;
+    std::shared_ptr<tracker_element_uint8> related_truncated;
+    uint16_t related_truncated_id;
+    std::shared_ptr<tracker_element_uint8> old_address;
+    uint16_t old_address_id;
+    std::shared_ptr<tracker_element_uint8> unmatched_random;
+    uint16_t unmatched_random_id;
 };
 
 class kis_btle_phy : public kis_phy_handler {
@@ -852,8 +899,17 @@ protected:
 
     std::unordered_map<uint16_t, std::shared_ptr<tracker_element_string>> btle_uuid_cache;
 
-    bool ignore_random;
+    // btle_random: what to do with rotating random addresses
+    enum class random_mode : uint8_t { track, hide_unmatched, ignore };
+    random_mode random_addrs;
     double distance_exponent;
+
+    // Related groups of rotating random addresses, with btle_related; settled on a timer
+    std::unique_ptr<btle_related_tracker> related;
+    int related_timer_id;
+    // Sets the related group fields of each address; needs the device list lock
+    void apply_related_states(const std::vector<btle_related_tracker::state>& states,
+            const device_key& self);
 
     // Links a random address to the one before it when the advertising payload,
     // which changes at other times than the address, carries over

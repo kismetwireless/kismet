@@ -60,6 +60,87 @@ export function register(kismet) {
         return null;
     };
 
+    // When each address advertising the same payload as a device was heard, one bar
+    // per address, and a link to the newest one
+    const relatedFields = [`${base}.key`, `${base}.macaddr`, `${base}.first_time`, `${base}.last_time`,
+        [`${b}/${b}.old_address`, 'old']];
+
+    function relatedTimeline(selfKey) {
+        const { el } = kismet.dom;
+        const now = () => (kismet.clock.isKnown() ? kismet.clock.now() : Date.now() / 1000);
+        const chart = kismet.widgets.charts.timeline({ onPick: (item) => ui.openDevice(item.id), empty: 'Kismet no longer tracks this address\'s group; it was forgotten to save memory.' });
+        const newestLine = el('div', { class: 'related-newest' });
+        const node = el('div', {}, newestLine, chart.node);
+        let members = [];
+        let newest = null;
+        let timer = null;
+        let everConnected = false;
+
+        function draw() {
+            const t = now();
+            const items = members.slice().sort((x, y) => x.start - y.start);
+            const from = Math.min(t - 60, ...items.map((m) => m.start));
+            chart.update(items, from, t, [kismet.format.time(from), 'now']);
+
+            const n = members.find((m) => m.id === newest);
+            if (!newest || newest === '0' || !n) {
+                newestLine.replaceChildren();
+            } else if (newest === selfKey) {
+                newestLine.replaceChildren(el('span', { class: 'muted' }, 'This is the newest address.'));
+            } else {
+                newestLine.replaceChildren('Newest: ', el('a', { href: '#', class: 'mono', title: 'Open in a new window',
+                    onclick: (e) => {
+                        e.preventDefault();
+                        ui.openDevice(newest);
+                    } }, n.mac, icons.icon('chain')));
+            }
+        }
+
+        async function refresh() {
+            clearTimeout(timer);
+            if (node.isConnected)
+                everConnected = true;
+            else if (everConnected)
+                return;
+            const onScreen = node.checkVisibility ? node.checkVisibility() : node.offsetParent !== null;
+            if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
+                try {
+                    const rows = await kismet.api.post(`phy/btle/related-of/${encodeURIComponent(selfKey)}/devices.json`,
+                        { fields: relatedFields });
+                    const t = now();
+                    members = (rows ?? []).map((r) => {
+                        const mac = r[`${base}.macaddr`];
+                        const start = r[`${base}.first_time`];
+                        const end = r[`${base}.last_time`];
+                        const self = r[`${base}.key`] === selfKey;
+                        return {
+                            id: r[`${base}.key`], mac, start, end,
+                            label: self ? `${mac} (this)` : mac,
+                            color: r.old ? 'var(--muted)' : t - end < 60 ? 'var(--ok)' : 'var(--accent)',
+                            title: `${mac}${r.old ? ', replaced' : ''}\n${kismet.format.time(start)} – ${kismet.format.time(end)}`,
+                        };
+                    });
+                    draw();
+                } catch {
+                    // Keep what's drawn; the next refresh tries again
+                }
+            }
+            timer = setTimeout(refresh, (everConnected ? 10 : 0.5) * 1000);
+        }
+
+        draw();
+        refresh();
+        return {
+            node,
+            setNewest(key) {
+                if (key === newest)
+                    return;
+                newest = key;
+                draw();
+            },
+        };
+    }
+
     registerTrackers(kismet);
     registerBtAdv(kismet);
 
@@ -118,6 +199,32 @@ export function register(kismet) {
                     return kismet.dom.el('span', {}, kismet.dom.el('span', { class: 'mono' }, v), how ? ` (by ${how})` : '');
                 },
                 help: 'Kismet linked this randomized address to others it believes are the same device; this is the first address in the chain.' },
+            {
+                group: 'BTLE Related Devices',
+                show: (dev) => (kismet.api.field(dev, `${b}/${b}.related_count`) ?? 0) > 0,
+                help: 'Rotating random addresses that advertised exactly the same payload as this one: most likely one device moving from address to address, or several identical devices.  An address is replaced once it has gone quiet and a newer one with the same payload has appeared.  The timeline shows when each address was heard: each bar runs from the first to the last time.  Green bars were heard in the last minute; replaced addresses are grey.  Kismet tracks a limited number of these groups and addresses per group to save memory: the least recently heard group is forgotten first, and a full group drops its longest quiet address.  Only set when btle_related is on.',
+                fields: [
+                    { title: 'Count', field: `${b}/${b}.related_count`,
+                        format: (v, dev) => {
+                            const n = v === 1 ? 'This address only' : `${v} addresses`;
+                            return kismet.api.field(dev, `${b}/${b}.old_address`) ? `${n}, replaced by a newer one` : n;
+                        } },
+                    { title: 'Incomplete', field: `${b}/${b}.related_truncated`, show: (v) => !!v,
+                        format: () => kismet.dom.el('span', { class: 'warn-text' }, 'Older addresses were left out of this group to save memory'),
+                        help: 'The group reached btle_related_max_addresses, so its longest quiet addresses were dropped from it; the count and timeline only cover the addresses still tracked.' },
+                    {
+                        id: 'related_timeline', wide: true,
+                        value: (dev) => dev[`${base}.key`],
+                        draw: (cell, key, dev, state) => {
+                            if (!state.timeline) {
+                                state.timeline = relatedTimeline(key);
+                                cell.replaceChildren(state.timeline.node);
+                            }
+                            state.timeline.setNewest(kismet.api.field(dev, `${b}/${b}.related_newest`));
+                        },
+                    },
+                ],
+            },
             { title: 'Advertising set', field: `${b}/${b}.adv_sid`,
                 help: 'The extended advertising set ID the device uses.' },
             { title: 'PDU type', field: `${b}/${b}.pdu_type`, format: (v) => pduTypes[v] ?? `Unknown (${v})`,

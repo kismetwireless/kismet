@@ -69,6 +69,23 @@ rule ais-emergency {
 
 # Bluetooth
 
+# Rotating random addresses replaced by a newer address advertising the same payload,
+# as when a device moves to its next address; needs btle_related in kismet_filter.conf
+rule btle-related-old-address {
+    description "BTLE addresses replaced by a newer address with the same payload"
+    when btle.device/btle.device.old_address == 1
+    tag "old address"
+    exclude
+}
+
+# Rotating random addresses whose payload no other address shares; only set with
+# btle_random=hide_unmatched in kismet_filter.conf
+rule btle-related-unmatched {
+    description "Rotating BTLE random addresses no other address matches"
+    when btle.device/btle.device.unmatched_random == 1
+    exclude
+}
+
 # Apple devices sending Continuity messages (Nearby, Handoff, AirDrop, AirPods
 # pairing, Find My...), over BTLE or Bluetooth.  These are common, so the web UI
 # leaves their row color off until it's turned on.
