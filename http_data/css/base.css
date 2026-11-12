@@ -1378,6 +1378,9 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .dr-entry > :not(summary) { margin-left: 1.2rem; }
 .dr-entry pre { margin-top: 0.3rem; padding: 0.6rem; background: var(--surface-2); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .dr-window .graph-tabs { margin: 0; }
+.dr-toggle { margin: 0; cursor: pointer; }
+.dr-off summary { color: var(--muted); }
+.dr-off .rule-tag, .dr-off .dr-color { opacity: 0.5; }
 .dr-mark { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85em; color: var(--muted); }
 /* Looks like a field to pick from, with an arrow to say it goes to the device list rather than opening */
 .dr-view {

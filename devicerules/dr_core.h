@@ -464,6 +464,9 @@ public:
 
     // Drop a rule or sort by name before compiling; false when there's none
     bool remove_rule(const std::string& name);
+    // Take a rule out of the set before compiling, keeping it; null when there's none.
+    // pos is its place among the rules.
+    std::unique_ptr<rule_def> take_rule(const std::string& name, size_t& pos);
     bool remove_sort(const std::string& name);
 
     // Rules and sorts replaced by later definitions while parsing, and the origin

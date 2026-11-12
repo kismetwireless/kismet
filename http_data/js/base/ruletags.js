@@ -68,6 +68,9 @@ export function register(kismet) {
                     // device's tags; the view shows it
                     listed: !(r['kismet.devicerules.rule.view'] && !(r['kismet.devicerules.rule.tags'] ?? []).length &&
                         !r['kismet.devicerules.rule.color'] && !r['kismet.devicerules.rule.alert']) });
+            // A rule that's switched off tags nothing
+            if (r['kismet.devicerules.rule.enabled'] === 0)
+                continue;
             const color = r['kismet.devicerules.rule.color'];
             for (const t of r['kismet.devicerules.rule.tags'] ?? []) {
                 if (typeof t !== 'string' || t === '')
@@ -121,6 +124,8 @@ export function register(kismet) {
     settings.watch('ruletags.order', addHighlights);
     // Rules can change over the API
     setInterval(loadTags, 60000);
+    // ... and from the Device rules window
+    document.addEventListener('kismet-rules-changed', loadTags);
 
     // The rules that set a tag; only those in `names` (a device's matched rules) when given
     function rulesFor(tag, names = null) {

@@ -41,6 +41,21 @@
 namespace {
 
 constexpr size_t max_rules_text = 256 * 1024;
+
+// Rule names are at most 64 characters; this is far more disabled rules than rules
+// that load
+constexpr size_t max_disabled_rules = 4096;
+constexpr size_t max_rule_name = 64;
+
+// A rule name as the parser takes one, so the names in the disabled file are plain
+bool plain_rule_name(const std::string& n) {
+    if (n.empty() || n.size() > max_rule_name)
+        return false;
+    for (auto c : n)
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-'))
+            return false;
+    return true;
+}
 constexpr size_t max_views = 256;
 // Parked views stay allocated, since their http routes capture them
 constexpr size_t max_parked_views = 4096;
@@ -880,6 +895,7 @@ device_rules::device_rules() :
     alert_backlog_max = conf->fetch_opt_uint("device_rules_alert_backlog", 64);
     api_save = conf->fetch_opt_bool("device_rules_api_save", false);
     api_file = conf->fetch_opt_path("device_rules_api_file", "%h/.kismet/kismet_device_rules_api.txt");
+    disabled_file = conf->fetch_opt_path("device_rules_disabled_file", "%h/.kismet/kismet_device_rules_disabled.txt");
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -907,6 +923,12 @@ device_rules::device_rules() :
                     set_endpoint(con);
                 }));
 
+    httpd->register_route("/devices/rules/enable", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    enable_endpoint(con);
+                }));
+
     httpd->register_route("/devices/rules/test", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -930,6 +952,8 @@ void device_rules::trigger_deferred_startup() {
     // Rules are compiled here so every phy and plugin field is registered
     {
         kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules startup");
+
+        load_user_disabled();
 
         try {
             load_configured();
@@ -1461,7 +1485,103 @@ std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::str
         rs->parse(api, src);
     }
 
-    return finish_set(std::move(rs), api);
+    // Taken out last, so a name is switched off whichever source defines it.  Each
+    // rule taken moves the ones after it up, so add back the ones taken ahead of it.
+    std::vector<std::pair<size_t, std::unique_ptr<devicerules::rule_def>>> off;
+    for (const auto& n : user_disabled) {
+        size_t pos;
+        auto rd = rs->take_rule(n, pos);
+        if (rd == nullptr)
+            continue;
+        auto at = off.begin();
+        for (; at != off.end() && at->first <= pos; ++at)
+            pos++;
+        off.emplace(at, pos, std::move(rd));
+    }
+
+    auto as = finish_set(std::move(rs), api);
+    as->disabled = std::move(off);
+    return as;
+}
+
+void device_rules::load_user_disabled() {
+    user_disabled.clear();
+
+    std::string text, err;
+    bool missing;
+    if (!read_small_file(disabled_file, max_disabled_rules * (max_rule_name + 1), text, err, missing)) {
+        if (!missing)
+            _MSG_ERROR("Could not read the disabled device rules from {}: {}", disabled_file, err);
+        return;
+    }
+
+    size_t skipped = 0;
+    for (const auto& line : str_tokenize(text, "\n")) {
+        auto n = str_strip(line);
+        if (n.empty())
+            continue;
+        if (!plain_rule_name(n) || user_disabled.size() >= max_disabled_rules ||
+                std::find(user_disabled.begin(), user_disabled.end(), n) != user_disabled.end()) {
+            skipped++;
+            continue;
+        }
+        user_disabled.push_back(n);
+    }
+
+    if (skipped != 0)
+        _MSG_ERROR("Skipped {} lines of {} that aren't device rule names", skipped, disabled_file);
+}
+
+bool device_rules::save_user_disabled(std::string& err) {
+    std::string text;
+    for (const auto& n : user_disabled) {
+        text += n;
+        text += "\n";
+    }
+    return write_private_file(disabled_file, text, err);
+}
+
+bool device_rules::set_rule_enabled(const std::string& name, bool enabled, std::string& save_err) {
+    kis_lock_guard<kis_mutex> lk(set_mutex, "device_rules set_rule_enabled");
+
+    auto pos = std::find(user_disabled.begin(), user_disabled.end(), name);
+    const bool is_off = pos != user_disabled.end();
+
+    if (enabled == !is_off) {
+        // Nothing to change, as long as it names a rule
+        auto as = get_current();
+        if (enabled && (as == nullptr || as->by_name.find(name) == as->by_name.end()))
+            throw std::runtime_error("no such device rule");
+        return true;
+    }
+
+    const auto prev = user_disabled;
+
+    if (enabled) {
+        user_disabled.erase(pos);
+    } else {
+        // Only rules that are loaded can be switched off, so the list holds real names
+        auto as = get_current();
+        if (as == nullptr || as->by_name.find(name) == as->by_name.end())
+            throw std::runtime_error("no such device rule");
+        if (user_disabled.size() >= max_disabled_rules)
+            throw std::runtime_error("too many disabled device rules");
+        user_disabled.push_back(name);
+    }
+
+    try {
+        install_set(build_set(api_text));
+    } catch (...) {
+        user_disabled = prev;
+        throw;
+    }
+
+    if (!save_user_disabled(save_err)) {
+        _MSG_ERROR("Could not save the disabled device rules to {}: {}", disabled_file, save_err);
+        return false;
+    }
+
+    return true;
 }
 
 std::shared_ptr<device_rules::active_set> device_rules::set_api_rules(const std::string& text,
@@ -1966,8 +2086,17 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
     }
     auto from = [&srcs](const std::string& origin) { return source_of(srcs, origin); };
 
-    for (size_t i = 0; i < as->rs->size(); i++)
+    // Rules that are switched off are listed where they'd be in the set
+    auto off = as->disabled.begin();
+    for (size_t i = 0, n = 0; i < as->rs->size() || off != as->disabled.end(); n++) {
+        if (off != as->disabled.end() && (off->first <= n || i >= as->rs->size())) {
+            f_rules->push_back(rule_record(*off->second, from(off->second->origin), false));
+            ++off;
+            continue;
+        }
         f_rules->push_back(rule_record(as->rs->rule(i), from(as->rs->rule(i).origin)));
+        i++;
+    }
 
     for (size_t i = 0; i < as->rs->sort_count(); i++)
         f_sorts->push_back(sort_record(as->rs->sort(i), from(as->rs->sort(i).origin)));
@@ -1976,7 +2105,7 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
 }
 
 std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules::rule_def& rd,
-        const rule_source& src) {
+        const rule_source& src, bool enabled) {
     auto r = std::make_shared<tracker_element_map>();
 
     auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.name",
@@ -2028,6 +2157,11 @@ std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules
     from_name->set(src.name);
     r->insert(from_type);
     r->insert(from_name);
+
+    auto f_enabled = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.enabled",
+            tracker_element_factory<tracker_element_uint8>(), "rule is in use; 0 when it's switched off with enable.cmd");
+    f_enabled->set(enabled);
+    r->insert(f_enabled);
 
     return r;
 }
@@ -2131,11 +2265,17 @@ std::shared_ptr<tracker_element> device_rules::sources_endpoint() {
         g.files->push_back(f);
     };
 
-    for (size_t i = 0; i < as->rs->size(); i++) {
-        const auto& rd = as->rs->rule(i);
+    auto off = as->disabled.begin();
+    for (size_t i = 0, n = 0; i < as->rs->size() || off != as->disabled.end(); n++) {
+        const bool is_off = off != as->disabled.end() && (off->first <= n || i >= as->rs->size());
+        const auto& rd = is_off ? *off->second : as->rs->rule(i);
         auto& g = group_of(rd.origin);
         add_file(g, rd.origin);
-        g.rules->push_back(rule_record(rd, from(rd.origin)));
+        g.rules->push_back(rule_record(rd, from(rd.origin), !is_off));
+        if (is_off)
+            ++off;
+        else
+            i++;
     }
 
     for (size_t i = 0; i < as->rs->sort_count(); i++) {
@@ -2234,6 +2374,38 @@ void device_rules::set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> 
         if (!save_err.empty())
             j["save_error"] = save_err;
         stream << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    } catch (const devicerules::parse_error& e) {
+        json_error(stream, e);
+    } catch (const std::exception& e) {
+        con->set_status(400);
+        stream << nlohmann::json{{"ok", false}, {"error", e.what()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+}
+
+void device_rules::enable_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream stream(&con->response_stream());
+    con->set_mime_type("application/json");
+
+    try {
+        auto& j = con->json();
+        if (!j.contains("rule") || !j["rule"].is_string())
+            throw std::runtime_error("expected 'rule', a rule name");
+        if (!j.contains("enabled") || !j["enabled"].is_boolean())
+            throw std::runtime_error("expected 'enabled', true or false");
+
+        const auto name = j["rule"].get<std::string>();
+        const bool enabled = j["enabled"].get<bool>();
+
+        if (!plain_rule_name(name))
+            throw std::runtime_error("no such device rule");
+
+        std::string save_err;
+        const bool saved = set_rule_enabled(name, enabled, save_err);
+
+        nlohmann::json r{{"ok", true}, {"rule", name}, {"enabled", enabled}, {"saved", saved}};
+        if (!save_err.empty())
+            r["save_error"] = save_err;
+        stream << r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     } catch (const devicerules::parse_error& e) {
         json_error(stream, e);
     } catch (const std::exception& e) {

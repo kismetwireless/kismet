@@ -1441,6 +1441,19 @@ bool ruleset::remove_rule(const std::string& name) {
     return false;
 }
 
+std::unique_ptr<rule_def> ruleset::take_rule(const std::string& name, size_t& pos) {
+    if (compiled_ok)
+        throw std::runtime_error("ruleset already compiled");
+    for (auto i = rules.begin(); i != rules.end(); ++i)
+        if ((*i)->name == name) {
+            auto r = std::move(*i);
+            pos = i - rules.begin();
+            rules.erase(i);
+            return r;
+        }
+    return nullptr;
+}
+
 bool ruleset::remove_sort(const std::string& name) {
     if (compiled_ok)
         throw std::runtime_error("ruleset already compiled");
