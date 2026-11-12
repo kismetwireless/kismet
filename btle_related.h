@@ -58,6 +58,8 @@ public:
         device_key newest;
         // Older addresses were dropped from the group to stay within max_members
         bool truncated;
+        // Addresses heard within the quiet time: about how many devices are there now
+        uint32_t active;
     };
 
     btle_related_tracker(const params& p);
@@ -82,6 +84,7 @@ protected:
         bool rep_old;
         device_key rep_newest;
         bool rep_truncated;
+        uint32_t rep_active;
     };
 
     struct group {

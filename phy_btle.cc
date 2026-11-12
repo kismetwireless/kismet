@@ -43,6 +43,7 @@
 #include "manuf.h"
 #include "messagebus.h"
 #include "alertracker.h"
+#include "kis_datasource.h"
 
 #include "phy_btle.h"
 #include "phy_uav_drone.h"
@@ -204,6 +205,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_btle = packetchain->register_packet_component("BTLE");
     pack_comp_remoteid = packetchain->register_packet_component("UAVREMOTEID");
+    pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
 
     alert_bleedingtooth_ref =
         alertracker->activate_configured_alert("BLEEDINGTOOTH",
@@ -240,12 +242,6 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
                 tracker_element_factory<tracker_element_string>(),
                 "UUID vendor");
 
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_link_randomized", false)) {
-        alias_linker = std::make_unique<randomized_alias_linker>(
-                randomized_alias_linker::params{15, 30, 0, "payload", 120});
-        _MSG_INFO("Linking random BTLE addresses which appear to be the same device.");
-    }
-
     auto conf = Globalreg::globalreg->kismet_config;
 
     // btle_ignore_random=true is the old way to say btle_random=ignore
@@ -276,6 +272,8 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         auto max_addrs = std::clamp(conf->fetch_opt_uint("btle_related_max_addresses", 64), 2U, 1024U);
         related = std::make_unique<btle_related_tracker>(
                 btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs});
+        similar = std::make_unique<btle_related_tracker>(
+                btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs});
 
         related_timer_id =
             Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(
@@ -285,6 +283,9 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
                                 "btle related age");
                         related->age(Globalreg::globalreg->last_tv_sec, states);
                         apply_related_states(states, device_key{});
+                        states.clear();
+                        similar->age(Globalreg::globalreg->last_tv_sec, states);
+                        apply_similar_states(states, device_key{});
                         return 1;
                     });
 
@@ -293,28 +294,43 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
                 "; addresses no other address matches are left out of the default device view" : "");
     }
 
-    // The addresses in a device's related group, for the web UI's timeline
+    // Related groups follow a device from address to address, so link them too unless
+    // asked not to
+    if (conf->fetch_opt_bool("btle_link_randomized", related != nullptr)) {
+        // A signal match is within 8 dB, and 4 dB closer than any other candidate
+        alias_linker = std::make_unique<randomized_alias_linker>(
+                randomized_alias_linker::params{15, 30, 0, "payload", 120, 8, 4});
+        _MSG_INFO("Linking random BTLE addresses which appear to be the same device.");
+    }
+
+    // The addresses in a device's related or similar group, for the web UI's timeline
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
-    httpd->register_route("/phy/btle/related-of/:key/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(
-                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    auto ret = std::make_shared<tracker_element_vector>();
-                    auto key = string_to_n<device_key>(con->uri_params()[":key"]);
+    auto group_route = [this, httpd](const std::string& uri,
+            std::unique_ptr<btle_related_tracker> kis_btle_phy::*tracker) {
+        httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
+                std::make_shared<kis_net_web_tracked_endpoint>(
+                    [this, tracker](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                        auto ret = std::make_shared<tracker_element_vector>();
+                        auto key = string_to_n<device_key>(con->uri_params()[":key"]);
 
-                    if (key.get_error())
-                        throw std::runtime_error("invalid key");
+                        if (key.get_error())
+                            throw std::runtime_error("invalid key");
 
-                    if (related == nullptr)
+                        if (this->*tracker == nullptr)
+                            return ret;
+
+                        for (const auto& k : (this->*tracker)->members_of(key)) {
+                            auto d = devicetracker->fetch_device(k);
+                            if (d != nullptr)
+                                ret->push_back(d);
+                        }
+
                         return ret;
+                    }));
+    };
 
-                    for (const auto& k : related->members_of(key)) {
-                        auto d = devicetracker->fetch_device(k);
-                        if (d != nullptr)
-                            ret->push_back(d);
-                    }
-
-                    return ret;
-                }));
+    group_route("/phy/btle/related-of/:key/devices", &kis_btle_phy::related);
+    group_route("/phy/btle/similar-of/:key/devices", &kis_btle_phy::similar);
 
     distance_exponent = btle_distance_exponent();
 
@@ -338,6 +354,26 @@ kis_btle_phy::~kis_btle_phy() {
     packetchain->remove_handler(&dissector, CHAINPOS_LLCDISSECT);
 }
 
+void kis_btle_phy::apply_similar_states(const std::vector<btle_related_tracker::state>& states,
+        const device_key& self) {
+    for (const auto& st : states) {
+        auto dev = devicetracker->fetch_device(st.key);
+        if (dev == nullptr)
+            continue;
+
+        auto btle = fetch_btle_record(dev);
+        if (btle == nullptr)
+            continue;
+
+        btle->set_similar_group(st.group);
+        btle->set_similar_count(st.size);
+        btle->set_similar_active(st.active);
+
+        if (!(st.key == self))
+            dev->update_modtime();
+    }
+}
+
 void kis_btle_phy::apply_related_states(const std::vector<btle_related_tracker::state>& states,
         const device_key& self) {
     for (const auto& st : states) {
@@ -354,6 +390,7 @@ void kis_btle_phy::apply_related_states(const std::vector<btle_related_tracker::
         btle->set_old_address(st.old);
         btle->set_related_newest(st.newest);
         btle->set_related_truncated(st.truncated);
+        btle->set_related_active(st.active);
         // Once an address has shared its payload it stays matched, as its group empties
         if (random_addrs == random_mode::hide_unmatched && (st.size >= 2 || !btle->has_unmatched_random()))
             btle->set_unmatched_random(st.size < 2);
@@ -780,6 +817,88 @@ bool btle_packet_rssi(const kis_packet *in_pack, int& rssi) {
 
     rssi = sig.signal_dbm;
     return true;
+}
+
+// The parts of an advertisement which stay the same when a device's payload bytes
+// change with its address, as Apple Continuity, Fast Pair and Swift Pair payloads do:
+// the record types and lengths, the company ID, service UUIDs and names.  0 when
+// there's no company or service to tell devices apart by.
+static uint64_t btle_structure_fingerprint(const bluetooth_btle& decode) {
+    constexpr uint16_t apple_company_id = 0x004c;
+
+    std::string buf;
+    bool anchored = false;
+
+    buf.push_back(static_cast<char>(decode.pdu_type()));
+
+    for (const auto& ad : *decode.advertised_data()) {
+        const auto type = ad->type();
+        const auto& d = ad->data();
+
+        if (type == BTLE_ADVDATA_FLAGS || type == BTLE_ADVDATA_TX_POWER_LEVEL)
+            continue;
+
+        buf.push_back(static_cast<char>(type));
+        buf.push_back(static_cast<char>(d.length()));
+
+        switch (type) {
+            case BTLE_ADVDATA_MANUFACTURER_DATA:
+                if (d.length() < 2)
+                    break;
+
+                anchored = true;
+                buf.append(d, 0, 2);
+
+                // Continuity is a list of type, length, value messages
+                if (((uint8_t) d[0] | ((uint16_t) (uint8_t) d[1] << 8)) == apple_company_id) {
+                    for (size_t off = 2; off + 2 <= d.length(); off += 2 + (uint8_t) d[off + 1]) {
+                        buf.push_back(d[off]);
+                        buf.push_back(d[off + 1]);
+                    }
+                }
+                break;
+
+            case BTLE_ADVDATA_SERVICE_UUID16_INCOMPLETE:
+            case BTLE_ADVDATA_SERVICE_UUID16_COMPLETE:
+            case BTLE_ADVDATA_SERVICE_UUID32_INCOMPLETE:
+            case BTLE_ADVDATA_SERVICE_UUID32_COMPLETE:
+            case BTLE_ADVDATA_SERVICE_UUID128_INCOMPLETE:
+            case BTLE_ADVDATA_SERVICE_UUID128_COMPLETE:
+                anchored = anchored || !d.empty();
+                buf.append(d);
+                break;
+
+            // The service's UUID, not its changing data
+            case BTLE_ADVDATA_SERVICE_DATA_UUID16:
+                anchored = anchored || d.length() >= 2;
+                buf.append(d, 0, std::min<size_t>(d.length(), 2));
+                break;
+            case BTLE_ADVDATA_SERVICE_DATA_UUID32:
+                anchored = anchored || d.length() >= 4;
+                buf.append(d, 0, std::min<size_t>(d.length(), 4));
+                break;
+            case BTLE_ADVDATA_SERVICE_DATA_UUID128:
+                anchored = anchored || d.length() >= 16;
+                buf.append(d, 0, std::min<size_t>(d.length(), 16));
+                break;
+
+            case BTLE_ADVDATA_SHORT_NAME:
+            case BTLE_ADVDATA_DEVICE_NAME:
+            case BTLE_ADVDATA_APPEARANCE:
+                buf.append(d);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    if (!anchored)
+        return 0;
+
+    // 0 means no fingerprint
+    auto fp = XXH64(buf.data(), buf.length(), 0);
+    return fp == 0 ? 1 : fp;
 }
 
 double btle_distance_exponent() {
@@ -1264,6 +1383,11 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
         std::vector<btle_related_tracker::state> states;
         related->observe(payload_fp, device->get_key(), Globalreg::globalreg->last_tv_sec, states);
         apply_related_states(states, device->get_key());
+
+        states.clear();
+        similar->observe(btle_structure_fingerprint(decode), device->get_key(),
+                Globalreg::globalreg->last_tv_sec, states);
+        apply_similar_states(states, device->get_key());
     }
 
     // Address carryover (Becker et al., PoPETs 2019): a device's advertising payload
@@ -1271,9 +1395,18 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
     // new address matching the last one from an address which just went quiet links
     // them
     if (alias_linker != nullptr && payload_fp != 0) {
+        // Picks between several devices sending the same payload
+        int signal = randomized_alias_linker::no_signal;
+        uint64_t source = 0;
+        auto ds = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
+        if (ds != nullptr && ds->ref_source != nullptr && btle_packet_rssi(in_pack.get(), rssi)) {
+            signal = rssi;
+            source = ds->ref_source->get_source_key();
+        }
+
         std::vector<randomized_alias_linker::link> links;
         alias_linker->observe(payload_fp, device->get_key(),
-                in_pack->ts.tv_sec, -1, links);
+                in_pack->ts.tv_sec, -1, links, signal, source);
 
         for (const auto& l : links) {
             auto ldev = devicetracker->fetch_device(l.key);

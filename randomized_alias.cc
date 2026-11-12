@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "randomized_alias.h"
 
@@ -51,8 +52,41 @@ void randomized_alias_linker::prune(time_t now) {
     }
 }
 
+randomized_alias_linker::rec *randomized_alias_linker::signal_match(const std::vector<rec *>& cands,
+        int signal, uint64_t source) const {
+    if (p_.signal_window <= 0 || signal == no_signal || source == 0)
+        return nullptr;
+
+    rec *best = nullptr;
+    int best_d = 0, next_d = std::numeric_limits<int>::max();
+
+    for (auto r : cands) {
+        // One heard elsewhere can't be ruled out
+        if (r->last_signal == no_signal || r->last_source != source)
+            return nullptr;
+
+        const int d = std::abs(signal - r->last_signal);
+
+        if (best == nullptr || d < best_d) {
+            next_d = best == nullptr ? next_d : best_d;
+            best = r;
+            best_d = d;
+        } else if (d < next_d) {
+            next_d = d;
+        }
+    }
+
+    if (best == nullptr || best_d > p_.signal_window)
+        return nullptr;
+
+    if (next_d != std::numeric_limits<int>::max() && next_d - best_d < p_.signal_margin)
+        return nullptr;
+
+    return best;
+}
+
 void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& key, time_t now,
-        int seq, std::vector<link>& out) {
+        int seq, std::vector<link>& out, int signal, uint64_t source) {
     kis_lock_guard<kis_mutex> lk(mutex, "randomized_alias_linker observe");
 
     if (now - last_prune > p_.window) {
@@ -86,6 +120,10 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
         if (now > self->last)
             self->last = now;
         self->last_seq = seq;
+        if (signal != no_signal) {
+            self->last_signal = signal;
+            self->last_source = source;
+        }
     } else {
         // Earlier addresses with this fingerprint which went quiet recently, and how
         // many separate devices with it were heard in that time
@@ -116,7 +154,7 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
             }
         }
 
-        rec nr{key, now, now, seq, false};
+        rec nr{key, now, now, seq, signal, signal == no_signal ? 0 : source, false};
 
         if (seq_cands.size() == 1) {
             seq_cands[0]->succeeded = true;
@@ -133,6 +171,11 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
                         pred->succeeded = false;
                     pl.method = nullptr;
                 }
+            }
+
+            if (auto pred = signal_match(cands, signal, source)) {
+                pred->succeeded = true;
+                pending_.push_back(pending{fingerprint, key, pred->key, now, "signal"});
             }
         }
 

@@ -37,6 +37,8 @@ export function register(kismet) {
     // devices with related devices
     filterHint('btle_related', ['related', 'related_count'], 'related_count', { filterKind: 'number', filterEmpty: 0,
         help: 'Addresses in the device\'s related group, itself included; related > 1 finds devices with related devices' });
+    filterHint('btle_similar', ['similar', 'similar_count'], 'similar_count', { filterKind: 'number', filterEmpty: 0,
+        help: 'Addresses whose advertisements have the same structure as the device\'s, itself included; similar > 1 finds devices with similar devices' });
 
     const isBtle = (row) => row[`${base}.phyname`] === 'BTLE';
     const supported = (v) => (v ? 'Supported' : 'Not supported');
@@ -64,12 +66,13 @@ export function register(kismet) {
         return null;
     };
 
-    // When each address advertising the same payload as a device was heard, one bar
-    // per address, and a link to the newest one
+    // When each address in a device's related (same payload) or similar (same payload
+    // structure) group was heard, one bar per address, and for related, a link to the
+    // newest one
     const relatedFields = [`${base}.key`, `${base}.macaddr`, `${base}.first_time`, `${base}.last_time`,
         [`${b}/${b}.old_address`, 'old']];
 
-    function relatedTimeline(selfKey) {
+    function relatedTimeline(selfKey, kind = 'related') {
         const { el } = kismet.dom;
         const now = () => (kismet.clock.isKnown() ? kismet.clock.now() : Date.now() / 1000);
         const chart = kismet.widgets.charts.timeline({ onPick: (item) => ui.openDevice(item.id), empty: 'Kismet no longer tracks this address\'s group; it was forgotten to save memory.' });
@@ -109,7 +112,7 @@ export function register(kismet) {
             const onScreen = node.checkVisibility ? node.checkVisibility() : node.offsetParent !== null;
             if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
                 try {
-                    const rows = await kismet.api.post(`phy/btle/related-of/${encodeURIComponent(selfKey)}/devices.json`,
+                    const rows = await kismet.api.post(`phy/btle/${kind}-of/${encodeURIComponent(selfKey)}/devices.json`,
                         { fields: relatedFields });
                     const t = now();
                     members = (rows ?? []).map((r) => {
@@ -202,7 +205,7 @@ export function register(kismet) {
                     const how = kismet.api.field(dev, `${b}/${b}.alias_method`);
                     return kismet.dom.el('span', {}, kismet.dom.el('span', { class: 'mono' }, v), how ? ` (by ${how})` : '');
                 },
-                help: 'Kismet linked this randomized address to others it believes are the same device; this is the first address in the chain.' },
+                help: 'Kismet linked this randomized address to others it believes are the same device; this is the first address in the chain.  By payload: no other device with the same payload was around.  By signal: several were, and this address\'s signal matched the earlier one\'s on the same data source.' },
             {
                 group: 'BTLE Related Devices',
                 show: (dev) => (kismet.api.field(dev, `${b}/${b}.related_count`) ?? 0) > 0,
@@ -213,6 +216,9 @@ export function register(kismet) {
                             const n = v === 1 ? 'This address only' : `${v} addresses`;
                             return kismet.api.field(dev, `${b}/${b}.old_address`) ? `${n}, replaced by a newer one` : n;
                         } },
+                    { title: 'Heard recently', field: `${b}/${b}.related_active`, hideEmpty: true,
+                        format: (v) => (v === 1 ? '1 address' : `${v} addresses`),
+                        help: 'Addresses in the group heard within btle_related_quiet (60 seconds by default): about how many devices with this payload are around now.' },
                     { title: 'Incomplete', field: `${b}/${b}.related_truncated`, show: (v) => !!v,
                         format: () => kismet.dom.el('span', { class: 'warn-text' }, 'Older addresses were left out of this group to save memory'),
                         help: 'The group reached btle_related_max_addresses, so its longest quiet addresses were dropped from it; the count and timeline only cover the addresses still tracked.' },
@@ -225,6 +231,28 @@ export function register(kismet) {
                                 cell.replaceChildren(state.timeline.node);
                             }
                             state.timeline.setNewest(kismet.api.field(dev, `${b}/${b}.related_newest`));
+                        },
+                    },
+                ],
+            },
+            {
+                group: 'BTLE Similar Devices',
+                show: (dev) => (kismet.api.field(dev, `${b}/${b}.similar_count`) ?? 0) > 1,
+                help: 'Rotating random addresses whose advertisements have the same structure as this one: the same kinds of records, company and services, with bytes that change, as Apple Continuity, Fast Pair and Swift Pair advertisements do.  Many devices of the same model look alike, so these may be several devices; addresses are never marked replaced from this.  Only set when btle_related is on.',
+                fields: [
+                    { title: 'Count', field: `${b}/${b}.similar_count`,
+                        format: (v) => `${v} addresses` },
+                    { title: 'Heard recently', field: `${b}/${b}.similar_active`, hideEmpty: true,
+                        format: (v) => (v === 1 ? '1 address' : `${v} addresses`),
+                        help: 'Addresses in the group heard within btle_related_quiet: about how many devices like this are around now.' },
+                    {
+                        id: 'similar_timeline', wide: true,
+                        value: (dev) => dev[`${base}.key`],
+                        draw: (cell, key, dev, state) => {
+                            if (!state.similarTimeline) {
+                                state.similarTimeline = relatedTimeline(key, 'similar');
+                                cell.replaceChildren(state.similarTimeline.node);
+                            }
                         },
                     },
                 ],

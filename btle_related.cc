@@ -36,20 +36,24 @@ void btle_related_tracker::settle(group& c, time_t now, std::vector<state>& out,
     const auto newest_first = newest->first;
     const auto newest_key = newest->key;
 
+    const auto active = static_cast<uint32_t>(std::count_if(c.members.begin(), c.members.end(),
+                [this, now](const member& m) { return now - m.last < p_.quiet; }));
+
     for (auto& m : c.members) {
         const bool old = now - m.last >= p_.quiet && newest_first > m.last;
 
         const bool report = (always != nullptr && m.key == *always) ||
             m.rep_size != size || m.rep_old != old || !(m.rep_newest == newest_key) ||
-            m.rep_truncated != c.truncated;
+            m.rep_truncated != c.truncated || m.rep_active != active;
 
         m.rep_size = size;
         m.rep_old = old;
         m.rep_newest = newest_key;
         m.rep_truncated = c.truncated;
+        m.rep_active = active;
 
         if (report)
-            out.push_back(state{m.key, c.id, size, old, newest_key, c.truncated});
+            out.push_back(state{m.key, c.id, size, old, newest_key, c.truncated, active});
     }
 }
 
@@ -86,7 +90,7 @@ void btle_related_tracker::observe(uint64_t fingerprint, const device_key& key, 
     }
 
     if (fingerprint == 0) {
-        out.push_back(state{key, 0, 0, false, device_key{}, false});
+        out.push_back(state{key, 0, 0, false, device_key{}, false, 0});
         return;
     }
 
@@ -119,7 +123,7 @@ void btle_related_tracker::observe(uint64_t fingerprint, const device_key& key, 
             c.truncated = true;
         }
 
-        c.members.push_back(member{key, now, now, 0, false, device_key{}, false});
+        c.members.push_back(member{key, now, now, 0, false, device_key{}, false, 0});
         where_[key] = fingerprint;
     }
 

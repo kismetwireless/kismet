@@ -23,6 +23,7 @@
 
 #include <time.h>
 
+#include <limits>
 #include <unordered_map>
 #include <vector>
 
@@ -36,8 +37,10 @@
 // after the earlier one goes quiet, and the earlier one stays quiet.
 //
 // A sequence number, when the protocol has one that carries across the change, picks
-// between several candidates.  Without one, a link is only made when no other device
-// with the same fingerprint is around, since it could be either.
+// between several candidates.  Without one, the signal can: the candidate whose last
+// signal on the same source is closest to the new address's first, when it is clearly
+// closer than the others.  Otherwise a link is only made when no other device with the
+// same fingerprint is around, since it could be either.
 class randomized_alias_linker {
 public:
     struct params {
@@ -51,9 +54,15 @@ public:
         const char *unique_method;
         // Addresses quiet for longer than this are forgotten
         time_t keep;
+        // A signal match is at most this many dB from the new address's signal, and
+        // this many dB closer than the next candidate; 0 turns signal matching off
+        int signal_window;
+        int signal_margin;
     };
 
-    // method is "sequence" or params::unique_method; nullptr means key only moved to
+    static constexpr int no_signal = std::numeric_limits<int>::min();
+
+    // method is "sequence", "signal" or params::unique_method; nullptr means key only moved to
     // another group because the address it was linked to did
     struct link {
         device_key key;
@@ -65,10 +74,11 @@ public:
     randomized_alias_linker(const params& p) :
         p_{p} { }
 
-    // A device sent something with this fingerprint; seq < 0 when there is none.
-    // Links settled by this call are appended to out.
+    // A device sent something with this fingerprint; seq < 0 when there is none, and
+    // signal is no_signal when there is none.  source names the receiver the signal was
+    // measured on.  Links settled by this call are appended to out.
     void observe(uint64_t fingerprint, const device_key& key, time_t now, int seq,
-            std::vector<link>& out);
+            std::vector<link>& out, int signal = no_signal, uint64_t source = 0);
 
 protected:
     struct rec {
@@ -76,9 +86,14 @@ protected:
         time_t first;
         time_t last;
         int last_seq;
+        int last_signal;
+        uint64_t last_source;
         // A later address is linked, or waiting to be, to this one
         bool succeeded;
     };
+
+    // The candidate the signal picks, or nullptr
+    rec *signal_match(const std::vector<rec *>& cands, int signal, uint64_t source) const;
 
     // A link waiting for the earlier address to stay quiet
     struct pending {

@@ -649,6 +649,11 @@ public:
    __ProxyDynamic(old_address, uint8_t, bool, bool, old_address, old_address_id);
    __ProxyDynamic(related_newest, device_key, device_key, device_key, related_newest, related_newest_id);
    __ProxyDynamic(related_truncated, uint8_t, bool, bool, related_truncated, related_truncated_id);
+   __ProxyDynamic(related_active, uint32_t, uint32_t, uint32_t, related_active, related_active_id);
+   // Addresses whose payloads share their structure, but not their changing bytes
+   __ProxyDynamic(similar_group, uint64_t, uint64_t, uint64_t, similar_group, similar_group_id);
+   __ProxyDynamic(similar_count, uint32_t, uint32_t, uint32_t, similar_count, similar_count_id);
+   __ProxyDynamic(similar_active, uint32_t, uint32_t, uint32_t, similar_active, similar_active_id);
    // Only with btle_random=hide_unmatched
    __ProxyDynamic(unmatched_random, uint8_t, bool, bool, unmatched_random, unmatched_random_id);
 
@@ -729,6 +734,22 @@ protected:
             register_dynamic_field("btle.device.related_truncated",
                     "older addresses were dropped from this address's related group to save memory",
                     &related_truncated);
+        related_active_id =
+            register_dynamic_field("btle.device.related_active",
+                    "addresses in this address's related group heard within btle_related_quiet",
+                    &related_active);
+        similar_group_id =
+            register_dynamic_field("btle.device.similar_group",
+                    "random addresses whose payloads have the same structure share a similar group; "
+                    "0 when none",
+                    &similar_group);
+        similar_count_id =
+            register_dynamic_field("btle.device.similar_count",
+                    "addresses in this address's similar group, itself included", &similar_count);
+        similar_active_id =
+            register_dynamic_field("btle.device.similar_active",
+                    "addresses in this address's similar group heard within btle_related_quiet",
+                    &similar_active);
         unmatched_random_id =
             register_dynamic_field("btle.device.unmatched_random",
                     "rotating random address whose payload no other address shares",
@@ -841,6 +862,14 @@ protected:
     uint16_t old_address_id;
     std::shared_ptr<tracker_element_uint8> unmatched_random;
     uint16_t unmatched_random_id;
+    std::shared_ptr<tracker_element_uint32> related_active;
+    uint16_t related_active_id;
+    std::shared_ptr<tracker_element_uint64> similar_group;
+    uint16_t similar_group_id;
+    std::shared_ptr<tracker_element_uint32> similar_count;
+    uint16_t similar_count_id;
+    std::shared_ptr<tracker_element_uint32> similar_active;
+    uint16_t similar_active_id;
 };
 
 class kis_btle_phy : public kis_phy_handler {
@@ -893,7 +922,7 @@ protected:
     std::shared_ptr<kis_bt_manuf> btmanuf;
     std::shared_ptr<kis_bt_oid> btoid;
 
-    int pack_comp_linkframe, pack_comp_decap, pack_comp_btle, pack_comp_remoteid;
+    int pack_comp_linkframe, pack_comp_decap, pack_comp_btle, pack_comp_remoteid, pack_comp_datasrc;
 
     int btle_device_id, btle_uuid_id;
 
@@ -909,6 +938,12 @@ protected:
     int related_timer_id;
     // Sets the related group fields of each address; needs the device list lock
     void apply_related_states(const std::vector<btle_related_tracker::state>& states,
+            const device_key& self);
+
+    // Groups by the structure of the payload, for payloads whose bytes change with the
+    // address; lower confidence, so never marks addresses old
+    std::unique_ptr<btle_related_tracker> similar;
+    void apply_similar_states(const std::vector<btle_related_tracker::state>& states,
             const device_key& self);
 
     // Links a random address to the one before it when the advertising payload,
