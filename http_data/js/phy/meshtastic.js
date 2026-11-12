@@ -27,13 +27,14 @@ export function register(kismet) {
     // Search box names for the node details
     const filterHint = (id, names, path, more = {}) =>
         ui.filterHints.add({ id, phy: 'Meshtastic', names, fields: [`${n}/${n}.${path}`], ...more });
-    filterHint('meshtastic_node_id', ['node_id', 'nodeid'], 'nodeid', { filterEmpty: '' });
-    filterHint('meshtastic_long_name', ['node_name', 'long_name'], 'longname', { filterEmpty: '' });
-    filterHint('meshtastic_short_name', ['node_name', 'short_name'], 'shortname', { filterEmpty: '' });
-    filterHint('meshtastic_battery', ['battery'], 'telem.battery', { filterKind: 'number', filterEmpty: 0 });
-    filterHint('meshtastic_voltage', ['voltage'], 'telem.voltage', { filterKind: 'number', filterEmpty: 0 });
-    filterHint('meshtastic_channel_use', ['channel_use'], 'telem.chan_util', { filterKind: 'number', filterEmpty: 0 });
-    filterHint('meshtastic_uptime', ['uptime'], 'telem.uptime', { filterKind: 'duration', filterEmpty: 0 });
+    filterHint('meshtastic_node_id', ['node_id', 'nodeid'], 'nodeid', { filterEmpty: '', help: 'Node ID' });
+    filterHint('meshtastic_long_name', ['node_name', 'long_name'], 'longname', { filterEmpty: '', help: 'Node long name' });
+    filterHint('meshtastic_short_name', ['node_name', 'short_name'], 'shortname', { filterEmpty: '', help: 'Node short name' });
+    filterHint('meshtastic_battery', ['battery'], 'telem.battery', { filterKind: 'number', filterEmpty: 0, help: 'Battery level, in percent' });
+    filterHint('meshtastic_voltage', ['voltage'], 'telem.voltage', { filterKind: 'number', filterEmpty: 0, help: 'Battery voltage' });
+    filterHint('meshtastic_channel_use', ['channel_use'], 'telem.chan_util', { filterKind: 'number', filterEmpty: 0,
+        help: 'Channel utilization, in percent' });
+    filterHint('meshtastic_uptime', ['uptime'], 'telem.uptime', { filterKind: 'duration', filterEmpty: 0, help: 'Node uptime' });
 
     const isMeshtastic = (row) => row[`${base}.phyname`] === 'Meshtastic';
 

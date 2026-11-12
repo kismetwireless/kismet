@@ -23,6 +23,7 @@ import { createRegistry } from './registry.js';
 //   id            unique id, also saved in the user's column settings
 //   title         header text
 //   description   longer text shown in the column picker
+//   help          what the column holds, for the search help (default: description, then title)
 //   fields        fields this column needs (see above)
 //   sortField     field path the server sorts on; omit for unsortable columns
 //   render(row)   returns a string or a DOM node for the cell
@@ -99,6 +100,8 @@ export const phyColors = createRegistry('phyColors', {
 //   filterConvert: for duration fields, as { path: function } (see columns)
 //   filterEmpty, filterPresent: as for columns, one for all or { path: ... }
 //   filterNames: more names for these fields in the search box
+//   help: what the fields are, for the search help (default: description)
+//   phy: the phy (as the server names it) these fields belong to, for the search help
 export const searchFields = createRegistry('searchFields', {
     required: ['fields'],
     defaults: { description: '' },
@@ -111,6 +114,7 @@ export const searchFields = createRegistry('searchFields', {
 //   phy: the phy (as the server names it) whose fields these are, so a server
 //     without it doesn't get filters on fields it doesn't know,
 //   filterKind, filterConvert, filterEmpty, filterPresent: as for search fields
+//   help: what the fields are, for the search help
 // A name several hints, columns or search fields give matches any of their
 // fields, so phys can share names like callsign and battery.
 export const filterHints = createRegistry('filterHints', {

@@ -76,15 +76,17 @@ export function register(kismet) {
     // Search box names for the sensor details
     const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'RFSENSOR', names, fields, ...more });
     const sc = `${s}/${s}.common/${s}`;
-    filterHint('sensor_model', ['model'], [`${sc}.model`], { filterEmpty: '' });
-    filterHint('sensor_id', ['sensor_id'], [`${sc}.id`], { filterEmpty: '' });
-    filterHint('sensor_battery', ['battery'], [`${sc}.battery`], { filterEmpty: '' });
+    filterHint('sensor_model', ['model'], [`${sc}.model`], { filterEmpty: '', help: 'Sensor model' });
+    filterHint('sensor_id', ['sensor_id'], [`${sc}.id`], { filterEmpty: '', help: 'Sensor ID' });
+    filterHint('sensor_battery', ['battery'], [`${sc}.battery`], { filterEmpty: '', help: 'Battery status' });
     // Celsius
-    filterHint('sensor_temperature', ['temperature', 'temp'], [`${s}/${s}.thermometer/${s}.temperature`], { filterKind: 'number' });
+    filterHint('sensor_temperature', ['temperature', 'temp'], [`${s}/${s}.thermometer/${s}.temperature`], { filterKind: 'number',
+        help: 'Temperature, in Celsius' });
     filterHint('sensor_tire_temperature', ['tire_temperature'], [`${s}/${s}.tpms/${s}.tpms.temperature`],
-        { filterKind: 'number', filterEmpty: 0 });
-    filterHint('sensor_moisture', ['moisture'], [`${s}/${s}.moisturesensor/${s}.moisture`], { filterKind: 'number' });
-    filterHint('sensor_wind_speed', ['wind_speed', 'wind'], [`${s}/${s}.weatherstation/${s}.wind_speed`], { filterKind: 'number' });
+        { filterKind: 'number', filterEmpty: 0, help: 'Tire temperature, in Celsius' });
+    filterHint('sensor_moisture', ['moisture'], [`${s}/${s}.moisturesensor/${s}.moisture`], { filterKind: 'number', help: 'Soil moisture' });
+    filterHint('sensor_wind_speed', ['wind_speed', 'wind'], [`${s}/${s}.weatherstation/${s}.wind_speed`], { filterKind: 'number',
+        help: 'Wind speed' });
 
     const speed = (kph) => format.speed(kph);
     const isSensor = (row) => row[`${base}.phyname`] === 'RFSENSOR';

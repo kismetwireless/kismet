@@ -16,7 +16,7 @@ export function register(kismet) {
     };
     // Search box names for the Bluetooth details
     ui.filterHints.add({ id: 'bluetooth_services', phy: 'Bluetooth', names: ['services'],
-        fields: ['bluetooth.device/bluetooth.device.service_uuid_strs'] });
+        fields: ['bluetooth.device/bluetooth.device.service_uuid_strs'], help: 'Advertised service UUIDs and names' });
 
     const isBluetooth = (row) => row[`${base}.phyname`] === 'Bluetooth';
 

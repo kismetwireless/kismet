@@ -8,16 +8,17 @@ export function register(kismet) {
     const { ui, icons, dom, api, format } = kismet;
     // Search box names for the vessel details
     const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'AIS', names, fields, ...more });
-    filterHint('ais_mmsi', ['mmsi'], [`${ais}/${ais}.mmsi`], { filterKind: 'number', filterEmpty: 0 });
-    filterHint('ais_imo', ['imo'], [`${ais}/${ais}.imo`], { filterKind: 'number', filterEmpty: 0 });
-    filterHint('ais_ship_name', ['ship_name', 'vessel'], [`${ais}/${ais}.name`], { filterEmpty: '' });
-    filterHint('ais_callsign', ['callsign'], [`${ais}/${ais}.callsign`], { filterEmpty: '' });
-    filterHint('ais_ship_type', ['ship_type'], [`${ais}/${ais}.ship_type_str`], { filterEmpty: '' });
-    filterHint('ais_destination', ['destination'], [`${ais}/${ais}.destination`], { filterEmpty: '' });
-    filterHint('ais_flag', ['flag', 'country'], [`${ais}/${ais}.country`], { filterEmpty: '' });
-    filterHint('ais_nav_status', ['nav_status'], [`${ais}/${ais}.nav_status_str`], { filterEmpty: '' });
+    filterHint('ais_mmsi', ['mmsi'], [`${ais}/${ais}.mmsi`], { filterKind: 'number', filterEmpty: 0, help: 'Maritime Mobile Service Identity' });
+    filterHint('ais_imo', ['imo'], [`${ais}/${ais}.imo`], { filterKind: 'number', filterEmpty: 0, help: 'IMO ship number' });
+    filterHint('ais_ship_name', ['ship_name', 'vessel'], [`${ais}/${ais}.name`], { filterEmpty: '', help: 'Vessel name' });
+    filterHint('ais_callsign', ['callsign'], [`${ais}/${ais}.callsign`], { filterEmpty: '', help: 'Radio callsign' });
+    filterHint('ais_ship_type', ['ship_type'], [`${ais}/${ais}.ship_type_str`], { filterEmpty: '', help: 'Ship type' });
+    filterHint('ais_destination', ['destination'], [`${ais}/${ais}.destination`], { filterEmpty: '', help: 'Reported destination' });
+    filterHint('ais_flag', ['flag', 'country'], [`${ais}/${ais}.country`], { filterEmpty: '', help: 'Flag country' });
+    filterHint('ais_nav_status', ['nav_status'], [`${ais}/${ais}.nav_status_str`], { filterEmpty: '',
+        help: 'Navigation status, such as underway or moored' });
     // Speed over ground, in knots
-    filterHint('ais_sog', ['sog', 'knots'], [`${ais}/${ais}.sog`], { filterKind: 'number' });
+    filterHint('ais_sog', ['sog', 'knots'], [`${ais}/${ais}.sog`], { filterKind: 'number', help: 'Speed over ground, in knots' });
 
     const { el } = dom;
     const isAis = (row) => row[`${base}.phyname`] === 'AIS';
@@ -30,9 +31,10 @@ export function register(kismet) {
 
     // Searches match a vessel's MMSI, name, and callsign
     ui.searchFields.add({
-        id: 'ais', description: 'AIS MMSI, name, and callsign',
+        id: 'ais', phy: 'AIS', description: 'AIS MMSI, name, and callsign',
         fields: [`${ais}/${ais}.mmsi`, `${ais}/${ais}.name`, `${ais}/${ais}.callsign`],
         filterKind: { [`${ais}/${ais}.mmsi`]: 'number' },
+        help: 'MMSI, vessel name, and callsign',
     });
 
     ui.deviceIcons.add({

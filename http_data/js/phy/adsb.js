@@ -34,12 +34,13 @@ export function register(kismet) {
     const { ui, icons, dom, api, format } = kismet;
     // Search box names for the aircraft details
     const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'ADSB', names, fields, ...more });
-    filterHint('adsb_icao', ['icao'], [`${adsb}/${adsb}.icao`], { filterEmpty: '' });
-    filterHint('adsb_callsign', ['callsign'], [`${adsb}/${adsb}.callsign`], { filterEmpty: '' });
-    filterHint('adsb_registration', ['registration', 'reg'], [`${icao}/adsb.icao.regid`], { filterEmpty: '' });
-    filterHint('adsb_model', ['model'], [`${icao}/adsb.icao.model`], { filterEmpty: '' });
-    filterHint('adsb_operator', ['operator'], [`${icao}/adsb.icao.owner`], { filterEmpty: '' });
-    filterHint('adsb_aircraft_type', ['aircraft_type'], [`${icao}/adsb.icao.atype`], { filterEmpty: '' });
+    filterHint('adsb_icao', ['icao'], [`${adsb}/${adsb}.icao`], { filterEmpty: '', help: 'ICAO aircraft address, in hex' });
+    filterHint('adsb_callsign', ['callsign'], [`${adsb}/${adsb}.callsign`], { filterEmpty: '', help: 'Flight callsign' });
+    filterHint('adsb_registration', ['registration', 'reg'], [`${icao}/adsb.icao.regid`], { filterEmpty: '',
+        help: 'Aircraft registration (tail number)' });
+    filterHint('adsb_model', ['model'], [`${icao}/adsb.icao.model`], { filterEmpty: '', help: 'Aircraft model' });
+    filterHint('adsb_operator', ['operator'], [`${icao}/adsb.icao.owner`], { filterEmpty: '', help: 'Registered owner or operator' });
+    filterHint('adsb_aircraft_type', ['aircraft_type'], [`${icao}/adsb.icao.atype`], { filterEmpty: '', help: 'Aircraft type' });
 
     const { el } = dom;
     const isAdsb = (row) => row[`${base}.phyname`] === 'ADSB';
@@ -47,8 +48,9 @@ export function register(kismet) {
     const link = (href, text) => el('a', { href, target: '_blank', rel: 'noopener noreferrer' }, text);
 
     ui.searchFields.add({
-        id: 'adsb', description: 'ADS-B callsign',
+        id: 'adsb', phy: 'ADSB', description: 'ADS-B callsign',
         fields: [`${adsb}/${adsb}.callsign`],
+        help: 'Flight callsign',
     });
 
     ui.deviceIcons.add({

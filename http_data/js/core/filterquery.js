@@ -63,6 +63,27 @@ const aliases = {
     max_signal: ['kismet.device.base.signal/kismet.common.signal.max_signal', 'number'],
 };
 
+// Help for the short names, shown in the search help
+const aliasHelp = {
+    mac: 'MAC address; 00:11:22 alone matches part of any MAC field',
+    name: 'Name, or the MAC address when there is none',
+    phy: 'Phy (radio type), such as IEEE802.11 or BTLE',
+    type: 'Device type, such as Wi-Fi AP or BTLE',
+    manuf: 'Manufacturer',
+    crypt: 'Encryption',
+    channel: 'Channel',
+    frequency: 'Frequency, in kHz',
+    packets: 'Packets seen',
+    datasize: 'Data seen, in bytes',
+    first_time: 'First seen; first_time < 1h is first seen in the last hour',
+    last_time: 'Last seen; last_time < 5m is seen in the last 5 minutes',
+    mod_time: 'Last changed',
+    num_alerts: 'Alerts that name the device',
+    signal: 'Last signal, in dBm',
+    min_signal: 'Weakest signal, in dBm',
+    max_signal: 'Strongest signal, in dBm',
+};
+
 // filterConvert functions for duration fields, from seconds to the field's units
 export const durationIn = {
     s: (s) => s,
@@ -170,6 +191,58 @@ export function fieldContext(columns = [], searchFields = [], hints = [], phys =
             fieldSet(h, h.names ?? [h.id]);
 
     return { names, macFields };
+}
+
+// The names the search box knows, for the search help, named the way
+// fieldContext names them: [{ category, names, kind, paths, help }], the
+// first name the one to use.  help is the definition's own help: a hint's or
+// search field's help, or a column's description or title.  Categories are a
+// column's group, a hint's or search field's phy, or '' for the common
+// fields; title(category) may rename them.
+export function fieldGuide(columns = [], searchFields = [], hints = [], phys = null, title = (c) => c) {
+    const fixed = new Set(Object.keys(aliases));
+    const norm = (n) => String(n ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+    const usable = (n) => n && /^[a-z0-9_]+$/.test(n) && !fixed.has(n);
+    const guide = [];
+    const push = (category, names, kind, paths, help) => {
+        const list = [...new Set(names.map(norm))].filter(usable);
+        if (list.length)
+            guide.push({ category: category ? title(category) : '', names: list, kind: kind ?? 'text', paths, help: help ?? '' });
+    };
+
+    for (const [n, [path, kind]] of Object.entries(aliases))
+        guide.push({ category: '', names: [n], kind, paths: [path], help: aliasHelp[n] ?? '' });
+
+    for (const c of columns) {
+        const path = c.sortField ?? (c.fields?.length === 1 ? pathOf(c.fields[0]) : null);
+        if (!path || path.startsWith('#'))
+            continue;
+        const kind = c.filterKind ?? aliasKind(path) ?? (/_time$/.test(path) ? 'time' : null);
+        const prefix = (c.group ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const short = prefix && c.id.startsWith(`${prefix}_`) ? [c.id.slice(prefix.length + 1)] : [];
+        push(c.group ?? '', [...short, c.id, c.title, ...(c.filterNames ?? [])], kind, [path],
+            c.help ?? (c.description || (typeof c.title === 'string' ? c.title : '')));
+    }
+
+    const kindOf = (s, p) => {
+        const fk = s.filterKind;
+        return (typeof fk === 'string' ? fk : fk?.[p]) ?? aliasKind(p) ?? 'text';
+    };
+    for (const s of searchFields) {
+        const paths = (s.fields ?? []).map(pathOf).filter((p) => !p.startsWith('#'));
+        if (paths.length)
+            push(s.phy ?? '', [s.id, ...(s.filterNames ?? [])], kindOf(s, paths[0]), paths, s.help ?? s.description);
+    }
+
+    for (const h of hints) {
+        if (h.phy && phys && !phys.has(h.phy))
+            continue;
+        const paths = (h.fields ?? []).map(pathOf).filter((p) => !p.startsWith('#'));
+        if (paths.length)
+            push(h.phy ?? '', h.names ?? [h.id], kindOf(h, paths[0]), paths, h.help);
+    }
+
+    return guide;
 }
 
 // Tokens

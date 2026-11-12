@@ -69,15 +69,16 @@ export function register(kismet) {
     const { ui, icons, format, dom, api } = kismet;
     // Search box names for fields in the Wi-Fi details
     const probed = 'dot11.device/dot11.device.probed_ssid_map/dot11.probedssid';
-    const filterHint = (id, names, fields) =>
-        ui.filterHints.add({ id, phy, names, fields, filterEmpty: '' });
+    const filterHint = (id, names, fields, more = {}) =>
+        ui.filterHints.add({ id, phy, names, fields, filterEmpty: '', ...more });
     const wps = (f) => [`${beacon}/dot11.advertisedssid.${f}`, `${probed}.${f}`];
-    filterHint('wifi_wps_manuf', ['wps_manuf'], wps('wps_manuf'));
-    filterHint('wifi_wps_model', ['wps_model'], wps('wps_model_name'));
-    filterHint('wifi_wps_device', ['wps_device'], wps('wps_device_name'));
-    filterHint('wifi_wps_serial', ['serial', 'wps_serial'], wps('wps_serial_number'));
-    filterHint('wifi_country', ['country'], [`${beacon}/dot11.advertisedssid.dot11d_country`]);
-    filterHint('wifi_mesh_id', ['mesh_id'], [`${beacon}/dot11.advertisedssid.dot11s.meshid`]);
+    filterHint('wifi_wps_manuf', ['wps_manuf'], wps('wps_manuf'), { help: 'WPS manufacturer' });
+    filterHint('wifi_wps_model', ['wps_model'], wps('wps_model_name'), { help: 'WPS model name' });
+    filterHint('wifi_wps_device', ['wps_device'], wps('wps_device_name'), { help: 'WPS device name' });
+    filterHint('wifi_wps_serial', ['serial', 'wps_serial'], wps('wps_serial_number'), { help: 'WPS serial number' });
+    filterHint('wifi_country', ['country'], [`${beacon}/dot11.advertisedssid.dot11d_country`],
+        { help: '802.11d country code the access point advertises' });
+    filterHint('wifi_mesh_id', ['mesh_id'], [`${beacon}/dot11.advertisedssid.dot11s.meshid`], { help: '802.11s mesh ID' });
 
     const { el } = dom;
     const isWifi = (row) => row[`${base}.phyname`] === phy;
