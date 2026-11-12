@@ -20,6 +20,7 @@
 
 #include "phy_btle_adv.h"
 #include "bluetooth_ids.h"
+#include "devicetracker.h"
 #include "fmt.h"
 
 namespace {
@@ -535,4 +536,55 @@ void apply_adv(bt_tracked_adv& adv, const bt_adv_decode& d, kis_bt_manuf *btmanu
     }
 
     adv.set_last_time(now);
+}
+
+continuity_device_types::continuity_device_types(device_tracker& devicetracker) {
+    namespace bc = btle_continuity;
+
+    for (size_t k = 1; k < kinds.size(); k++) {
+        const auto kind = static_cast<bc::device_kind>(k);
+        if (kind == bc::device_kind::homekit)
+            continue;
+        kinds[k] = {devicetracker.get_cached_devicetype(bc::device_kind_str(kind)),
+            bc::device_kind_rank(kind)};
+    }
+
+    for (size_t c = 0; c < homekit.size(); c++)
+        homekit[c] = {devicetracker.get_cached_devicetype(
+                bc::homekit_type_str(static_cast<bc::homekit_category>(c))),
+            bc::device_kind_rank(bc::device_kind::homekit)};
+}
+
+uint8_t continuity_device_types::rank_of(const std::shared_ptr<tracker_element_string>& t) const {
+    if (t == nullptr)
+        return 0;
+
+    for (const auto& n : kinds)
+        if (n.type == t)
+            return n.rank;
+
+    for (const auto& n : homekit)
+        if (n.type == t)
+            return n.rank;
+
+    return 0;
+}
+
+void continuity_device_types::apply(kis_tracked_device_base& dev,
+        const btle_continuity::info& i) const {
+    namespace bc = btle_continuity;
+
+    const auto kind = bc::kind_of(i);
+    if (kind == bc::device_kind::none)
+        return;
+
+    const auto& n = kind == bc::device_kind::homekit ?
+        homekit[static_cast<uint16_t>(i.homekit.category) < homekit.size() ?
+            static_cast<uint16_t>(i.homekit.category) : 0] :
+        kinds[static_cast<size_t>(kind)];
+
+    const auto cur = dev.get_tracker_type_string();
+
+    if (n.type != cur && n.rank > rank_of(cur))
+        dev.set_tracker_type_string(n.type);
 }

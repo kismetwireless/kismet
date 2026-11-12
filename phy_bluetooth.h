@@ -384,6 +384,13 @@ protected:
     void apply_adv_decode(kis_tracked_device_base& basedev, bluetooth_tracked_device& btdev,
             const bt_adv_decode& decode, time_t now);
 
+    // Base and tracker types, unless Apple Continuity named the device
+    void set_base_type(kis_tracked_device_base& basedev,
+            const std::shared_ptr<tracker_element_string>& type) {
+        if (!continuity_types->is_continuity_type(basedev.get_tracker_type_string()))
+            basedev.set_tracker_type_string(type);
+    }
+
     // LE advertising goes to the BTLE phy, which registers after this one
     kis_btle_phy *fetch_btle_phy();
     std::atomic<kis_btle_phy *> btle_phy{nullptr};
@@ -410,6 +417,7 @@ protected:
     std::shared_ptr<tracker_element_string> btdev_btle;
     std::shared_ptr<tracker_element_string> btdev_bt;
     std::shared_ptr<tracker_element_string> btdev_tracker;
+    std::unique_ptr<continuity_device_types> continuity_types;
 
     int alert_flipper_ref, alert_trackerfollow_ref;
 

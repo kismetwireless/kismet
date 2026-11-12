@@ -20,6 +20,7 @@
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <string_view>
 
 #include "wire_order.h"
 
@@ -274,6 +275,10 @@ bool decode_manuf_data(const uint8_t *data, size_t len, info& out) {
                 break;
             case msg_type::findmy:
                 ok = vlen == findmy_separated_len || vlen == findmy_near_owner_len;
+                if (ok) {
+                    out.has_findmy_device = true;
+                    out.findmy_device = (v[0] >> 4) & 0x03;
+                }
                 break;
             default:
                 ok = is_presence_type(type);
@@ -502,6 +507,125 @@ const char *device_class_str(uint8_t c) {
             return "Watch";
         default:
             return "Unknown";
+    }
+}
+
+std::string homekit_type_str(homekit_category c) {
+    if (c == homekit_category::unknown)
+        return "HomeKit";
+
+    const char *name = homekit_category_str(c);
+
+    if (std::string_view{name} == "Unknown")
+        return "HomeKit";
+
+    return std::string{"HomeKit "} + name;
+}
+
+device_kind kind_of(const info& i) {
+    const auto seen = [&i](msg_type t) {
+        return (i.seen_types & ((uint32_t) 1 << static_cast<uint8_t>(t))) != 0;
+    };
+
+    if (i.has_findmy_device) {
+        switch (i.findmy_device) {
+            case 1:
+                return device_kind::airtag;
+            case 2:
+                return device_kind::findmy_accessory;
+            case 3:
+                return device_kind::airpods;
+            default:
+                break;
+        }
+    }
+
+    if (i.nearby_action.present && i.nearby_action.type == action_type::ios_setup) {
+        switch (i.nearby_action.device_class) {
+            case 0x2:
+                return device_kind::iphone;
+            case 0x4:
+                return device_kind::ipod;
+            case 0x6:
+                return device_kind::ipad;
+            case 0x8:
+                return device_kind::audio_accessory;
+            case 0xA:
+                return device_kind::mac;
+            case 0xC:
+                return device_kind::apple_tv;
+            case 0xE:
+                return device_kind::watch;
+            default:
+                break;
+        }
+    }
+
+    if (i.nearby_info.present && i.nearby_info.activity == activity_level::watch_on_wrist_unlocked)
+        return device_kind::watch;
+
+    if (i.homekit.present)
+        return device_kind::homekit;
+
+    if (seen(msg_type::proximity_pairing))
+        return device_kind::airpods_beats;
+
+    if (i.has_findmy_device)
+        return device_kind::findmy_device;
+
+    if (i.tethering_source.present)
+        return device_kind::hotspot;
+
+    if (i.airplay_target.present)
+        return device_kind::airplay;
+
+    if (i.airprint.present)
+        return device_kind::airprint;
+
+    if (i.seen_types != 0)
+        return device_kind::continuity;
+
+    return device_kind::none;
+}
+
+const char *device_kind_str(device_kind k) {
+    switch (k) {
+        case device_kind::continuity:
+            return "Apple Continuity";
+        case device_kind::findmy_device:
+            return "Find My";
+        case device_kind::airplay:
+            return "AirPlay";
+        case device_kind::airprint:
+            return "AirPrint";
+        case device_kind::hotspot:
+            return "Apple hotspot";
+        case device_kind::airpods_beats:
+            return "AirPods/Beats";
+        case device_kind::iphone:
+            return "iPhone";
+        case device_kind::ipod:
+            return "iPod";
+        case device_kind::ipad:
+            return "iPad";
+        case device_kind::mac:
+            return "Mac";
+        case device_kind::apple_tv:
+            return "Apple TV";
+        case device_kind::watch:
+            return "Apple Watch";
+        case device_kind::audio_accessory:
+            return "Apple audio accessory";
+        case device_kind::homekit:
+            return "HomeKit";
+        case device_kind::airpods:
+            return "AirPods";
+        case device_kind::airtag:
+            return "AirTag";
+        case device_kind::findmy_accessory:
+            return "Find My accessory";
+        default:
+            return "";
     }
 }
 
