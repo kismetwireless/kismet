@@ -185,6 +185,10 @@ public:
         // Distinct tag index of each rule's tags, for de-duplicating per device
         std::vector<std::vector<uint32_t>> tag_ids;
         size_t tag_count;
+
+        // Rules switched off by the user, left out of rs, each with the number of
+        // rules of the whole set ahead of it
+        std::vector<std::pair<size_t, std::unique_ptr<devicerules::rule_def>>> disabled;
     };
 
     // A view change is applied from the device's rule state at the time, not from
@@ -213,6 +217,12 @@ public:
     // parse_error, leaving the old rules in place.  saved says whether they were written
     // to the API rules file, with save_err when that failed.
     std::shared_ptr<active_set> set_api_rules(const std::string& text, bool& saved, std::string& save_err);
+
+    // Switch a rule of the current set off or back on; a rule that's off isn't checked,
+    // and its tags, color, view, alerts and webhooks go with it.  The choice is saved
+    // and kept across restarts.  Throws when there's no such rule, or the rules don't
+    // build without it.  False with save_err when the choice couldn't be saved.
+    bool set_rule_enabled(const std::string& name, bool enabled, std::string& save_err);
 
 protected:
     kis_mutex mutex;
@@ -246,7 +256,15 @@ protected:
     bool api_save;
     std::string api_file;
 
-    // Configured rules, then disables, then the given API rules
+    // Rules the user switched off, by name, kept in disabled_file; a name with no
+    // rule stays, for when the rule comes back.  Needs set_mutex.
+    std::vector<std::string> user_disabled;
+    std::string disabled_file;
+    void load_user_disabled();
+    bool save_user_disabled(std::string& err);
+
+    // Configured rules, then disables, then the given API rules, less the rules the
+    // user switched off
     std::shared_ptr<active_set> build_set(const std::string& api);
     bool save_api(const std::string& text, std::string& err);
 
@@ -325,10 +343,12 @@ protected:
 
     std::shared_ptr<tracker_element> rules_endpoint();
     std::shared_ptr<tracker_element> sources_endpoint();
-    std::shared_ptr<tracker_element_map> rule_record(const devicerules::rule_def& rd, const rule_source& src);
+    std::shared_ptr<tracker_element_map> rule_record(const devicerules::rule_def& rd, const rule_source& src,
+            bool enabled = true);
     std::shared_ptr<tracker_element_map> sort_record(const devicerules::sort_def& sd, const rule_source& src);
     void check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    void enable_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void test_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int pack_comp_device;

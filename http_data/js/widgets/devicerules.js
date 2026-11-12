@@ -1,6 +1,7 @@
 // The server's device rules and sorts, grouped by what defined them: rules
 // files, config lines, plugins and the API.  Rules that tag devices or collect
-// them in a view are marked, and can be listed on their own.
+// them in a view are marked, and can be listed on their own.  Each rule has a
+// switch: a rule that's off isn't checked, and the server remembers the choice.
 //
 //   openRules()
 
@@ -10,6 +11,7 @@ import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
 import { dialog } from './dialog.js';
 import { showPane } from './panes.js';
+import { refreshAll } from './devicetable.js';
 
 let openWindow = null;
 
@@ -30,6 +32,8 @@ function groupTitle(g) {
 
 const tagsOf = (r) => r['kismet.devicerules.rule.tags'] ?? [];
 const viewOf = (r) => r['kismet.devicerules.rule.view'] || null;
+// Servers without the switch don't say, and all of their rules are on
+const enabledOf = (r) => r['kismet.devicerules.rule.enabled'] !== 0;
 
 // Which rules each filter shows
 const shows = {
@@ -43,9 +47,17 @@ function showView(id) {
     showPane('devices');
 }
 
-function ruleEntry(r) {
+function ruleEntry(r, onToggle) {
     const tags = tagsOf(r);
     const view = viewOf(r);
+    const on = enabledOf(r);
+    const name = r['kismet.devicerules.rule.name'];
+    const toggle = el('input', { type: 'checkbox', class: 'dr-toggle', 'aria-label': `Use the rule ${name}`,
+        title: on ? 'Switch this rule off' : 'Switch this rule on',
+        // Don't open the entry as well
+        onclick: (e) => e.stopPropagation(),
+        onchange: () => onToggle(name, toggle.checked, toggle) });
+    toggle.checked = on;
     const flags = [
         r['kismet.devicerules.rule.live'] ? 'live' : null,
         r['kismet.devicerules.rule.alert'] ? 'alert' : null,
@@ -54,12 +66,13 @@ function ruleEntry(r) {
     const swatch = color ? el('span', { class: 'dr-color' }) : null;
     if (swatch)
         swatch.style.setProperty('--tag', color);
-    return el('details', { class: 'dr-entry' },
-        el('summary', {}, swatch, r['kismet.devicerules.rule.name'],
+    return el('details', { class: on ? 'dr-entry' : 'dr-entry dr-off' },
+        el('summary', {}, toggle, swatch, name,
+            on ? null : el('span', { class: 'dr-mark' }, 'Off'),
             tags.length ? el('span', { class: 'dr-mark', title: 'Tags the devices it matches' }, tags.length === 1 ? 'Tag' : 'Tags',
                 el('span', { class: 'rule-tags' }, tags.map((t) => el('span', { class: 'rule-tag' }, t)))) : null,
             view ? el('span', { class: 'dr-mark', title: 'Collects the devices it matches in a view' }, 'View',
-                el('button', { type: 'button', class: 'dr-view', title: 'Show this view in the device list',
+                el('button', { type: 'button', class: 'dr-view', title: 'Show this view in the device list', disabled: !on,
                     onclick: (e) => {
                         e.preventDefault();
                         showView(view);
@@ -84,10 +97,11 @@ const counts = (rules, sorts) => [rules && plural(rules, 'rule'), sorts && plura
 function marks(rules) {
     const tags = rules.filter(shows.tags).length;
     const views = rules.filter(shows.views).length;
-    return [tags && `${tags} tagging`, views && plural(views, 'view')].filter(Boolean).join(', ');
+    const off = rules.filter((r) => !enabledOf(r)).length;
+    return [tags && `${tags} tagging`, views && plural(views, 'view'), off && `${off} off`].filter(Boolean).join(', ');
 }
 
-function groupSection(g, show) {
+function groupSection(g, show, onToggle) {
     const all = g['kismet.devicerules.source.rules'] ?? [];
     const rules = all.filter(shows[show]);
     // Sorts and replacements are only listed with every rule
@@ -104,7 +118,7 @@ function groupSection(g, show) {
     return el('section', {},
         el('div', { class: 'dr-head' }, groupTitle(g), el('span', { class: 'muted' }, count)),
         shownFiles.length ? el('p', { class: 'muted' }, 'From ', el('span', { class: 'mono' }, shownFiles.join(', '))) : null,
-        rules.length ? el('div', { class: 'dr-list' }, rules.map(ruleEntry)) : null,
+        rules.length ? el('div', { class: 'dr-list' }, rules.map((r) => ruleEntry(r, onToggle))) : null,
         sorts.length ? el('h4', {}, 'Sorts') : null,
         sorts.length ? el('div', { class: 'dr-list' }, sorts.map(sortEntry)) : null,
         show === 'all' ? replaced.map((x) => el('p', { class: 'muted dr-replaced' }, x)) : null);
@@ -147,7 +161,7 @@ export function openRules() {
             b.classList.toggle('active', b.dataset.id === show);
             b.setAttribute('aria-pressed', String(b.dataset.id === show));
         }
-        const sections = groups.map((g) => groupSection(g, show)).filter(Boolean);
+        const sections = groups.map((g) => groupSection(g, show, toggleRule)).filter(Boolean);
         list.replaceChildren(...sections);
         if (!sections.length && groups.length)
             list.append(el('p', { class: 'muted' }, show === 'tags' ? 'No rules tag devices.' : 'No rules make views.'));
@@ -156,6 +170,25 @@ export function openRules() {
         status.textContent = groups.length ?
             `${counts(rules.length, sorts)} from ${plural(groups.length, 'source')}${marks(rules) ? `; ${marks(rules)}` : ''}` :
             'The server has no device rules';
+    }
+
+    async function toggleRule(name, enabled, input) {
+        input.disabled = true;
+        try {
+            const r = await api.post('devices/rules/enable.cmd', { rule: name, enabled });
+            if (!r?.ok)
+                throw new Error(r?.error ?? 'The server did not change the rule');
+            await read();
+            if (r.saved === false)
+                status.textContent = `The server could not save this: ${r.save_error ?? 'unknown error'}`;
+            // Tags, row colors and views follow the rules
+            document.dispatchEvent(new CustomEvent('kismet-rules-changed'));
+            refreshAll();
+        } catch (err) {
+            input.checked = !enabled;
+            input.disabled = false;
+            status.textContent = `Could not switch ${name} ${enabled ? 'on' : 'off'}: ${err.message}`;
+        }
     }
 
     async function read() {
