@@ -291,6 +291,20 @@ inline void kis_lock_order_violation(const char *what, std::atomic<bool>& report
     } while (0)
 
 // Base of all device tracking under the new trackerentry system
+// A display type from device_tracker::get_cached_display_type; kept apart from the
+// real type strings, which carry another field id
+struct device_display_type {
+    std::shared_ptr<tracker_element_string> type;
+
+    explicit operator bool() const {
+        return type != nullptr;
+    }
+
+    bool operator==(const device_display_type& o) const {
+        return type == o.type;
+    }
+};
+
 class kis_tracked_device_base : public tracker_component {
 public:
     kis_tracked_device_base() :
@@ -326,6 +340,7 @@ public:
 
             __ImportField(commonname, p);
             __ImportField(type_string, p);
+            __ImportId(display_type_id, p);
             __ImportField(basic_type_set,p );
             __ImportField(crypt_string, p);
             __ImportField(basic_crypt_set, p);
@@ -485,6 +500,53 @@ public:
     }
 
     __ProxyGet(type_string, std::string, std::string, type_string);
+
+    // What the device is shown as, such as "Wi-Fi AP" or "Apple Watch"; the type is the
+    // real type ("Wi-Fi", "BTLE") which logs and filters work on.  Shared per name.
+    device_display_type get_display_type() const {
+        return device_display_type{display_type};
+    }
+
+    void set_display_type(const device_display_type& in) {
+        if (display_type == in.type)
+            return;
+
+        if (display_type != nullptr)
+            erase(display_type);
+
+        display_type = in.type;
+
+        if (display_type != nullptr)
+            insert(display_type);
+    }
+
+    // The display type when there is one, the real type otherwise
+    std::string get_display_type_string() const {
+        if (display_type != nullptr)
+            return display_type->get();
+        return type_string->get();
+    }
+
+    // Display types set by the basic type, as the type string helpers below
+    void set_display_type_if(const device_display_type& in, uint64_t if_set) {
+        if (get_basic_type_set() & if_set)
+            set_display_type(in);
+    }
+
+    void set_display_type_ifonly(const device_display_type& in, uint64_t if_set) {
+        if (get_basic_type_set() == if_set)
+            set_display_type(in);
+    }
+
+    void set_display_type_ifnot(const device_display_type& in, uint64_t if_set) {
+        if ((get_basic_type_set() & if_set) != if_set)
+            set_display_type(in);
+    }
+
+    void set_display_type_ifnotany(const device_display_type& in, uint64_t if_set) {
+        if (!(get_basic_type_set() & if_set))
+            set_display_type(in);
+    }
 
     // Use a function on the following so that we don't force a lookup / cache cycle unless we need the data
 
@@ -777,6 +839,10 @@ protected:
     // This can be set per-phy and is treated as a printable interpretation.
     // This should be empty if the phy layer is unable to add something intelligent
     std::shared_ptr<tracker_element_string> type_string;
+
+    // Shown in place of the type when set
+    std::shared_ptr<tracker_element_string> display_type;
+    int display_type_id;
 
     // Basic phy-neutral type for sorting and classification
     std::shared_ptr<tracker_element_uint64> basic_type_set;

@@ -917,7 +917,7 @@ protected:
 
     int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
 
-    std::shared_ptr<tracker_element_string> devtype_tracker;
+    device_display_type devtype_tracker;
     std::unique_ptr<continuity_device_types> continuity_types;
 };
 

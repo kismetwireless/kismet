@@ -352,8 +352,7 @@ protected:
     int prov_source_entry_id;
 
     // Cached device type strings
-    std::shared_ptr<tracker_element_string> devtype_cell;
-    std::shared_ptr<tracker_element_string> devtype_cell_partial;
+    device_display_type devtype_cell_partial;
 
     // PCI+EARFCN → full-identity device key lookup.
     // Populated when a full-identity observation includes PCI+EARFCN

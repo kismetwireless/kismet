@@ -1509,9 +1509,66 @@ std::shared_ptr<device_rules::active_set> device_rules::build_set(const std::str
         off.emplace(at, pos, std::move(rd));
     }
 
+    warn_display_types(*rs);
+
     auto as = finish_set(std::move(rs), api);
     as->disabled = std::move(off);
     return as;
+}
+
+namespace {
+
+// The string literals compared to 'type' with == or != in a rule's text
+std::vector<std::string> type_literals(const std::string& src) {
+    std::vector<std::string> r;
+    const auto word = [](char c) {
+        return std::isalnum((unsigned char) c) || c == '_' || c == '.' || c == '/';
+    };
+
+    for (size_t p = src.find("type"); p != std::string::npos; p = src.find("type", p + 4)) {
+        if ((p > 0 && word(src[p - 1])) || (p + 4 < src.size() && word(src[p + 4])))
+            continue;
+
+        size_t q = p + 4;
+        while (q < src.size() && std::isspace((unsigned char) src[q]))
+            q++;
+        if (q + 1 >= src.size() || (src.compare(q, 2, "==") != 0 && src.compare(q, 2, "!=") != 0))
+            continue;
+        q += 2;
+        while (q < src.size() && std::isspace((unsigned char) src[q]))
+            q++;
+        if (q >= src.size() || src[q] != '"')
+            continue;
+
+        const auto e = src.find('"', q + 1);
+        if (e == std::string::npos || e - q - 1 > 64)
+            continue;
+        r.push_back(src.substr(q + 1, e - q - 1));
+    }
+
+    return r;
+}
+
+}
+
+void device_rules::warn_display_types(const devicerules::ruleset& rs) {
+    for (size_t i = 0; i < rs.size(); i++) {
+        const auto& rd = rs.rule(i);
+
+        for (const auto& lit : type_literals(rd.source)) {
+            if (!devicetracker->is_display_type_name(lit))
+                continue;
+            if (!warned_display_types.insert(rd.name + "\n" + lit).second)
+                continue;
+            if (warned_display_types.size() > 256)
+                return;
+
+            _MSG_ERROR("Device rule '{}' ({}) compares type to \"{}\", which is a display type; "
+                    "devices have the type of their phy, such as Wi-Fi or BTLE, and are shown as "
+                    "\"{}\".  Use display_type == \"{}\" instead.", rd.name.substr(0, 64),
+                    rd.origin.substr(0, 128), lit, lit, lit);
+        }
+    }
 }
 
 void device_rules::load_user_disabled() {

@@ -37,6 +37,7 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
+#include "devicetracker_component.h"
 
 #include "bluetooth_parsers/btle_adtypes.h"
 #include "bluetooth_parsers/btle_continuity.h"
@@ -923,29 +924,28 @@ void apply_adv(bt_tracked_adv& adv, const bt_adv_decode& d, kis_bt_manuf *btmanu
         kis_bt_oid *btoid, time_t now);
 
 class device_tracker;
-class kis_tracked_device_base;
 
-// Device types named from Apple Continuity messages, shared by the BTLE and Bluetooth phys
+// Display types named from Apple Continuity messages, shared by the BTLE and Bluetooth phys
 class continuity_device_types {
 public:
     explicit continuity_device_types(device_tracker& devicetracker);
 
-    // Names the device when its messages say more than its current type does; callers
-    // hold the device list lock
+    // Shows the device by what its messages say it is, when that says more than its
+    // current display type; callers hold the device list lock
     void apply(kis_tracked_device_base& dev, const btle_continuity::info& i) const;
 
-    // Set by apply(); the phys' base and tracker types don't replace these
-    bool is_continuity_type(const std::shared_ptr<tracker_element_string>& t) const {
+    // Set by apply(); the phys' tracker display type doesn't replace these
+    bool is_continuity_type(const device_display_type& t) const {
         return rank_of(t) != 0;
     }
 
 private:
     struct named {
-        std::shared_ptr<tracker_element_string> type;
+        device_display_type type;
         uint8_t rank = 0;
     };
 
-    uint8_t rank_of(const std::shared_ptr<tracker_element_string>& t) const;
+    uint8_t rank_of(const device_display_type& t) const;
 
     std::array<named, static_cast<size_t>(btle_continuity::device_kind::count)> kinds;
     // HomeKit accessories by category, the low 5 bits

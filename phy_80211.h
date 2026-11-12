@@ -802,7 +802,7 @@ protected:
     unsigned int infer_min_frames;
     time_t infer_min_span;
     dot11_ctrl_candidates ctrl_candidates;
-    std::shared_ptr<tracker_element_string> devtype_inferred_client;
+    device_display_type devtype_inferred_client;
 
     int signal_too_loud_threshold;
 
@@ -847,14 +847,14 @@ protected:
     // Do we associate devices by bssts?
     bool associate_by_bssts;
 
-    std::shared_ptr<tracker_element_string> devtype_adhoc;
-    std::shared_ptr<tracker_element_string> devtype_ap;
-    std::shared_ptr<tracker_element_string> devtype_client;
-    std::shared_ptr<tracker_element_string> devtype_wds_dev;
-    std::shared_ptr<tracker_element_string> devtype_wds;
-    std::shared_ptr<tracker_element_string> devtype_wds_ap;
-    std::shared_ptr<tracker_element_string> devtype_bridged;
-    std::shared_ptr<tracker_element_string> devtype_device;
+    device_display_type devtype_adhoc;
+    device_display_type devtype_ap;
+    device_display_type devtype_client;
+    device_display_type devtype_wds_dev;
+    device_display_type devtype_wds;
+    device_display_type devtype_wds_ap;
+    device_display_type devtype_bridged;
+    device_display_type devtype_device;
 
     std::shared_ptr<dot11_tracked_device> dot11_builder;
 };

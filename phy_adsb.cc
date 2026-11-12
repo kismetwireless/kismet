@@ -154,6 +154,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    devicetracker->register_type_alias("ADSB Transmitter", "ADSB");
     datasourcetracker = 
         Globalreg::fetch_mandatory_global_as<datasource_tracker>();
 
@@ -680,7 +681,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
 
     basedev->set_manuf(rtl_manuf);
 
-    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+    basedev->set_display_type(devicetracker->get_cached_display_type("Airplane"));
     basedev->set_devicename(fmt::format("ADSB {}", dn));
 
     // Generate the adsb device record
@@ -772,29 +773,29 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
         switch (icao_record->get_atype_short()) {
             case '1':
             case '7':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Glider"));
                 break;
             case '2':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Balloon"));
                 break;
             case '3':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Blimp"));
                 break;
             case '4':
             case '5':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Airplane"));
                 break;
             case '6':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Helicopter"));
                 break;
             case '8':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Parachute"));
                 break;
             case '9':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Gyroplane"));
                 break;
             default:
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Aircraft"));
                 break;
         }
 
@@ -873,7 +874,7 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
     if (new_device) {
         basedev->set_manuf(rtl_manuf);
 
-        basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+        basedev->set_display_type(devicetracker->get_cached_display_type("Airplane"));
         basedev->set_devicename(fmt::format("ADSB {}", dn));
     }
 
@@ -891,29 +892,29 @@ bool kis_adsb_phy::json_to_rtl(nlohmann::json& json, const std::shared_ptr<kis_p
         switch (icao->get_atype_short()) {
             case '1':
             case '7':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Glider"));
                 break;
             case '2':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Balloon"));
                 break;
             case '3':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Blimp"));
                 break;
             case '4':
             case '5':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Airplane"));
                 break;
             case '6':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Helicopter"));
                 break;
             case '8':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Parachute"));
                 break;
             case '9':
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Gyroplane"));
                 break;
             default:
-                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
+                basedev->set_display_type(devicetracker->get_cached_display_type("Aircraft"));
                 break;
         }
 

@@ -148,7 +148,8 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     btdev_bredr = devicetracker->get_cached_devicetype("BR/EDR");
     btdev_btle = devicetracker->get_cached_devicetype("BTLE");
     btdev_bt = devicetracker->get_cached_devicetype("BT");
-    btdev_tracker = devicetracker->get_cached_devicetype("BTLE Tracker");
+    devicetracker->register_type_alias("Bluetooth Device", "Bluetooth");
+    btdev_tracker = devicetracker->get_cached_display_type("BTLE Tracker");
     continuity_types = std::make_unique<continuity_device_types>(*devicetracker);
 
     alert_trackerfollow_ref = activate_tracker_follow_alert(alertracker, phyid);
@@ -297,15 +298,15 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         if (devtype_j.is_number()) {
             switch (devtype_j.get<unsigned int>()) {
                 case 0:
-                    btphy->set_base_type(*basedev, btphy->btdev_bredr);
+                    basedev->set_tracker_type_string(btphy->btdev_bredr);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
                     break;
                 case 1:
-                    btphy->set_base_type(*basedev, btphy->btdev_btle);
+                    basedev->set_tracker_type_string(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
                     break;
                 case 2: {
-                    btphy->set_base_type(*basedev, btphy->btdev_btle);
+                    basedev->set_tracker_type_string(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
 
                     // LE random
@@ -316,7 +317,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     break;
                 }
                 default:
-                    btphy->set_base_type(*basedev, btphy->btdev_bt);
+                    basedev->set_tracker_type_string(btphy->btdev_bt);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
                     break;
             }
@@ -525,7 +526,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
 
             apply_tracker_frames(*tracker, frames, in_pack->ts.tv_sec);
 
-            btphy->set_base_type(*basedev, btphy->btdev_tracker);
+            btphy->set_display_type(*basedev, btphy->btdev_tracker);
 
             if (tracker_follow_check(*tracker, in_pack->gps_info, in_pack->ts.tv_sec) &&
                     btphy->alertracker->potential_alert(btphy->alert_trackerfollow_ref)) {
@@ -719,7 +720,8 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             btdev->set_devicename(munge_to_printable(devname_j));
 
         if (devtype_j.is_string())
-            btphy->set_base_type(*btdev, btphy->devicetracker->get_cached_devicetype(munge_to_printable(devtype_j)));
+            btphy->set_display_type(*btdev, btphy->devicetracker->get_cached_display_type(
+                        munge_to_printable(devtype_j).substr(0, 64)));
 
         auto btdev_bluetooth =
             btdev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
@@ -732,7 +734,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
                         censor::name(btdev->get_devicename()));
 
             if (devtype_j.is_string())
-                newdevstr = censor::format("{} {}", newdevstr, btdev->get_type_string());
+                newdevstr = censor::format("{} {}", newdevstr, btdev->get_display_type_string());
 
             _MSG_INFO("{}", newdevstr);
 
@@ -1147,7 +1149,7 @@ void kis_bluetooth_phy::apply_hci_advdata(const std::shared_ptr<kis_packet>& in_
         auto tracker = btdev.get_tracker();
 
         apply_tracker_frames(*tracker, frames, in_pack->ts.tv_sec);
-        set_base_type(basedev, btdev_tracker);
+        set_display_type(basedev, btdev_tracker);
 
         if (tracker_follow_check(*tracker, in_pack->gps_info, in_pack->ts.tv_sec) &&
                 alertracker->potential_alert(alert_trackerfollow_ref)) {
@@ -1252,7 +1254,7 @@ std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::hci_device(
 
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-    set_base_type(*basedev, btdev_bredr);
+    basedev->set_tracker_type_string(btdev_bredr);
     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
 
     return btdev;
@@ -1610,16 +1612,16 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
     if (btpi->type == 0) {
-        btphy->set_base_type(*basedev, btphy->btdev_bredr);
+        basedev->set_tracker_type_string(btphy->btdev_bredr);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
     } else if (btpi->type == 1) {
-        btphy->set_base_type(*basedev, btphy->btdev_btle);
+        basedev->set_tracker_type_string(btphy->btdev_btle);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
     } else if (btpi->type == 2) {
-        btphy->set_base_type(*basedev, btphy->btdev_btle);
+        basedev->set_tracker_type_string(btphy->btdev_btle);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
     } else {
-        btphy->set_base_type(*basedev, btphy->btdev_bt);
+        basedev->set_tracker_type_string(btphy->btdev_bt);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
     }
 

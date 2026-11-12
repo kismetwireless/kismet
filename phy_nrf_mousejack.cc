@@ -290,7 +290,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
                 keys ? "Logitech keyboard" : mouse ? "Logitech mouse" : nrf->get_kind().empty() ? "Logitech device" : nrf->get_kind();
 
             nrf->set_kind(kind);
-            device->set_tracker_type_string(mphy->devicetracker->get_cached_devicetype(kind));
+            device->set_display_type(mphy->devicetracker->get_cached_display_type(kind));
         }
 
         if (nrf->get_plaintext_keys())

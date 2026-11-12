@@ -40,6 +40,12 @@ export const crypt_version_wpa3 = (1 << 29);
 export const crypt_l3_mask = 0x300004;
 export const crypt_l2_mask = 0xFBFA;
 
+// Display type when there is one, else the real type
+function dot11DeviceType(opts) {
+    var d = kismet.ObjectByString(opts['data'], "kismet.device.base.display_type");
+    return kismet.censorString(d || opts['value']);
+}
+
 // Some hex and ascii manipulation
 function hexstr_to_bytes(hex) {
     let bytes = [];
@@ -218,15 +224,15 @@ export const CryptToHumanReadable = (cryptset) => {
 
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'IEEE802.11') {
-        if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi AP') {
+        if (row['original_data']['kismet.device.base.display_type'] === 'Wi-Fi AP') {
             return '<i class="fa fa-wifi"></i>';
         }
 
-        if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi Client') {
+        if (row['original_data']['kismet.device.base.display_type'] === 'Wi-Fi Client') {
             return '<i class="fa fa-computer"></i>';
         }
 
-        if (row['original_data']['kismet.device.base.type'] === 'Wi-Fi Bridged') {
+        if (row['original_data']['kismet.device.base.display_type'] === 'Wi-Fi Bridged') {
             return '<i class="fa fa-ethernet"></i>';
         }
 
@@ -2294,6 +2300,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 'kismet.device.base.macaddr',
                 'kismet.device.base.key',
                 'kismet.device.base.type',
+                'kismet.device.base.display_type',
                 'kismet.device.base.commonname',
                 'kismet.device.base.manuf',
                 'dot11.device/dot11.device.client_map',
@@ -2369,8 +2376,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         {
                             field: "kismet.device.base.type",
                             title: "Type",
-                            empty: "<i>Unknown</i>"
-
+                            empty: "<i>Unknown</i>",
+                            draw: dot11DeviceType,
                         },
                         {
                             field: "kismet.device.base.manuf",
@@ -3393,6 +3400,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 'kismet.device.base.macaddr',
                 'kismet.device.base.key',
                 'kismet.device.base.type',
+                'kismet.device.base.display_type',
                 'kismet.device.base.commonname',
                 'kismet.device.base.manuf',
                 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
@@ -3471,6 +3479,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             title: "Type",
                             liveupdate: true,
                             empty: "<i>Unknown</i>",
+                            draw: dot11DeviceType,
                         },
                         {
                             field: 'meta_advertised_crypto',
@@ -3590,6 +3599,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             field: 'kismet.device.base.type',
                             title: "Type",
                             empty: "<i>Unknown</i>",
+                            draw: dot11DeviceType,
                         },
                         {
                             field: 'meta_advertised_crypto',
@@ -3683,6 +3693,7 @@ AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             field: 'kismet.device.base.type',
                             title: "Type",
                             empty: "<i>Unknown</i>",
+                            draw: dot11DeviceType,
                         },
                     ]
                 });

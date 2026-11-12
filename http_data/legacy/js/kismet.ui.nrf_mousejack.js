@@ -13,7 +13,7 @@ var nrfKeyboardAndMouse =
 
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'NrfMousejack') {
-        var type = row['original_data']['kismet.device.base.type'] || '';
+        var type = row['original_data']['kismet.device.base.display_type'] || '';
         var mouse = type.indexOf('mouse') >= 0, keyboard = type.indexOf('keyboard') >= 0;
 
         if (mouse && !keyboard)

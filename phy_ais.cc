@@ -752,15 +752,14 @@ bool kis_ais_phy::process_ais_json(nlohmann::json& json, const std::shared_ptr<k
         aisdev->set_station_class("Unknown");
 
         basedev->set_manuf(ais_manuf);
-        basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("AIS Station"));
+        basedev->set_display_type(devicetracker->get_cached_display_type("AIS Station"));
     }
 
     aisdev->set_last_msg_type(d.msg_type);
 
     if (d.station_class.has_value() && aisdev->get_station_class() != *d.station_class) {
         aisdev->set_station_class(*d.station_class);
-        basedev->set_tracker_type_string(
-                devicetracker->get_cached_devicetype(ais_class_to_devicetype(*d.station_class)));
+        basedev->set_display_type(devicetracker->get_cached_display_type(ais_class_to_devicetype(*d.station_class)));
     }
 
     if (d.name.has_value())

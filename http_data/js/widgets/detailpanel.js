@@ -13,6 +13,7 @@ const redrawSeconds = 1;
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
 import * as censor from '../core/censor.js';
+import { deviceType } from '../core/format.js';
 import * as settings from '../core/settings.js';
 import { deviceDetails, deviceDetailFields } from '../registry/devices.js';
 import { detailFields } from './detailfields.js';
@@ -87,7 +88,7 @@ export function openDevice(key) {
         const scrollTop = d.body.scrollTop;
         const base = 'kismet.device.base';
         d.setTitle(device[`${base}.username`] || device[`${base}.commonname`] || device[`${base}.macaddr`] || 'Device');
-        subtitle.textContent = [device[`${base}.phyname`], device[`${base}.type`], device[`${base}.macaddr`]]
+        subtitle.textContent = [device[`${base}.phyname`], deviceType(device), device[`${base}.macaddr`]]
             .filter(Boolean).join(' · ');
 
         const matching = deviceDetails.list().filter((s) => {

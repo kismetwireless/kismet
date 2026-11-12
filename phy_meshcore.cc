@@ -206,19 +206,19 @@ namespace {
         return a;
     }
 
-    std::shared_ptr<tracker_element_string> node_type_string(const std::shared_ptr<device_tracker>& dt,
+    device_display_type node_type_string(const std::shared_ptr<device_tracker>& dt,
             meshcore::node_type t) {
         switch (t) {
             case meshcore::node_type::chat:
-                return dt->get_cached_devicetype("MeshCore Companion");
+                return dt->get_cached_display_type("MeshCore Companion");
             case meshcore::node_type::repeater:
-                return dt->get_cached_devicetype("MeshCore Repeater");
+                return dt->get_cached_display_type("MeshCore Repeater");
             case meshcore::node_type::room:
-                return dt->get_cached_devicetype("MeshCore Room Server");
+                return dt->get_cached_display_type("MeshCore Room Server");
             case meshcore::node_type::sensor:
-                return dt->get_cached_devicetype("MeshCore Sensor");
+                return dt->get_cached_display_type("MeshCore Sensor");
             default:
-                return dt->get_cached_devicetype("MeshCore");
+                return {};
         }
     }
 }
@@ -512,7 +512,7 @@ std::shared_ptr<kis_tracked_device_base> kis_meshcore_phy::update_node(const std
 
     if (new_device) {
         basedev->set_manuf(generic_manuf);
-        basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("MeshCore"));
+        basedev->set_display_type({});
         basedev->set_devicename(fmt::format("MeshCore {}", to_hex(pubkey.substr(0, 4))));
     }
 
@@ -751,7 +751,7 @@ int kis_meshcore_phy::packet_handler(CHAINCALL_PARMS) {
     node->set_advert_hops(flood ? f->path_count : 0);
     node->set_node_type(static_cast<uint8_t>(advert->type));
 
-    source_dev->set_tracker_type_string(node_type_string(mphy->devicetracker, advert->type));
+    source_dev->set_display_type(node_type_string(mphy->devicetracker, advert->type));
 
     if (!advert->name.empty()) {
         node->set_node_name(advert->name);

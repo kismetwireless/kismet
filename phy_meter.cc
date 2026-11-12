@@ -40,6 +40,7 @@ kis_meter_phy::kis_meter_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    devicetracker->register_type_alias("AMR Meter", "Meter");
 
     pack_comp_json =
         packetchain->register_packet_component("JSON");
@@ -278,7 +279,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
         basedev->set_manuf(meter_manuf);
 
-        basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
+        basedev->set_display_type({});
 
         basedev->insert(meterdev);
 
@@ -287,22 +288,22 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
 
         if (decoded_type == 1) {
             meterdev->set_meter_type("Electric");
-            basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Electric Meter"));
+            basedev->set_display_type(devicetracker->get_cached_display_type("Electric Meter"));
         } else if (decoded_type == 2) {
             meterdev->set_meter_type("Gas");
-            basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gas Meter"));
+            basedev->set_display_type(devicetracker->get_cached_display_type("Gas Meter"));
         } else if (decoded_type == 3) {
             meterdev->set_meter_type("Water");
-            basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Water Meter"));
+            basedev->set_display_type(devicetracker->get_cached_display_type("Water Meter"));
         } else {
             meterdev->set_meter_type("Meter");
-            basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Meter"));
+            basedev->set_display_type({});
         }
 
         basedev->set_devicename(fmt::format("{}-{}", meterdev->get_meter_type(), decoded_id));
 
         _MSG_INFO("Detected new meter {} id {}",
-                basedev->get_type_string(), censor::ident(meterdev->get_meter_id()));
+                basedev->get_display_type_string(), censor::ident(meterdev->get_meter_id()));
     }
 
     meterdev->get_model_vec()->insert(model_j, nullptr);

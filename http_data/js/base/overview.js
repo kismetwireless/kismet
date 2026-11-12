@@ -218,7 +218,8 @@ export function register(kismet) {
                 update(data) {
                     if (!data.devices)
                         return;
-                    bars.update(tally(data.devices, 'type', 8, (v) => !v).map((t, i) => ({ ...t, color: t.color ?? series(i) })));
+                    const shown = data.devices.map((d) => ({ type: d.display || d.type }));
+                    bars.update(tally(shown, 'type', 8, (v) => !v).map((t, i) => ({ ...t, color: t.color ?? series(i) })));
                     note.textContent = `${format.count(data.devices.length)} devices ${windowNote(data)}`;
                 },
             };
@@ -266,7 +267,7 @@ export function register(kismet) {
                         return;
                     const counts = new Map();
                     for (const d of data.devices) {
-                        if (d.phy !== 'IEEE802.11' || !String(d.type ?? '').includes('AP') || !d.crypt)
+                        if (d.phy !== 'IEEE802.11' || !String(d.display ?? '').includes('AP') || !d.crypt)
                             continue;
                         const s = securityOf(d.crypt);
                         counts.set(s, (counts.get(s) ?? 0) + 1);
@@ -478,7 +479,7 @@ export function register(kismet) {
                         const name = d[`${base}.commonname`];
                         r.name.textContent = name && name !== mac ? name : mac;
                         r.name.title = `${name && name !== mac ? `${name} (${mac})` : mac}: open this device`;
-                        r.type.textContent = d[`${base}.type`] || d[`${base}.phyname`] || '';
+                        r.type.textContent = format.deviceType(d) || d[`${base}.phyname`] || '';
                         r.rate.textContent = `${rate >= 10 ? format.count(Math.round(rate)) : rate.toFixed(1)}/s`;
                         r.graph.replaceChildren(barGraph(minute.length ? minute : new Array(60).fill(0),
                             { title: 'Packets per second over the last minute' }));

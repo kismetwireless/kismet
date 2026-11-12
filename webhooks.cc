@@ -81,6 +81,7 @@ constexpr const char *default_fields[] = {
     "kismet.device.base.commonname",
     "kismet.device.base.phyname",
     "kismet.device.base.type",
+    "kismet.device.base.display_type",
     "kismet.device.base.manuf",
     "kismet.device.base.channel",
     "kismet.device.base.frequency",

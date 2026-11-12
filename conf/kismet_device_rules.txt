@@ -58,9 +58,9 @@
 #   nested fields joined with '/' (no spaces), such as
 #   kismet.device.base.signal/kismet.common.signal.last_signal.  A path through a list
 #   or map of records matches when any record matches.  Short names: mac, name, phy,
-#   type, manuf, crypt, channel, frequency, packets, datasize, first_time, last_time,
-#   mod_time, num_alerts, signal, min_signal, max_signal, seenby, location (the
-#   average location) and last_location.
+#   type, display_type, manuf, crypt, channel, frequency, packets, datasize,
+#   first_time, last_time, mod_time, num_alerts, signal, min_signal, max_signal,
+#   seenby, location (the average location) and last_location.
 #
 #   Numbers compare with == != < <= > >=, and take + - * / % (put spaces around '/'
 #   for division).  Durations such as 30s, 5m, 2h and 1d are seconds; 'now' is the
@@ -69,8 +69,12 @@
 #   a location doesn't match.
 #
 #   Strings compare with == and !=, or with contains, icontains (any case),
-#   startswith, endswith and matches (a PCRE regex), against a "string".  The
-#   device type matches in any case: type == "wi-fi ap" matches "Wi-Fi AP".
+#   startswith, endswith and matches (a PCRE regex), against a "string".
+#
+#   type is the device's real type, which is its phy's: "Wi-Fi", "BTLE", "BR/EDR",
+#   "ADSB" and so on.  display_type is what it is shown as, such as "Wi-Fi AP",
+#   "Apple Watch" or "Airplane", and is only present when it says more than the
+#   type.  Both match in any case: display_type == "wi-fi ap" matches "Wi-Fi AP".
 #
 #   MAC addresses are written aa:bb:cc:dd:ee:ff, with an optional mask as /24 or
 #   /ff:ff:ff:00:00:00; a short address such as aa:bb:cc matches the prefix.
@@ -133,7 +137,7 @@
 #
 # rule open-ap {
 #     description "Open Wi-Fi access points"
-#     when phy == "IEEE802.11" and type == "Wi-Fi AP" and crypt == "Open"
+#     when type == "Wi-Fi" and display_type == "Wi-Fi AP" and crypt == "Open"
 #     tag "open"
 # }
 #

@@ -117,7 +117,7 @@ function pathAge() {
 const last = (set, f) => `${base}.${set}/kismet.common.location.last/kismet.common.location.${f}`;
 const commonFields = [
     [`${base}.key`, 'key'], [`${base}.commonname`, 'name'], [`${base}.phyname`, 'phy'],
-    [`${base}.type`, 'type'], [`${base}.last_time`, 'last_time'],
+    [`${base}.type`, 'real_type'], [`${base}.display_type`, 'display_type'], [`${base}.last_time`, 'last_time'],
     [last('location', 'geopoint'), 'heard'], [last('location', 'fix'), 'heard_fix'],
     [last('location', 'alt'), 'heard_alt'], [last('location', 'speed'), 'heard_speed'],
     [last('location', 'heading'), 'heard_heading'], [last('location', 'time_sec'), 'heard_time'],
@@ -608,6 +608,9 @@ export function createMap(container, area = null) {
         const path = `devices/views/${encodeURIComponent(src.view)}/last-time/${-Math.round(maxAge(src))}/devices.json`;
         const reply = await api.post(path, body);
         const list = Array.isArray(reply) ? reply : [];
+        // type is what the device is shown as, as in the device list
+        for (const d of list)
+            d.type = d.display_type || d.real_type;
         fetched.set(src.id, { at: Date.now(), list });
         return list;
     }

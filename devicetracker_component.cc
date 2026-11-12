@@ -493,7 +493,11 @@ void kis_tracked_device_base::register_fields() {
         register_dynamic_field("kismet.device.base.username", "user name", &username);
     register_field("kismet.device.base.commonname", 
             "common name alias of custom or device names", &commonname);
-    register_field("kismet.device.base.type", "printable device type", &type_string);
+    register_field("kismet.device.base.type", "device type, such as Wi-Fi or BTLE", &type_string);
+    display_type_id =
+        register_dynamic_field("kismet.device.base.display_type",
+                "device type to show, such as Wi-Fi AP or Apple Watch, when it says more than the type",
+                &display_type);
     register_field("kismet.device.base.basic_type_set", "bitset of basic type", &basic_type_set);
 
     register_field("kismet.device.base.crypt", "printable basic encryption information", &crypt_string);
