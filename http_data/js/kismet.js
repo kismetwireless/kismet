@@ -19,6 +19,7 @@ import * as dom from './core/dom.js';
 import * as icons from './core/icons.js';
 import * as datasources from './core/sources.js';
 import * as censor from './core/censor.js';
+import * as shorten from './core/shorten.js';
 import { durationIn } from './core/filterquery.js';
 import { createRegistry } from './registry/registry.js';
 import { deviceColumns, deviceIcons, rowHighlights, phyColors, searchFields, filterHints, alwaysFields, fieldName } from './registry/columns.js';
@@ -71,6 +72,7 @@ export const kismet = {
     modules,
     datasources,
     censor,
+    shorten,
     servers,
     pwa,
 

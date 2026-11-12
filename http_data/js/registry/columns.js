@@ -34,7 +34,13 @@ import { createRegistry } from './registry.js';
 //                 [{ id, title, render(row), tooltip(row) }], saved by id.
 //                 A variant without render or tooltip uses the column's.
 //   group         heading in the column chooser, e.g. 'Wi-Fi' (default 'General')
-//   width         starting CSS width, e.g. '8em' (optional; users can resize)
+//   width         starting CSS width, e.g. '8em', or 'fit' for the width of its
+//                 heading and contents (optional; users can resize)
+//   minWidth      for the column without a width, which takes the room left
+//                 over: the least it starts at, e.g. '32ch' (optional)
+//   shorten       true to shorten text that doesn't fit the column, the way
+//                 Settings > Appearance says (see js/core/shorten.js), with the
+//                 full text in a tooltip; the column doesn't grow to fit it
 //   align         'left' | 'right' | 'center' (optional)
 //   defaultVisible  shown until the user changes their columns
 //   filterKind    what sortField holds, for the search box's filters: 'text',

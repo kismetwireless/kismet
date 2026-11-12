@@ -34,6 +34,7 @@
 // error with a pos for text it can't use.
 
 import { el, debounce } from '../core/dom.js';
+import * as shortener from '../core/shorten.js';
 import { icon } from '../core/icons.js';
 import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
@@ -206,6 +207,9 @@ export function createDataTable(container, {
             })) }, icon('highlight'), ' Highlights') : null,
         el('button', { title: 'Default columns, widths, and highlights', onclick: () => {
             state.layout = { columns: defaultColumns(columns), widths: {}, highlights: {}, variants: {} };
+            // Widths fitted to earlier contents only grow; start them over
+            state.natural.clear();
+            saveFit();
             layoutChanged();
         } }, 'Defaults'),
         el('button', { onclick: () => setEditing(false, false) }, 'Cancel'),
@@ -388,9 +392,26 @@ export function createDataTable(container, {
         return parseFloat(getComputedStyle(table).fontSize) || 14;
     }
 
-    // A column's declared width ('8em', '120px') in px
+    // The width of one '0' in the table's font, measured once per font size
+    let chCache = { em: 0, px: 0 };
+    function chPx() {
+        const em = emPx();
+        if (chCache.em !== em) {
+            const probe = el('span', { style: 'position: absolute; visibility: hidden; width: 10ch' });
+            table.append(probe);
+            const w = probe.getBoundingClientRect().width / 10;
+            probe.remove();
+            // Nothing to measure until the table is laid out
+            if (!w)
+                return em / 2;
+            chCache = { em, px: w };
+        }
+        return chCache.px;
+    }
+
+    // A column's declared width ('8em', '120px', '64ch') in px; 0 for 'fit'
     function declaredPx(width) {
-        const m = /^([\d.]+)(em|rem|px)?$/.exec(String(width ?? ''));
+        const m = /^([\d.]+)(em|rem|px|ch)?$/.exec(String(width ?? ''));
         if (!m)
             return 0;
         const n = parseFloat(m[1]);
@@ -398,6 +419,8 @@ export function createDataTable(container, {
             return n;
         if (m[2] === 'rem')
             return n * parseFloat(getComputedStyle(document.documentElement).fontSize);
+        if (m[2] === 'ch')
+            return n * chPx();
         return n * emPx();
     }
 
@@ -432,7 +455,7 @@ export function createDataTable(container, {
                 // takes whatever room is left
                 flexible = c;
                 col.style.width = '';
-                total += Math.max(need, minFlexEm * emPx());
+                total += Math.max(need, c.minWidth ? declaredPx(c.minWidth) : minFlexEm * emPx());
             } else {
                 const w = c.width ? need : Math.max(need, minFlexEm * emPx());
                 col.style.width = `${w}px`;
@@ -440,6 +463,24 @@ export function createDataTable(container, {
             }
         }
         table.style.minWidth = `${Math.ceil(total)}px`;
+    }
+
+    // Shorten the text in columns that ask for it, where it doesn't fit
+    // (Settings > Appearance); the full text is in the cell's tooltip
+    function shortenCells() {
+        const how = shortener.mode();
+        shownColumns.forEach((c, i) => {
+            if (!c.shorten)
+                return;
+            const tds = [];
+            for (const tr of tbody.rows) {
+                const td = tr.cells[i + iconCol];
+                // Only cells holding plain text; other content is left alone
+                if (td && rowData.has(tr) && td.childElementCount === 0)
+                    tds.push(td);
+            }
+            shortener.fitTexts(tds, tds.map((td) => shortener.fullText(td) ?? td.textContent), how);
+        });
     }
 
     // Widen columns whose contents on screen don't fit.  Runs right after
@@ -458,7 +499,8 @@ export function createDataTable(container, {
                 if (tr.classList.contains('spacer') || tr.classList.contains('placeholder'))
                     continue;
                 shownColumns.forEach((c, i) => {
-                    if (state.layout.widths[c.id])
+                    // Columns that shorten their text keep their width
+                    if (state.layout.widths[c.id] || c.shorten)
                         return;
                     const td = tr.cells[i + iconCol];
                     if (td && td.scrollWidth > td.clientWidth)
@@ -605,6 +647,7 @@ export function createDataTable(container, {
                 out.push(spacer((total - end) * state.rowHeight));
             tbody.replaceChildren(...out);
             fitContents();
+            shortenCells();
             refreshTip();
         }
 
@@ -722,8 +765,11 @@ export function createDataTable(container, {
         if (!c)
             return null;
         const fn = columnVariant(c, state.layout.variants)?.tooltip ?? c.tooltip;
-        if (!fn)
-            return null;
+        if (!fn) {
+            // Shortened text shows in full
+            const whole = c.shorten ? shortener.fullText(td) : null;
+            return whole !== null && whole !== td.textContent ? whole : null;
+        }
         try {
             return fn(row);
         } catch (err) {
@@ -838,6 +884,15 @@ export function createDataTable(container, {
             }
         });
     }
+
+    // The user picked another way to shorten text
+    const unwatchShorten = shortener.watch(() => {
+        if (!container.isConnected) {
+            unwatchShorten();
+            return;
+        }
+        draw(true);
+    });
 
     // More or fewer rows fit when the space changes size or the font does;
     // a table in a tab that's just been shown also starts here

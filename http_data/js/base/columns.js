@@ -22,7 +22,7 @@ export function register(kismet) {
     });
 
     ui.deviceColumns.add({
-        id: 'name', title: 'Name', priority: 0, defaultVisible: true,
+        id: 'name', title: 'Name', priority: 0, defaultVisible: true, minWidth: '32ch', shorten: true,
         description: 'Device name: a name you set, the advertised name, or the MAC address',
         fields: [`${base}.commonname`, `${base}.macaddr`],
         sortField: `${base}.commonname`,
@@ -53,7 +53,7 @@ export function register(kismet) {
     });
 
     ui.deviceColumns.add({
-        id: 'signal', title: 'Signal', priority: 30, defaultVisible: true, width: '6em', align: 'right',
+        id: 'signal', title: 'Signal', priority: 30, defaultVisible: true, width: 'fit', align: 'right',
         description: 'Last signal level',
         fields: [[`${base}.signal/kismet.common.signal.last_signal`, 'signal']],
         sortField: `${base}.signal/kismet.common.signal.last_signal`,

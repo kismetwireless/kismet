@@ -2,7 +2,7 @@
 // columns and row highlights are edited on the list itself.
 
 export function register(kismet) {
-    const { ui, settings, theme, dom } = kismet;
+    const { ui, settings, theme, dom, shorten } = kismet;
     const { el } = dom;
     const { isVisible } = kismet.widgets.ribbon;
 
@@ -65,7 +65,10 @@ export function register(kismet) {
                 modes,
                 modeNote,
                 accentTitle,
-                accents);
+                accents,
+                el('h4', {}, 'Shorten long names'),
+                el('p', { class: 'muted' }, 'Names too long for their column are shortened; point at one to see it in full.'),
+                choice('shorten', shorten.modes, shorten.mode(), shorten.setMode));
             update();
         },
     });
