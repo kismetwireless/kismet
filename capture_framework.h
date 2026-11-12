@@ -418,6 +418,12 @@ struct kis_capture_handler {
     pthread_t signalthread;
 	int signal_running;
 
+    /* Services child programs while the websocket loop runs, which can't; stop is
+     * set under the handler lock */
+    pthread_t ipcthread;
+    int ipcthread_running;
+    int ipcthread_stop;
+
     /* Non-hopping channel */
     char *channel;
 
