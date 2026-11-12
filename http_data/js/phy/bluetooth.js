@@ -47,9 +47,12 @@ export function register(kismet) {
         id: 'bluetooth_ble', name: 'Bluetooth BLE device', priority: 103,
         description: 'Bluetooth Low Energy devices',
         defaultColor: '#b3d9ff',
-        fields: [`${base}.type`],
-        // "BTLE", "BTLE Tracker", and the like
-        match: (row) => String(row[`${base}.type`] ?? '').startsWith('BTLE'),
+        fields: [`${base}.type`, `${base}.phyname`,
+            ['bluetooth.device/bluetooth.device.adv/bluetooth.adv.continuity/bluetooth.adv.continuity.seen_types', 'bt_continuity']],
+        // "BTLE", "BTLE Tracker", and the like; Apple Continuity devices are named for
+        // what they are instead, and only send LE advertisements
+        match: (row) => String(row[`${base}.type`] ?? '').startsWith('BTLE') ||
+            row[`${base}.phyname`] === 'BTLE' || Boolean(row.bt_continuity),
     });
 
     const b = 'bluetooth.device';

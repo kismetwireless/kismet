@@ -221,6 +221,11 @@ struct info {
     /* Bit n set when a message of type n was seen */
     uint32_t seen_types = 0;
 
+    /* Find My device type from the status byte: 0 Apple device, 1 AirTag, 2 Find My
+     * network accessory, 3 AirPods */
+    bool has_findmy_device = false;
+    uint8_t findmy_device = 0;
+
     struct nearby_info nearby_info;
     struct nearby_action nearby_action;
     struct homekit homekit;
@@ -232,12 +237,66 @@ struct info {
 /* Manufacturer data: the company ID, then the Continuity messages */
 bool decode_manuf_data(const uint8_t *data, size_t len, info& out);
 
+/* What kind of device the messages say sent them, for the device type */
+enum class device_kind : uint8_t {
+    none,
+    continuity,
+    findmy_device,
+    airplay,
+    airprint,
+    hotspot,
+    airpods_beats,
+    iphone,
+    ipod,
+    ipad,
+    mac,
+    apple_tv,
+    watch,
+    audio_accessory,
+    homekit,
+    airpods,
+    airtag,
+    findmy_accessory,
+    count,
+};
+
+/* The most specific kind the messages show */
+device_kind kind_of(const info& i);
+
+/* Device type names; HomeKit accessories are named with homekit_type_str */
+const char *device_kind_str(device_kind k);
+
+/* How specific a kind is: a device keeps its type until a more specific kind is seen.
+ * Find My names AirPods, AirTags and accessories outright. */
+constexpr uint8_t device_kind_rank(device_kind k) {
+    switch (k) {
+        case device_kind::none:
+            return 0;
+        case device_kind::continuity:
+            return 1;
+        case device_kind::findmy_device:
+        case device_kind::airplay:
+        case device_kind::airprint:
+        case device_kind::hotspot:
+            return 2;
+        case device_kind::airpods:
+        case device_kind::airtag:
+        case device_kind::findmy_accessory:
+            return 4;
+        default:
+            return 3;
+    }
+}
+
 const char *type_str(msg_type t);
 const char *activity_str(activity_level a);
 const char *action_type_str(action_type a);
 const char *homekit_category_str(homekit_category c);
 const char *cell_service_str(cell_service c);
 const char *device_class_str(uint8_t c);
+
+/* "HomeKit Lightbulb" and so on, "HomeKit" for unknown categories */
+std::string homekit_type_str(homekit_category c);
 
 /* Comma separated names of the types in a seen_types mask */
 std::string types_str(uint32_t mask);

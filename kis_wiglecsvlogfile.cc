@@ -350,9 +350,11 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         std::string type;
 
         // Scan reports never set the bt device type, so a type string of "BTLE",
-        // "BTLE Tracker" etc marks LE as well; matches kismetdb_to_wiglecsv
+        // "BTLE Tracker" etc marks LE as well, as do Apple Continuity messages, which
+        // name the device instead; matches kismetdb_to_wiglecsv
         if (static_cast<bt_device_type>(bt->get_bt_device_type()) == bt_device_type::btle ||
-                dev->get_type_string().rfind("BTLE", 0) == 0) {
+                dev->get_type_string().rfind("BTLE", 0) == 0 ||
+                (bt->has_adv() && bt->get_adv()->has_continuity())) {
             crypt = "Misc [LE]";
             type = "BLE";
         } else {

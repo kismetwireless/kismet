@@ -127,6 +127,20 @@ bool in_exclusion_zone(const std::vector<std::tuple<double, double, double>>& zo
     return false;
 }
 
+// A Bluetooth phy device record which holds Apple Continuity messages
+bool bt_continuity(const nlohmann::json& dev) {
+    const auto bt = dev.find("bluetooth.device");
+    if (bt == dev.end() || !bt->is_object())
+        return false;
+
+    const auto adv = bt->find("bluetooth.device.adv");
+    if (adv == bt->end() || !adv->is_object())
+        return false;
+
+    const auto c = adv->find("bluetooth.adv.continuity");
+    return c != adv->end() && c->is_object();
+}
+
 void print_help(char *argv) {
     printf("Kismetdb to WigleCSV\n");
     printf("A simple tool for converting the packet data from a KismetDB log file to\n"
@@ -997,9 +1011,10 @@ int main(int argc, char *argv[]) {
                     ts << tmstr;
 
                     // Every device of the BTLE phy is LE, whatever its type ("BTLE",
-                    // "BTLE Tracker", or "BTLE Device" in older logs); Bluetooth phy
-                    // devices are LE when their type says so
-                    if (phy == "BTLE" || type.rfind("BTLE", 0) == 0) {
+                    // "BTLE Tracker", "AirTag", or "BTLE Device" in older logs); Bluetooth
+                    // phy devices are LE when their type says so, or when they sent Apple
+                    // Continuity messages, which name the device instead
+                    if (phy == "BTLE" || type.rfind("BTLE", 0) == 0 || bt_continuity(json)) {
                         crypt = "Misc [LE]";
                         mod_type = "BLE";
                     } else {

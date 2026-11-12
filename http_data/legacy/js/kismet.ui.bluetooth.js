@@ -227,10 +227,15 @@ kismet_ui.AddDeviceRowHighlight({
     defaultenable: false,
     fields: [
         'kismet.device.base.type',
+        'kismet.device.base.phyname',
+        'bluetooth.device/bluetooth.device.adv/bluetooth.adv.continuity/bluetooth.adv.continuity.seen_types',
     ],
     selector: function(data) {
-        // "BTLE", "BTLE Tracker", and the like
-        return String(data['kismet.device.base.type'] || '').startsWith('BTLE');
+        // "BTLE", "BTLE Tracker", and the like; Apple Continuity devices are named for
+        // what they are instead, and only send LE advertisements
+        return String(data['kismet.device.base.type'] || '').startsWith('BTLE') ||
+            data['kismet.device.base.phyname'] === 'BTLE' ||
+            Boolean(data['bluetooth.adv.continuity.seen_types']);
     }
 });
 
