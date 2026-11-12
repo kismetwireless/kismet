@@ -252,7 +252,14 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
 
     *interfaces = NULL;
 
-    if (usbwifi_init(local, NULL) < 0 || uwifi_kis_list(&list, &n) < 0 || n == 0)
+    if (usbwifi_init(local, NULL) < 0)
+        return 0;
+
+    /* An adapter that failed USB setup is otherwise just missing from the list */
+    if (uwifi_kis_unconfigured_hint(NULL, msg, STATUS_MAX) && !caph->verbose)
+        fprintf(stderr, "WARNING: %s\n", msg);
+
+    if (uwifi_kis_list(&list, &n) < 0 || n == 0)
         return 0;
 
     *interfaces = (cf_params_list_interface_t **) calloc(n, sizeof(cf_params_list_interface_t *));
@@ -318,7 +325,12 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             }
         }
     } else {
-        snprintf(msg, STATUS_MAX, "%s is not a supported USB Wi-Fi adapter", ifname);
+        char hint[STATUS_MAX];
+
+        if (uwifi_kis_unconfigured_hint(ifname, hint, sizeof(hint)))
+            snprintf(msg, STATUS_MAX, "%s is not available: %s", ifname, hint);
+        else
+            snprintf(msg, STATUS_MAX, "%s is not a supported USB Wi-Fi adapter", ifname);
     }
 
     free(ifname);

@@ -163,6 +163,86 @@ static const struct usb_device_id *kc_usb_match_driver(const struct libusb_devic
     return NULL;
 }
 
+static void kc_usb_fill_entry(struct kc_usb_probe_entry *e, libusb_device *dev,
+        const struct libusb_device_descriptor *d) {
+    uint8_t ports[8];
+    int np = libusb_get_port_numbers(dev, ports, sizeof(ports));
+    int off = snprintf(e->path, sizeof(e->path), "%d", libusb_get_bus_number(dev));
+
+    for (int p = 0; p < np && off < (int) sizeof(e->path); p++)
+        off += snprintf(e->path + off, sizeof(e->path) - (size_t) off, "%s%d", p ? "." : "-", ports[p]);
+
+    e->dev = libusb_ref_device(dev);
+    e->vid = d->idVendor;
+    e->pid = d->idProduct;
+    e->bus = libusb_get_bus_number(dev);
+    e->address = libusb_get_device_address(dev);
+    e->speed = kc_usb_speed(libusb_get_device_speed(dev));
+}
+
+/* A driver claiming the vendor and product, whatever its interface match */
+static const struct usb_driver *kc_usb_match_ids(const struct libusb_device_descriptor *d) {
+    for (const struct usb_driver *drv = kc_usb_drivers; drv != NULL; drv = drv->kc_next) {
+        for (const struct usb_device_id *id = drv->id_table; id->match_flags != 0; id++) {
+            if ((id->match_flags & USB_DEVICE_ID_MATCH_DEVICE) == USB_DEVICE_ID_MATCH_DEVICE &&
+                    id->idVendor == d->idVendor && id->idProduct == d->idProduct)
+                return drv;
+        }
+    }
+
+    return NULL;
+}
+
+int kc_usb_find_unconfigured(struct kc_usb_probe_entry **list) {
+    libusb_device **devs;
+    ssize_t n;
+    int found = 0;
+
+    *list = NULL;
+
+    if (kc_usb_ctx == NULL)
+        return -ENODEV;
+
+    if ((n = libusb_get_device_list(kc_usb_ctx, &devs)) < 0)
+        return kc_usb_errno((int) n);
+
+    for (ssize_t i = 0; i < n; i++) {
+        struct libusb_device_descriptor d;
+        struct libusb_config_descriptor *cfg = NULL;
+        const struct usb_driver *drv, *ignored;
+
+        if (libusb_get_device_descriptor(devs[i], &d) < 0)
+            continue;
+
+        if (libusb_get_active_config_descriptor(devs[i], &cfg) != LIBUSB_ERROR_NOT_FOUND) {
+            if (cfg)
+                libusb_free_config_descriptor(cfg);
+            continue;
+        }
+
+        /* Found by kc_usb_find_devices() without a config */
+        if (kc_usb_match_driver(&d, NULL, &ignored) != NULL)
+            continue;
+
+        if ((drv = kc_usb_match_ids(&d)) == NULL)
+            continue;
+
+        struct kc_usb_probe_entry *e = calloc(1, sizeof(*e));
+        if (e == NULL)
+            break;
+
+        kc_usb_fill_entry(e, devs[i], &d);
+        e->driver = drv;
+        e->intf_index = -1;
+        e->next = *list;
+        *list = e;
+        found++;
+    }
+
+    libusb_free_device_list(devs, 1);
+    return found;
+}
+
 int kc_usb_find_devices(struct kc_usb_probe_entry **list) {
     libusb_device **devs;
     ssize_t n;
@@ -210,21 +290,10 @@ int kc_usb_find_devices(struct kc_usb_probe_entry **list) {
         if (e == NULL)
             break;
 
-        uint8_t ports[8];
-        int np = libusb_get_port_numbers(devs[i], ports, sizeof(ports));
-        int off = snprintf(e->path, sizeof(e->path), "%d", libusb_get_bus_number(devs[i]));
-        for (int p = 0; p < np && off < (int) sizeof(e->path); p++)
-            off += snprintf(e->path + off, sizeof(e->path) - (size_t) off, "%s%d", p ? "." : "-", ports[p]);
-
-        e->dev = libusb_ref_device(devs[i]);
+        kc_usb_fill_entry(e, devs[i], &d);
         e->driver = drv;
         e->id = id;
         e->intf_index = k;
-        e->vid = d.idVendor;
-        e->pid = d.idProduct;
-        e->bus = libusb_get_bus_number(devs[i]);
-        e->address = libusb_get_device_address(devs[i]);
-        e->speed = kc_usb_speed(libusb_get_device_speed(devs[i]));
         e->next = *list;
         *list = e;
         found++;

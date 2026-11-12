@@ -361,6 +361,10 @@ int kc_usb_init(void);
 void kc_usb_exit(void);
 /* Lists devices matching any registered driver; free with kc_usb_free_probe() */
 int kc_usb_find_devices(struct kc_usb_probe_entry **list);
+/* Lists devices whose IDs a driver claims but which have no active configuration, usually
+ * because enumeration failed; no driver can use them until they're replugged or reset.
+ * Entries have no id and an intf_index of -1. */
+int kc_usb_find_unconfigured(struct kc_usb_probe_entry **list);
 void kc_usb_free_probe(struct kc_usb_probe_entry *list);
 /* Opens the device and calls the driver's probe */
 int kc_usb_probe_device(const struct kc_usb_probe_entry *entry, struct usb_interface **intf);

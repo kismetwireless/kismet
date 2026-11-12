@@ -235,6 +235,38 @@ struct uwifi_dev *uwifi_open(size_t index, unsigned int timeout_ms) {
     return dev;
 }
 
+int uwifi_list_unconfigured(struct uwifi_dev_info **list, size_t *n) {
+    struct kc_usb_probe_entry *probe = NULL, *e;
+    int r;
+
+    *list = NULL;
+    *n = 0;
+
+    if ((r = kc_usb_find_unconfigured(&probe)) <= 0)
+        return r;
+
+    if ((*list = calloc((size_t) r, sizeof(**list))) == NULL) {
+        kc_usb_free_probe(probe);
+        return -ENOMEM;
+    }
+
+    for (e = probe; e != NULL; e = e->next) {
+        struct uwifi_dev_info *info = &(*list)[(*n)++];
+
+        uwifi_ifname_prefix(e->driver->name, info->ifname, sizeof(info->ifname));
+        snprintf(info->driver, sizeof(info->driver), "%s", e->driver->name);
+        info->vid = e->vid;
+        info->pid = e->pid;
+        info->bus = e->bus;
+        info->address = e->address;
+        snprintf(info->path, sizeof(info->path), "%s", e->path);
+        info->speed = uwifi_speed_name(e->speed);
+    }
+
+    kc_usb_free_probe(probe);
+    return 0;
+}
+
 int uwifi_find_ifname(const char *ifname, struct uwifi_dev_info *info) {
     struct uwifi_dev_info *list;
     size_t n;

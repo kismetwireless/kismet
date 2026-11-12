@@ -62,6 +62,10 @@ unsigned long uwifi_error_count(void);
 
 /* Lists supported adapters without opening them; free with free() */
 int uwifi_list(struct uwifi_dev_info **list, size_t *n);
+/* Lists supported adapters that failed USB enumeration and have no configuration, so they
+ * can't be opened until they're replugged; ifname holds only the driver prefix, such as
+ * "rtw8814a".  Free with free(). */
+int uwifi_list_unconfigured(struct uwifi_dev_info **list, size_t *n);
 
 /* Opens the index-th supported adapter, loading firmware; NULL on failure */
 struct uwifi_dev *uwifi_open(size_t index, unsigned int timeout_ms);
