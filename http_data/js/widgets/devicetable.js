@@ -30,7 +30,8 @@ export function refreshAll() {
 }
 
 export function createDeviceTable(container) {
-    let view = settings.get('devicelist.view', 'all');
+    // 'default' leaves out the devices that 'exclude' device rules match
+    let view = settings.get('devicelist.view', 'default');
     let lastViews = null;
     let table = null;
     // The phys this server has, so filters leave out hints for the others
@@ -88,6 +89,8 @@ export function createDeviceTable(container) {
                 addOption(custom.group, id, custom.title, count);
             else if (id === 'all')
                 addOption('', id, 'All devices', count);
+            else if (id === 'default')
+                addOption('', id, 'Default', count);
             else if (id.startsWith('phy-'))
                 addOption('Phy types', id, v['kismet.devices.view.description'] || id.slice(4), count);
             else if (id.startsWith('seenby-'))
@@ -106,10 +109,10 @@ export function createDeviceTable(container) {
             return;
         lastViews = signature;
 
-        // All devices at the top, then the groups, each in alphabetical order
+        // Default and all devices at the top, then the groups, each in alphabetical order
         const ordered = [...groups].sort(([a], [b]) => (b === '') - (a === ''));
         for (const [, list] of ordered)
-            list.sort((a, b) => (b.id === 'all') - (a.id === 'all') ||
+            list.sort((a, b) => (b.id === 'default') - (a.id === 'default') || (b.id === 'all') - (a.id === 'all') ||
                 a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
 
         const options = [];

@@ -878,6 +878,7 @@ device_rules::device_rules() :
     view_apply_mutex.set_name("device_rules_view_apply");
     set_mutex.set_name("device_rules_set");
     query_mutex.set_name("device_rules_query");
+    count_mutex.set_name("device_rules_count");
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
@@ -887,6 +888,15 @@ device_rules::device_rules() :
         entrytracker->register_field("kismet.device.base.rules",
                 tracker_element_factory<device_rule_state>(),
                 "device rule results");
+
+    // New devices haven't been checked yet and start out in it; rule passes move them
+    default_view = std::make_shared<device_tracker_view>("default",
+            "Devices not left out by an 'exclude' device rule",
+            [id = rule_state_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                auto state = dev->get_sub_as<device_rule_state>(id);
+                return state == nullptr || !state->get_excluded();
+            }, nullptr);
+    devicetracker->add_view(default_view);
 
     auto conf = Globalreg::globalreg->kismet_config;
     use_jit = conf->fetch_opt_bool("device_rules_jit", true);
@@ -1766,6 +1776,13 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
     // matched before, since the rule may only now have a view
     const bool reloaded = state == nullptr || state->gen != as.gen;
 
+    bool excluded = false;
+    for (size_t r = 0; r < n && !excluded; r++)
+        excluded = out[r] && as.rs->rule(r).exclude;
+
+    if (excluded != (state != nullptr && state->get_excluded()))
+        changes.push_back(pending_change{dev, default_view, "", "", mac_addr{}});
+
     for (size_t r = 0; r < n; r++) {
         const auto& rd = as.rs->rule(r);
 
@@ -1806,6 +1823,7 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
 
     state->gen = as.gen;
     state->hits = out;
+    state->set_excluded(excluded);
 
     auto matched = state->get_matched();
     auto tags = state->get_tags();
@@ -1863,6 +1881,12 @@ void device_rules::apply_changes(std::vector<pending_change>& changes) {
 
 bool device_rules::wants_view(const std::shared_ptr<kis_tracked_device_base>& dev,
         const std::shared_ptr<device_tracker_view>& view, const std::string& rule) {
+    if (view == default_view) {
+        kis_device_lock dlk(dev, true);
+        auto state = dev->get_sub_as<device_rule_state>(rule_state_id);
+        return !dev->get_removed() && (state == nullptr || !state->get_excluded());
+    }
+
     auto as = get_current();
     if (as == nullptr)
         return false;
@@ -2085,16 +2109,22 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
         srcs = sources;
     }
     auto from = [&srcs](const std::string& origin) { return source_of(srcs, origin); };
+    const auto counts = count_matches();
+    auto matching = [&counts](const std::string& name) -> uint64_t {
+        auto ci = counts.find(name);
+        return ci == counts.end() ? 0 : ci->second;
+    };
 
     // Rules that are switched off are listed where they'd be in the set
     auto off = as->disabled.begin();
     for (size_t i = 0, n = 0; i < as->rs->size() || off != as->disabled.end(); n++) {
         if (off != as->disabled.end() && (off->first <= n || i >= as->rs->size())) {
-            f_rules->push_back(rule_record(*off->second, from(off->second->origin), false));
+            f_rules->push_back(rule_record(*off->second, from(off->second->origin), false, 0));
             ++off;
             continue;
         }
-        f_rules->push_back(rule_record(as->rs->rule(i), from(as->rs->rule(i).origin)));
+        const auto& rd = as->rs->rule(i);
+        f_rules->push_back(rule_record(rd, from(rd.origin), true, matching(rd.name)));
         i++;
     }
 
@@ -2104,8 +2134,31 @@ std::shared_ptr<tracker_element> device_rules::rules_endpoint() {
     return ret;
 }
 
+std::map<std::string, uint64_t> device_rules::count_matches() {
+    kis_lock_guard<kis_mutex> lk(count_mutex, "device_rules count_matches");
+
+    const auto now = std::chrono::steady_clock::now();
+    if (now - counts_at < count_max_age)
+        return match_counts;
+
+    std::map<std::string, uint64_t> counts;
+    device_tracker_view_function_worker worker(
+            [&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                auto state = dev->get_sub_as<device_rule_state>(rule_state_id);
+                if (state != nullptr)
+                    for (const auto& m : *state->get_matched())
+                        counts[m]++;
+                return false;
+            });
+    devicetracker->do_readonly_device_work(worker);
+
+    match_counts = std::move(counts);
+    counts_at = now;
+    return match_counts;
+}
+
 std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules::rule_def& rd,
-        const rule_source& src, bool enabled) {
+        const rule_source& src, bool enabled, uint64_t matching) {
     auto r = std::make_shared<tracker_element_map>();
 
     auto name = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.name",
@@ -2124,6 +2177,8 @@ std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules
             tracker_element_factory<tracker_element_uint8>(), "rule raises an alert");
     auto live = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.live",
             tracker_element_factory<tracker_element_uint8>(), "rule is checked on every packet");
+    auto exclude = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.exclude",
+            tracker_element_factory<tracker_element_uint8>(), "rule leaves matching devices out of the default view");
     auto origin = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.origin",
             tracker_element_factory<tracker_element_string>(), "file and line the rule came from");
 
@@ -2137,6 +2192,7 @@ std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules
         view->set(fmt::format("rule-{}", rd.name));
     alert->set(rd.alert);
     live->set(rd.live);
+    exclude->set(rd.exclude);
     if (!rd.origin.empty())
         origin->set(fmt::format("{}:{}", rd.origin, rd.line));
 
@@ -2148,6 +2204,7 @@ std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules
     r->insert(view);
     r->insert(alert);
     r->insert(live);
+    r->insert(exclude);
     r->insert(origin);
     auto from_type = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.from_type",
             tracker_element_factory<tracker_element_string>(), "what defined the rule: file, config, plugin or api");
@@ -2162,6 +2219,11 @@ std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules
             tracker_element_factory<tracker_element_uint8>(), "rule is in use; 0 when it's switched off with enable.cmd");
     f_enabled->set(enabled);
     r->insert(f_enabled);
+
+    auto f_matching = entrytracker->register_and_get_field_as<tracker_element_uint64>("kismet.devicerules.rule.matching",
+            tracker_element_factory<tracker_element_uint64>(), "devices matching the rule as of their last check");
+    f_matching->set(matching);
+    r->insert(f_matching);
 
     return r;
 }
@@ -2265,13 +2327,17 @@ std::shared_ptr<tracker_element> device_rules::sources_endpoint() {
         g.files->push_back(f);
     };
 
+    const auto counts = count_matches();
+
     auto off = as->disabled.begin();
     for (size_t i = 0, n = 0; i < as->rs->size() || off != as->disabled.end(); n++) {
         const bool is_off = off != as->disabled.end() && (off->first <= n || i >= as->rs->size());
         const auto& rd = is_off ? *off->second : as->rs->rule(i);
         auto& g = group_of(rd.origin);
         add_file(g, rd.origin);
-        g.rules->push_back(rule_record(rd, from(rd.origin), !is_off));
+        auto ci = counts.find(rd.name);
+        g.rules->push_back(rule_record(rd, from(rd.origin), !is_off,
+                    is_off || ci == counts.end() ? 0 : ci->second));
         if (is_off)
             ++off;
         else

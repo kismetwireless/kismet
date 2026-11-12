@@ -6,6 +6,9 @@
 //
 // Storage can be missing or full (private windows, blocked site data); the UI
 // then keeps settings in memory for the session.
+//
+// Stored settings carry a version; migrations bring older ones up to date once,
+// when this module loads.
 
 const prefix = 'kismet.ui2.';
 const memory = new Map();
@@ -62,3 +65,32 @@ export function watch(key, fn) {
     watchers.get(key).add(fn);
     return () => watchers.get(key).delete(fn);
 }
+
+// Each migration takes the settings from its index to the next version
+const migrations = [
+    // 0 -> 1: the device list opens on the 'default' view, which leaves out the
+    // devices 'exclude' device rules match; 'all' was the old default
+    () => {
+        if (get('devicelist.view', 'all') === 'all')
+            set('devicelist.view', 'default');
+    },
+];
+
+function migrate() {
+    let version = get('settings.version', 0);
+    if (!Number.isInteger(version) || version < 0)
+        version = 0;
+
+    for (; version < migrations.length; version++) {
+        try {
+            migrations[version]();
+        } catch (err) {
+            console.error(`Settings migration to version ${version + 1} failed:`, err);
+        }
+    }
+
+    if (get('settings.version') !== version)
+        set('settings.version', version);
+}
+
+migrate();

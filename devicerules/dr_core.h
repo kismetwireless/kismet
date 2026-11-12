@@ -280,6 +280,8 @@ struct rule_def {
     std::string view_desc;
     bool alert;
     bool live;
+    // Leaves matching devices out of the default view
+    bool exclude;
     bool uses_now;
     std::vector<webhook_def> webhooks;
 };
