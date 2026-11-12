@@ -161,7 +161,8 @@ export function register(kismet) {
             {
                 id: 'baseline', title: 'Baseline',
                 help: 'Add the devices you know to the baseline; the Baseline devices and Unknown devices views ' +
-                    'list the devices in it and not in it.  Kept by the server, with the device\'s name and notes.',
+                    'list the devices in it and not in it, and the Default view leaves it out (the baseline-hide ' +
+                    'device rule).  Kept by the server, with the device\'s name and notes.',
                 draw: (cell, _v, dev, state) => {
                     // The tag holds when the device was added
                     const since = dev[`${base}.tags`]?.baseline;

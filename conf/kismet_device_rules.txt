@@ -187,7 +187,10 @@
 # }
 
 # Baseline: devices you've marked as known with "Add to baseline" in the web UI's
-# device details, which tags them "baseline", and every other device.
+# device details, which tags them "baseline", and every other device.  Devices in the
+# baseline are left out of the Default view, so it shows what's new; they're still in
+# All devices and Baseline devices.  Switch baseline-hide off in the web UI's device
+# rules window, or with device_rule_disable=baseline-hide, to keep them in Default.
 
 rule baseline {
     description "Devices in the baseline"
@@ -199,4 +202,10 @@ rule unknown {
     description "Devices not in the baseline"
     when not has_tag("baseline")
     view "Unknown devices"
+}
+
+rule baseline-hide {
+    description "Leave devices in the baseline out of the Default view"
+    when has_tag("baseline")
+    exclude
 }
