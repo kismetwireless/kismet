@@ -37,6 +37,7 @@
 #include "packetchain.h"
 #include "timetracker.h"
 #include "kis_httpd_registry.h"
+#include "kis_net_beast_httpd.h"
 #include "devicetracker.h"
 #include "dlttracker.h"
 #include "manuf.h"
@@ -180,7 +181,9 @@ uint32_t kis_btle_phy::ble_crc24(uint32_t init, const char *buf, size_t len) {
 }
 
 kis_btle_phy::kis_btle_phy(int in_phyid) :
-    kis_phy_handler(in_phyid) {
+    kis_phy_handler(in_phyid),
+    random_addrs{random_mode::track},
+    related_timer_id{-1} {
 
     set_phy_name("BTLE");
 
@@ -242,12 +245,75 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         _MSG_INFO("Linking random BTLE addresses which appear to be the same device.");
     }
 
-    ignore_random =
-        Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_ignore_random", false);
+    auto conf = Globalreg::globalreg->kismet_config;
 
-    if (ignore_random)
+    // btle_ignore_random=true is the old way to say btle_random=ignore
+    auto mode = conf->fetch_opt("btle_random");
+    if (mode.empty() && conf->fetch_opt_bool("btle_ignore_random", false))
+        mode = "ignore";
+
+    if (mode == "hide_unmatched") {
+        random_addrs = random_mode::hide_unmatched;
+    } else if (mode == "ignore") {
+        random_addrs = random_mode::ignore;
+    } else if (!mode.empty() && mode != "track") {
+        _MSG_ERROR("Unknown btle_random={}; expected track, hide_unmatched or ignore.  Tracking "
+                "every random address.", mode.substr(0, 32));
+    }
+
+    if (random_addrs == random_mode::ignore)
         _MSG_INFO("Ignoring BTLE devices with rotating random MAC addresses (static random "
                 "addresses, Remote ID and location trackers are kept)");
+
+    // Hiding the unmatched ones needs to know which match
+    const bool want_related = conf->fetch_opt_bool("btle_related", false) ||
+        random_addrs == random_mode::hide_unmatched;
+
+    if (want_related && random_addrs != random_mode::ignore) {
+        auto quiet = std::clamp(conf->fetch_opt_uint("btle_related_quiet", 60), 1U, 3600U);
+        auto max_groups = std::clamp(conf->fetch_opt_uint("btle_related_max_groups", 128), 1U, 65536U);
+        auto max_addrs = std::clamp(conf->fetch_opt_uint("btle_related_max_addresses", 64), 2U, 1024U);
+        related = std::make_unique<btle_related_tracker>(
+                btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs});
+
+        related_timer_id =
+            Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(
+                    SERVER_TIMESLICES_SEC * 10, nullptr, 1, [this](int) -> int {
+                        std::vector<btle_related_tracker::state> states;
+                        kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(),
+                                "btle related age");
+                        related->age(Globalreg::globalreg->last_tv_sec, states);
+                        apply_related_states(states, device_key{});
+                        return 1;
+                    });
+
+        _MSG_INFO("Grouping rotating random BTLE addresses which advertise the same payload as "
+                "related devices{}", random_addrs == random_mode::hide_unmatched ?
+                "; addresses no other address matches are left out of the default device view" : "");
+    }
+
+    // The addresses in a device's related group, for the web UI's timeline
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    httpd->register_route("/phy/btle/related-of/:key/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto ret = std::make_shared<tracker_element_vector>();
+                    auto key = string_to_n<device_key>(con->uri_params()[":key"]);
+
+                    if (key.get_error())
+                        throw std::runtime_error("invalid key");
+
+                    if (related == nullptr)
+                        return ret;
+
+                    for (const auto& k : related->members_of(key)) {
+                        auto d = devicetracker->fetch_device(k);
+                        if (d != nullptr)
+                            ret->push_back(d);
+                    }
+
+                    return ret;
+                }));
 
     distance_exponent = btle_distance_exponent();
 
@@ -260,8 +326,41 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
 }
 
 kis_btle_phy::~kis_btle_phy() {
+    if (related_timer_id >= 0) {
+        auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+        if (timetracker != nullptr)
+            timetracker->remove_timer(related_timer_id);
+    }
+
     packetchain->remove_handler(&common_classifier, CHAINPOS_CLASSIFIER);
     packetchain->remove_handler(&dissector, CHAINPOS_LLCDISSECT);
+}
+
+void kis_btle_phy::apply_related_states(const std::vector<btle_related_tracker::state>& states,
+        const device_key& self) {
+    for (const auto& st : states) {
+        auto dev = devicetracker->fetch_device(st.key);
+        if (dev == nullptr)
+            continue;
+
+        auto btle = fetch_btle_record(dev);
+        if (btle == nullptr)
+            continue;
+
+        btle->set_related_group(st.group);
+        btle->set_related_count(st.size);
+        btle->set_old_address(st.old);
+        btle->set_related_newest(st.newest);
+        btle->set_related_truncated(st.truncated);
+        // Once an address has shared its payload it stays matched, as its group empties
+        if (random_addrs == random_mode::hide_unmatched && (st.size >= 2 || !btle->has_unmatched_random()))
+            btle->set_unmatched_random(st.size < 2);
+
+        // Another address's group changed without it sending anything; mark it changed
+        // so device rules check it again
+        if (!(st.key == self))
+            dev->update_modtime();
+    }
 }
 
 bool kis_btle_phy::device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) {
@@ -946,7 +1045,7 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
 
     // Drop rotating random addresses, the flood of short-lived devices.  Static random
     // addresses last until the device is reset, so fixed devices using them are kept.
-    if (decode.is_txaddr_random() && ignore_random &&
+    if (decode.is_txaddr_random() && random_addrs == random_mode::ignore &&
             btle_random_address_rotates(in_pack->common_info.source[0]) &&
             remoteid == nullptr && !is_tracker)
         return false;
@@ -1125,11 +1224,13 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
         apply_ranging(*btle_dev->get_ranging(), ranging_info, rssi, distance_exponent,
                 in_pack->ts.tv_sec);
 
-    // Address carryover (Becker et al., PoPETs 2019): a device's advertising payload
-    // and its random address change at different times, so the first payload from a
-    // new address matching the last one from an address which just went quiet links
-    // them
-    if (alias_linker != nullptr && decode.is_txaddr_random()) {
+    // The advertising payload of a random address, less what many devices share; 0
+    // when there's too little of it to be unique to one device
+    const bool rotating = decode.is_txaddr_random() &&
+        btle_random_address_rotates(in_pack->common_info.source[0]);
+    uint64_t payload_fp = 0;
+
+    if (decode.is_txaddr_random() && (alias_linker != nullptr || (related != nullptr && rotating))) {
         std::string fp_buf;
         fp_buf.push_back(static_cast<char>(decode.pdu_type()));
 
@@ -1143,38 +1244,55 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
             fp_buf.append(ad->data());
         }
 
-        // Too little payload to be unique to one device
         if (fp_buf.length() >= 9) {
-            std::vector<randomized_alias_linker::link> links;
-            alias_linker->observe(XXH64(fp_buf.data(), fp_buf.length(), 0), device->get_key(),
-                    in_pack->ts.tv_sec, -1, links);
+            payload_fp = XXH64(fp_buf.data(), fp_buf.length(), 0);
+            // 0 means no fingerprint
+            if (payload_fp == 0)
+                payload_fp = 1;
+        }
+    }
 
-            for (const auto& l : links) {
-                auto ldev = devicetracker->fetch_device(l.key);
-                if (ldev == nullptr)
-                    continue;
+    // Trackers and Remote ID are always shown, and their payloads change with the address
+    if (related != nullptr && rotating && !is_tracker && remoteid == nullptr) {
+        std::vector<btle_related_tracker::state> states;
+        related->observe(payload_fp, device->get_key(), Globalreg::globalreg->last_tv_sec, states);
+        apply_related_states(states, device->get_key());
+    }
 
-                auto lbtle = fetch_btle_record(ldev);
-                if (lbtle == nullptr)
-                    continue;
+    // Address carryover (Becker et al., PoPETs 2019): a device's advertising payload
+    // and its random address change at different times, so the first payload from a
+    // new address matching the last one from an address which just went quiet links
+    // them
+    if (alias_linker != nullptr && payload_fp != 0) {
+        std::vector<randomized_alias_linker::link> links;
+        alias_linker->observe(payload_fp, device->get_key(),
+                in_pack->ts.tv_sec, -1, links);
 
-                lbtle->set_alias_group(l.group.as_string());
+        for (const auto& l : links) {
+            auto ldev = devicetracker->fetch_device(l.key);
+            if (ldev == nullptr)
+                continue;
 
-                if (l.method == nullptr)
-                    continue;
+            auto lbtle = fetch_btle_record(ldev);
+            if (lbtle == nullptr)
+                continue;
 
-                auto pdev = devicetracker->fetch_device(l.pred);
-                auto pbtle = pdev == nullptr ? nullptr : fetch_btle_record(pdev);
-                if (pbtle == nullptr)
-                    continue;
+            lbtle->set_alias_group(l.group.as_string());
 
-                ldev->add_related_device("btle_randomized_alias", pdev->get_key());
-                pdev->add_related_device("btle_randomized_alias", ldev->get_key());
-                lbtle->set_alias_method(l.method);
+            if (l.method == nullptr)
+                continue;
 
-                if (!pbtle->has_alias_group())
-                    pbtle->set_alias_group(l.group.as_string());
-            }
+            auto pdev = devicetracker->fetch_device(l.pred);
+            auto pbtle = pdev == nullptr ? nullptr : fetch_btle_record(pdev);
+            if (pbtle == nullptr)
+                continue;
+
+            ldev->add_related_device("btle_randomized_alias", pdev->get_key());
+            pdev->add_related_device("btle_randomized_alias", ldev->get_key());
+            lbtle->set_alias_method(l.method);
+
+            if (!pbtle->has_alias_group())
+                pbtle->set_alias_group(l.group.as_string());
         }
     }
 

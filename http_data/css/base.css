@@ -760,6 +760,8 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .timeline-axis { display: grid; grid-template-columns: minmax(0, 11rem) minmax(50%, 1fr); gap: 0.5rem; font-size: 0.78em; margin-top: 0.15rem; }
 .timeline-axis-ends { display: flex; justify-content: space-between; gap: 0.5rem; white-space: nowrap; }
 .timeline-note { font-size: 0.82em; }
+.related-newest { margin: 0.1rem 0 0.4rem; }
+.related-newest .icon { margin-left: 0.3em; }
 .timeline-mark {
     position: absolute; top: 50%; width: 0.55rem; height: 0.55rem; border-radius: 50%;
     transform: translate(-50%, -50%); box-shadow: 0 0 0 1px var(--surface);
