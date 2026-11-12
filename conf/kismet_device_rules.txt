@@ -11,6 +11,8 @@
 #                               takes the rule's description when it has none of its own
 #       alert                   raise a DEVICERULE alert when a device starts matching
 #       live                    check on every packet as well as on the timer
+#       exclude                 leave matching devices out of the 'default' view, which
+#                               the web UI lists as Default
 #       webhook "<endpoint>"    send matching devices to a webhook endpoint from
 #                               kismet_webhooks.conf, optionally with { terms } below
 #   }
@@ -121,6 +123,12 @@
 #     view "Devices on the watch list"
 #     alert
 #     live
+# }
+#
+# rule hidden {
+#     description "Devices tagged 'hide' in the web UI"
+#     when has_tag("hide")
+#     exclude
 # }
 #
 # rule open-ap {

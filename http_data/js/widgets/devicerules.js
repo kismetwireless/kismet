@@ -2,6 +2,8 @@
 // files, config lines, plugins and the API.  Rules that tag devices or collect
 // them in a view are marked, and can be listed on their own.  Each rule has a
 // switch: a rule that's off isn't checked, and the server remembers the choice.
+// Each rule that's on shows how many devices match it, kept current while the
+// window is open.
 //
 //   openRules()
 
@@ -34,6 +36,10 @@ const tagsOf = (r) => r['kismet.devicerules.rule.tags'] ?? [];
 const viewOf = (r) => r['kismet.devicerules.rule.view'] || null;
 // Servers without the switch don't say, and all of their rules are on
 const enabledOf = (r) => r['kismet.devicerules.rule.enabled'] !== 0;
+// Older servers don't count matches
+const matchingOf = (r) => r['kismet.devicerules.rule.matching'];
+const matchText = (n) => `${n.toLocaleString()} ${n === 1 ? 'device' : 'devices'}`;
+const countRefreshMs = 5000;
 
 // Which rules each filter shows
 const shows = {
@@ -47,7 +53,7 @@ function showView(id) {
     showPane('devices');
 }
 
-function ruleEntry(r, onToggle) {
+function ruleEntry(r, onToggle, countEls) {
     const tags = tagsOf(r);
     const view = viewOf(r);
     const on = enabledOf(r);
@@ -58,6 +64,11 @@ function ruleEntry(r, onToggle) {
         onclick: (e) => e.stopPropagation(),
         onchange: () => onToggle(name, toggle.checked, toggle) });
     toggle.checked = on;
+    const matching = matchingOf(r);
+    const count = on && Number.isFinite(matching) ?
+        el('span', { class: 'dr-mark dr-count', title: 'Devices matching this rule now' }, matchText(matching)) : null;
+    if (count)
+        countEls.set(name, count);
     const flags = [
         r['kismet.devicerules.rule.live'] ? 'live' : null,
         r['kismet.devicerules.rule.alert'] ? 'alert' : null,
@@ -67,7 +78,7 @@ function ruleEntry(r, onToggle) {
     if (swatch)
         swatch.style.setProperty('--tag', color);
     return el('details', { class: on ? 'dr-entry' : 'dr-entry dr-off' },
-        el('summary', {}, toggle, swatch, name,
+        el('summary', {}, toggle, swatch, name, count,
             on ? null : el('span', { class: 'dr-mark' }, 'Off'),
             tags.length ? el('span', { class: 'dr-mark', title: 'Tags the devices it matches' }, tags.length === 1 ? 'Tag' : 'Tags',
                 el('span', { class: 'rule-tags' }, tags.map((t) => el('span', { class: 'rule-tag' }, t)))) : null,
@@ -77,6 +88,8 @@ function ruleEntry(r, onToggle) {
                         e.preventDefault();
                         showView(view);
                     } }, el('span', { class: 'mono' }, view), icon('right'))) : null,
+            r['kismet.devicerules.rule.exclude'] ? el('span', { class: 'dr-mark',
+                title: 'Leaves the devices it matches out of the Default device view' }, 'Excludes') : null,
             flags.length ? el('span', { class: 'muted' }, ` ${flags.join(', ')}`) : null),
         r['kismet.devicerules.rule.description'] ? el('p', {}, r['kismet.devicerules.rule.description']) : null,
         r['kismet.devicerules.rule.origin'] ? el('p', { class: 'muted mono' }, r['kismet.devicerules.rule.origin']) : null,
@@ -101,7 +114,7 @@ function marks(rules) {
     return [tags && `${tags} tagging`, views && plural(views, 'view'), off && `${off} off`].filter(Boolean).join(', ');
 }
 
-function groupSection(g, show, onToggle) {
+function groupSection(g, show, onToggle, countEls) {
     const all = g['kismet.devicerules.source.rules'] ?? [];
     const rules = all.filter(shows[show]);
     // Sorts and replacements are only listed with every rule
@@ -118,7 +131,7 @@ function groupSection(g, show, onToggle) {
     return el('section', {},
         el('div', { class: 'dr-head' }, groupTitle(g), el('span', { class: 'muted' }, count)),
         shownFiles.length ? el('p', { class: 'muted' }, 'From ', el('span', { class: 'mono' }, shownFiles.join(', '))) : null,
-        rules.length ? el('div', { class: 'dr-list' }, rules.map((r) => ruleEntry(r, onToggle))) : null,
+        rules.length ? el('div', { class: 'dr-list' }, rules.map((r) => ruleEntry(r, onToggle, countEls))) : null,
         sorts.length ? el('h4', {}, 'Sorts') : null,
         sorts.length ? el('div', { class: 'dr-list' }, sorts.map(sortEntry)) : null,
         show === 'all' ? replaced.map((x) => el('p', { class: 'muted dr-replaced' }, x)) : null);
@@ -134,6 +147,9 @@ export function openRules() {
     if (!shows[show])
         show = 'all';
     let groups = [];
+    // Each listed rule's count, updated in place so open entries and the scroll stay
+    const countEls = new Map();
+    let refreshing = false;
 
     const status = el('span', { class: 'muted' }, 'Loading...');
     const list = el('div', { class: 'dr-groups' });
@@ -153,7 +169,10 @@ export function openRules() {
     openWindow = dialog({
         title: 'Device rules', body, modal: false, className: 'dr-panel',
         position: { left: Math.round((window.innerWidth - w) / 2), top: 70, width: w, height: h },
-        onClose: () => { openWindow = null; },
+        onClose: () => {
+            openWindow = null;
+            clearInterval(timer);
+        },
     });
 
     function render() {
@@ -161,7 +180,8 @@ export function openRules() {
             b.classList.toggle('active', b.dataset.id === show);
             b.setAttribute('aria-pressed', String(b.dataset.id === show));
         }
-        const sections = groups.map((g) => groupSection(g, show, toggleRule)).filter(Boolean);
+        countEls.clear();
+        const sections = groups.map((g) => groupSection(g, show, toggleRule, countEls)).filter(Boolean);
         list.replaceChildren(...sections);
         if (!sections.length && groups.length)
             list.append(el('p', { class: 'muted' }, show === 'tags' ? 'No rules tag devices.' : 'No rules make views.'));
@@ -201,6 +221,38 @@ export function openRules() {
             list.replaceChildren(el('p', { class: 'form-error' }, err.message));
         }
     }
+
+    // Which rules there are and which are on; counts alone change in place
+    const shape = (gs) => JSON.stringify(gs.map((g) => [g['kismet.devicerules.source.name'],
+        (g['kismet.devicerules.source.rules'] ?? []).map((r) => [r['kismet.devicerules.rule.name'], enabledOf(r)]),
+        (g['kismet.devicerules.source.sorts'] ?? []).length]));
+
+    async function refreshCounts() {
+        if (refreshing || document.hidden)
+            return;
+        refreshing = true;
+        try {
+            const fresh = (await api.get('devices/rules/sources.json'))?.['kismet.devicerules.sources'] ?? [];
+            if (shape(fresh) !== shape(groups)) {
+                groups = fresh;
+                render();
+                return;
+            }
+            groups = fresh;
+            for (const r of fresh.flatMap((g) => g['kismet.devicerules.source.rules'] ?? [])) {
+                const span = countEls.get(r['kismet.devicerules.rule.name']);
+                const n = matchingOf(r);
+                if (span && Number.isFinite(n))
+                    span.textContent = matchText(n);
+            }
+        } catch {
+            // Keep the last counts; Reload shows the error
+        } finally {
+            refreshing = false;
+        }
+    }
+
+    const timer = setInterval(refreshCounts, countRefreshMs);
 
     read();
     return openWindow;

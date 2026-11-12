@@ -530,6 +530,7 @@ public:
         r->view = false;
         r->alert = false;
         r->live = false;
+        r->exclude = false;
         r->uses_now = false;
 
         r->line = line0;
@@ -542,7 +543,7 @@ public:
                 error("rule '" + r->name + "' is missing '}'");
 
             if (cur.t != tok::ident)
-                error("expected when, description, tag, color, view, alert, live or webhook");
+                error("expected when, description, tag, color, view, alert, live, exclude or webhook");
 
             auto w = cur.text;
 
@@ -591,6 +592,9 @@ public:
             } else if (w == "live") {
                 advance();
                 r->live = true;
+            } else if (w == "exclude") {
+                advance();
+                r->exclude = true;
             } else if (w == "webhook") {
                 if (r->webhooks.size() >= hook_max_per_rule)
                     error("too many webhooks on one rule");
@@ -661,6 +665,7 @@ public:
         r->view = false;
         r->alert = false;
         r->live = false;
+        r->exclude = false;
         r->uses_now = false;
         r->line = cur.line;
         r->name = "filter";
@@ -1318,7 +1323,7 @@ private:
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "has_tag", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "webhook", "rule",
+            "count", "age", "has_tag", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "exclude", "webhook", "rule",
             "sort", "by", "asc", "desc", "include" };
 
         for (auto k : kw)

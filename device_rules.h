@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <atomic>
+#include <chrono>
 #include <deque>
 #include <list>
 #include <map>
@@ -70,6 +71,7 @@ public:
         __ImportField(matched, p);
         __ImportField(tags, p);
         __ImportField(color, p);
+        __ImportField(excluded, p);
         reserve_fields(nullptr);
     }
 
@@ -87,6 +89,7 @@ public:
     __ProxyTrackable(matched, tracker_element_vector_string, matched);
     __ProxyTrackable(tags, tracker_element_vector_string, tags);
     __Proxy(color, std::string, std::string, std::string, color);
+    __Proxy(excluded, uint8_t, bool, bool, excluded);
 
     // Rule set the hits are for, and which of its rules matched
     uint32_t gen = 0;
@@ -99,11 +102,13 @@ protected:
         register_field("kismet.device.rules.matched", "names of the device rules this device matches", &matched);
         register_field("kismet.device.rules.tags", "tags from matching device rules", &tags);
         register_field("kismet.device.rules.color", "highlight color from the first matching device rule", &color);
+        register_field("kismet.device.rules.excluded", "a matching device rule leaves this device out of the default view", &excluded);
     }
 
     std::shared_ptr<tracker_element_vector_string> matched;
     std::shared_ptr<tracker_element_vector_string> tags;
     std::shared_ptr<tracker_element_string> color;
+    std::shared_ptr<tracker_element_uint8> excluded;
 };
 
 class device_rules : public lifetime_global, public deferred_startup {
@@ -281,6 +286,17 @@ protected:
     // Emptied views of rules no longer in the set, out of the tracker; see install_set
     std::map<std::string, std::shared_ptr<device_tracker_view>> parked_views;
 
+    // Every device that no 'exclude' rule matches
+    std::shared_ptr<device_tracker_view> default_view;
+
+    // Devices matching each rule, by name, as of each device's last check; counted
+    // again at most every count_max_age
+    kis_mutex count_mutex;
+    std::map<std::string, uint64_t> match_counts;
+    std::chrono::steady_clock::time_point counts_at;
+    static constexpr std::chrono::seconds count_max_age{2};
+    std::map<std::string, uint64_t> count_matches();
+
     int rule_state_id;
     int alert_ref;
     int timer_id;
@@ -344,7 +360,7 @@ protected:
     std::shared_ptr<tracker_element> rules_endpoint();
     std::shared_ptr<tracker_element> sources_endpoint();
     std::shared_ptr<tracker_element_map> rule_record(const devicerules::rule_def& rd, const rule_source& src,
-            bool enabled = true);
+            bool enabled, uint64_t matching);
     std::shared_ptr<tracker_element_map> sort_record(const devicerules::sort_def& sd, const rule_source& src);
     void check_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void set_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
