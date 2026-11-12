@@ -208,20 +208,20 @@ export function register(kismet) {
     const filterHint = (id, names, path, more = {}) =>
         ui.filterHints.add({ id, phy: 'Cellular', names, fields: [`${cd}/cellular.cell.${path}`], ...more });
     const numeric = { filterKind: 'number', filterEmpty: 0 };
-    filterHint('cell_operator', ['operator'], 'operator', { filterEmpty: '' });
-    filterHint('cell_mcc', ['mcc'], 'mcc', { filterEmpty: '' });
-    filterHint('cell_mnc', ['mnc'], 'mnc', { filterEmpty: '' });
-    filterHint('cell_plmn', ['plmn'], 'plmn', { filterEmpty: '' });
-    filterHint('cell_tac', ['tac'], 'tac', numeric);
-    filterHint('cell_id', ['cell_id', 'cellid'], 'cellid', numeric);
-    filterHint('cell_pci', ['pci'], 'pci', { filterKind: 'number' });
-    filterHint('cell_arfcn', ['arfcn'], 'arfcn', numeric);
-    filterHint('cell_band', ['band'], 'band', numeric);
-    filterHint('cell_rsrp', ['rsrp'], 'rsrp', numeric);
-    filterHint('cell_rsrq', ['rsrq'], 'rsrq', numeric);
-    filterHint('cell_sinr', ['sinr'], 'sinr', numeric);
-    filterHint('cell_snr', ['snr'], 'snr', numeric);
-    filterHint('cell_cqi', ['cqi'], 'cqi', { filterKind: 'number', filterEmpty: -1 });
+    filterHint('cell_operator', ['operator'], 'operator', { filterEmpty: '', help: 'Network operator name' });
+    filterHint('cell_mcc', ['mcc'], 'mcc', { filterEmpty: '', help: 'Mobile country code' });
+    filterHint('cell_mnc', ['mnc'], 'mnc', { filterEmpty: '', help: 'Mobile network code' });
+    filterHint('cell_plmn', ['plmn'], 'plmn', { filterEmpty: '', help: 'PLMN: the MCC and MNC together' });
+    filterHint('cell_tac', ['tac'], 'tac', { ...numeric, help: 'Tracking area code' });
+    filterHint('cell_id', ['cell_id', 'cellid'], 'cellid', { ...numeric, help: 'Cell ID' });
+    filterHint('cell_pci', ['pci'], 'pci', { filterKind: 'number', help: 'Physical cell ID' });
+    filterHint('cell_arfcn', ['arfcn'], 'arfcn', { ...numeric, help: 'Channel number (ARFCN or EARFCN)' });
+    filterHint('cell_band', ['band'], 'band', { ...numeric, help: 'Band number' });
+    filterHint('cell_rsrp', ['rsrp'], 'rsrp', { ...numeric, help: 'Reference signal received power, in dBm' });
+    filterHint('cell_rsrq', ['rsrq'], 'rsrq', { ...numeric, help: 'Reference signal received quality, in dB' });
+    filterHint('cell_sinr', ['sinr'], 'sinr', { ...numeric, help: 'Signal to interference and noise ratio, in dB' });
+    filterHint('cell_snr', ['snr'], 'snr', { ...numeric, help: 'Signal to noise ratio, in dB' });
+    filterHint('cell_cqi', ['cqi'], 'cqi', { filterKind: 'number', filterEmpty: -1, help: 'Channel quality indicator' });
 
     const { el, replace } = dom;
     const { confirm } = kismet.widgets.dialog;
@@ -269,8 +269,9 @@ export function register(kismet) {
         render: (row) => row['cellular.cell.key'] || '',
     });
     ui.searchFields.add({
-        id: 'cell', description: 'Cell key and operator',
+        id: 'cell', phy: 'Cellular', description: 'Cell key and operator',
         fields: [`${cd}/cellular.cell.key`, `${cd}/cellular.cell.operator`],
+        help: 'Cell key and operator',
     });
 
     const c = (f) => `${cd}/cellular.cell.${f}`;

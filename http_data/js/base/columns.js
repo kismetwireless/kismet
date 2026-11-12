@@ -11,12 +11,14 @@ export function register(kismet) {
     // Always fetched, so searches match them even when their columns are hidden
     // The reported location; meters, and km/h
     const loc = `${base}.reported_location/kismet.common.location.last/kismet.common.location`;
-    ui.filterHints.add({ id: 'altitude', names: ['altitude', 'alt'], fields: [`${loc}.alt`], filterKind: 'number' });
-    ui.filterHints.add({ id: 'speed', names: ['speed'], fields: [`${loc}.speed`], filterKind: 'number' });
+    ui.filterHints.add({ id: 'altitude', names: ['altitude', 'alt'], fields: [`${loc}.alt`], filterKind: 'number',
+        help: 'Altitude of the device\'s location, in meters' });
+    ui.filterHints.add({ id: 'speed', names: ['speed'], fields: [`${loc}.speed`], filterKind: 'number', help: 'Speed of the device\'s location' });
 
     ui.searchFields.add({
         id: 'base', description: 'Phy and MAC address',
         fields: [`${base}.phyname`, `${base}.macaddr`],
+        help: 'Phy name and MAC address',
     });
 
     ui.deviceColumns.add({

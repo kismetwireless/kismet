@@ -279,6 +279,17 @@ input:focus, select:focus, button:focus-visible {
 }
 .search-box input { border: none; outline: none; padding-left: 0; width: 14rem; }
 .search-box:focus-within { border-color: var(--accent); }
+.search-box input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    width: 0.85em;
+    height: 0.85em;
+    margin: 0 0.35em;
+    cursor: pointer;
+    background: var(--muted);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5l14 14M19 5L5 19' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5l14 14M19 5L5 19' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.search-box input::-webkit-search-cancel-button:hover { background: var(--text); }
 .search-box:has(input[aria-invalid]) { border-color: var(--error); }
 .search-error { color: var(--error); font-size: 0.85em; }
 .count-info { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -936,6 +947,17 @@ tr.highlighted .bar-graph { fill: currentColor; }
 /* Channel coverage window (js/widgets/coverage.js) */
 .coverage { display: flex; flex-direction: column; height: 100%; gap: 0.5rem; }
 .coverage-panel .dialog-body { display: flex; flex-direction: column; }
+.search-help h3 { margin: 1rem 0 0.4rem; font-size: 1rem; }
+.search-help .sh-category h3 { font-size: 0.95rem; }
+.search-help .search-box { display: flex; max-width: 22rem; }
+.search-help .search-box input { flex: 1; width: 100%; }
+.sh-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.sh-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 0.2rem 0.5rem; border-bottom: 1px solid var(--border); }
+.sh-table td { vertical-align: top; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border); }
+.sh-table td:first-child { white-space: nowrap; }
+.sh-syntax td:first-child { width: 1%; }
+.sh-also, .sh-path { font-size: 0.85em; }
+.sh-path { overflow-wrap: anywhere; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .coverage-panel .dialog-body > .coverage { flex: 1; min-height: 0; }
 .coverage-bar { display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border); }
 .coverage-tabs { display: flex; gap: 0.2rem; }

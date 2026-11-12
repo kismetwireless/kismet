@@ -17,9 +17,9 @@ export function register(kismet) {
     // Search box names for the node details
     const filterHint = (id, names, path, more = {}) =>
         ui.filterHints.add({ id, phy: 'MeshCore', names, fields: [`${n}/${n}.${path}`], ...more });
-    filterHint('meshcore_name', ['node_name'], 'name', { filterEmpty: '' });
-    filterHint('meshcore_pubkey', ['pubkey', 'public_key'], 'pubkey', { filterEmpty: '' });
-    filterHint('meshcore_hops', ['hops'], 'advert_hops', { filterKind: 'number' });
+    filterHint('meshcore_name', ['node_name'], 'name', { filterEmpty: '', help: 'Advertised node name' });
+    filterHint('meshcore_pubkey', ['pubkey', 'public_key'], 'pubkey', { filterEmpty: '', help: 'Node public key, in hex' });
+    filterHint('meshcore_hops', ['hops'], 'advert_hops', { filterKind: 'number', help: 'Hops the last advert took' });
 
     const isMeshcore = (row) => row[`${base}.phyname`] === 'MeshCore';
 

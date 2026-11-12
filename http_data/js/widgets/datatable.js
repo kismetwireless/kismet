@@ -95,6 +95,7 @@ export function createDataTable(container, {
     refreshSeconds = 2,
     watch = [],
     query = null,
+    searchHelp = null,
     pausable = false,
 }) {
     const firstSortable = columns.list().find((c) => c.sortField);
@@ -167,6 +168,9 @@ export function createDataTable(container, {
     }
 
     const countInfo = el('span', { class: 'count-info' });
+
+    const helpButton = query && searchHelp ? el('button', { class: 'icon-button', title: 'Search and filter help',
+        'aria-label': 'Search and filter help', onclick: () => searchHelp() }, icon('help')) : null;
 
     // Paused, the rows on screen stay as they are; scrolling still loads more
     const pauseButton = pausable ? el('button', { class: 'icon-button pause-button', title: 'Pause updates',
@@ -809,6 +813,7 @@ export function createDataTable(container, {
     // append() writes a null (no pause button) as the text "null"
     toolbarEl.append(...[...[toolbar?.(handle)].flat(),
         el('label', { class: 'search-box' }, icon('search'), searchInput),
+        helpButton,
         pauseButton,
         queryError,
         el('div', { class: 'spacer' }),

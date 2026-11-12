@@ -42,15 +42,16 @@ export function register(kismet) {
     const { ui, icons, api, format } = kismet;
     // Search box names for the drone details
     const filterHint = (id, names, fields, more = {}) => ui.filterHints.add({ id, phy: 'UAV', names, fields, ...more });
-    filterHint('uav_serial', ['serial'], [`${uav}/uav.serialnumber`, `${rid}.serial_number`], { filterEmpty: '' });
-    filterHint('uav_manufacturer', ['drone_manufacturer'], [`${uav}/uav.manufacturer`], { filterEmpty: '' });
-    filterHint('uav_model', ['model'], [`${uav}/uav.model`], { filterEmpty: '' });
-    filterHint('uav_registration', ['registration', 'reg'], [`${rid}.registration_id`], { filterEmpty: '' });
-    filterHint('uav_operator', ['operator', 'operator_id'], [`${rid}.operator_id`], { filterEmpty: '' });
+    filterHint('uav_serial', ['serial'], [`${uav}/uav.serialnumber`, `${rid}.serial_number`], { filterEmpty: '', help: 'Drone serial number' });
+    filterHint('uav_manufacturer', ['drone_manufacturer'], [`${uav}/uav.manufacturer`], { filterEmpty: '', help: 'Drone manufacturer' });
+    filterHint('uav_model', ['model'], [`${uav}/uav.model`], { filterEmpty: '', help: 'Drone model' });
+    filterHint('uav_registration', ['registration', 'reg'], [`${rid}.registration_id`], { filterEmpty: '', help: 'Remote ID registration' });
+    filterHint('uav_operator', ['operator', 'operator_id'], [`${rid}.operator_id`], { filterEmpty: '', help: 'Remote ID operator ID' });
     // Meters
     filterHint('uav_altitude', ['altitude', 'alt'], [`${uav}/uav.last_telemetry/uav.telemetry.location/kismet.common.location.alt`,
-        `${rid}.altitude_geo`], { filterKind: 'number' });
-    filterHint('uav_height', ['height'], [`${uav}/uav.last_telemetry/uav.telemetry.height`, `${rid}.height`], { filterKind: 'number' });
+        `${rid}.altitude_geo`], { filterKind: 'number', help: 'Drone altitude, in meters' });
+    filterHint('uav_height', ['height'], [`${uav}/uav.last_telemetry/uav.telemetry.height`, `${rid}.height`], { filterKind: 'number',
+        help: 'Height above takeoff or the ground, in meters' });
 
     const height = (v) => format.height(v, 1);
     const distance = (v) => format.distance(v, 1);
@@ -95,8 +96,9 @@ export function register(kismet) {
     });
 
     ui.searchFields.add({
-        id: 'uav', description: 'Drone serial numbers',
+        id: 'uav', phy: 'UAV', description: 'Drone serial numbers',
         fields: [`${uav}/uav.serialnumber`],
+        help: 'Drone serial numbers',
     });
 
     const has = (dev, path) => {

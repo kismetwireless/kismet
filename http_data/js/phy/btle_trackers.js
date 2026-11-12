@@ -67,9 +67,10 @@ export function registerTrackers(kismet) {
     [['BTLE', paths[0]], ['Bluetooth', paths[1]]].forEach(([phy, p]) => {
         const filterHint = (id, names, path, more = {}) =>
             ui.filterHints.add({ id: `${id}_${phy}`, phy, names, fields: [`${p}/${t}.${path}`], ...more });
-        filterHint('tracker_network', ['tracker', 'tracker_network'], 'type', { filterEmpty: '' });
-        filterHint('tracker_battery', ['battery'], 'battery', { filterEmpty: '' });
-        filterHint('tracker_separated', ['separated'], 'separated', { filterKind: 'number' });
+        filterHint('tracker_network', ['tracker', 'tracker_network'], 'type', { filterEmpty: '',
+            help: 'Tracker network, such as Find My, SmartTag, or Google' });
+        filterHint('tracker_battery', ['battery'], 'battery', { filterEmpty: '', help: 'Tracker battery level' });
+        filterHint('tracker_separated', ['separated'], 'separated', { filterKind: 'number', help: 'Tracker separated from its owner: 1 when it is' });
     });
 
 

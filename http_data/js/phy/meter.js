@@ -10,9 +10,9 @@ export function register(kismet) {
     // Search box names for the meter details
     const filterHint = (id, names, path, more = {}) =>
         ui.filterHints.add({ id, phy: 'METER', names, fields: [`${m}/${m}.${path}`], ...more });
-    filterHint('meter_id', ['meter_id'], 'meter_id', { filterKind: 'number' });
-    filterHint('meter_type', ['meter_type'], 'meter_type', { filterEmpty: '' });
-    filterHint('meter_consumption', ['consumption'], 'consumption', { filterKind: 'number' });
+    filterHint('meter_id', ['meter_id'], 'meter_id', { filterKind: 'number', help: 'Meter ID' });
+    filterHint('meter_type', ['meter_type'], 'meter_type', { filterEmpty: '', help: 'Meter type, such as gas or water' });
+    filterHint('meter_consumption', ['consumption'], 'consumption', { filterKind: 'number', help: 'Last consumption reading' });
 
     const isMeter = (row) => row[`${base}.phyname`] === 'METER';
 

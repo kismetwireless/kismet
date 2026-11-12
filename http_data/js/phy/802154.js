@@ -14,21 +14,24 @@ export function register(kismet) {
     // Search box names for the 802.15.4 details
     const filterHint = (id, names, path, more = {}) =>
         ui.filterHints.add({ id, phy: '802.15.4', names, fields: [`${d}/${d}.${path}`], ...more });
-    filterHint('802154_pan_id', ['pan_id', 'pan'], 'pan_id', { filterKind: 'number' });
-    filterHint('802154_short_addr', ['short_addr'], 'short_addr', { filterKind: 'number' });
-    filterHint('802154_ext_pan_id', ['ext_pan_id'], 'ext_pan_id', { filterEmpty: '' });
-    filterHint('802154_network_name', ['network_name'], 'network_name', { filterEmpty: '' });
-    filterHint('802154_role', ['role'], 'role', { filterEmpty: '' });
-    filterHint('802154_thread_version', ['thread_version'], 'thread_version', { filterKind: 'number', filterEmpty: 0 });
+    filterHint('802154_pan_id', ['pan_id', 'pan'], 'pan_id', { filterKind: 'number', help: 'PAN ID of the 802.15.4 network' });
+    filterHint('802154_short_addr', ['short_addr'], 'short_addr', { filterKind: 'number', help: '16-bit short address' });
+    filterHint('802154_ext_pan_id', ['ext_pan_id'], 'ext_pan_id', { filterEmpty: '', help: 'Thread extended PAN ID' });
+    filterHint('802154_network_name', ['network_name'], 'network_name', { filterEmpty: '', help: 'Thread network name' });
+    filterHint('802154_role', ['role'], 'role', { filterEmpty: '', help: 'Thread role, such as router or end device' });
+    filterHint('802154_thread_version', ['thread_version'], 'thread_version', { filterKind: 'number', filterEmpty: 0, help: 'Thread version' });
     // 1 no, 2 listed devices, 3 any: "joining > 1" finds the open networks
-    filterHint('802154_thread_router_id', ['router_id', 'thread_router_id'], 'thread_router_id', { filterKind: 'number' });
-    filterHint('802154_thread_child_id', ['child_id', 'thread_child_id'], 'thread_child_id', { filterKind: 'number' });
-    filterHint('802154_thread_children', ['children', 'thread_children'], 'thread_children', { filterKind: 'number' });
-    filterHint('802154_thread_polls', ['polls', 'thread_polls'], 'thread_polls', { filterKind: 'number', filterEmpty: 0 });
+    filterHint('802154_thread_router_id', ['router_id', 'thread_router_id'], 'thread_router_id', { filterKind: 'number', help: 'Thread router ID' });
+    filterHint('802154_thread_child_id', ['child_id', 'thread_child_id'], 'thread_child_id', { filterKind: 'number', help: 'Thread child ID' });
+    filterHint('802154_thread_children', ['children', 'thread_children'], 'thread_children', { filterKind: 'number',
+        help: 'Number of a Thread router\'s children' });
+    filterHint('802154_thread_polls', ['polls', 'thread_polls'], 'thread_polls', { filterKind: 'number', filterEmpty: 0,
+        help: 'Data polls sent by a sleepy end device' });
     // "poll_interval > 30s"
     filterHint('802154_thread_poll_interval', ['poll_interval'], 'thread_poll_interval',
-        { filterKind: 'duration', filterConvert: ui.durationIn.ms, filterEmpty: 0 });
-    filterHint('802154_thread_joining', ['joining', 'thread_joining'], 'thread_joining', { filterKind: 'number', filterEmpty: 0 });
+        { filterKind: 'duration', filterConvert: ui.durationIn.ms, filterEmpty: 0, help: 'Time between a sleepy end device\'s polls' });
+    filterHint('802154_thread_joining', ['joining', 'thread_joining'], 'thread_joining', { filterKind: 'number', filterEmpty: 0,
+        help: 'Joining: 1 closed, 2 listed devices, 3 anyone; joining > 1 finds open networks' });
 
     const is802154 = (row) => row[`${base}.phyname`] === '802.15.4';
 

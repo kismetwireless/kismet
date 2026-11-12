@@ -171,7 +171,7 @@ export function register(kismet) {
         render: (row) => badges(row.rule_tags),
     });
 
-    ui.searchFields.add({ id: 'rule_tags', description: 'Device rule tags', fields: [tagsField] });
+    ui.searchFields.add({ id: 'rule_tags', description: 'Device rule tags', fields: [tagsField], help: 'Tags that device rules gave the device' });
 
     // Matched rules worth listing with a device's tags
     const otherRules = (dev) => (dev[rules]?.['kismet.device.rules.matched'] ?? [])

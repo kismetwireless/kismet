@@ -7,12 +7,13 @@ import * as api from '../core/api.js';
 import * as settings from '../core/settings.js';
 import * as sources from '../core/sources.js';
 import { onLogin } from '../core/auth.js';
-import { compileQuery, fieldContext } from '../core/filterquery.js';
-import { deviceColumns, deviceIcons, rowHighlights, searchFields, filterHints, alwaysFields } from '../registry/columns.js';
+import { compileQuery, fieldContext, fieldGuide } from '../core/filterquery.js';
+import { deviceColumns, deviceIcons, rowHighlights, searchFields, filterHints, alwaysFields, phyColors } from '../registry/columns.js';
 import { deviceViews } from '../registry/devices.js';
 import { openDevice } from './detailpanel.js';
 import { createDataTable } from './datatable.js';
 import { openSettings } from './settingsdialog.js';
+import { openSearchHelp } from './searchhelp.js';
 
 // Device lists on screen, to refresh at once when the user changes a device
 const tables = new Set();
@@ -148,6 +149,12 @@ export function createDeviceTable(container) {
         // Filters in the search box name the device list's columns, search fields and hints
         query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list(),
             filterHints.list(), serverPhys)),
+        // Categories by phy read as the phy's title, so Wi-Fi hints join the Wi-Fi columns
+        searchHelp: () => {
+            const titles = new Map(phyColors.list().map((p) => [p.id, p.title]));
+            openSearchHelp(fieldGuide(deviceColumns.list(), searchFields.list(), filterHints.list(), serverPhys,
+                (c) => titles.get(c) ?? c));
+        },
     });
 
     tables.add({ table, loadViews: () => loadViews() });
