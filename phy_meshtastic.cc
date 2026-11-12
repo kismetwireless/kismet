@@ -294,7 +294,7 @@ int kis_meshtastic_phy::packet_handler(CHAINCALL_PARMS) {
 
     if (new_device) {
         basedev->set_manuf(mphy->generic_manuf);
-        basedev->set_tracker_type_string(mphy->devicetracker->get_cached_devicetype("Meshtastic"));
+        basedev->set_display_type({});
         basedev->set_devicename(fmt::format("Meshtastic !{:08X}", source_id));
     }
 

@@ -29,6 +29,13 @@
 #include "manuf.h"
 #include "messagebus.h"
 
+// Device types ant_type_name() names
+static constexpr unsigned int ant_profile_types[] = {
+    120, 121, 122, 123, 124, 11, 17, 119, 25, 40, 35
+};
+
+static std::string ant_type_name(unsigned int t);
+
 kis_ant_phy::kis_ant_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
@@ -50,6 +57,12 @@ kis_ant_phy::kis_ant_phy(int in_phyid) :
     httpregistry->register_js_module("kismet_ui_ant", "js/kismet.ui.ant.js");
 
     ant_manuf = Globalreg::globalreg->manufdb->make_manuf("ANT");
+
+    // Real type ANT; the ANT+ profile is the display type
+    devicetracker->register_type_alias("ANT device", "ANT");
+    devicetracker->get_cached_display_type("ANT+ device", "ANT");
+    for (const auto t : ant_profile_types)
+        devicetracker->get_cached_display_type("ANT+ " + ant_type_name(t), "ANT");
 
     packetchain->register_handler(&dissector_ant, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&classifier_ant, this, CHAINPOS_CLASSIFIER, -100);

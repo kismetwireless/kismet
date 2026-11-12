@@ -31,9 +31,10 @@ export function register(kismet) {
 
     ui.deviceColumns.add({
         id: 'type', title: 'Type', priority: 10, defaultVisible: true, width: '10em',
-        fields: [`${base}.type`],
+        description: 'What the device is shown as, such as Wi-Fi AP; it sorts by the type of its phy, such as Wi-Fi',
+        fields: [`${base}.type`, `${base}.display_type`],
         sortField: `${base}.type`,
-        render: (row) => row[`${base}.type`],
+        render: (row) => format.deviceType(row),
     });
 
     ui.deviceColumns.add({

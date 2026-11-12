@@ -62,8 +62,8 @@ kis_cellular_phy::kis_cellular_phy(int in_phyid) :
 
     // Cache device type strings — "Cell" has full identity (MCC+MNC+CID),
     // "Cell (Partial)" has only PCI+EARFCN (observed via signal, no global cell identity).
-    devtype_cell = devicetracker->get_cached_devicetype("Cell");
-    devtype_cell_partial = devicetracker->get_cached_devicetype("Cell (Partial)");
+    devicetracker->register_type_alias("Cellular", "Cell");
+    devtype_cell_partial = devicetracker->get_cached_display_type("Cell (Partial)");
 
     alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
@@ -528,13 +528,10 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     // so the conditional setter won't demote a cell back to partial.
     if (is_full_identity) {
         basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-        basedev->set_tracker_type_string(devtype_cell);
+        basedev->set_display_type({});
     } else {
         // Only set "Cell (Partial)" if not already a "Cell"
-        auto cellular_phy = this;
-        basedev->set_type_string_ifnotany([cellular_phy]() {
-            return cellular_phy->devtype_cell_partial;
-        }, KIS_DEVICE_BASICTYPE_AP);
+        basedev->set_display_type_ifnotany(devtype_cell_partial, KIS_DEVICE_BASICTYPE_AP);
     }
 
     // Get or create cell tower sub-device

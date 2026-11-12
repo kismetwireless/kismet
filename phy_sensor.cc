@@ -39,6 +39,7 @@ kis_sensor_phy::kis_sensor_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker = 
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    devicetracker->register_type_alias("RF Sensor", "Sensor");
 
     pack_comp_json =
         packetchain->register_packet_component("JSON");
@@ -244,7 +245,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     basedev->set_manuf(sensor_manuf);
 
-    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Sensor"));
+    basedev->set_display_type({});
     basedev->set_devicename(dn);
 
     auto rtlholder = basedev->get_sub_as<tracker_element_map>(sensor_holder_id);

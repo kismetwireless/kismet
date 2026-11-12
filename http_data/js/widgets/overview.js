@@ -65,7 +65,7 @@ export const windows = [
 
 // What the device scan reads, and the short names cards use
 export const deviceFields = [
-    [`${base}.phyname`, 'phy'], [`${base}.type`, 'type'], [`${base}.crypt`, 'crypt'],
+    [`${base}.phyname`, 'phy'], [`${base}.type`, 'type'], [`${base}.display_type`, 'display'], [`${base}.crypt`, 'crypt'],
     [`${base}.manuf`, 'manuf'], [`${base}.first_time`, 'first'], [`${base}.last_time`, 'last'],
     [`${base}.signal/kismet.common.signal.last_signal`, 'signal'],
     [`${base}.signal/kismet.common.signal.type`, 'sigtype'],
@@ -73,6 +73,7 @@ export const deviceFields = [
 
 const talkerFields = [
     `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.phyname`, `${base}.type`,
+    `${base}.display_type`,
     [`${base}.packets.rrd/kismet.common.rrd.minute_vec`, 'pps'],
     [`${base}.packets.rrd/kismet.common.rrd.last_time`, 'ppst'],
 ];

@@ -1424,7 +1424,12 @@ std::shared_ptr<kis_tracked_device_base>
                 // Seen now, so the idle timer can't expire it before its first update
                 device->set_last_time(in_pack->ts.tv_sec);
 
-                device->set_tracker_type_string(get_cached_devicetype(in_basic_type));
+                {
+                    const auto nt = resolve_new_device_type(in_basic_type);
+                    device->set_tracker_type_string(nt.real);
+                    if (nt.display != nullptr)
+                        device->set_display_type(device_display_type{nt.display});
+                }
 
                 if (new_manuf != nullptr)
                     device->set_manuf(new_manuf);
@@ -2404,7 +2409,10 @@ void device_tracker::handle_new_device_event(std::shared_ptr<eventbus_event> evt
 
 std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(const std::string& type) {
     kis_lock_guard<kis_mutex> lk(device_type_cache_mutex, "device_tracker get_cached_devicetype");
+    return get_cached_devicetype_nl(type);
+}
 
+std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype_nl(const std::string& type) {
     auto k = device_type_cache.find(type);
 
     if (k == device_type_cache.end()) {
@@ -2417,6 +2425,57 @@ std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(co
     }
 
     return k->second;
+}
+
+device_display_type device_tracker::get_cached_display_type(const std::string& display,
+        const std::string& real) {
+    kis_lock_guard<kis_mutex> lk(device_type_cache_mutex, "device_tracker get_cached_display_type");
+
+    auto k = display_type_cache.find(display);
+    std::shared_ptr<tracker_element_string> r;
+
+    if (k == display_type_cache.end()) {
+        r = std::make_shared<tracker_element_string>(display);
+        r->set_id(entrytracker->get_field_id("kismet.device.base.display_type"));
+        display_type_cache[display] = r;
+    } else {
+        r = k->second;
+    }
+
+    if (!real.empty())
+        new_device_types[display] = new_device_type{get_cached_devicetype_nl(real), r};
+
+    return device_display_type{r};
+}
+
+void device_tracker::register_type_alias(const std::string& name, const std::string& real) {
+    kis_lock_guard<kis_mutex> lk(device_type_cache_mutex, "device_tracker register_type_alias");
+    new_device_types[name] = new_device_type{get_cached_devicetype_nl(real), nullptr};
+}
+
+bool device_tracker::is_display_type_name(const std::string& name) {
+    kis_lock_guard<kis_mutex> lk(device_type_cache_mutex, "device_tracker is_display_type_name");
+
+    for (const auto& d : display_type_cache) {
+        if (d.first.size() == name.size() &&
+                std::equal(d.first.begin(), d.first.end(), name.begin(), [](char a, char b) {
+                    return std::tolower((unsigned char) a) == std::tolower((unsigned char) b);
+                }) &&
+                device_type_cache.find(d.first) == device_type_cache.end())
+            return true;
+    }
+
+    return false;
+}
+
+device_tracker::new_device_type device_tracker::resolve_new_device_type(const std::string& name) {
+    kis_lock_guard<kis_mutex> lk(device_type_cache_mutex, "device_tracker resolve_new_device_type");
+
+    auto k = new_device_types.find(name);
+    if (k != new_device_types.end())
+        return k->second;
+
+    return new_device_type{get_cached_devicetype_nl(name), nullptr};
 }
 
 std::shared_ptr<tracker_element_string> device_tracker::get_cached_phyname(const std::string& phyname) {

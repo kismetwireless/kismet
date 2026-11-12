@@ -193,6 +193,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    devicetracker->register_type_alias("BTLE Device", "BTLE");
     btmanuf = Globalreg::fetch_global_as<kis_bt_manuf>();
     btoid = Globalreg::fetch_global_as<kis_bt_oid>();
 
@@ -317,7 +318,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
 
     distance_exponent = btle_distance_exponent();
 
-    devtype_tracker = devicetracker->get_cached_devicetype("BTLE Tracker");
+    devtype_tracker = devicetracker->get_cached_display_type("BTLE Tracker");
     continuity_types = std::make_unique<continuity_device_types>(*devicetracker);
 
     // Register js module for UI
@@ -1202,8 +1203,8 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
 
         apply_tracker_frames(*tracker, frames, in_pack->ts.tv_sec);
         // AirTags and the like keep the type Find My gave them
-        if (!continuity_types->is_continuity_type(device->get_tracker_type_string()))
-            device->set_tracker_type_string(devtype_tracker);
+        if (!continuity_types->is_continuity_type(device->get_display_type()))
+            device->set_display_type(devtype_tracker);
 
         if (tracker_follow_check(*tracker, in_pack->gps_info, in_pack->ts.tv_sec) &&
                 alertracker->potential_alert(alert_trackerfollow_ref)) {

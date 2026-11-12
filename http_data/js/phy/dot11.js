@@ -110,7 +110,7 @@ export function register(kismet) {
     ui.mapSources.add({
         id: 'dot11_client', title: 'Wi-Fi clients', priority: 51, icon: 'wifi', view: `phy-${phy}`, position: 'average',
         defaultVisible: false, interval: 5000,
-        regex: [[`${base}.type`, '^Wi-Fi (Client|Bridged|Device)$']],
+        regex: [[`${base}.display_type`, '^Wi-Fi (Client|Bridged|Device)$']],
         fields: [[`${base}.channel`, 'channel']],
         detail: (d) => [d.type, d.channel ? `channel ${d.channel}` : null].filter(Boolean).join(', '),
         color: () => 'hsl(195 45% 60%)',
@@ -341,6 +341,7 @@ function createLookup(api) {
     let timer = null;
     const fields = [
         'kismet.device.base.key', 'kismet.device.base.macaddr', 'kismet.device.base.type',
+        'kismet.device.base.display_type',
         'kismet.device.base.commonname', 'kismet.device.base.manuf',
         'dot11.device/dot11.device.client_map',
         ['dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid', 'last_ssid'],
@@ -419,8 +420,8 @@ function registerDetails(kismet) {
     // fetches every client with just the columns' fields; the table draws
     // rows as they're scrolled to and reloads every few seconds while open.
     const clientFields = [
-        `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.type`, `${base}.manuf`,
-        `${base}.packets.total`, `${base}.last_time`, `${base}.datasize`,
+        `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.type`, `${base}.display_type`,
+        `${base}.manuf`, `${base}.packets.total`, `${base}.last_time`, `${base}.datasize`,
         [`${base}.signal/kismet.common.signal.last_signal`, 'signal'],
     ];
 
@@ -438,7 +439,7 @@ function registerDetails(kismet) {
                         onclick: (e) => { e.preventDefault(); ui.openDevice(r[`${base}.key`]); } }, r[`${base}.macaddr`]) },
                 { id: 'name', title: 'Name',
                     value: (r) => (r[`${base}.commonname`] !== r[`${base}.macaddr`] ? r[`${base}.commonname`] : '') },
-                { id: 'type', title: 'Type', value: v('type') },
+                { id: 'type', title: 'Type', value: (r) => format.deviceType(r) },
                 { id: 'manuf', title: 'Manufacturer', value: v('manuf') },
                 { id: 'packets', title: 'Packets', value: v('packets.total'), align: 'right', dir: 'desc',
                     render: (r) => (r[`${base}.packets.total`] ?? 0).toLocaleString() },
@@ -930,7 +931,8 @@ function registerDetails(kismet) {
 
     // Related devices (shared hardware) by key; one request looks them all up
     const relatedFields = [
-        `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.type`, `${base}.manuf`, `${base}.last_time`,
+        `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.type`, `${base}.display_type`,
+        `${base}.manuf`, `${base}.last_time`,
         [`${d}/${d}.last_beaconed_ssid_record/${as}.ssid`, 'last_ssid'],
     ];
     const relatedTable = (id, path) => ({
@@ -951,7 +953,7 @@ function registerDetails(kismet) {
                         render: (r) => deviceLink(r[`${base}.key`], r[`${base}.macaddr`]) },
                     { id: 'name', title: 'Name', value: (r) => (r[`${base}.commonname`] !== r[`${base}.macaddr`] ? r[`${base}.commonname`] : '') },
                     { id: 'ssid', title: 'SSID', value: (r) => ssidSort(r.last_ssid) },
-                    { id: 'type', title: 'Type', value: (r) => r[`${base}.type`] },
+                    { id: 'type', title: 'Type', value: (r) => format.deviceType(r) },
                     { id: 'manuf', title: 'Manufacturer', value: (r) => r[`${base}.manuf`] },
                     { id: 'last', title: 'Last seen', value: (r) => r[`${base}.last_time`], dir: 'desc',
                         render: (r) => format.time(r[`${base}.last_time`]) },
@@ -1436,7 +1438,7 @@ function registerDetails(kismet) {
                                 { id: 'mac', title: 'MAC', value: (x) => x[`${base}.macaddr`],
                                     render: (x) => deviceLink(x[`${base}.key`], x[`${base}.macaddr`]) },
                                 { id: 'name', title: 'Name', value: (x) => (x[`${base}.commonname`] !== x[`${base}.macaddr`] ? x[`${base}.commonname`] : '') },
-                                { id: 'type', title: 'Type', value: (x) => x[`${base}.type`] },
+                                { id: 'type', title: 'Type', value: (x) => format.deviceType(x) },
                                 { id: 'manuf', title: 'Manufacturer', value: (x) => x[`${base}.manuf`] },
                                 { id: 'last', title: 'Last seen', value: (x) => x[`${base}.last_time`], dir: 'desc',
                                     render: (x) => format.time(x[`${base}.last_time`]) },

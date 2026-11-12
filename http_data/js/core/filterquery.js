@@ -48,6 +48,7 @@ const aliases = {
     name: ['kismet.device.base.commonname', 'text'],
     phy: ['kismet.device.base.phyname', 'text'],
     type: ['kismet.device.base.type', 'text'],
+    display_type: ['kismet.device.base.display_type', 'text'],
     manuf: ['kismet.device.base.manuf', 'text'],
     crypt: ['kismet.device.base.crypt', 'text'],
     channel: ['kismet.device.base.channel', 'text'],
@@ -68,7 +69,8 @@ const aliasHelp = {
     mac: 'MAC address; 00:11:22 alone matches part of any MAC field',
     name: 'Name, or the MAC address when there is none',
     phy: 'Phy (radio type), such as IEEE802.11 or BTLE',
-    type: 'Device type, such as Wi-Fi AP or BTLE',
+    type: 'Device type: its phy\'s type, such as Wi-Fi or BTLE, or what it is shown as, such as Wi-Fi AP or Apple Watch',
+    display_type: 'What the device is shown as, such as Wi-Fi AP or Apple Watch, when that says more than its type',
     manuf: 'Manufacturer',
     crypt: 'Encryption',
     channel: 'Channel',
@@ -118,6 +120,14 @@ export function fieldContext(columns = [], searchFields = [], hints = [], phys =
         if (kind === 'mac')
             addMac(path);
     }
+
+    // type matches what devices are shown as too, and sorts by the type
+    const t = names.get('type');
+    t.paths.push(aliases.display_type[0]);
+    t.kinds.push('text');
+    t.convs.push(null);
+    t.guards.push(null);
+    t.sortPath = aliases.type[0];
 
     const fixed = new Set(names.keys());
 
@@ -478,7 +488,7 @@ function resolve(ctx, tok) {
     if (wide && e.wide?.length)
         return { name: `${base}*`, paths: e.wide, kinds: e.wide.map(() => e.kinds[0]),
             convs: e.wide.map(() => e.convs[0]), guards: e.wide.map(() => e.guards[0]) };
-    return { name: base, paths: e.paths, kinds: e.kinds, convs: e.convs, guards: e.guards };
+    return { name: base, paths: e.paths, kinds: e.kinds, convs: e.convs, guards: e.guards, sortPath: e.sortPath };
 }
 
 function macParts(text) {
@@ -754,9 +764,10 @@ function orTerms(ctx, list) {
 function sortText(ctx, keys) {
     return keys.map(({ field, dir }) => {
         const f = resolve(ctx, field);
-        if (f.paths.length !== 1)
+        const path = f.sortPath ?? (f.paths.length === 1 ? f.paths[0] : null);
+        if (!path)
             throw new QueryError(`can't sort by ${f.name}, it's several fields`, field.pos);
-        return dir ? `${out(f.paths[0])} ${dir}` : out(f.paths[0]);
+        return dir ? `${out(path)} ${dir}` : out(path);
     }).join(', ');
 }
 

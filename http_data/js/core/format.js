@@ -81,6 +81,11 @@ export function verticalSpeed(ms) {
     return imperial ? `${fixed(Number(ms) * 60 / 0.3048, 0)} ft/min` : `${fixed(Number(ms) * 60, 0)} m/min`;
 }
 
+// What a device is shown as: its display type ("Wi-Fi AP", "Apple Watch") when it has
+// one, its type ("Wi-Fi", "BTLE") otherwise
+export const deviceType = (d) =>
+    d?.['kismet.device.base.display_type'] || d?.['kismet.device.base.type'] || '';
+
 export function size(bytes) {
     if (!Number.isFinite(bytes))
         return '-';

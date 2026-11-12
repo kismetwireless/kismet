@@ -4,7 +4,7 @@
 
 kismet_ui.AddDeviceIcon((row) => {
     if (row['original_data']['kismet.device.base.phyname'] === 'ANT') {
-        var type = row['original_data']['kismet.device.base.type'] || '';
+        var type = row['original_data']['kismet.device.base.display_type'] || '';
 
         if (type.indexOf('Heart rate') >= 0)
             return '<i class="fa fa-heart-pulse"></i>';

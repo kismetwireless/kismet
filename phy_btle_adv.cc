@@ -545,18 +545,18 @@ continuity_device_types::continuity_device_types(device_tracker& devicetracker) 
         const auto kind = static_cast<bc::device_kind>(k);
         if (kind == bc::device_kind::homekit)
             continue;
-        kinds[k] = {devicetracker.get_cached_devicetype(bc::device_kind_str(kind)),
+        kinds[k] = {devicetracker.get_cached_display_type(bc::device_kind_str(kind)),
             bc::device_kind_rank(kind)};
     }
 
     for (size_t c = 0; c < homekit.size(); c++)
-        homekit[c] = {devicetracker.get_cached_devicetype(
+        homekit[c] = {devicetracker.get_cached_display_type(
                 bc::homekit_type_str(static_cast<bc::homekit_category>(c))),
             bc::device_kind_rank(bc::device_kind::homekit)};
 }
 
-uint8_t continuity_device_types::rank_of(const std::shared_ptr<tracker_element_string>& t) const {
-    if (t == nullptr)
+uint8_t continuity_device_types::rank_of(const device_display_type& t) const {
+    if (!t)
         return 0;
 
     for (const auto& n : kinds)
@@ -583,8 +583,8 @@ void continuity_device_types::apply(kis_tracked_device_base& dev,
             static_cast<uint16_t>(i.homekit.category) : 0] :
         kinds[static_cast<size_t>(kind)];
 
-    const auto cur = dev.get_tracker_type_string();
+    const auto cur = dev.get_display_type();
 
-    if (n.type != cur && n.rank > rank_of(cur))
-        dev.set_tracker_type_string(n.type);
+    if (!(n.type == cur) && n.rank > rank_of(cur))
+        dev.set_display_type(n.type);
 }

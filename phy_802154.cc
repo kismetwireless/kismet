@@ -1761,10 +1761,9 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
             else
                 type = net + " device";
 
-            source_dev->set_tracker_type_string(mphy->devicetracker->get_cached_devicetype(type));
+            source_dev->set_display_type(mphy->devicetracker->get_cached_display_type(type));
         } else if (!role.empty()) {
-            source_dev->set_tracker_type_string(mphy->devicetracker->get_cached_devicetype(
-                        role == "PAN coordinator" ? "802.15.4 coordinator" : "802.15.4 router"));
+            source_dev->set_display_type(mphy->devicetracker->get_cached_display_type(role == "PAN coordinator" ? "802.15.4 coordinator" : "802.15.4 router"));
         }
 
         // The key check's outcome: a publicly known or exposed key seen in use, or secured frames

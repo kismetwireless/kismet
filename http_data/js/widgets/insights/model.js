@@ -9,7 +9,7 @@ const base = 'kismet.device.base';
 
 export const baseFields = [
     `${base}.key`, `${base}.macaddr`, `${base}.commonname`, `${base}.name`, `${base}.username`, `${base}.phyname`,
-    `${base}.type`, `${base}.manuf`, `${base}.first_time`, `${base}.last_time`, `${base}.channel`,
+    `${base}.type`, `${base}.display_type`, `${base}.manuf`, `${base}.first_time`, `${base}.last_time`, `${base}.channel`,
     `${base}.crypt`, `${base}.packets.total`, `${base}.packets.tx_total`, `${base}.packets.rx_total`,
     `${base}.signal/kismet.common.signal.last_signal`, `${base}.packets.rrd`,
     `${base}.signal/kismet.common.signal.signal_rrd`,

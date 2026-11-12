@@ -8,6 +8,7 @@ const base = 'kismet.device.base';
 const ssidRec = 'dot11.device/dot11.device.last_beaconed_ssid_record';
 
 const fields = [
+    `${base}.display_type`,
     [`dot11.device/dot11.device.associated_client_map`, 'd11_clients'],
     [`${ssidRec}/dot11.advertisedssid.ssid`, 'd11_ssid'],
     [`${ssidRec}/dot11.advertisedssid.crypt_string`, 'd11_crypt'],
@@ -50,7 +51,7 @@ export function registerInsights(kismet) {
             const n = g.device(rec[`${base}.key`]);
             if (!n)
                 return;
-            const type = rec[`${base}.type`] ?? '';
+            const type = rec[`${base}.display_type`] ?? '';
             g.role(n, /AP/.test(type) ? 'ap' : /Bridged|Wired/.test(type) ? 'bridge' : /Client/.test(type) ? 'client' : 'other');
 
             // A network listed in another access point's multiple BSSID
@@ -74,7 +75,7 @@ export function registerInsights(kismet) {
                 const c = g.device(key);
                 if (!c)
                     continue;
-                const wired = /Bridged|Wired/.test(c.rec?.[`${base}.type`] ?? '');
+                const wired = /Bridged|Wired/.test(c.rec?.[`${base}.display_type`] ?? '');
                 g.link(c, n, { kind: wired ? 'dot11-wired' : 'dot11-assoc' });
                 (c.aps ??= []).push(n);
             }

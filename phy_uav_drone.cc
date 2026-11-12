@@ -180,8 +180,10 @@ kis_uav_phy::kis_uav_phy(int in_phyid) :
     dji_manuf =
         Globalreg::globalreg->manufdb->make_manuf("DJI");
 
-    devtype_uav = devicetracker->get_cached_devicetype("Drone / UAV");
-    devtype_dji = devicetracker->get_cached_devicetype("DJI UAV");
+    // Drones seen over Wi-Fi or BTLE keep their phy's type and are shown as drones
+    devicetracker->register_type_alias("DRONEID", "Drone / UAV");
+    devtype_uav = devicetracker->get_cached_display_type("Drone / UAV");
+    devtype_dji = devicetracker->get_cached_display_type("DJI UAV");
 
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
@@ -346,7 +348,7 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             kis_device_lock dlk(basedev, false);
 
             basedev->set_manuf(uavphy->dji_manuf);
-            basedev->set_tracker_type_string(uavphy->devtype_dji);
+            basedev->set_display_type(uavphy->devtype_dji);
             basedev->set_devicename(fmt::format("{}-{}", dev_type, serial_no));
 
             auto uavdev = basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
@@ -584,7 +586,7 @@ void kis_uav_phy::retype_remoteid_wifi(const std::shared_ptr<kis_tracked_device_
     for (size_t i = 0; i < nfound; i++) {
         kis_device_lock dlk(found[i], false);
         if (found[i]->get_sub_as<uav_tracked_device>(uav_device_id) != nullptr)
-            found[i]->set_tracker_type_string(devtype_uav);
+            found[i]->set_display_type(devtype_uav);
     }
 }
 
@@ -602,8 +604,8 @@ void kis_uav_phy::handle_remoteid(const std::shared_ptr<kis_tracked_device_base>
     if (rec == nullptr)
         return;
 
-    // Every packet, since the Wi-Fi phy re-types beaconing devices as access points
-    basedev->set_tracker_type_string(devtype_uav);
+    // Every packet, since the Wi-Fi phy shows beaconing devices as access points
+    basedev->set_display_type(devtype_uav);
 
     // Announce once the first UAS ID arrives; location messages often come first
     auto uas_id = [&rec]() -> std::string {

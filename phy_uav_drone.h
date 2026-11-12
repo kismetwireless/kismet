@@ -774,7 +774,7 @@ protected:
     std::shared_ptr<tracker_element_vector> manuf_match_vec;
 
     std::shared_ptr<tracker_element_string> dji_manuf;
-    std::shared_ptr<tracker_element_string> devtype_uav, devtype_dji;
+    device_display_type devtype_uav, devtype_dji;
 };
 
 #endif
