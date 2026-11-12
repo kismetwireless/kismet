@@ -137,16 +137,24 @@ static int cmd_list(void) {
 
     if (n == 0) {
         fprintf(out, "No supported USB Wi-Fi adapters found\n");
-        return 0;
+    } else {
+        fprintf(out, "%-5s %-12s %-10s %-10s %-12s %-10s\n", "index", "interface", "driver", "usb id",
+                "usb path", "speed");
+        for (size_t i = 0; i < n; i++)
+            fprintf(out, "%-5zu %-12s %-10s %04x:%04x  %-12s %-10s\n", i, list[i].ifname, list[i].driver,
+                    list[i].vid, list[i].pid, list[i].path, list[i].speed);
     }
 
-    fprintf(out, "%-5s %-12s %-10s %-10s %-12s %-10s\n", "index", "interface", "driver", "usb id", "usb path",
-            "speed");
-    for (size_t i = 0; i < n; i++)
-        fprintf(out, "%-5zu %-12s %-10s %04x:%04x  %-12s %-10s\n", i, list[i].ifname, list[i].driver,
-                list[i].vid, list[i].pid, list[i].path, list[i].speed);
-
     free(list);
+
+    if (uwifi_list_unconfigured(&list, &n) == 0) {
+        for (size_t i = 0; i < n; i++)
+            fprintf(stderr, "warning: %s adapter %04x:%04x at USB %s failed USB setup and can't be used; "
+                    "check the kernel log, and replug it or use a powered hub\n", list[i].driver,
+                    list[i].vid, list[i].pid, list[i].path);
+        free(list);
+    }
+
     return 0;
 }
 

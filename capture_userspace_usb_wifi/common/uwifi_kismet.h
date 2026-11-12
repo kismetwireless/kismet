@@ -51,6 +51,10 @@ int uwifi_kis_init(const char *const *fw_paths, size_t n_paths, uwifi_kis_log_t 
 /* Lists adapters without opening them; free with free() */
 int uwifi_kis_list(struct uwifi_kis_iface **list, size_t *n);
 
+/* Describes a supported adapter that failed USB setup, so it's missing from the list; for
+ * ifname, only an adapter that would take that name.  False if there's none. */
+bool uwifi_kis_unconfigured_hint(const char *ifname, char *out, size_t out_len);
+
 /* Opens an adapter by interface name and loads firmware; error describes a failure */
 struct uwifi_dev *uwifi_kis_open(const char *ifname, char *error, size_t error_len);
 void uwifi_kis_close(struct uwifi_dev *dev);

@@ -82,6 +82,36 @@ int uwifi_kis_list(struct uwifi_kis_iface **list, size_t *n) {
     return 0;
 }
 
+bool uwifi_kis_unconfigured_hint(const char *ifname, char *out, size_t out_len) {
+    struct uwifi_dev_info *info;
+    size_t n, match = 0, first = 0;
+
+    if (uwifi_list_unconfigured(&info, &n) < 0 || n == 0)
+        return false;
+
+    for (size_t i = 0; i < n; i++) {
+        size_t plen = strlen(info[i].ifname);
+
+        if (ifname != NULL && (strncmp(ifname, info[i].ifname, plen) != 0 || ifname[plen] != '-'))
+            continue;
+
+        if (match++ == 0)
+            first = i;
+    }
+
+    if (match > 0) {
+        int off = snprintf(out, out_len, "%s adapter %04x:%04x at USB %s failed USB setup and can't "
+                "be used; check the kernel log, and replug it or use a powered hub", info[first].driver,
+                info[first].vid, info[first].pid, info[first].path);
+
+        if (match > 1 && off > 0 && (size_t) off < out_len)
+            snprintf(out + off, out_len - (size_t) off, " (%zu adapters like this)", match);
+    }
+
+    free(info);
+    return match > 0;
+}
+
 struct uwifi_dev *uwifi_kis_open(const char *ifname, char *error, size_t error_len) {
     struct uwifi_dev *dev;
 
