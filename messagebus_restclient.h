@@ -50,6 +50,10 @@ public:
 	virtual ~rest_message_client();
 
 protected:
+    // Limits on messages posted through the API
+    static constexpr size_t max_post_len = 512;
+    static constexpr size_t max_source_len = 32;
+
     kis_mutex msg_mutex;
 
     std::shared_ptr<event_bus> eventbus;
