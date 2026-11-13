@@ -305,6 +305,13 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         link_handoff = conf->fetch_opt_bool("btle_link_handoff", true);
         if (link_handoff)
             _MSG_INFO("Linking random BTLE addresses which continue an Apple Handoff counter.");
+
+        // Sets which rotate within 1 s of a linked rotation, within 8 dB, twice running
+        if (conf->fetch_opt_bool("btle_link_corotation", true)) {
+            corotation = std::make_unique<btle_corotation>(
+                    btle_corotation::params{1000, 8, 120 * 1000, 45 * 60 * 1000});
+            _MSG_INFO("Linking random BTLE addresses which rotate together with a linked address.");
+        }
     }
 
     // The addresses in a device's related or similar group, for the web UI's timeline
@@ -1420,14 +1427,18 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
     }
 
     // Trackers and Remote ID are always shown, and their payloads change with the address
-    if (related != nullptr && rotating && !is_tracker && remoteid == nullptr) {
+    const bool groupable = rotating && !is_tracker && remoteid == nullptr;
+    const bool corotating = corotation != nullptr && groupable;
+    const uint64_t structure_fp = (related != nullptr || corotating) && groupable ?
+        btle_structure_fingerprint(decode) : 0;
+
+    if (related != nullptr && groupable) {
         std::vector<btle_related_tracker::state> states;
         related->observe(payload_fp, device->get_key(), Globalreg::globalreg->last_tv_sec, states);
         apply_related_states(states, device->get_key());
 
         states.clear();
-        similar->observe(btle_structure_fingerprint(decode), device->get_key(),
-                Globalreg::globalreg->last_tv_sec, states);
+        similar->observe(structure_fp, device->get_key(), Globalreg::globalreg->last_tv_sec, states);
         apply_similar_states(states, device->get_key());
     }
 
@@ -1438,10 +1449,10 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
     //
     // Apple's Handoff counter carries across the change, so it links the next address
     // even when the payload around it is encrypted and changes every time
-    const bool handoff = alias_linker != nullptr && link_handoff && rotating && !is_tracker &&
-        remoteid == nullptr && adv_decode.has_continuity && adv_decode.continuity.handoff.present;
+    const bool handoff = alias_linker != nullptr && link_handoff && groupable &&
+        adv_decode.has_continuity && adv_decode.continuity.handoff.present;
 
-    if (alias_linker != nullptr && (payload_fp != 0 || handoff)) {
+    if (alias_linker != nullptr && (payload_fp != 0 || handoff || corotating)) {
         // Picks between several devices sending the same payload or number
         int signal = randomized_alias_linker::no_signal;
         uint64_t source = 0;
@@ -1450,6 +1461,11 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
             signal = rssi;
             source = ds->ref_source->get_source_key();
         }
+
+        if (corotating && signal != randomized_alias_linker::no_signal)
+            corotation->observe(device->get_key(),
+                    (int64_t) in_pack->ts.tv_sec * 1000 + in_pack->ts.tv_usec / 1000,
+                    structure_fp, signal, source);
 
         std::vector<randomized_alias_linker::link> links;
 
@@ -1460,6 +1476,18 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
         if (handoff)
             alias_linker->observe(handoff_alias_bucket, device->get_key(), in_pack->ts.tv_sec,
                     adv_decode.continuity.handoff.seq, links, signal, source, handoff_alias_rules);
+
+        // A settled rotation anchors the device's other sets which rotated with it
+        if (corotation != nullptr) {
+            std::vector<btle_corotation::join> joins;
+
+            for (const auto& l : links)
+                if (l.method != nullptr && l.kind == randomized_alias_linker::link_kind::carry)
+                    corotation->rotated(l.key, l.pred, joins);
+
+            for (const auto& j : joins)
+                alias_linker->join(j.key, j.pred, "corotation", links);
+        }
 
         apply_alias_links(links);
     }

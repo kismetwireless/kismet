@@ -42,6 +42,7 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
+#include "btle_corotation.h"
 #include "randomized_alias.h"
 #include "btle_related.h"
 
@@ -713,7 +714,7 @@ protected:
                     &alias_group);
         alias_method_id =
             register_dynamic_field("btle.device.alias_method",
-                    "how this address was linked to the previous one (payload, signal, handoff, concurrent)",
+                    "how this address was linked to the previous one (payload, signal, handoff, concurrent, corotation)",
                     &alias_method);
 
         related_group_id =
@@ -952,6 +953,8 @@ protected:
     std::unique_ptr<randomized_alias_linker> alias_linker;
     // and when Apple's Handoff counter does
     bool link_handoff = false;
+    // and a device's other advertising sets which rotate at the same moment
+    std::unique_ptr<btle_corotation> corotation;
     void apply_alias_links(const std::vector<randomized_alias_linker::link>& links);
 
     int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
