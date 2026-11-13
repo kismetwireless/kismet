@@ -126,6 +126,9 @@ public:
     void join(const device_key& key, const device_key& pred, const char *method,
             std::vector<link>& out);
 
+    // The group key is in; key itself when it's in none
+    device_key group(const device_key& key);
+
 protected:
     struct rec {
         device_key key;
@@ -157,7 +160,9 @@ protected:
         bool only;
     };
 
+    // An address, under any fingerprint
     struct seen {
+        time_t first;
         time_t last;
         device_key group;
     };
