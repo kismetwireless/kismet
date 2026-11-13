@@ -16,6 +16,7 @@ const roles = [
     { id: 'datasource', title: 'Data source', help: 'Remote capture over websockets only' },
     { id: 'scanreport', title: 'Scan report', help: 'Device scan reports only' },
     { id: 'ADSB', title: 'ADSB', help: 'The ADSB feeds only' },
+    { id: 'datalog', title: 'Data log', help: 'Saving tagged data records to the kismetdb log only' },
 ];
 
 const durations = [
