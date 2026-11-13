@@ -205,7 +205,7 @@ export function register(kismet) {
                     const how = kismet.api.field(dev, `${b}/${b}.alias_method`);
                     return kismet.dom.el('span', {}, kismet.dom.el('span', { class: 'mono' }, v), how ? ` (by ${how})` : '');
                 },
-                help: 'Kismet linked this randomized address to others it believes are the same device; this is the first address in the chain.  By payload: no other device with the same payload was around.  By signal: several were, and this address\'s signal matched the earlier one\'s on the same data source.' },
+                help: 'Kismet linked this randomized address to others it believes are the same device; this is the first address in the chain.  By payload: no other device with the same payload was around.  By signal: several were, and this address\'s signal matched the earlier one\'s on the same data source.  By handoff: an Apple device\'s Handoff counter carried on from the earlier address.  By concurrent: this address and another sent the same Handoff counter at the same time, so they are one device\'s two advertising sets.' },
             {
                 group: 'BTLE Related Devices',
                 show: (dev) => (kismet.api.field(dev, `${b}/${b}.related_count`) ?? 0) > 0,

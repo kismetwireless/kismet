@@ -713,7 +713,8 @@ protected:
                     &alias_group);
         alias_method_id =
             register_dynamic_field("btle.device.alias_method",
-                    "how this address was linked to the previous one (payload)", &alias_method);
+                    "how this address was linked to the previous one (payload, signal, handoff, concurrent)",
+                    &alias_method);
 
         related_group_id =
             register_dynamic_field("btle.device.related_group",
@@ -949,6 +950,9 @@ protected:
     // Links a random address to the one before it when the advertising payload,
     // which changes at other times than the address, carries over
     std::unique_ptr<randomized_alias_linker> alias_linker;
+    // and when Apple's Handoff counter does
+    bool link_handoff = false;
+    void apply_alias_links(const std::vector<randomized_alias_linker::link>& links);
 
     int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
 

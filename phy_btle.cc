@@ -301,6 +301,10 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         alias_linker = std::make_unique<randomized_alias_linker>(
                 randomized_alias_linker::params{15, 30, 0, "payload", 120, 8, 4});
         _MSG_INFO("Linking random BTLE addresses which appear to be the same device.");
+
+        link_handoff = conf->fetch_opt_bool("btle_link_handoff", true);
+        if (link_handoff)
+            _MSG_INFO("Linking random BTLE addresses which continue an Apple Handoff counter.");
     }
 
     // The addresses in a device's related or similar group, for the web UI's timeline
@@ -352,6 +356,35 @@ kis_btle_phy::~kis_btle_phy() {
 
     packetchain->remove_handler(&common_classifier, CHAINPOS_CLASSIFIER);
     packetchain->remove_handler(&dissector, CHAINPOS_LLCDISSECT);
+}
+
+void kis_btle_phy::apply_alias_links(const std::vector<randomized_alias_linker::link>& links) {
+    for (const auto& l : links) {
+        auto ldev = devicetracker->fetch_device(l.key);
+        if (ldev == nullptr)
+            continue;
+
+        auto lbtle = fetch_btle_record(ldev);
+        if (lbtle == nullptr)
+            continue;
+
+        lbtle->set_alias_group(l.group.as_string());
+
+        if (l.method == nullptr)
+            continue;
+
+        auto pdev = devicetracker->fetch_device(l.pred);
+        auto pbtle = pdev == nullptr ? nullptr : fetch_btle_record(pdev);
+        if (pbtle == nullptr)
+            continue;
+
+        ldev->add_related_device("btle_randomized_alias", pdev->get_key());
+        pdev->add_related_device("btle_randomized_alias", ldev->get_key());
+        lbtle->set_alias_method(l.method);
+
+        if (!pbtle->has_alias_group())
+            pbtle->set_alias_group(l.group.as_string());
+    }
 }
 
 void kis_btle_phy::apply_similar_states(const std::vector<btle_related_tracker::state>& states,
@@ -508,6 +541,14 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 }
 
 namespace {
+
+// Handoff counters share one linker fingerprint.  The counter goes up by one across a
+// rotation in captures; 4 allows a few missed messages, and with the number as the only
+// evidence a false match takes two devices within 4 counts of each other.  Two sets heard
+// within 2 s with the same number are one device's.
+constexpr uint64_t handoff_alias_bucket = 0x48616e646f666600ULL;
+constexpr randomized_alias_linker::seq_rules handoff_alias_rules{65536, 4, "handoff", true, 2,
+    "concurrent", 128};
 
 // A separated tracker counts as following once it has been seen this long, at this
 // many places this far apart, without a gap long enough to say it was left behind
@@ -1394,8 +1435,14 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
     // and its random address change at different times, so the first payload from a
     // new address matching the last one from an address which just went quiet links
     // them
-    if (alias_linker != nullptr && payload_fp != 0) {
-        // Picks between several devices sending the same payload
+    //
+    // Apple's Handoff counter carries across the change, so it links the next address
+    // even when the payload around it is encrypted and changes every time
+    const bool handoff = alias_linker != nullptr && link_handoff && rotating && !is_tracker &&
+        remoteid == nullptr && adv_decode.has_continuity && adv_decode.continuity.handoff.present;
+
+    if (alias_linker != nullptr && (payload_fp != 0 || handoff)) {
+        // Picks between several devices sending the same payload or number
         int signal = randomized_alias_linker::no_signal;
         uint64_t source = 0;
         auto ds = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
@@ -1405,35 +1452,16 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
         }
 
         std::vector<randomized_alias_linker::link> links;
-        alias_linker->observe(payload_fp, device->get_key(),
-                in_pack->ts.tv_sec, -1, links, signal, source);
 
-        for (const auto& l : links) {
-            auto ldev = devicetracker->fetch_device(l.key);
-            if (ldev == nullptr)
-                continue;
+        if (payload_fp != 0)
+            alias_linker->observe(payload_fp, device->get_key(),
+                    in_pack->ts.tv_sec, -1, links, signal, source);
 
-            auto lbtle = fetch_btle_record(ldev);
-            if (lbtle == nullptr)
-                continue;
+        if (handoff)
+            alias_linker->observe(handoff_alias_bucket, device->get_key(), in_pack->ts.tv_sec,
+                    adv_decode.continuity.handoff.seq, links, signal, source, handoff_alias_rules);
 
-            lbtle->set_alias_group(l.group.as_string());
-
-            if (l.method == nullptr)
-                continue;
-
-            auto pdev = devicetracker->fetch_device(l.pred);
-            auto pbtle = pdev == nullptr ? nullptr : fetch_btle_record(pdev);
-            if (pbtle == nullptr)
-                continue;
-
-            ldev->add_related_device("btle_randomized_alias", pdev->get_key());
-            pdev->add_related_device("btle_randomized_alias", ldev->get_key());
-            lbtle->set_alias_method(l.method);
-
-            if (!pbtle->has_alias_group())
-                pbtle->set_alias_group(l.group.as_string());
-        }
+        apply_alias_links(links);
     }
 
     if (new_dev) {
