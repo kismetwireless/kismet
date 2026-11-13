@@ -81,8 +81,10 @@ protected:
         uint64_t source;
         int64_t first_ms;
         int64_t last_ms;
-        // Running average, in 1/16 dB: one frame's signal swings several dB by channel
+        // Running average, in 1/16 dB, over n_signal frames up to 16: one frame's
+        // signal swings several dB by channel
         int avg16;
+        uint8_t n_signal;
     };
 
     struct addr {
