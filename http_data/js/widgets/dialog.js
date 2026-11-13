@@ -9,9 +9,10 @@
 // resized from their corner; position { left, top, width, height } places
 // one, and onMove(position) is told where the user put it.  A panel that
 // would cover nearly the whole window (most panels on a phone) fills it
-// instead, below the menu and name.  fullSize: true gives a panel a button
-// to fill the window and go back.  Modal dialogs keep the size their content
-// gives them.
+// instead, below the menu and name.  A new panel moves to the nearest spot
+// clear of the panels already open, when there is one.  fullSize: true gives
+// a panel a button to fill the window and go back.  Modal dialogs keep the
+// size their content gives them.
 
 import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -80,6 +81,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
     } else {
         node.show();
         fill();
+        avoidOthers();
         window.addEventListener('resize', fill);
         node.addEventListener('close', () => window.removeEventListener('resize', fill));
     }
@@ -139,6 +141,66 @@ export function dialog({ title, body, modal = true, closable = true, className =
         for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height'])
             node.style.removeProperty(k);
         node.classList.add('full');
+    }
+
+    // Move a new panel off the panels already open: the free spot nearest
+    // where it would have gone.  With no free spot, stay off the others'
+    // title bars and out of the way of each one's corner, so they can still
+    // be dragged, then cover as little of them as possible.  It keeps its
+    // size, so it only goes where it fits whole.
+    // The owner isn't told; it's not where the user put it.
+    function avoidOthers() {
+        if (node.classList.contains('full'))
+            return;
+        const others = [...document.querySelectorAll('dialog.panel[open]:not(.full)')]
+            .filter((o) => o !== node && o.getClientRects().length)
+            .map((o) => ({ r: o.getBoundingClientRect(), bar: o.querySelector('.dialog-header').getBoundingClientRect().bottom }));
+        if (!others.length)
+            return;
+        const me = currentPosition();
+        const { width: w, height: h } = me;
+        const gap = 8;
+        const top = minTop();
+        const area = (x, y, l, t, r, b) =>
+            Math.max(0, Math.min(x + w, r) - Math.max(x, l)) * Math.max(0, Math.min(y + h, b) - Math.max(y, t));
+        const cascade = 32;
+        const score = (x, y) => {
+            let bars = 0, covered = 0;
+            for (const { r, bar } of others) {
+                // Right on top of another hides it, title and all
+                if (Math.abs(x - r.left) < cascade && Math.abs(y - r.top) < cascade)
+                    bars += w * h;
+                bars += area(x, y, r.left, r.top, r.right, bar);
+                covered += area(x, y, r.left, r.top, r.right, r.bottom);
+            }
+            return [bars, covered, Math.hypot(x - me.left, y - me.top)];
+        };
+        const better = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+        const here = score(me.left, me.top);
+        if (!here[1])
+            return;
+        // Spots against the window's edges, and beside, above, below, just
+        // under the title bar of, or a step off each panel
+        const xs = [me.left, gap, window.innerWidth - w - gap,
+            ...others.flatMap(({ r }) => [r.right + gap, r.left - w - gap, r.left + cascade, r.left - cascade])];
+        const ys = [me.top, top + gap, window.innerHeight - h - gap,
+            ...others.flatMap(({ r, bar }) => [r.bottom + gap, r.top - h - gap, r.top, bar + 4, r.top + cascade])];
+        let best = null;
+        for (const x of xs) {
+            if (x < gap || x + w > window.innerWidth - gap)
+                continue;
+            for (const y of ys) {
+                if (y < top || y + h > window.innerHeight - gap)
+                    continue;
+                const s = score(x, y);
+                if (!best || better(s, best.s) < 0)
+                    best = { x, y, s };
+            }
+        }
+        if (!best || better(best.s, here) >= 0)
+            return;
+        wanted = { left: Math.round(best.x), top: Math.round(best.y), width: w, height: h };
+        fill();
     }
 
     // A modal dialog only moves; its size follows its content (settings
