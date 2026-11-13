@@ -39,6 +39,10 @@
 // the least recently heard group is forgotten, and a group past max_members drops its
 // longest quiet address and is marked truncated.  Forgotten addresses keep the state
 // they had.
+//
+// An address whose payload changes while it keeps the address says nothing lasting with
+// any one payload, and would flap from group to group, so it's left out of groups until
+// it keeps one payload for the steady time.
 class btle_related_tracker {
 public:
     struct params {
@@ -46,7 +50,14 @@ public:
         time_t quiet;
         size_t max_groups;
         size_t max_members;
+        // How long an address whose payload changed must keep its new one to be grouped
+        // again; 0 groups it at once
+        time_t steady;
     };
+
+    // At most this many addresses are followed for payload changes; past that, new ones
+    // are grouped as if steady
+    static constexpr size_t max_addrs = 16384;
 
     // What an address's group fields should be now; group 0 is none
     struct state {
@@ -65,7 +76,8 @@ public:
     btle_related_tracker(const params& p);
 
     // An address advertised this fingerprint, 0 when its payload is too short to say
-    // anything.  Appends the address itself, and every other address whose state changed.
+    // anything, which keeps it in its group.  Appends the address itself, and every
+    // other address whose state changed.
     void observe(uint64_t fingerprint, const device_key& key, time_t now, std::vector<state>& out);
 
     // Settles which addresses are old as time passes; appends changes
@@ -95,6 +107,19 @@ protected:
         std::list<uint64_t>::iterator lru;
     };
 
+    // An address's payload, while it's followed for changes
+    struct addr {
+        uint64_t fingerprint;
+        // When it started sending this payload
+        time_t since;
+        time_t last;
+        bool unsteady;
+    };
+
+    // Whether key's payload has held long enough to group it
+    bool steady(uint64_t fingerprint, const device_key& key, time_t now);
+    // Joins (or stays in) fp's group
+    void join(uint64_t fp, const device_key& key, time_t now, std::vector<state>& out);
     // Leaves fp's group, reporting the members left behind
     void leave(uint64_t fp, const device_key& key, time_t now, std::vector<state>& out);
     // Reports the members whose state changed, and always, when it's set
@@ -110,6 +135,8 @@ protected:
     // Group fingerprints, least recently heard first
     std::list<uint64_t> lru_;
     uint64_t next_id = 1;
+    std::unordered_map<device_key, addr> addrs_;
+    time_t last_prune = 0;
 };
 
 #endif
