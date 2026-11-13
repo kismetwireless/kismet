@@ -43,6 +43,7 @@ import * as messages from './widgets/messages.js';
 import * as ribbon from './widgets/ribbon.js';
 import * as settingsdialog from './widgets/settingsdialog.js';
 import * as serversdialog from './widgets/serversdialog.js';
+import * as apikeys from './widgets/apikeys.js';
 import { sparkline } from './widgets/sparkline.js';
 import { dayClock } from './widgets/dayclock.js';
 import * as cellgraphs from './widgets/cellgraphs.js';
@@ -84,6 +85,7 @@ export const kismet = {
         ribbon,
         settingsdialog,
         serversdialog,
+        apikeys,
         sparkline,
         dayClock,
         cellgraphs,
