@@ -32,8 +32,10 @@ constexpr size_t alias_max_per_fingerprint = 32;
 void randomized_alias_linker::prune(time_t now) {
     for (auto mi = recs_.begin(); mi != recs_.end(); ) {
         auto& v = mi->second;
+        const auto before = v.size();
         v.erase(std::remove_if(v.begin(), v.end(),
                     [this, now](const rec& r) { return now - r.last > p_.keep; }), v.end());
+        rec_count_ -= before - v.size();
 
         if (v.empty())
             mi = recs_.erase(mi);
@@ -50,6 +52,52 @@ void randomized_alias_linker::prune(time_t now) {
         else
             ++si;
     }
+}
+
+device_key randomized_alias_linker::group_of(const device_key& k) const {
+    auto i = seen_.find(k);
+    return i == seen_.end() ? k : i->second.group;
+}
+
+randomized_alias_linker::rec *randomized_alias_linker::find_rec(uint64_t fingerprint,
+        const device_key& k) {
+    auto bi = recs_.find(fingerprint);
+    if (bi == recs_.end())
+        return nullptr;
+
+    for (auto& r : bi->second)
+        if (r.key == k)
+            return &r;
+
+    return nullptr;
+}
+
+void randomized_alias_linker::release(pending& pl) {
+    if (pl.kind == pending_kind::carry)
+        if (auto pred = find_rec(pl.fingerprint, pl.pred))
+            pred->succeeded = false;
+    pl.method = nullptr;
+}
+
+bool randomized_alias_linker::has_strong(const device_key& k) const {
+    for (const auto& pl : pending_)
+        if (pl.method != nullptr && pl.strong && pl.key == k)
+            return true;
+    return false;
+}
+
+bool randomized_alias_linker::push_pending(const pending& np) {
+    if (pending_.size() >= max_pending)
+        return false;
+
+    // A sequence match outranks the key's links made without one
+    if (np.strong)
+        for (auto& pl : pending_)
+            if (pl.method != nullptr && pl.key == np.key && pl.kind == pending_kind::carry && !pl.strong)
+                release(pl);
+
+    pending_.push_back(np);
+    return true;
 }
 
 randomized_alias_linker::rec *randomized_alias_linker::signal_match(const std::vector<rec *>& cands,
@@ -87,6 +135,12 @@ randomized_alias_linker::rec *randomized_alias_linker::signal_match(const std::v
 
 void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& key, time_t now,
         int seq, std::vector<link>& out, int signal, uint64_t source) {
+    observe(fingerprint, key, now, seq, out, signal, source,
+            seq_rules{4096, p_.seq_window, "sequence", false, 0, nullptr, alias_max_per_fingerprint});
+}
+
+void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& key, time_t now,
+        int seq, std::vector<link>& out, int signal, uint64_t source, const seq_rules& rules) {
     kis_lock_guard<kis_mutex> lk(mutex, "randomized_alias_linker observe");
 
     if (now - last_prune > p_.window) {
@@ -94,135 +148,261 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
         prune(now);
     }
 
+    const int modulus = std::max(rules.modulus, 1);
+    if (seq < 0 || seq >= modulus)
+        seq = -1;
+
+    // Under a flood, prune early, at most once a second, then ignore what doesn't fit
+    auto make_room = [this, now](auto full) {
+        if (full() && now > last_prune) {
+            last_prune = now;
+            prune(now);
+        }
+        return !full();
+    };
+
     auto si = seen_.find(key);
-    if (si == seen_.end())
-        si = seen_.emplace(key, seen{now, key}).first;
-    else if (now > si->second.last)
+    if (si == seen_.end()) {
+        if (!make_room([this]() { return seen_.size() >= max_seen; }))
+            return;
+        seen_.emplace(key, seen{now, key});
+    } else if (now > si->second.last) {
         si->second.last = now;
+    }
 
-    auto group_of = [this](const device_key& k) {
-        auto i = seen_.find(k);
-        return i == seen_.end() ? k : i->second.group;
-    };
-
-    auto& recs = recs_[fingerprint];
-
-    auto find_rec = [&recs](const device_key& k) -> rec * {
-        for (auto& r : recs)
-            if (r.key == k)
-                return &r;
-        return nullptr;
-    };
-
-    auto self = find_rec(key);
+    auto self = find_rec(fingerprint, key);
 
     if (self != nullptr) {
         if (now > self->last)
             self->last = now;
-        self->last_seq = seq;
+
+        if (!rules.only) {
+            self->last_seq = seq;
+        } else if (seq >= 0) {
+            // A late or repeated frame doesn't move it back
+            if (self->last_seq < 0 || self->last_seq >= modulus ||
+                    (seq - self->last_seq + modulus) % modulus < modulus / 2)
+                self->last_seq = seq;
+        }
+
         if (signal != no_signal) {
             self->last_signal = signal;
             self->last_source = source;
         }
+
+        settle(now, out);
+        return;
+    }
+
+    const size_t cap = std::max<size_t>(rules.max_recs, 1);
+    auto bucket_full = [this, fingerprint, cap]() {
+        auto bi = recs_.find(fingerprint);
+        return bi != recs_.end() && bi->second.size() >= cap;
+    };
+
+    // A full bucket replaces its oldest, so it needs no room
+    if (!bucket_full() && !make_room([this, &bucket_full]() {
+                return !bucket_full() && rec_count_ >= max_recs_total; })) {
+        settle(now, out);
+        return;
+    }
+
+    auto& recs = recs_[fingerprint];
+
+    // Earlier addresses with this fingerprint which went quiet recently, and how
+    // many separate devices with it were heard in that time
+    std::vector<rec *> cands;
+    std::vector<rec *> seq_cands;
+    std::vector<device_key> active_groups;
+
+    for (auto& r : recs) {
+        // An address with a later one linked to it is that same device
+        if (now - r.last > p_.window || r.succeeded)
+            continue;
+
+        const auto g = group_of(r.key);
+        if (std::find(active_groups.begin(), active_groups.end(), g) == active_groups.end())
+            active_groups.push_back(g);
+
+        // Still heard, under any fingerprint, after the new address appeared
+        auto rs = seen_.find(r.key);
+        if (r.last > now || (rs != seen_.end() && rs->second.last > now))
+            continue;
+
+        cands.push_back(&r);
+
+        if (seq >= 0 && r.last_seq >= 0 && r.last_seq < modulus) {
+            const int diff = (seq - r.last_seq + modulus) % modulus;
+            if (diff >= 1 && diff <= rules.window)
+                seq_cands.push_back(&r);
+        }
+    }
+
+    rec *seq_pick = nullptr;
+
+    if (seq_cands.size() == 1) {
+        seq_pick = seq_cands[0];
+    } else if (rules.only && seq_cands.size() > 1) {
+        // A device's sets that share a number are one group: carry on from its latest
+        const auto g = group_of(seq_cands[0]->key);
+        if (std::all_of(seq_cands.begin(), seq_cands.end(),
+                    [this, &g](const rec *r) { return group_of(r->key) == g; }))
+            seq_pick = *std::max_element(seq_cands.begin(), seq_cands.end(),
+                    [](const rec *a, const rec *b) { return a->last < b->last; });
+    }
+
+    if (seq_pick != nullptr) {
+        if (push_pending(pending{fingerprint, key, seq_pick->key, now, rules.method,
+                    pending_kind::carry, rules.only, rules.only}))
+            seq_pick->succeeded = true;
+    } else if (rules.only && seq >= 0) {
+        // A number that matches nothing links nothing
+    } else if (cands.size() == 1 && active_groups.size() == 1) {
+        if (!has_strong(key) && push_pending(pending{fingerprint, key, cands[0]->key, now,
+                    p_.unique_method, pending_kind::carry, false, rules.only}))
+            cands[0]->succeeded = true;
     } else {
-        // Earlier addresses with this fingerprint which went quiet recently, and how
-        // many separate devices with it were heard in that time
-        std::vector<rec *> cands;
-        std::vector<rec *> seq_cands;
-        std::vector<device_key> active_groups;
+        // Another device with this fingerprint is around, so a link made without
+        // a sequence number could belong to either
+        for (auto& pl : pending_)
+            if (pl.fingerprint == fingerprint && pl.method == p_.unique_method)
+                release(pl);
+
+        if (auto pred = signal_match(cands, signal, source))
+            if (!has_strong(key) && push_pending(pending{fingerprint, key, pred->key, now,
+                        "signal", pending_kind::carry, false, rules.only}))
+                pred->succeeded = true;
+    }
+
+    // The same number on another address heard just now, on this receiver at a similar
+    // signal: the same device sending two sets
+    if (rules.same_window > 0 && seq >= 0 && p_.signal_window > 0 && signal != no_signal &&
+            source != 0) {
+        const auto my_group = group_of(key);
+        rec *mate = nullptr;
+        bool ambiguous = false;
 
         for (auto& r : recs) {
-            // An address with a later one linked to it is that same device
-            if (now - r.last > p_.window || r.succeeded)
+            if (r.last_seq != seq || now - r.last > rules.same_window)
+                continue;
+            if (r.last_signal == no_signal || r.last_source != source ||
+                    std::abs(signal - r.last_signal) > p_.signal_window)
                 continue;
 
             const auto g = group_of(r.key);
-            if (std::find(active_groups.begin(), active_groups.end(), g) == active_groups.end())
-                active_groups.push_back(g);
-
-            // Still heard, under any fingerprint, after the new address appeared
-            auto rs = seen_.find(r.key);
-            if (r.last > now || (rs != seen_.end() && rs->second.last > now))
+            if (g == my_group)
                 continue;
 
-            cands.push_back(&r);
-
-            if (seq >= 0 && r.last_seq >= 0) {
-                const int diff = (seq - r.last_seq + 4096) % 4096;
-                if (diff >= 1 && diff <= p_.seq_window)
-                    seq_cands.push_back(&r);
+            if (mate != nullptr && group_of(mate->key) != g) {
+                ambiguous = true;
+                break;
             }
+
+            if (mate == nullptr || r.last > mate->last)
+                mate = &r;
         }
 
-        rec nr{key, now, now, seq, signal, signal == no_signal ? 0 : source, false};
-
-        if (seq_cands.size() == 1) {
-            seq_cands[0]->succeeded = true;
-            pending_.push_back(pending{fingerprint, key, seq_cands[0]->key, now, "sequence"});
-        } else if (cands.size() == 1 && active_groups.size() == 1) {
-            cands[0]->succeeded = true;
-            pending_.push_back(pending{fingerprint, key, cands[0]->key, now, p_.unique_method});
-        } else {
-            // Another device with this fingerprint is around, so a link made without
-            // a sequence number could belong to either
-            for (auto& pl : pending_) {
-                if (pl.fingerprint == fingerprint && pl.method == p_.unique_method) {
-                    if (auto pred = find_rec(pl.pred))
-                        pred->succeeded = false;
-                    pl.method = nullptr;
-                }
-            }
-
-            if (auto pred = signal_match(cands, signal, source)) {
-                pred->succeeded = true;
-                pending_.push_back(pending{fingerprint, key, pred->key, now, "signal"});
-            }
-        }
-
-        if (recs.size() >= alias_max_per_fingerprint)
-            recs.erase(std::min_element(recs.begin(), recs.end(),
-                        [](const rec& a, const rec& b) { return a.last < b.last; }));
-
-        recs.push_back(nr);
+        if (mate != nullptr && !ambiguous)
+            push_pending(pending{fingerprint, key, mate->key, now,
+                    rules.same_method != nullptr ? rules.same_method : rules.method,
+                    pending_kind::same, false, rules.only});
     }
 
-    // Settle pending links: the earlier address was heard again, so it's another
-    // device, or it has stayed quiet long enough
+    while (recs.size() >= cap) {
+        recs.erase(std::min_element(recs.begin(), recs.end(),
+                    [](const rec& a, const rec& b) { return a.last < b.last; }));
+        rec_count_--;
+    }
+
+    recs.push_back(rec{key, now, now, seq, signal, signal == no_signal ? 0 : source, false});
+    rec_count_++;
+
+    settle(now, out);
+}
+
+void randomized_alias_linker::join(const device_key& key, const device_key& pred,
+        const char *method, std::vector<link>& out) {
+    kis_lock_guard<kis_mutex> lk(mutex, "randomized_alias_linker join");
+
+    if (seen_.find(key) == seen_.end() || seen_.find(pred) == seen_.end())
+        return;
+
+    merge(key, pred, method, link_kind::join, out);
+}
+
+void randomized_alias_linker::merge(const device_key& key, const device_key& pred,
+        const char *method, link_kind kind, std::vector<link>& out) {
+    const auto old_group = group_of(key);
+    const auto new_group = group_of(pred);
+
+    if (old_group == new_group)
+        return;
+
+    out.push_back(link{key, pred, new_group, method, kind});
+
+    // This address, and later ones already linked to it, join the earlier group
+    for (auto& s : seen_) {
+        if (s.second.group != old_group)
+            continue;
+
+        s.second.group = new_group;
+
+        if (s.first != key)
+            out.push_back(link{s.first, device_key{}, new_group, nullptr, kind});
+    }
+}
+
+void randomized_alias_linker::settle(time_t now, std::vector<link>& out) {
     for (auto& pl : pending_) {
         if (pl.method == nullptr)
             continue;
 
         auto ps = seen_.find(pl.pred);
 
-        if (ps == seen_.end() || ps->second.last > pl.first) {
-            auto ri = recs_.find(pl.fingerprint);
-            if (ri != recs_.end())
-                for (auto& r : ri->second)
-                    if (r.key == pl.pred)
-                        r.succeeded = false;
-            pl.method = nullptr;
+        if (ps == seen_.end()) {
+            release(pl);
+            continue;
+        }
+
+        // Both still heard, still with the same number
+        if (pl.kind == pending_kind::same) {
+            const auto a = find_rec(pl.fingerprint, pl.key);
+            const auto b = find_rec(pl.fingerprint, pl.pred);
+
+            if (a == nullptr || b == nullptr) {
+                release(pl);
+                continue;
+            }
+
+            if (now - pl.first < same_confirm)
+                continue;
+
+            if (a->last > pl.first && b->last > pl.first && a->last_seq == b->last_seq) {
+                merge(pl.key, pl.pred, pl.method, link_kind::same, out);
+                pl.method = nullptr;
+            }
+
+            continue;
+        }
+
+        // The earlier address was heard again, so it's another device, or it has
+        // stayed quiet long enough
+        if (ps->second.last > pl.first) {
+            release(pl);
             continue;
         }
 
         if (now - pl.first < p_.confirm)
             continue;
 
-        const auto old_group = group_of(pl.key);
-        const auto new_group = ps->second.group;
-
-        out.push_back(link{pl.key, pl.pred, new_group, pl.method});
-        pl.method = nullptr;
-
-        // This address, and later ones already linked to it, join the earlier group
-        for (auto& s : seen_) {
-            if (s.second.group != old_group)
-                continue;
-
-            s.second.group = new_group;
-
-            if (s.first != pl.key)
-                out.push_back(link{s.first, device_key{}, new_group, nullptr});
+        // An address one of these linked already has its earlier address
+        if (pl.only && group_of(pl.key) != pl.key) {
+            release(pl);
+            continue;
         }
+
+        merge(pl.key, pl.pred, pl.method, link_kind::carry, out);
+        pl.method = nullptr;
     }
 
     pending_.erase(std::remove_if(pending_.begin(), pending_.end(),

@@ -234,6 +234,20 @@ TEST_CELL_DECISIONS_O = \
 	phy_cell_decisions.cc.o censor.cc.o \
 	diagspec/enrichment/cpp/lte_band.cpp.o
 
+# The randomized address linker tests; built on request
+TEST_RANDOMIZED_ALIAS = test/randomized_alias/linker_test
+TEST_RANDOMIZED_ALIAS_O = \
+	test/randomized_alias/linker_test.cc.o \
+	test/randomized_alias/device_key_stub.cc.o \
+	randomized_alias.cc.o
+
+# The BTLE co-rotation tests; built on request
+TEST_BTLE_COROTATION = test/btle_corotation/corotation_test
+TEST_BTLE_COROTATION_O = \
+	test/btle_corotation/corotation_test.cc.o \
+	test/randomized_alias/device_key_stub.cc.o \
+	btle_corotation.cc.o
+
 LOGTOOL_KISMETDB_JSON = log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
@@ -346,7 +360,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	kaitaistream.cc.o \
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_components_v2.cc.o phy_80211_dissectors.cc.o \
-	randomized_alias.cc.o btle_related.cc.o \
+	randomized_alias.cc.o btle_related.cc.o btle_corotation.cc.o \
 	phy_sensor.cc.o phy_meter.cc.o phy_adsb.cc.o phy_ais.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_btle_adv.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
@@ -415,6 +429,12 @@ $(LOGTOOL_KISMETDB_WIGLE):	$(LOGTOOL_KISMETDB_WIGLE_O) $(patsubst %c.o,%c.d,$(LO
 
 $(TEST_CELL_DECISIONS):	$(TEST_CELL_DECISIONS_O)
 	$(LD) $(LDFLAGS) -o $(TEST_CELL_DECISIONS) $(TEST_CELL_DECISIONS_O) $(CXXLIBS)
+
+$(TEST_RANDOMIZED_ALIAS):	$(TEST_RANDOMIZED_ALIAS_O)
+	$(LD) $(LDFLAGS) -o $(TEST_RANDOMIZED_ALIAS) $(TEST_RANDOMIZED_ALIAS_O) $(CXXLIBS)
+
+$(TEST_BTLE_COROTATION):	$(TEST_BTLE_COROTATION_O)
+	$(LD) $(LDFLAGS) -o $(TEST_BTLE_COROTATION) $(TEST_BTLE_COROTATION_O) $(CXXLIBS)
 
 diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
@@ -1012,6 +1032,7 @@ depclean:
 	@-rm -f dot11_parsers/*.d
 	@-rm -f log_tools/*.d
 	@-rm -f test/cell_decisions/*.d diagspec/enrichment/cpp/lte_band.cpp.d
+	@-rm -f test/randomized_alias/*.d test/btle_corotation/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -1023,6 +1044,8 @@ clean: all-plugins-clean depclean
 	@-rm -f uav_parsers/*.o
 	@-rm -f log_tools/*.o
 	@-rm -f test/cell_decisions/*.o diagspec/enrichment/cpp/lte_band.cpp.o $(TEST_CELL_DECISIONS)
+	@-rm -f test/randomized_alias/*.o $(TEST_RANDOMIZED_ALIAS)
+	@-rm -f test/btle_corotation/*.o $(TEST_BTLE_COROTATION)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1139,6 +1162,8 @@ firmware_file.c.o firmware_file.c.d: CFLAGS += $(FIRMWARECFLAGS)
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_CELL_DECISIONS_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_RANDOMIZED_ALIAS_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_COROTATION_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))

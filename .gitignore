@@ -15,6 +15,8 @@ compile_commands.json
 
 # Test files
 test/cell_decisions/decisions_test
+test/randomized_alias/linker_test
+test/btle_corotation/corotation_test
 test/linuxwifi_channels/freq_to_chan_test
 callgrind*
 *.pcap
