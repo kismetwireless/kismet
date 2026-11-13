@@ -26,11 +26,26 @@
 namespace {
 
 constexpr int64_t prune_interval_ms = 1000;
+constexpr int64_t check_interval_ms = 250;
 
 int64_t abs_diff(int64_t a, int64_t b) {
     return a > b ? a - b : b - a;
 }
 
+}
+
+const btle_corotation::sighting *btle_corotation::on(const addr& a, uint64_t source) {
+    for (size_t i = 0; i < a.n_seen; i++)
+        if (a.seen[i].source == source)
+            return &a.seen[i];
+    return nullptr;
+}
+
+btle_corotation::sighting *btle_corotation::on(addr& a, uint64_t source) {
+    for (size_t i = 0; i < a.n_seen; i++)
+        if (a.seen[i].source == source)
+            return &a.seen[i];
+    return nullptr;
 }
 
 void btle_corotation::prune(int64_t now_ms) {
@@ -41,19 +56,23 @@ void btle_corotation::prune(int64_t now_ms) {
             ++i;
     }
 
-    for (auto i = chains_.begin(); i != chains_.end(); ) {
-        if (now_ms - i->second.last_ms > p_.chain_keep_ms)
-            i = chains_.erase(i);
-        else
-            ++i;
-    }
+    waiting_.erase(std::remove_if(waiting_.begin(), waiting_.end(),
+                [this](const device_key& k) { return addrs_.find(k) == addrs_.end(); }),
+            waiting_.end());
+
+    chains_.erase(std::remove_if(chains_.begin(), chains_.end(),
+                [this, now_ms](const chain& c) { return now_ms - c.last_ms > p_.chain_keep_ms; }),
+            chains_.end());
 }
 
 void btle_corotation::observe(const device_key& key, int64_t now_ms, uint64_t structure,
-        int signal, uint64_t source) {
+        int signal, uint64_t source, std::vector<rotation>& out) {
     // Timing and signal only compare on one receiver
     if (source == 0)
         return;
+
+    // Whatever a receiver reports, so the average can't overflow
+    signal = std::clamp(signal, -200, 50);
 
     kis_lock_guard<kis_mutex> lk(mutex, "btle_corotation observe");
 
@@ -69,123 +88,166 @@ void btle_corotation::observe(const device_key& key, int64_t now_ms, uint64_t st
         if (addrs_.size() >= max_addrs)
             return;
 
-        addrs_.emplace(key, addr{now_ms, now_ms, signal, signal, source, structure});
-        return;
+        addr a{now_ms, now_ms, structure, {}, 1, false};
+        a.seen[0] = sighting{source, now_ms, now_ms, signal * 16};
+        addrs_.emplace(key, a);
+        waiting_.push_back(key);
+    } else {
+        auto& a = i->second;
+
+        a.first_ms = std::min(a.first_ms, now_ms);
+        a.last_ms = std::max(a.last_ms, now_ms);
+
+        // A scan response carries none; the advertising that follows does
+        if (a.structure == 0)
+            a.structure = structure;
+
+        auto s = on(a, source);
+
+        if (s == nullptr && a.n_seen < max_sources) {
+            s = &a.seen[a.n_seen++];
+            *s = sighting{source, now_ms, now_ms, signal * 16};
+        } else if (s != nullptr) {
+            s->first_ms = std::min(s->first_ms, now_ms);
+            s->last_ms = std::max(s->last_ms, now_ms);
+            s->avg16 += (signal * 16 - s->avg16) / 16;
+        }
     }
 
-    auto& a = i->second;
-
-    if (now_ms > a.last_ms) {
-        a.last_ms = now_ms;
-        a.last_signal = signal;
+    if (now_ms - last_check_ms >= check_interval_ms) {
+        last_check_ms = now_ms;
+        check(now_ms, out);
     }
-
-    // One address, one receiver; heard on another, it's no use for timing
-    if (a.source != source)
-        a.source = 0;
 }
 
-void btle_corotation::rotated(const device_key& key, const device_key& pred, std::vector<join>& out) {
-    kis_lock_guard<kis_mutex> lk(mutex, "btle_corotation rotated");
+void btle_corotation::check(int64_t now_ms, std::vector<rotation>& out) {
+    std::vector<device_key> due;
 
-    auto ai = addrs_.find(pred);
-    auto ni = addrs_.find(key);
+    waiting_.erase(std::remove_if(waiting_.begin(), waiting_.end(),
+                [this, now_ms, &due](const device_key& k) {
+                    auto ai = addrs_.find(k);
 
-    if (ai == addrs_.end() || ni == addrs_.end())
-        return;
+                    if (ai == addrs_.end() || ai->second.checked)
+                        return true;
 
-    const auto& a = ai->second;
-    const auto& an = ni->second;
+                    const int64_t age = now_ms - ai->second.first_ms;
 
-    if (a.source == 0 || a.source != an.source)
-        return;
+                    if (age >= p_.settle_ms && due.size() < max_checks) {
+                        due.push_back(k);
+                        return true;
+                    }
 
-    // The other addresses that went quiet with the anchor, and that started with its next
-    std::vector<std::pair<device_key, const addr *>> quiet, fresh;
+                    // A flood waits its turn; one left this long can't be checked fairly
+                    return age > p_.settle_ms + p_.window_ms;
+                }), waiting_.end());
 
-    for (const auto& [k, x] : addrs_) {
-        if (k == key || k == pred || x.source != a.source)
+    std::vector<device_key> quiet, fresh;
+
+    for (const auto& k : due) {
+        auto ai = addrs_.find(k);
+
+        if (ai == addrs_.end() || ai->second.checked || ai->second.structure == 0)
             continue;
 
-        const bool q = abs_diff(x.last_ms, a.last_ms) <= p_.window_ms &&
-            std::abs(x.last_signal - a.last_signal) <= p_.signal_window;
-        const bool n = abs_diff(x.first_ms, an.first_ms) <= p_.window_ms &&
-            std::abs(x.first_signal - an.first_signal) <= p_.signal_window;
+        ai->second.checked = true;
 
-        // Came and went within the moment: can't say which side it's on
-        if (q && n)
-            return;
+        for (size_t i = 0; i < ai->second.n_seen; i++) {
+            if (!find_rotation(ai->second, ai->second.seen[i], quiet, fresh))
+                continue;
 
-        if (q)
-            quiet.emplace_back(k, &x);
-        else if (n)
-            fresh.emplace_back(k, &x);
-    }
+            // Its fellow new addresses rotated with it: no need to look again
+            for (const auto& f : fresh) {
+                auto fi = addrs_.find(f);
+                if (fi != addrs_.end())
+                    fi->second.checked = true;
+            }
 
-    auto ci = chains_.find(pred);
-
-    if (quiet.empty() || quiet.size() != fresh.size()) {
-        if (ci != chains_.end())
-            chains_.erase(ci);
-        return;
-    }
-
-    // Every structure exactly once on each side, so each pairs one way only
-    auto unique = [](const std::vector<std::pair<device_key, const addr *>>& v) {
-        for (size_t i = 0; i < v.size(); i++) {
-            if (v[i].second->structure == 0)
-                return false;
-            for (size_t j = i + 1; j < v.size(); j++)
-                if (v[i].second->structure == v[j].second->structure)
-                    return false;
+            record(quiet, fresh, now_ms, out);
+            break;
         }
-        return true;
+    }
+}
+
+bool btle_corotation::find_rotation(const addr& a, const sighting& s,
+        std::vector<device_key>& quiet, std::vector<device_key>& fresh) const {
+    const int64_t t = s.first_ms;
+
+    quiet.clear();
+    fresh.clear();
+
+    // Heard earlier on another receiver: it didn't start here
+    if (a.first_ms < t - p_.window_ms)
+        return false;
+
+    for (const auto& [k, x] : addrs_) {
+        const auto xs = on(x, s.source);
+
+        if (xs == nullptr)
+            continue;
+
+        // Averages: a new address's over its first seconds, a quiet one's at its end
+        const bool near = std::abs(xs->avg16 - s.avg16) <= p_.signal_window * 16;
+        const bool started = near && x.first_ms >= t - p_.window_ms &&
+            abs_diff(xs->first_ms, t) <= p_.window_ms;
+        // Not heard on any receiver since the moment
+        const bool stopped = near && x.first_ms < t - p_.window_ms && x.last_ms <= t + p_.window_ms &&
+            abs_diff(xs->last_ms, t) <= p_.window_ms;
+
+        if (started)
+            fresh.push_back(k);
+        else if (stopped)
+            quiet.push_back(k);
+        else
+            continue;
+
+        if (fresh.size() > max_sets || quiet.size() > max_sets)
+            return false;
+    }
+
+    if (quiet.size() < 2 || quiet.size() != fresh.size())
+        return false;
+
+    // The same structures on both sides: every new address has a set to continue
+    auto structures = [this](const std::vector<device_key>& v) {
+        std::vector<uint64_t> r;
+        r.reserve(v.size());
+        for (const auto& k : v) {
+            auto i = addrs_.find(k);
+            r.push_back(i == addrs_.end() ? 0 : i->second.structure);
+        }
+        std::sort(r.begin(), r.end());
+        return r;
     };
 
-    if (!unique(quiet) || !unique(fresh)) {
-        if (ci != chains_.end())
-            chains_.erase(ci);
-        return;
-    }
+    const auto qs = structures(quiet);
 
-    std::vector<member> members;
+    if (qs.front() == 0)
+        return false;
 
-    for (const auto& q : quiet) {
-        const uint64_t s = q.second->structure;
-        auto fi = std::find_if(fresh.begin(), fresh.end(),
-                [s](const auto& f) { return f.second->structure == s; });
+    return qs == structures(fresh);
+}
 
-        if (fi == fresh.end()) {
-            if (ci != chains_.end())
-                chains_.erase(ci);
+void btle_corotation::record(std::vector<device_key>& quiet, std::vector<device_key>& fresh,
+        int64_t now_ms, std::vector<rotation>& out) {
+    std::sort(quiet.begin(), quiet.end());
+    std::sort(fresh.begin(), fresh.end());
+
+    for (const auto& c : chains_)
+        if (c.fresh == fresh)
             return;
-        }
 
-        members.push_back(member{s, q.first, fi->first, false});
-    }
+    // The addresses that started together last time went quiet together this time
+    auto ci = std::find_if(chains_.begin(), chains_.end(),
+            [&quiet](const chain& c) { return c.fresh == quiet; });
 
-    // A set that rotated with the anchor last time too, from where it went then
     if (ci != chains_.end()) {
-        for (auto& m : members) {
-            for (const auto& pm : ci->second.members) {
-                if (pm.structure != m.structure || !(pm.next == m.quiet))
-                    continue;
-
-                m.confirmed = true;
-
-                if (!pm.confirmed)
-                    out.push_back(join{m.quiet, key});
-                out.push_back(join{m.next, key});
-                break;
-            }
-        }
-
+        out.push_back(rotation{quiet, fresh});
         chains_.erase(ci);
     }
 
     if (chains_.size() >= max_chains)
         chains_.erase(std::min_element(chains_.begin(), chains_.end(),
-                    [](const auto& x, const auto& y) { return x.second.last_ms < y.second.last_ms; }));
+                    [](const chain& x, const chain& y) { return x.last_ms < y.last_ms; }));
 
-    chains_.emplace(key, chain{std::move(members), an.first_ms});
+    chains_.push_back(chain{fresh, now_ms});
 }

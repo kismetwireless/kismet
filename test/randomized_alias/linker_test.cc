@@ -324,7 +324,45 @@ static void test_wifi() {
     CHECK(named(out) == 0);
 }
 
+/* Payload with a fingerprint only this address sends, as encrypted Nearby Info does */
+static void own_payload(linker& l, uint64_t key, time_t from, time_t to, std::vector<alias_link>& out) {
+    for (time_t t = from; t <= to; t++)
+        l.observe(0x1000 + key, k(key), t, -1, out, -50, src);
+}
+
+/* Handoff sent now and then: A sends it until 10 and other frames until quiet_at; B
+ * starts at start and sends Handoff from first_ho; true if B is linked to A */
+static bool intermittent(time_t quiet_at, time_t start, time_t first_ho) {
+    linker l(btle_params);
+    std::vector<alias_link> out;
+    for (time_t t = 0; t <= 10; t++)
+        hand(l, 1, t, 100, out);
+    own_payload(l, 1, 0, quiet_at, out);
+    own_payload(l, 2, start, first_ho - 1, out);
+    for (time_t t = first_ho; t <= first_ho + 40; t++) {
+        hand(l, 2, t, 101, out);
+        own_payload(l, 2, t, t, out);
+    }
+    const bool linked = find(out, 2, 1, "handoff") != nullptr;
+    CHECK(!linked || l.group(k(2)) == k(1));
+    return linked;
+}
+
+static void test_intermittent() {
+    /* Timed by when A went quiet and B started, not by their Handoff frames */
+    CHECK(intermittent(200, 201, 300));
+    CHECK(intermittent(200, 215, 215));
+
+    /* A still heard after B started: another of the device's sets */
+    CHECK(!intermittent(250, 201, 300));
+    /* B started too long after A went quiet */
+    CHECK(!intermittent(200, 216, 300));
+    /* B's first Handoff after A was forgotten */
+    CHECK(!intermittent(200, 201, 321));
+}
+
 int main() {
+    test_intermittent();
     test_counter();
     test_settle();
     test_only();

@@ -307,11 +307,11 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         if (link_handoff)
             _MSG_INFO("Linking random BTLE addresses which continue an Apple Handoff counter.");
 
-        // Sets which rotate within 1 s of a linked rotation, within 8 dB, twice running
+        // Sets which rotate within 1 s of each other, within 8 dB, twice running
         if (conf->fetch_opt_bool("btle_link_corotation", true)) {
             corotation = std::make_unique<btle_corotation>(
-                    btle_corotation::params{1000, 8, 120 * 1000, 45 * 60 * 1000});
-            _MSG_INFO("Linking random BTLE addresses which rotate together with a linked address.");
+                    btle_corotation::params{1000, 8, 5000, 120 * 1000, 45 * 60 * 1000});
+            _MSG_INFO("Linking random BTLE addresses which rotate together.");
         }
     }
 
@@ -1469,10 +1469,14 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
             source = ds->ref_source->get_source_key();
         }
 
+        std::vector<btle_corotation::rotation> rotations;
+
+        // A scan response's structure isn't the address's advertising
         if (corotating && signal != randomized_alias_linker::no_signal)
             corotation->observe(device->get_key(),
                     (int64_t) in_pack->ts.tv_sec * 1000 + in_pack->ts.tv_usec / 1000,
-                    structure_fp, signal, source);
+                    decode.pdu_type() == decode.pdu_scan_rsp() ? 0 : structure_fp,
+                    signal, source, rotations);
 
         std::vector<randomized_alias_linker::link> links;
 
@@ -1484,16 +1488,18 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
             alias_linker->observe(handoff_alias_bucket, device->get_key(), in_pack->ts.tv_sec,
                     adv_decode.continuity.handoff.seq, links, signal, source, handoff_alias_rules);
 
-        // A settled rotation anchors the device's other sets which rotated with it
-        if (corotation != nullptr) {
-            std::vector<btle_corotation::join> joins;
+        // A device's sets which rotated together join one group: one already linked, so
+        // the group keeps its name
+        for (const auto& r : rotations) {
+            auto pred = std::find_if(r.quiet.begin(), r.quiet.end(),
+                    [this](const device_key& k) { return !(alias_linker->group(k) == k); });
+            const auto& p = pred == r.quiet.end() ? r.quiet.front() : *pred;
 
-            for (const auto& l : links)
-                if (l.method != nullptr && l.kind == randomized_alias_linker::link_kind::carry)
-                    corotation->rotated(l.key, l.pred, joins);
-
-            for (const auto& j : joins)
-                alias_linker->join(j.key, j.pred, "corotation", links);
+            for (const auto& k : r.quiet)
+                if (!(k == p))
+                    alias_linker->join(k, p, "corotation", links);
+            for (const auto& k : r.fresh)
+                alias_linker->join(k, p, "corotation", links);
         }
 
         apply_alias_links(links);

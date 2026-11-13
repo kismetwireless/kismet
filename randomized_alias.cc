@@ -33,8 +33,13 @@ void randomized_alias_linker::prune(time_t now) {
     for (auto mi = recs_.begin(); mi != recs_.end(); ) {
         auto& v = mi->second;
         const auto before = v.size();
+        // Kept while the address is heard, for a number it sends now and then
         v.erase(std::remove_if(v.begin(), v.end(),
-                    [this, now](const rec& r) { return now - r.last > p_.keep; }), v.end());
+                    [this, now](const rec& r) {
+                        auto si = seen_.find(r.key);
+                        const time_t last = si == seen_.end() ? r.last : std::max(r.last, si->second.last);
+                        return now - last > p_.keep;
+                    }), v.end());
         rec_count_ -= before - v.size();
 
         if (v.empty())
@@ -52,6 +57,11 @@ void randomized_alias_linker::prune(time_t now) {
         else
             ++si;
     }
+}
+
+device_key randomized_alias_linker::group(const device_key& key) {
+    kis_lock_guard<kis_mutex> lk(mutex, "randomized_alias_linker group");
+    return group_of(key);
 }
 
 device_key randomized_alias_linker::group_of(const device_key& k) const {
@@ -165,10 +175,15 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
     if (si == seen_.end()) {
         if (!make_room([this]() { return seen_.size() >= max_seen; }))
             return;
-        seen_.emplace(key, seen{now, key});
-    } else if (now > si->second.last) {
-        si->second.last = now;
+        si = seen_.emplace(key, seen{now, now, key}).first;
+    } else {
+        si->second.first = std::min(si->second.first, now);
+        si->second.last = std::max(si->second.last, now);
     }
+
+    // A number sent now and then may first come well after the address started, and
+    // well after the earlier address last sent one, so it's timed by frames of any kind
+    const time_t start = rules.only ? si->second.first : now;
 
     auto self = find_rec(fingerprint, key);
 
@@ -216,8 +231,11 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
     std::vector<device_key> active_groups;
 
     for (auto& r : recs) {
+        auto rs = seen_.find(r.key);
+        const time_t r_last = rules.only && rs != seen_.end() ? std::max(r.last, rs->second.last) : r.last;
+
         // An address with a later one linked to it is that same device
-        if (now - r.last > p_.window || r.succeeded)
+        if (start - r_last > p_.window || r.succeeded)
             continue;
 
         const auto g = group_of(r.key);
@@ -225,8 +243,7 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
             active_groups.push_back(g);
 
         // Still heard, under any fingerprint, after the new address appeared
-        auto rs = seen_.find(r.key);
-        if (r.last > now || (rs != seen_.end() && rs->second.last > now))
+        if (r.last > start || (rs != seen_.end() && rs->second.last > start))
             continue;
 
         cands.push_back(&r);
