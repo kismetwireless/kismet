@@ -1930,6 +1930,48 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
 .server-ok { color: var(--ok); }
 .server-add h3 { margin: 0; font-size: 1rem; }
 .servers code { overflow-wrap: anywhere; }
+
+/* API keys: wide like the settings, keys on the left and a new key on the right */
+.dialog.modal.apikeys-dialog { width: 60vw; min-width: min(40rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+.apikeys-dialog .dialog-body { overflow: hidden; }
+.apikeys { display: flex; gap: 1.2rem; height: min(60vh - 4rem, 100vh - 10rem); min-height: 16rem; }
+.apikeys-main { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+.apikeys-side { flex: 0 0 17rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;
+    padding-left: 1.2rem; border-left: 1px solid var(--border); }
+.apikeys-main > .form-error:empty { display: none; }
+.apikey-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.apikey-item {
+    display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.3rem 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+.apikey-item.expired { opacity: 0.7; }
+.apikey-info { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.apikey-info > .badge { margin-left: 0.4rem; }
+.apikey-keyrow { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.apikey-key { user-select: all; }
+.apikey-actions { display: flex; gap: 0.4rem; }
+.apikey-actions button.danger { color: var(--error); }
+.apikey-add h3 { margin: 0; font-size: 1rem; }
+.apikey-add label input[hidden] { display: none; }
+.apikeys code { overflow-wrap: anywhere; }
+.apikeys-help { margin-top: auto; padding-top: 0.5rem; }
+.apikey-new-dialog { width: min(30rem, calc(100vw - 2rem)); }
+.apikey-new-key {
+    padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-2); overflow-wrap: anywhere; user-select: all;
+}
+.apikey-new-dialog .form-buttons { align-items: center; gap: 0.5rem; }
+.apikey-new-dialog .form-buttons > span { margin-right: auto; }
+@media (max-width: 700px) {
+    /* One column, scrolled as a whole */
+    .dialog.modal.apikeys-dialog { width: calc(100vw - 1rem); min-width: 0; max-width: none; }
+    .apikeys-dialog .dialog-body { overflow-y: auto; }
+    .apikeys { flex-direction: column; height: auto; min-height: 0; }
+    .apikeys-main, .apikeys-side { overflow: visible; }
+    .apikeys-side { flex: none; padding: 1rem 0 0; border-left: none; border-top: 1px solid var(--border); }
+}
 .update-notice {
     position: fixed; z-index: 50;
     left: 50%; transform: translateX(-50%);

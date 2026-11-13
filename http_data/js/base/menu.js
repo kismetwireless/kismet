@@ -45,6 +45,11 @@ export function register(kismet) {
         onClick: () => kismet.widgets.packetgraphs.openPackets(),
     });
 
+    ui.menuItems.add({
+        id: 'apikeys', title: 'API keys', icon: 'key', priority: -10, section: 'settings',
+        onClick: () => kismet.widgets.apikeys.openApiKeys(),
+    });
+
     // Switching servers is for the installed app, or to get back from another server
     if (kismet.servers.installed() || kismet.servers.current() || kismet.servers.list().length)
         ui.menuItems.add({
