@@ -23,6 +23,7 @@
 
 #include <time.h>
 
+#include <array>
 #include <limits>
 #include <unordered_map>
 #include <vector>
@@ -60,7 +61,8 @@ public:
         // Addresses quiet for longer than this are forgotten
         time_t keep;
         // A signal match is at most this many dB from the new address's signal, and
-        // this many dB closer than the next candidate; 0 turns signal matching off
+        // this many dB closer than the next candidate, by averages compared once the
+        // link has settled; 0 turns signal matching off
         int signal_window;
         int signal_margin;
     };
@@ -135,16 +137,20 @@ protected:
         time_t first;
         time_t last;
         int last_seq;
-        int last_signal;
+        // Running average in 1/16 dB on last_source, over n_signal frames up to 16;
+        // one frame's signal swings several dB by channel
+        int avg16;
+        uint8_t n_signal;
         uint64_t last_source;
         // A later address is linked, or waiting to be, to this one
         bool succeeded;
     };
 
-    // The candidate the signal picks, or nullptr
-    rec *signal_match(const std::vector<rec *>& cands, int signal, uint64_t source) const;
+    // Most earlier addresses a signal link chooses between
+    static constexpr size_t max_signal_cands = 8;
 
-    enum class pending_kind : uint8_t { carry, same };
+    // signal: key waits to be linked to whichever of cands its average signal picks
+    enum class pending_kind : uint8_t { carry, same, signal };
 
     // A link waiting for the earlier address to stay quiet, or for two addresses with
     // the same number to keep it; method nullptr when cancelled
@@ -158,7 +164,12 @@ protected:
         // A sequence match under seq_rules::only, which overrides weaker links for key
         bool strong;
         bool only;
+        std::array<device_key, max_signal_cands> cands{};
+        uint8_t n_cands = 0;
     };
+
+    // The candidate key's average signal picks once it has settled, or nullptr
+    rec *signal_pick(const pending& pl);
 
     // An address, under any fingerprint
     struct seen {

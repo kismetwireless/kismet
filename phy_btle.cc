@@ -1213,11 +1213,16 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
 
     bool is_tracker = frames.any();
 
-    // Drop rotating random addresses, the flood of short-lived devices.  Static random
-    // addresses last until the device is reset, so fixed devices using them are kept.
-    if (decode.is_txaddr_random() && random_addrs == random_mode::ignore &&
-            btle_random_address_rotates(in_pack->common_info.source[0]) &&
-            remoteid == nullptr && !is_tracker)
+    // Find My's static random address is made from its key, which changes every 15
+    // minutes, so it rotates like a private address
+    constexpr uint32_t findmy_bit = (uint32_t) 1 << static_cast<uint8_t>(btle_continuity::msg_type::findmy);
+    const bool addr_rotates = decode.is_txaddr_random() &&
+        (btle_random_address_rotates(in_pack->common_info.source[0]) ||
+         (adv_decode.has_continuity && (adv_decode.continuity.seen_types & findmy_bit) != 0));
+
+    // Drop rotating random addresses, the flood of short-lived devices.  Other static
+    // random addresses last until the device is reset, so fixed devices using them are kept.
+    if (addr_rotates && random_addrs == random_mode::ignore && remoteid == nullptr && !is_tracker)
         return false;
 
     // Update with all the options in case we can add signal and frequency
@@ -1401,13 +1406,13 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
 
     // The advertising payload of a random address, less what many devices share; 0
     // when there's too little of it to be unique to one device
-    const bool rotating = decode.is_txaddr_random() &&
-        btle_random_address_rotates(in_pack->common_info.source[0]);
+    const bool rotating = addr_rotates;
     uint64_t payload_fp = 0;
 
     if (decode.is_txaddr_random() && (alias_linker != nullptr || (related != nullptr && rotating))) {
         std::string fp_buf;
         fp_buf.push_back(static_cast<char>(decode.pdu_type()));
+        bool findmy_fp = false;
 
         for (const auto& ad : *decode.advertised_data()) {
             // Flags and transmit power are the same on many devices
@@ -1416,10 +1421,24 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
 
             fp_buf.push_back(static_cast<char>(ad->type()));
             fp_buf.push_back(static_cast<char>(ad->data().length()));
+
+            // Find My: the company, frame type and status; the rest is key bits, which
+            // change with the address
+            btle_tracker::findmy_info fm;
+            if (ad->type() == BTLE_ADVDATA_MANUFACTURER_DATA &&
+                    btle_tracker::decode_apple_findmy((const uint8_t *) ad->data().data(),
+                        ad->data().length(), fm)) {
+                fp_buf.append(ad->data(), 0, 5);
+                findmy_fp = true;
+                continue;
+            }
+
             fp_buf.append(ad->data());
         }
 
-        if (fp_buf.length() >= 9) {
+        // A Find My frame is the same on every nearby device of its kind, so it's left to
+        // the linker to tell them apart, by there being one or by signal
+        if (fp_buf.length() >= 9 || findmy_fp) {
             payload_fp = XXH64(fp_buf.data(), fp_buf.length(), 0);
             // 0 means no fingerprint
             if (payload_fp == 0)

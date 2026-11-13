@@ -89,7 +89,7 @@ void btle_corotation::observe(const device_key& key, int64_t now_ms, uint64_t st
             return;
 
         addr a{now_ms, now_ms, structure, {}, 1, false};
-        a.seen[0] = sighting{source, now_ms, now_ms, signal * 16};
+        a.seen[0] = sighting{source, now_ms, now_ms, signal * 16, 1};
         addrs_.emplace(key, a);
         waiting_.push_back(key);
     } else {
@@ -106,11 +106,14 @@ void btle_corotation::observe(const device_key& key, int64_t now_ms, uint64_t st
 
         if (s == nullptr && a.n_seen < max_sources) {
             s = &a.seen[a.n_seen++];
-            *s = sighting{source, now_ms, now_ms, signal * 16};
+            *s = sighting{source, now_ms, now_ms, signal * 16, 1};
         } else if (s != nullptr) {
             s->first_ms = std::min(s->first_ms, now_ms);
             s->last_ms = std::max(s->last_ms, now_ms);
-            s->avg16 += (signal * 16 - s->avg16) / 16;
+            // The mean of the first frames, then a running average
+            if (s->n_signal < 16)
+                s->n_signal++;
+            s->avg16 += (signal * 16 - s->avg16) / s->n_signal;
         }
     }
 

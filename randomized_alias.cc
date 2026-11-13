@@ -103,27 +103,35 @@ bool randomized_alias_linker::push_pending(const pending& np) {
     // A sequence match outranks the key's links made without one
     if (np.strong)
         for (auto& pl : pending_)
-            if (pl.method != nullptr && pl.key == np.key && pl.kind == pending_kind::carry && !pl.strong)
+            if (pl.method != nullptr && pl.key == np.key && pl.kind != pending_kind::same && !pl.strong)
                 release(pl);
 
     pending_.push_back(np);
     return true;
 }
 
-randomized_alias_linker::rec *randomized_alias_linker::signal_match(const std::vector<rec *>& cands,
-        int signal, uint64_t source) const {
-    if (p_.signal_window <= 0 || signal == no_signal || source == 0)
+randomized_alias_linker::rec *randomized_alias_linker::signal_pick(const pending& pl) {
+    const auto self = find_rec(pl.fingerprint, pl.key);
+
+    if (self == nullptr || self->last_source == 0)
         return nullptr;
 
     rec *best = nullptr;
     int best_d = 0, next_d = std::numeric_limits<int>::max();
 
-    for (auto r : cands) {
+    for (size_t i = 0; i < pl.n_cands; i++) {
+        auto r = find_rec(pl.fingerprint, pl.cands[i]);
+        auto rs = seen_.find(pl.cands[i]);
+
+        // Taken by another address since, forgotten, or heard again: not this one's
+        if (r == nullptr || r->succeeded || rs == seen_.end() || rs->second.last > pl.first)
+            continue;
+
         // One heard elsewhere can't be ruled out
-        if (r->last_signal == no_signal || r->last_source != source)
+        if (r->last_source != self->last_source)
             return nullptr;
 
-        const int d = std::abs(signal - r->last_signal);
+        const int d = std::abs(self->avg16 - r->avg16);
 
         if (best == nullptr || d < best_d) {
             next_d = best == nullptr ? next_d : best_d;
@@ -134,10 +142,10 @@ randomized_alias_linker::rec *randomized_alias_linker::signal_match(const std::v
         }
     }
 
-    if (best == nullptr || best_d > p_.signal_window)
+    if (best == nullptr || best_d > p_.signal_window * 16)
         return nullptr;
 
-    if (next_d != std::numeric_limits<int>::max() && next_d - best_d < p_.signal_margin)
+    if (next_d != std::numeric_limits<int>::max() && next_d - best_d < p_.signal_margin * 16)
         return nullptr;
 
     return best;
@@ -161,6 +169,12 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
     const int modulus = std::max(rules.modulus, 1);
     if (seq < 0 || seq >= modulus)
         seq = -1;
+
+    // Whatever a receiver reports, so the average can't overflow
+    if (signal == no_signal || source == 0)
+        signal = no_signal;
+    else
+        signal = std::clamp(signal, -200, 50);
 
     // Under a flood, prune early, at most once a second, then ignore what doesn't fit
     auto make_room = [this, now](auto full) {
@@ -201,8 +215,16 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
         }
 
         if (signal != no_signal) {
-            self->last_signal = signal;
-            self->last_source = source;
+            if (self->last_source != source) {
+                self->avg16 = signal * 16;
+                self->n_signal = 1;
+                self->last_source = source;
+            } else {
+                // The mean of the first frames, then a running average
+                if (self->n_signal < 16)
+                    self->n_signal++;
+                self->avg16 += (signal * 16 - self->avg16) / self->n_signal;
+            }
         }
 
         settle(now, out);
@@ -285,10 +307,17 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
             if (pl.fingerprint == fingerprint && pl.method == p_.unique_method)
                 release(pl);
 
-        if (auto pred = signal_match(cands, signal, source))
-            if (!has_strong(key) && push_pending(pending{fingerprint, key, pred->key, now,
-                        "signal", pending_kind::carry, false, rules.only}))
-                pred->succeeded = true;
+        // Picked once settled, by average signals: one frame's is too rough
+        if (p_.signal_window > 0 && signal != no_signal && !cands.empty() &&
+                cands.size() <= max_signal_cands && !has_strong(key)) {
+            pending pl{fingerprint, key, device_key{}, now, "signal", pending_kind::signal,
+                false, rules.only};
+
+            for (auto c : cands)
+                pl.cands[pl.n_cands++] = c->key;
+
+            push_pending(pl);
+        }
     }
 
     // The same number on another address heard just now, on this receiver at a similar
@@ -302,8 +331,7 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
         for (auto& r : recs) {
             if (r.last_seq != seq || now - r.last > rules.same_window)
                 continue;
-            if (r.last_signal == no_signal || r.last_source != source ||
-                    std::abs(signal - r.last_signal) > p_.signal_window)
+            if (r.last_source != source || std::abs(signal * 16 - r.avg16) > p_.signal_window * 16)
                 continue;
 
             const auto g = group_of(r.key);
@@ -331,7 +359,8 @@ void randomized_alias_linker::observe(uint64_t fingerprint, const device_key& ke
         rec_count_--;
     }
 
-    recs.push_back(rec{key, now, now, seq, signal, signal == no_signal ? 0 : source, false});
+    recs.push_back(rec{key, now, now, seq, signal == no_signal ? 0 : signal * 16,
+            (uint8_t) (signal == no_signal ? 0 : 1), signal == no_signal ? 0 : source, false});
     rec_count_++;
 
     settle(now, out);
@@ -373,6 +402,20 @@ void randomized_alias_linker::settle(time_t now, std::vector<link>& out) {
     for (auto& pl : pending_) {
         if (pl.method == nullptr)
             continue;
+
+        if (pl.kind == pending_kind::signal) {
+            if (now - pl.first < p_.confirm)
+                continue;
+
+            // An address one of these linked already has its earlier address
+            if (auto pred = pl.only && group_of(pl.key) != pl.key ? nullptr : signal_pick(pl)) {
+                merge(pl.key, pred->key, pl.method, link_kind::carry, out);
+                pred->succeeded = true;
+            }
+
+            pl.method = nullptr;
+            continue;
+        }
 
         auto ps = seen_.find(pl.pred);
 

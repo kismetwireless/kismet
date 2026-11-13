@@ -361,7 +361,98 @@ static void test_intermittent() {
     CHECK(!intermittent(200, 201, 321));
 }
 
+/* One shared payload, as nearby Find My devices send; each frame's signal swings 6 dB
+ * either side of mean, starting below it, or above with phase 1 */
+static void shared(linker& l, uint64_t key, time_t from, time_t to, int mean,
+        std::vector<alias_link>& out, uint64_t source = src, int phase = 0) {
+    for (time_t t = from; t <= to; t++)
+        l.observe(0x5150, k(key), t, -1, out, mean + ((t - from + phase) % 2 ? 6 : -6), source);
+}
+
+static void settle_all(linker& l, time_t until, std::vector<alias_link>& out) {
+    for (time_t t = 0; t <= until; t++)
+        tick(l, t, out);
+}
+
+static void test_signal() {
+    /* Picked by averages: frame by frame, C's first (-57) is nearest B's last (-54),
+     * and too far from A's (-44) */
+    {
+        linker l(btle_params);
+        std::vector<alias_link> out;
+        shared(l, 1, 0, 100, -50, out, src, 1);
+        shared(l, 2, 0, 100, -60, out, src, 1);
+        shared(l, 3, 102, 150, -51, out);
+        settle_all(l, 150, out);
+        CHECK(find(out, 3, 1, "signal") != nullptr && named(out) == 1);
+    }
+
+    /* Too close to tell apart */
+    {
+        linker l(btle_params);
+        std::vector<alias_link> out;
+        shared(l, 1, 0, 10, -50, out);
+        shared(l, 2, 0, 10, -53, out);
+        shared(l, 3, 12, 60, -51, out);
+        settle_all(l, 60, out);
+        CHECK(named(out) == 0);
+    }
+
+    /* A candidate heard again is another device, still there */
+    {
+        linker l(btle_params);
+        std::vector<alias_link> out;
+        shared(l, 1, 0, 10, -50, out);
+        shared(l, 2, 0, 10, -62, out);
+        shared(l, 3, 12, 60, -61, out);
+        shared(l, 1, 20, 20, -50, out);
+        settle_all(l, 60, out);
+        CHECK(find(out, 3, 2, "signal") != nullptr && named(out) == 1);
+    }
+
+    /* Heard on another receiver: can't be ruled out */
+    {
+        linker l(btle_params);
+        std::vector<alias_link> out;
+        shared(l, 1, 0, 10, -50, out);
+        shared(l, 2, 0, 10, -64, out, 2);
+        shared(l, 3, 12, 60, -52, out);
+        settle_all(l, 60, out);
+        CHECK(named(out) == 0);
+    }
+}
+
+static void test_findmy_quarter_hour() {
+    /* Three devices rotating a second or two apart, as a capture showed: each new
+     * address takes the earlier one still free that its average signal picks */
+    linker l(btle_params);
+    std::vector<alias_link> out;
+    shared(l, 1, 0, 100, -64, out);
+    shared(l, 2, 0, 101, -51, out);
+    shared(l, 3, 0, 104, -64, out);
+    shared(l, 4, 102, 160, -62, out);
+    shared(l, 5, 103, 160, -53, out);
+    shared(l, 6, 106, 160, -64, out);
+    settle_all(l, 160, out);
+    CHECK(find(out, 4, 1, "signal") != nullptr);
+    CHECK(find(out, 5, 2, "signal") != nullptr);
+    CHECK(find(out, 6, 3, "signal") != nullptr);
+    CHECK(named(out) == 3);
+
+    /* Two at the same moment at the same signal: nothing */
+    linker l2(btle_params);
+    out.clear();
+    shared(l2, 1, 0, 100, -64, out);
+    shared(l2, 2, 0, 100, -63, out);
+    shared(l2, 3, 101, 160, -64, out);
+    shared(l2, 4, 101, 160, -63, out);
+    settle_all(l2, 160, out);
+    CHECK(named(out) == 0);
+}
+
 int main() {
+    test_signal();
+    test_findmy_quarter_hour();
     test_intermittent();
     test_counter();
     test_settle();
