@@ -21,7 +21,11 @@
 #include "messagebus.h"
 #include "messagebus_restclient.h"
 
+#include <cctype>
+
+#include "censor.h"
 #include "json_adapter.h"
+#include "macaddr.h"
 
 rest_message_client::rest_message_client() :
     lifetime_global() {
@@ -95,6 +99,67 @@ rest_message_client::rest_message_client() :
                     }));
     }
 
+    // Post a message from an API client, such as a helper reporting what it decided, to
+    // the message console.  The source and level are allowlisted and the text capped, so
+    // a client can't forge another component's messages, raise a fatal, or flood the
+    // console with oversized records; a MAC is checked and marked for censoring.
+    httpd->register_route("/messagebus/post", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    const auto& j = con->json();
+
+                    auto text_param = [&j](const char *k) -> std::string {
+                        auto i = j.find(k);
+                        if (i == j.end() || i->is_null())
+                            return "";
+                        if (!i->is_string())
+                            throw std::runtime_error(fmt::format("{} must be a string", k));
+                        return i->get<std::string>();
+                    };
+
+                    auto msg = text_param("msg");
+                    auto source = text_param("source");
+                    auto level = text_param("level");
+                    auto mac = text_param("mac");
+
+                    if (msg.empty() || msg.size() > max_post_len)
+                        throw std::runtime_error(fmt::format("msg must be 1 to {} bytes", max_post_len));
+                    for (unsigned char c : msg)
+                        if (c < 0x20 || c == 0x7f)
+                            throw std::runtime_error("msg must not contain control characters");
+
+                    if (source.empty() || source.size() > max_source_len)
+                        throw std::runtime_error(fmt::format("source must be 1 to {} characters", max_source_len));
+                    for (unsigned char c : source)
+                        if (!std::isalnum(c) && c != '-' && c != '_' && c != '.')
+                            throw std::runtime_error("source may only contain letters, digits, '-', '_' and '.'");
+
+                    int flags = MSGFLAG_INFO;
+                    if (level == "error")
+                        flags = MSGFLAG_ERROR;
+                    else if (level == "alert")
+                        flags = MSGFLAG_ALERT;
+                    else if (!level.empty() && level != "info")
+                        throw std::runtime_error("level must be info, error or alert");
+
+                    if (mac.empty()) {
+                        Globalreg::globalreg->messagebus->inject_message(
+                                censor::format("{}: {}", source, msg), flags);
+                    } else {
+                        // Only a plain colon form; mac_addr also takes masks and short forms
+                        bool ok = mac.size() == 17;
+                        for (size_t i = 0; ok && i < mac.size(); i++)
+                            ok = (i % 3 == 2) ? mac[i] == ':' : std::isxdigit(static_cast<unsigned char>(mac[i])) != 0;
+                        mac_addr m{mac};
+                        if (!ok || m.error())
+                            throw std::runtime_error("invalid mac");
+                        Globalreg::globalreg->messagebus->inject_message(
+                                censor::format("{}: {} ({})", source, msg, m), flags);
+                    }
+
+                    std::ostream os(&con->response_stream());
+                    os << "Message posted\n";
+                }));
 }
 
 rest_message_client::~rest_message_client() {
