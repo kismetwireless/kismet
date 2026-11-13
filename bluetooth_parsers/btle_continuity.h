@@ -46,8 +46,12 @@
  *   0x0E Tethering Source: version, flags, battery (2 bytes; percent in the first),
  *   network type, signal bars.
  *
+ *   0x0C Handoff: clipboard status, a sequence counter (LE), then the encrypted
+ *   payload.  The counter carries across an address change, so it's decoded to link
+ *   a device's addresses, and never kept on the device.
+ *
  *   Everything else is noted only as present.  AirDrop hashes of phone numbers and
- *   e-mail addresses, Handoff counters and payloads, the Tethering Target iCloud ID,
+ *   e-mail addresses, Handoff payloads, the Tethering Target iCloud ID,
  *   Hey Siri and Magic Switch data, and every auth tag are never copied.  Proximity
  *   Pairing (0x07) and Find My (0x12) are decoded elsewhere and only noted here, at
  *   the lengths those decoders take.  iBeacon (0x02), which beacons of every maker
@@ -217,6 +221,11 @@ struct tethering_source {
     uint8_t signal_bars = 0;
 };
 
+struct handoff {
+    bool present = false;
+    uint16_t seq = 0;
+};
+
 struct info {
     /* Bit n set when a message of type n was seen */
     uint32_t seen_types = 0;
@@ -232,6 +241,7 @@ struct info {
     struct airplay_target airplay_target;
     struct airprint airprint;
     struct tethering_source tethering_source;
+    struct handoff handoff;
 };
 
 /* Manufacturer data: the company ID, then the Continuity messages */

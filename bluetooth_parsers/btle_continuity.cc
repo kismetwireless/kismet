@@ -49,6 +49,8 @@ constexpr size_t homekit_min_len = 13;
 constexpr size_t airplay_target_min_len = 6;
 constexpr size_t airprint_min_len = 22;
 constexpr size_t tethering_source_min_len = 6;
+/* Clipboard status and the counter */
+constexpr size_t handoff_min_len = 3;
 /* Prefix and model ID */
 constexpr size_t proximity_pairing_min_len = 3;
 /* The separated and near owner frames */
@@ -98,7 +100,6 @@ constexpr bool is_presence_type(uint8_t type) {
         case msg_type::hey_siri:
         case msg_type::airplay_source:
         case msg_type::magic_switch:
-        case msg_type::handoff:
         case msg_type::tethering_target:
         case msg_type::homekit_encrypted:
             return true;
@@ -214,6 +215,23 @@ bool decode_tethering_source(const uint8_t *v, size_t vlen, tethering_source& ts
     return true;
 }
 
+bool decode_handoff(const uint8_t *v, size_t vlen, handoff& h) {
+    if (vlen < handoff_min_len)
+        return false;
+
+    kismet::wire_reader r{v, vlen};
+    r.u8();
+    const auto seq = r.le<uint16_t>();
+
+    if (!seq)
+        return false;
+
+    h.present = true;
+    h.seq = *seq;
+
+    return true;
+}
+
 }
 
 bool decode_manuf_data(const uint8_t *data, size_t len, info& out) {
@@ -269,6 +287,10 @@ bool decode_manuf_data(const uint8_t *data, size_t len, info& out) {
                 break;
             case msg_type::tethering_source:
                 ok = decode_tethering_source(v, vlen, out.tethering_source);
+                break;
+            case msg_type::handoff:
+                /* The first one counts */
+                ok = out.handoff.present || decode_handoff(v, vlen, out.handoff);
                 break;
             case msg_type::proximity_pairing:
                 ok = vlen >= proximity_pairing_min_len;
