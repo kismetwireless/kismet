@@ -248,7 +248,14 @@ TEST_BTLE_COROTATION_O = \
 	test/randomized_alias/device_key_stub.cc.o \
 	btle_corotation.cc.o
 
-LOGTOOL_KISMETDB_JSON = log_tools/kismetdb_dump_devices
+# The BTLE related group tests; built on request
+TEST_BTLE_RELATED = test/btle_related/related_test
+TEST_BTLE_RELATED_O = \
+	test/btle_related/related_test.cc.o \
+	test/randomized_alias/device_key_stub.cc.o \
+	btle_related.cc.o
+
+LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
 	sqlite3_cpp11.cc.o
@@ -435,6 +442,9 @@ $(TEST_RANDOMIZED_ALIAS):	$(TEST_RANDOMIZED_ALIAS_O)
 
 $(TEST_BTLE_COROTATION):	$(TEST_BTLE_COROTATION_O)
 	$(LD) $(LDFLAGS) -o $(TEST_BTLE_COROTATION) $(TEST_BTLE_COROTATION_O) $(CXXLIBS)
+
+$(TEST_BTLE_RELATED):	$(TEST_BTLE_RELATED_O)
+	$(LD) $(LDFLAGS) -o $(TEST_BTLE_RELATED) $(TEST_BTLE_RELATED_O) $(CXXLIBS)
 
 diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
@@ -1032,7 +1042,7 @@ depclean:
 	@-rm -f dot11_parsers/*.d
 	@-rm -f log_tools/*.d
 	@-rm -f test/cell_decisions/*.d diagspec/enrichment/cpp/lte_band.cpp.d
-	@-rm -f test/randomized_alias/*.d test/btle_corotation/*.d
+	@-rm -f test/randomized_alias/*.d test/btle_corotation/*.d test/btle_related/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -1046,6 +1056,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/cell_decisions/*.o diagspec/enrichment/cpp/lte_band.cpp.o $(TEST_CELL_DECISIONS)
 	@-rm -f test/randomized_alias/*.o $(TEST_RANDOMIZED_ALIAS)
 	@-rm -f test/btle_corotation/*.o $(TEST_BTLE_COROTATION)
+	@-rm -f test/btle_related/*.o $(TEST_BTLE_RELATED)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1164,6 +1175,7 @@ include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_CELL_DECISIONS_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_RANDOMIZED_ALIAS_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_COROTATION_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_RELATED_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))

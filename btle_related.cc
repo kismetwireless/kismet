@@ -79,21 +79,75 @@ void btle_related_tracker::leave(uint64_t fp, const device_key& key, time_t now,
         settle(ci->second, now, out, nullptr);
 }
 
+bool btle_related_tracker::steady(uint64_t fingerprint, const device_key& key, time_t now) {
+    if (p_.steady <= 0)
+        return true;
+
+    // An address quiet for the steady time starts over
+    if (now != last_prune) {
+        last_prune = now;
+        for (auto ai = addrs_.begin(); ai != addrs_.end(); ) {
+            if (now - ai->second.last > p_.steady)
+                ai = addrs_.erase(ai);
+            else
+                ++ai;
+        }
+    }
+
+    auto ai = addrs_.find(key);
+    if (ai == addrs_.end()) {
+        if (addrs_.size() < max_addrs)
+            addrs_.emplace(key, addr{fingerprint, now, now, false});
+        return true;
+    }
+
+    auto& a = ai->second;
+    if (now > a.last)
+        a.last = now;
+
+    if (a.fingerprint != fingerprint) {
+        a.fingerprint = fingerprint;
+        a.since = now;
+        a.unsteady = true;
+    } else if (a.unsteady && now - a.since >= p_.steady) {
+        a.unsteady = false;
+    }
+
+    return !a.unsteady;
+}
+
 void btle_related_tracker::observe(uint64_t fingerprint, const device_key& key, time_t now,
         std::vector<state>& out) {
     kis_lock_guard<kis_mutex> lk(mutex, "btle_related_tracker observe");
 
     auto wi = where_.find(key);
-    if (wi != where_.end() && wi->second != fingerprint) {
+
+    // Too little payload to say anything: still heard in whatever group it's in
+    if (fingerprint == 0) {
+        if (wi != where_.end())
+            join(wi->second, key, now, out);
+        else
+            out.push_back(state{key, 0, 0, false, device_key{}, false, 0});
+        return;
+    }
+
+    const bool keep = steady(fingerprint, key, now);
+
+    if (wi != where_.end() && (!keep || wi->second != fingerprint)) {
         leave(wi->second, key, now, out);
         where_.erase(wi);
     }
 
-    if (fingerprint == 0) {
+    if (!keep) {
         out.push_back(state{key, 0, 0, false, device_key{}, false, 0});
         return;
     }
 
+    join(fingerprint, key, now, out);
+}
+
+void btle_related_tracker::join(uint64_t fingerprint, const device_key& key, time_t now,
+        std::vector<state>& out) {
     auto ci = groups_.find(fingerprint);
     if (ci == groups_.end()) {
         // Make room by forgetting the least recently heard group

@@ -270,10 +270,11 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         auto quiet = std::clamp(conf->fetch_opt_uint("btle_related_quiet", 60), 1U, 3600U);
         auto max_groups = std::clamp(conf->fetch_opt_uint("btle_related_max_groups", 128), 1U, 65536U);
         auto max_addrs = std::clamp(conf->fetch_opt_uint("btle_related_max_addresses", 64), 2U, 1024U);
+        auto steady = std::min(conf->fetch_opt_uint("btle_related_steady", 60), 3600U);
         related = std::make_unique<btle_related_tracker>(
-                btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs});
+                btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs, (time_t) steady});
         similar = std::make_unique<btle_related_tracker>(
-                btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs});
+                btle_related_tracker::params{(time_t) quiet, max_groups, max_addrs, (time_t) steady});
 
         related_timer_id =
             Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(
@@ -1433,12 +1434,18 @@ bool kis_btle_phy::update_adv_device(const std::shared_ptr<kis_packet>& in_pack,
         btle_structure_fingerprint(decode) : 0;
 
     if (related != nullptr && groupable) {
+        // A scan response answers a scanner, and differs from the address's advertising,
+        // so it would move the address to another group and back
+        const bool scan_rsp = decode.pdu_type() == decode.pdu_scan_rsp();
+
         std::vector<btle_related_tracker::state> states;
-        related->observe(payload_fp, device->get_key(), Globalreg::globalreg->last_tv_sec, states);
+        related->observe(scan_rsp ? 0 : payload_fp, device->get_key(),
+                Globalreg::globalreg->last_tv_sec, states);
         apply_related_states(states, device->get_key());
 
         states.clear();
-        similar->observe(structure_fp, device->get_key(), Globalreg::globalreg->last_tv_sec, states);
+        similar->observe(scan_rsp ? 0 : structure_fp, device->get_key(),
+                Globalreg::globalreg->last_tv_sec, states);
         apply_similar_states(states, device->get_key());
     }
 
