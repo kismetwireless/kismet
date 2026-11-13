@@ -7,9 +7,14 @@
 //                              elem's width; true when it was shortened
 //   fitTexts(elems, texts, how)  the same for elements of one width and font,
 //                              such as a table column's cells, measured once
-//   fullText(elem)             the text fitText was given, or null
+//   fullText(elem)             the text fitText was given, as censor mode shows
+//                              it, or null
+//
+// In censor mode the text is censored before it's shortened: the page's
+// censor watcher only finds whole names, and would miss a shortened one.
 
 import * as settings from './settings.js';
+import * as censor from './censor.js';
 
 export const modes = [
     { id: 'middle', title: 'In the middle (too l...ame)' },
@@ -76,7 +81,7 @@ export function fitTexts(elems, texts, how = mode()) {
     // Every read before any write, so the layout is worked out once
     const { room, width } = measurer(elems[0]);
     return elems.map((elem, i) => {
-        const s = String(texts[i] ?? '');
+        const s = censor.text(String(texts[i] ?? ''));
         full.set(elem, s);
         // Not laid out yet, or no room at all: leave it whole
         if (!(room > 0) || width(s) <= room) {
