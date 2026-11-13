@@ -1662,6 +1662,29 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 
         if (type == "")
             type = "auto";
+
+        // A source that names its UUID can't be opened next to one that already has it;
+        // say so before a helper touches the hardware of the running source
+        auto uuidstr = fetch_opt("uuid", &opt_vec);
+
+        if (uuidstr != "") {
+            uuid u(uuidstr);
+
+            if (!u.error) {
+                auto existing = find_datasource(u);
+
+                if (existing != nullptr) {
+                    auto ss = fmt::format("Datasource {} already uses UUID {}; UUIDs must be unique, so "
+                            "'{}' was not opened", existing->get_source_name(), u, interface);
+                    _MSG_ERROR("{}", ss);
+
+                    if (in_cb != NULL)
+                        in_cb(false, ss, NULL);
+
+                    return;
+                }
+            }
+        }
     }
 
     // So long as we have a type - that is, an explicitly defined type which
@@ -1809,8 +1832,13 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     ds->open_interface(in_source, 0,
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) mutable {
             // Always merge it so that it gets scheduled for re-opening; when we
-            // know the type we know how to keep trying
-            merge_source(ds);
+            // know the type we know how to keep trying.  A source whose UUID is
+            // already taken is closed and not merged.
+            if (!merge_source(ds)) {
+                in_cb(false, fmt::format("another datasource already uses UUID {}",
+                            ds->get_source_uuid()), ds);
+                return;
+            }
 
             // Whenever we succeed (or fail) at opening a deferred open source,
             // call our callback w/ whatever we know
@@ -1828,10 +1856,34 @@ void datasource_tracker::open_datasource(const std::string& in_source,
         });
 }
 
-void datasource_tracker::merge_source(shared_datasource in_source) {
+bool datasource_tracker::merge_source(shared_datasource in_source) {
     kis_lock_guard<kis_mutex> lk(dst_lock, "dst merge_source");
 
     const uuid u = in_source->get_source_uuid();
+
+    // We should only ever have one copy of a datasource in the datasource vector,
+    // unique by UUID.  If there's already a datasource in there that has the same uuid,
+    // something has gone wrong, because re-opening an existing datasource doesn't create
+    // a new datasource object!
+    //
+    // A remote ds will make sure an existing ds doesn't exist with the same UUID before
+    // merging the incoming remote connection, and a local datasource should never hit
+    // merge if it's not unique.  Check before giving it a source number or logging it,
+    // so the existing source keeps its place.
+
+    for (const auto& dsi : *datasource_vec) {
+        auto ds = std::static_pointer_cast<kis_datasource>(dsi);
+
+        if (ds->get_source_uuid() == u) {
+            _MSG_ERROR("Conflict of new datasource {}/{} and existing datasource {} with "
+                    "the same UUID.  Datasource UUIDs must be unique, check the Kismet documentation "
+                    "for the datasources you are using, and ensure that any manually defined "
+                    "UUIDs are unique.",
+                    in_source->get_source_name(), u, ds->get_source_name());
+            in_source->close_source();
+            return false;
+        }
+    }
 
     // We maintain a persistent map of source uuids to source numbers, which
     // persists even if a source is later removed entirely from the datasource
@@ -1861,30 +1913,9 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
         }
     }
 
-    // We should only ever have one copy of a datasource in the datasource vector,
-    // unique by UUID.  If there's already a datasource in there that has the same uuid,
-    // something has gone wrong, because re-opening an existing datasource doesn't create
-    // a new datasource object!
-    //
-    // A remote ds will make sure an existing ds doesn't exist with the same UUID before
-    // merging the incoming remote connection, and a local datasource should never hit
-    // merge if it's not unique
-
-    for (const auto& dsi : *datasource_vec) {
-        auto ds = std::static_pointer_cast<kis_datasource>(dsi);
-
-        if (ds->get_source_uuid() == u) {
-            _MSG_ERROR("Conflict of new datasource {}/{} and existing datasource {} with "
-                    "the same UUID.  Datasource UUIDs must be unique, check the Kismet documentation "
-                    "for the datasources you are using, and ensure that any manually defined "
-                    "UUIDs are unique.",
-                    in_source->get_source_name(), u, ds->get_source_name());
-            in_source->close_source();
-            break;
-        }
-    }
-
     datasource_vec->push_back(in_source);
+
+    return true;
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
