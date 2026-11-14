@@ -82,12 +82,23 @@ baseline one-off-random {
     expire 1d
 }
 
+# Aircraft (ADS-B) and ships (AIS): passing traffic, not part of the site, so kept for
+# this run only.  The startup and steady filters leave them out, so an airframe on a
+# regular route isn't saved in the baseline.
+baseline traffic {
+    description "Aircraft and ships"
+    when phy in ["ADSB", "AIS"]
+    every 1m
+    add
+    ephemeral
+}
+
 # Here when Kismet started and still here an hour later.  Waiting the hour keeps the
 # rush of devices heard at startup from all going in.
 baseline startup {
     description "Fixed addresses here since startup"
     when uptime > 1h and first_time < start_time + 5m and age(last_time) < 10m and
-        not random_address
+        not random_address and phy not in ["ADSB", "AIS"]
     every 10m
     add
 }
@@ -106,7 +117,8 @@ baseline alerts {
 # Heard in most hours of the last day or on most days of the last week.
 baseline steady {
     description "Fixed addresses heard most of the day or most days"
-    when not random_address and (hours_active >= 18 or days_active >= 4)
+    when not random_address and phy not in ["ADSB", "AIS"] and
+        (hours_active >= 18 or days_active >= 4)
     every 15m
     add
 }
