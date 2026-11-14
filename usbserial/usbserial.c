@@ -33,7 +33,34 @@ static const usbserial_role_t quectel_roles[] = {
     { 0, NULL },
 };
 
+/* Telit LM960A18 (1bc7:1040): if00 is DIAG (ff/ff/ff) and if03 streams NMEA
+ * with GNSS on, the measured layout behind diag_portadmit.c's table. if04 and
+ * if05 answer AT through this engine. On a USB 2.0 link with hardware LPM
+ * enabled this modem can drop, or hold for seconds, a write that follows an
+ * idle gap; the kernel tty driver sees the same loss, so it is the link and not
+ * this engine. A caller should ask again rather than read one silent reply as a
+ * dead port. */
+static const usbserial_role_t telit_lm960_roles[] = {
+    { 0, "diag" },
+    { 3, "nmea" },
+    { 4, "at" },
+    { 5, "modem" },
+    { 0, NULL },
+};
+
+/* Fibocom FM350-GL (0e8d:7127, MediaTek T700): every serial interface is
+ * ff/00/00, so only a measured map will do. if06 is the AT port. if02 is the
+ * module's log agent and if04 its META factory port; neither is ever claimed.
+ * if03 also answers AT, but only on LF-terminated lines, beside the GNSS daemon,
+ * so it is left to the host driver. There is no DIAG on this chipset. */
+static const usbserial_role_t fibocom_fm350_roles[] = {
+    { 6, "at" },
+    { 0, NULL },
+};
+
 static const usbserial_model_t models[] = {
+    { 0x1bc7, 0x1040, "Telit LM960A18", telit_lm960_roles },
+    { 0x0e8d, 0x7127, "Fibocom FM350-GL", fibocom_fm350_roles },
     { 0x2c7c, 0x0121, "Quectel EC21", quectel_roles },
     { 0x2c7c, 0x0125, "Quectel EC25 / EG25-G", quectel_roles },
     { 0x2c7c, 0x0191, "Quectel EG91", quectel_roles },
