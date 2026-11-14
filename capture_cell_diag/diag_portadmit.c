@@ -90,7 +90,19 @@ static const char *const kCellAcmVendors[] = {
  *                        RM520N-GL has no ttyUSB at all (/dev/mhi_*,
  *                        diag_wwanport.h).
  *   LM960A18  1bc7:1040  if03 streamed 270 in 3 s; "AT" and "AT+CGMM" got NMEA
- *                        back, while if04/if05/if06 answered "LM960A18". */
+ *                        back, while if04/if05/if06 answered "LM960A18".
+ *   FM350-GL  0e8d:7127  (MediaTek T700, USB composition GTUSBMODE 41; every
+ *                        serial interface is ff/00/00, so the interface number
+ *                        is what decides.) if02 is the module's own log agent:
+ *                        "AT\r\n" and "AT+CGMM\r\n" came back echoed with no
+ *                        OK. if04 is its META factory-tool port, held on the
+ *                        module side by the META daemon (read over adb from
+ *                        the module's process table). It is listed as the one
+ *                        entry NOT measured by an AT probe, because writing to a
+ *                        factory port is the harm this rule exists to prevent.
+ *                        if03 is NOT listed: it answers ATI, AT+CGSN and
+ *                        AT+GTCCINFO? when a line ends in LF. if06 is the AT
+ *                        port. */
 typedef struct {
     const char *vidpid;
     int ifnum, cls, sub, prot;
@@ -106,6 +118,8 @@ static const portadmit_nonat_t kKnownNonAt[] = {
     { "2c7c:0801", 1, 0xff, 0x00, 0x40, "NMEA" },
     { "1bc7:1040", 0, 0xff, 0xff, 0xff, "DIAG" },   /* Telit LM960A18 */
     { "1bc7:1040", 3, 0xff, 0x00, 0x00, "NMEA" },
+    { "0e8d:7127", 2, 0xff, 0x00, 0x00, "LOG" },    /* Fibocom FM350-GL */
+    { "0e8d:7127", 4, 0xff, 0x00, 0x00, "META" },
 };
 
 /* How many parent directories above the tty's `device` to search for the USB
@@ -634,6 +648,15 @@ static void build_tree(void) {
     fake_modem_port("ttyUSB54", "1-21", 4, 0xff, 0x00, 0x00);   /* AT */
     fake_modem_port("ttyUSB55", "1-21", 5, 0xff, 0x00, 0x00);   /* AT */
     fake_modem_port("ttyUSB56", "1-21", 6, 0xff, 0x00, 0x00);   /* AT */
+    /* Fibocom FM350-GL (MediaTek T700), GTUSBMODE 41: every serial
+     * interface is ff/00/00 "USB COM Port", so only the interface number
+     * tells them apart. */
+    fake_usb_device("1-25", "0e8d\n", "7127\n");
+    fake_modem_port("ttyUSB62", "1-25", 2, 0xff, 0x00, 0x00);   /* LOG */
+    fake_modem_port("ttyUSB63", "1-25", 3, 0xff, 0x00, 0x00);   /* AT (LF) */
+    fake_modem_port("ttyUSB64", "1-25", 4, 0xff, 0x00, 0x00);   /* META */
+    fake_modem_port("ttyUSB65", "1-25", 6, 0xff, 0x00, 0x00);   /* AT */
+    fake_modem_port("ttyUSB66", "1-25", 7, 0xff, 0x00, 0x00);   /* modem COM */
     /* 2c7c:0700 -- why the table is per VID:PID, never per vendor: if00-if02
      * are ALL ff/ff/ff and if02 answers AT+CGSN (diag_ifclass.c). */
     fake_usb_device("1-22", "2c7c\n", "0700\n");
@@ -804,6 +827,16 @@ static void test_known_nonat_refused(void) {
     }
     check(admits("/dev/ttyUSB54") && admits("/dev/ttyUSB55") && admits("/dev/ttyUSB56"),
           "LM960A18 if04, if05 and if06 (AT) are admitted");
+
+    check(!admits("/dev/ttyUSB62"), "FM350-GL if02 (AP log agent) is refused");
+    check(!admits("/dev/ttyUSB64"), "FM350-GL if04 (META factory port) is refused");
+    check(admits("/dev/ttyUSB63"), "FM350-GL if03 (answers AT on LF) is admitted");
+    check(admits("/dev/ttyUSB65"), "FM350-GL if06 (AT) is admitted");
+    check(admits("/dev/ttyUSB66"), "FM350-GL if07 (unmeasured role) is admitted");
+    diag_port_admit(g_root, "/dev/ttyUSB64", &v);
+    diag_portadmit_label(&v, label, sizeof(label));
+    check(strcmp(label, "option1 0e8d:7127 if04 META") == 0,
+          "FM350-GL if04 is labelled 'option1 0e8d:7127 if04 META'");
 
     check(admits("/dev/ttyUSB57") && admits("/dev/ttyUSB58") && admits("/dev/ttyUSB59"),
           "2c7c:0700 is admitted on every interface -- no vendor-wide rule "
