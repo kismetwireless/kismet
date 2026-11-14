@@ -72,7 +72,7 @@ static void check_lacks(const char *json, const char *frag, const char *what) {
  * RSRQ idx 21. The prefix line keeps the trailing space the modem sends. */
 static const char *GTCC_SERVING =
     "+GTCCINFO: \r\n"
-    "1,4,001,1,1234,000ABCDE1,100,1,148,100,26,50,50,21\r\n"
+    "1,4,001,1,1234,000ABCDE1,100,1,148,100,26,49,50,21\r\n"
     "OK\r\n";
 
 /* Uncamped: the prefix line and OK, no rows. */
@@ -86,13 +86,33 @@ static const char *GTCC_EMPTY_BAND =
     "1,4,001,1,1234,000ABCDE1,100,1,,,26,50,50,21\r\n"
     "OK\r\n";
 
-/* Serving + neighbour rows, plus a trailing reply that must not be read. */
+/* Serving + neighbour rows, plus a trailing reply that must not be read.
+ * The neighbour row is in the layout the FM350 AT manual (V2.10.1, 11.1.15)
+ * gives for an LTE neighbour: IsServiceCell 2, and NO band and NO rssnr, so
+ * 12 fields -- <..>,<pci>,<bandwidth>,<rxlev>,<rsrp>,<rsrq>. */
 static const char *GTCC_NEIGHBOUR =
     "+GTCCINFO: \r\n"
     "1,4,001,1,1234,000ABCDE1,100,1,148,100,26,50,50,21\r\n"
-    "0,4,001,1,1234,000ABCDE2,100,2,148,100,10,40,40,15\r\n"
+    "2,4,001,1,1234,000ABCDE2,100,2,100,39,40,15\r\n"
     "OK\r\n"
     "+CESQ: 31,99,255,255,22,51,255,255,255\r\n";
+
+/* A neighbour row in the serving (14-field) layout. The manual does not show
+ * this form; it is accepted so that a firmware which emits it is not dropped. */
+static const char *GTCC_NEIGHBOUR_LONG =
+    "+GTCCINFO: \r\n"
+    "2,4,001,1,1234,000ABCDE2,100,3,148,100,10,40,40,15\r\n"
+    "OK\r\n";
+
+/* RSSNR at the edges of its -100..100 range, and 255 (not known). */
+static const char *GTCC_SNR_NEG =
+    "+GTCCINFO: \r\n"
+    "1,4,001,1,1234,000ABCDE1,100,1,148,100,-3,50,50,21\r\n"
+    "OK\r\n";
+static const char *GTCC_SNR_UNKNOWN =
+    "+GTCCINFO: \r\n"
+    "1,4,001,1,1234,000ABCDE1,100,1,148,100,255,50,50,21\r\n"
+    "OK\r\n";
 
 /* RSRP / RSRQ unknown (255). */
 static const char *GTCC_UNKNOWN_SIGNAL =
@@ -132,6 +152,8 @@ int main(void) {
         check_has(obs[0], "\"rsrq\":-9", "rsrq index 21 -> -9 dB (half truncated)");
         check_has(obs[0], "\"observation_type\":\"serving\"", "serving observation_type");
         check_lacks(obs[0], "\"rsrp\":50", "the raw index is not emitted as dBm");
+        check_has(obs[0], "\"snr\":13", "rssnr_value 26 -> 13 dB (0.5 dB steps)");
+        check_lacks(obs[0], "\"sinr\"", "RSSNR is not emitted as sinr");
     }
 
     printf("\n[2] the unpadded MNC is an integer, never a guessed-width string\n");
@@ -161,6 +183,33 @@ int main(void) {
         check_has(obs[1], "\"observation_type\":\"observation\"", "neighbour observation_type");
         check_has(obs[1], "\"pci\":2", "neighbour pci");
         check_has(obs[1], "\"rsrp\":-101", "neighbour rsrp index 40 -> -101");
+        check_has(obs[1], "\"rsrq\":-12", "neighbour rsrq index 15 -> -12");
+        check_has(obs[1], "\"bandwidth\":20", "neighbour 100 RB -> 20 MHz");
+        check_has(obs[1], "\"cell_id\":11259362", "neighbour cell id 0xABCDE2");
+        check_lacks(obs[1], "\"band\":", "neighbour row carries no band");
+        check_lacks(obs[1], "\"snr\"", "neighbour row carries no rssnr");
+    }
+
+    printf("\n[5b] a neighbour in the 14-field layout is still decoded\n");
+    n = parse_gtccinfo(GTCC_NEIGHBOUR_LONG, obs, MAX_OBS);
+    check(n == 1, "one observation");
+    if (n == 1) {
+        check_has(obs[0], "\"observation_type\":\"observation\"", "IsServiceCell 2 -> observation");
+        check_has(obs[0], "\"pci\":3", "pci");
+        check_has(obs[0], "\"band\":48", "band");
+        check_has(obs[0], "\"snr\":5", "rssnr_value 10 -> 5 dB");
+    }
+
+    printf("\n[5c] rssnr_value: negative, and 255 = not known\n");
+    n = parse_gtccinfo(GTCC_SNR_NEG, obs, MAX_OBS);
+    check(n == 1, "one observation");
+    if (n == 1)
+        check_has(obs[0], "\"snr\":-1", "rssnr_value -3 -> -1 dB (truncated toward zero)");
+    n = parse_gtccinfo(GTCC_SNR_UNKNOWN, obs, MAX_OBS);
+    check(n == 1, "one observation");
+    if (n == 1) {
+        check_lacks(obs[0], "\"snr\"", "255 -> no snr key");
+        check_has(obs[0], "\"rsrp\":-91", "rest of the row still decoded");
     }
 
     printf("\n[6] 255 means unknown: no signal keys\n");
@@ -190,6 +239,10 @@ int main(void) {
         check(gtcc_rsrq_db(0, 1, &v) && v == -20, "rsrq idx 0 -> -20");
         check(gtcc_rsrq_db(34, 1, &v) && v == -3, "rsrq idx 34 -> -3");
         check(!gtcc_rsrq_db(35, 1, &v), "rsrq idx 35 rejected");
+        check(gtcc_rssnr_db(100, 1, &v) && v == 50, "rssnr 100 -> 50 dB");
+        check(gtcc_rssnr_db(-100, 1, &v) && v == -50, "rssnr -100 -> -50 dB");
+        check(!gtcc_rssnr_db(101, 1, &v), "rssnr 101 rejected");
+        check(!gtcc_rssnr_db(255, 1, &v), "rssnr 255 rejected");
     }
 
     printf("\n%s (%d failures)\n", g_fails ? "FAILED" : "PASSED", g_fails);

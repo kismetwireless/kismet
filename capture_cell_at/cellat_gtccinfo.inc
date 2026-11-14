@@ -24,26 +24,34 @@
  * parse_hex, lte_bw_rb_to_mhz, build_cell_json, cell_json_add_long), so it must
  * be included AFTER that file.
  *
- * Source: live output of a Fibocom FM350-GL (MediaTek T700), firmware
+ * Sources: the Fibocom FM350 AT Commands User Manual V2.10.1, section 11.1.15,
+ * and live output of a Fibocom FM350-GL (MediaTek T700), firmware
  * 81600.0000.00.29.22.06, over both PCIe (mtk_t7xx /dev/wwan0at0) and USB.
- * No vendor manual for this verb was available, so each field below was bound
- * by reading an independent command on the same unit in the same second:
- * +CEREG=2 (TAC, cell ID, AcT), +COPS numeric (PLMN), +GTCAINFO? PCC (EARFCN,
- * PCI, band, bandwidth, RSRP in dBm) and +CESQ (RSRP/RSRQ indices).
+ * The live serving-row fields were also checked against independent commands
+ * read on the same unit in the same second: +CEREG=2 (TAC, cell ID, AcT),
+ * +COPS numeric (PLMN), +GTCAINFO? PCC (EARFCN, PCI, band, bandwidth) and
+ * +CESQ (RSRP/RSRQ indices). <rxlev> equalled <rsrp> on every live sample.
  *
- * Reply shape:
+ * Reply shape (LTE; the manual's two row layouts):
  *
  *     +GTCCINFO: <- nothing else on this line
- *     <serving>,<rat>,<mcc>,<mnc>,<tac>,<cellid>,<earfcn>,<pci>,<band>,<bw>,
- *         <f11>,<f12>,<rsrp>,<rsrq>
+ *     serving (14 fields):
+ *       <IsServiceCell>,<rat>,<mcc>,<mnc>,<tac>,<cellid>,<earfcn>,<pci>,
+ *       <band>,<bandwidth>,<rssnr_value>,<rxlev>,<rsrp>,<rsrq>
+ *     neighbour (12 fields, no band and no rssnr):
+ *       <IsServiceCell>,<rat>,<mcc>,<mnc>,<tac>,<cellid>,<earfcn>,<pci>,
+ *       <bandwidth>,<rxlev>,<rsrp>,<rsrq>
  *     ...one line per cell...
  *     OK
  *
  * A modem that is not camped answers the prefix line and OK with no rows: a
  * valid reply with zero observations, exactly like +CPSI: NO SERVICE.
  *
- *   field  meaning      encoding
- *   1      serving      1 = serving cell, 0 = neighbour
+ *   The layout is chosen by FIELD COUNT, not by IsServiceCell, so a firmware
+ *   that prints a neighbour in the 14-field form is still decoded.
+ *
+ *   field  meaning      encoding (serving layout)
+ *   1      serving      1 = serving cell, 2 = neighbour (manual)
  *   2      RAT          4 = LTE (the only value seen; others are skipped)
  *   3      MCC          decimal
  *   4      MNC          decimal, LEADING ZEROS DROPPED (see trap 1)
@@ -53,7 +61,10 @@
  *   8      PCI          decimal
  *   9      band         Fibocom band code: 1xx = LTE band xx (may be empty)
  *   10     bandwidth    resource blocks: 100 = 20 MHz (may be empty)
- *   11,12  unbound      not emitted
+ *   11     RSSNR        -100..100 in 0.5 dB steps, dB = value / 2 (truncated
+ *                       toward zero); 255 = not known. Emitted as "snr", the
+ *                       key the +CPSI RSSNR uses.
+ *   12     rxlev        RSRP index again on LTE; not emitted
  *   13     RSRP         3GPP TS 36.133 index, dBm = idx - 141
  *   14     RSRQ         3GPP TS 36.133 index, dB = idx / 2 - 20 (bound by
  *                       +CESQ agreement to within one step, sampled separately)
@@ -77,6 +88,7 @@
  */
 
 #define GTCCINFO_FIELDS 14
+#define GTCCINFO_NB_FIELDS 12
 #define GTCCINFO_RAT_LTE 4
 
 /* 3GPP TS 36.133 RSRP index (0..97) to whole dBm. 255 / out of range -> 0. */
@@ -93,6 +105,15 @@ static int gtcc_rsrq_db(long idx, int have, long *out) {
     if (!have || idx < 0 || idx > 34)
         return 0;
     *out = (idx - 40) / 2;
+    return 1;
+}
+
+/* <rssnr_value> (-100..100, 0.5 dB steps) to whole dB, truncated toward zero
+ * like gtcc_rsrq_db. 255 / out of range -> 0. */
+static int gtcc_rssnr_db(long v, int have, long *out) {
+    if (!have || v < -100 || v > 100)
+        return 0;
+    *out = v / 2;
     return 1;
 }
 
@@ -141,15 +162,23 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
         int nf = split_fields(body_copy, fields, 32);
 
         long serving = 0, rat = 0;
-        if (nf < GTCCINFO_FIELDS || !parse_int(fields[0], &serving) ||
+        if ((nf != GTCCINFO_FIELDS && nf != GTCCINFO_NB_FIELDS) ||
+            !parse_int(fields[0], &serving) ||
             !parse_int(fields[1], &rat) || rat != GTCCINFO_RAT_LTE) {
             line = strtok_r(NULL, "\n", &saveptr);
             continue;
         }
+        /* Field positions differ by layout; -1 = absent from this layout. */
+        int full = nf == GTCCINFO_FIELDS;
+        int f_band = full ? 8 : -1;
+        int f_bw = full ? 9 : 8;
+        int f_snr = full ? 10 : -1;
+        int f_rsrp = full ? 12 : 10;
+        int f_rsrq = full ? 13 : 11;
 
         long mcc_n = 0, mnc_n = 0, pci = 0, earfcn = 0, band_code = 0;
         long band = 0, rb = 0, bw = 0, rsrp_idx = 0, rsrq_idx = 0;
-        long rsrp = 0, rsrq = 0;
+        long rsrp = 0, rsrq = 0, snr_v = 0, snr = 0;
         unsigned long tac = 0, cell_id = 0;
 
         int h_mcc = parse_int(fields[2], &mcc_n) && mcc_n >= 0 && mcc_n <= 999;
@@ -158,15 +187,17 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
         int h_cell_id = parse_hex(fields[5], &cell_id);
         int h_earfcn = parse_int(fields[6], &earfcn);
         int h_pci = parse_int(fields[7], &pci);
-        int h_band = parse_int(fields[8], &band_code) &&
+        int h_band = f_band >= 0 && parse_int(fields[f_band], &band_code) &&
                      band_code > 100 && band_code < 200;
         if (h_band)
             band = band_code - 100;
-        int h_bw = parse_int(fields[9], &rb) && lte_bw_rb_to_mhz(rb, &bw);
-        int h_ri = parse_int(fields[12], &rsrp_idx);
-        int h_qi = parse_int(fields[13], &rsrq_idx);
+        int h_bw = parse_int(fields[f_bw], &rb) && lte_bw_rb_to_mhz(rb, &bw);
+        int h_ri = parse_int(fields[f_rsrp], &rsrp_idx);
+        int h_qi = parse_int(fields[f_rsrq], &rsrq_idx);
         int h_rsrp = gtcc_rsrp_dbm(rsrp_idx, h_ri, &rsrp);
         int h_rsrq = gtcc_rsrq_db(rsrq_idx, h_qi, &rsrq);
+        int h_sv = f_snr >= 0 && parse_int(fields[f_snr], &snr_v);
+        int h_snr = gtcc_rssnr_db(snr_v, h_sv, &snr);
 
         char mcc_buf[8] = "", mnc_buf[8] = "";
         const char *mcc = NULL, *mnc_str = NULL;
@@ -193,6 +224,8 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
                         is_serving, NULL);
         if (h_mcc && h_mnc && !mnc_str)
             cell_json_add_long(json_out[obs_count], JSON_BUF_MAX, "mnc", mnc_n);
+        if (h_snr)
+            cell_json_add_long(json_out[obs_count], JSON_BUF_MAX, "snr", snr);
         obs_count++;
 
         line = strtok_r(NULL, "\n", &saveptr);
