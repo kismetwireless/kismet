@@ -3,7 +3,7 @@
 // them in a view are marked, and can be listed on their own.  Each rule has a
 // switch: a rule that's off isn't checked, and the server remembers the choice.
 // Each rule that's on shows how many devices match it, kept current while the
-// window is open.
+// window is open; baseline filters show what their runs have added and removed.
 //
 //   openRules()
 
@@ -41,11 +41,48 @@ const matchingOf = (r) => r['kismet.devicerules.rule.matching'];
 const matchText = (n) => `${n.toLocaleString()} ${n === 1 ? 'device' : 'devices'}`;
 const countRefreshMs = 5000;
 
+// Baseline filters say whether they add or remove; they never match devices the
+// way rules do, so they show what their runs changed instead
+const baselineOf = (r) => r['kismet.devicerules.rule.baseline'] ?? null;
+const num = (r, f) => Number(r[`kismet.devicerules.rule.${f}`] ?? 0);
+
+// Seconds as the grammar writes them: 10s, 5m, 1h, 1d
+function period(sec) {
+    for (const [n, u] of [[86400, 'd'], [3600, 'h'], [60, 'm']])
+        if (sec >= n && sec % n === 0)
+            return `${sec / n}${u}`;
+    return `${sec}s`;
+}
+
+function baselineSummary(r) {
+    const verb = baselineOf(r) === 'remove' ? 'removed' : 'added';
+    const n = num(r, baselineOf(r) === 'remove' ? 'removed' : 'added');
+    return num(r, 'runs') ? `${n.toLocaleString()} ${verb}` : 'Not run yet';
+}
+
+function baselineStats(r) {
+    const runs = num(r, 'runs');
+    if (!runs)
+        return r['kismet.devicerules.rule.baseline_active'] === 0 ?
+            'Baseline filters are off (device_rules_baseline=false).' : 'Hasn\'t run yet.';
+    const parts = [
+        `Last ran ${new Date(num(r, 'last_run') * 1000).toLocaleString()}`,
+        plural(runs, 'run'),
+    ];
+    for (const [f, what] of [['added', 'added'], ['removed', 'removed'], ['expired', 'expired'],
+        ['held', 'held out'], ['over_limit', 'left over the change limit']]) {
+        if (num(r, f))
+            parts.push(`${num(r, f).toLocaleString()} ${what}`);
+    }
+    return `${parts.join('; ')}.`;
+}
+
 // Which rules each filter shows
 const shows = {
     all: () => true,
     tags: (r) => tagsOf(r).length > 0,
     views: (r) => viewOf(r) !== null,
+    baseline: (r) => baselineOf(r) !== null,
 };
 
 function showView(id) {
@@ -64,11 +101,39 @@ function ruleEntry(r, onToggle, countEls) {
         onclick: (e) => e.stopPropagation(),
         onchange: () => onToggle(name, toggle.checked, toggle) });
     toggle.checked = on;
+    const bl = baselineOf(r);
     const matching = matchingOf(r);
-    const count = on && Number.isFinite(matching) ?
-        el('span', { class: 'dr-mark dr-count', title: 'Devices matching this rule now' }, matchText(matching)) : null;
-    if (count)
-        countEls.set(name, count);
+    let count = null;
+    let stats = null;
+    if (bl !== null) {
+        count = on ? el('span', { class: 'dr-mark dr-count',
+            title: `Devices this filter has ${bl === 'remove' ? 'removed from' : 'added to'} the baseline` }, baselineSummary(r)) : null;
+        stats = el('p', { class: 'muted' }, baselineStats(r));
+        countEls.set(name, (fresh) => {
+            if (count)
+                count.textContent = baselineSummary(fresh);
+            stats.textContent = baselineStats(fresh);
+        });
+    } else if (on && Number.isFinite(matching)) {
+        count = el('span', { class: 'dr-mark dr-count', title: 'Devices matching this rule now' }, matchText(matching));
+        countEls.set(name, (fresh) => {
+            const n = matchingOf(fresh);
+            if (Number.isFinite(n))
+                count.textContent = matchText(n);
+        });
+    }
+    const blMarks = bl === null ? null : [
+        el('span', { class: 'dr-mark', title: `Every ${period(num(r, 'every'))}, ${bl === 'remove' ?
+            'takes the devices it matches out of the baseline' : 'puts the devices it matches in the baseline'}` },
+        bl === 'remove' ? 'Removes from baseline' : 'Adds to baseline'),
+        el('span', { class: 'muted' }, ` every ${period(num(r, 'every'))}`),
+        r['kismet.devicerules.rule.ephemeral'] ? el('span', { class: 'dr-mark',
+            title: 'Its baseline tags are kept until Kismet restarts, and never saved' }, 'Until restart') : null,
+        num(r, 'expire') ? el('span', { class: 'dr-mark',
+            title: 'Its baseline tag comes off again after this long' }, `Expires after ${period(num(r, 'expire'))}`) : null,
+        on && r['kismet.devicerules.rule.baseline_active'] === 0 ? el('span', { class: 'dr-mark',
+            title: 'Baseline filters only run with device_rules_baseline=true in kismet_baseline_rules.conf' }, 'Not running') : null,
+    ];
     const flags = [
         r['kismet.devicerules.rule.live'] ? 'live' : null,
         r['kismet.devicerules.rule.alert'] ? 'alert' : null,
@@ -90,8 +155,10 @@ function ruleEntry(r, onToggle, countEls) {
                     } }, el('span', { class: 'mono' }, view), icon('right'))) : null,
             r['kismet.devicerules.rule.exclude'] ? el('span', { class: 'dr-mark',
                 title: 'Leaves the devices it matches out of the Default device view' }, 'Excludes') : null,
+            blMarks,
             flags.length ? el('span', { class: 'muted' }, ` ${flags.join(', ')}`) : null),
         r['kismet.devicerules.rule.description'] ? el('p', {}, r['kismet.devicerules.rule.description']) : null,
+        stats,
         r['kismet.devicerules.rule.origin'] ? el('p', { class: 'muted mono' }, r['kismet.devicerules.rule.origin']) : null,
         el('pre', { class: 'mono' }, r['kismet.devicerules.rule.source']));
 }
@@ -110,8 +177,9 @@ const counts = (rules, sorts) => [rules && plural(rules, 'rule'), sorts && plura
 function marks(rules) {
     const tags = rules.filter(shows.tags).length;
     const views = rules.filter(shows.views).length;
+    const bl = rules.filter(shows.baseline).length;
     const off = rules.filter((r) => !enabledOf(r)).length;
-    return [tags && `${tags} tagging`, views && plural(views, 'view'), off && `${off} off`].filter(Boolean).join(', ');
+    return [tags && `${tags} tagging`, views && plural(views, 'view'), bl && plural(bl, 'baseline filter'), off && `${off} off`].filter(Boolean).join(', ');
 }
 
 function groupSection(g, show, onToggle, countEls) {
@@ -153,7 +221,7 @@ export function openRules() {
 
     const status = el('span', { class: 'muted' }, 'Loading...');
     const list = el('div', { class: 'dr-groups' });
-    const showButtons = Object.entries({ all: 'All', tags: 'Tagging', views: 'Views' }).map(([id, title]) =>
+    const showButtons = Object.entries({ all: 'All', tags: 'Tagging', views: 'Views', baseline: 'Baseline' }).map(([id, title]) =>
         el('button', { type: 'button', 'data-id': id, onclick: () => {
             show = id;
             settings.set('devicerules.show', id);
@@ -184,7 +252,8 @@ export function openRules() {
         const sections = groups.map((g) => groupSection(g, show, toggleRule, countEls)).filter(Boolean);
         list.replaceChildren(...sections);
         if (!sections.length && groups.length)
-            list.append(el('p', { class: 'muted' }, show === 'tags' ? 'No rules tag devices.' : 'No rules make views.'));
+            list.append(el('p', { class: 'muted' }, { tags: 'No rules tag devices.', views: 'No rules make views.',
+                baseline: 'No baseline filters.' }[show]));
         const rules = groups.flatMap((g) => g['kismet.devicerules.source.rules'] ?? []);
         const sorts = groups.reduce((n, g) => n + (g['kismet.devicerules.source.sorts']?.length ?? 0), 0);
         status.textContent = groups.length ?
@@ -239,12 +308,8 @@ export function openRules() {
                 return;
             }
             groups = fresh;
-            for (const r of fresh.flatMap((g) => g['kismet.devicerules.source.rules'] ?? [])) {
-                const span = countEls.get(r['kismet.devicerules.rule.name']);
-                const n = matchingOf(r);
-                if (span && Number.isFinite(n))
-                    span.textContent = matchText(n);
-            }
+            for (const r of fresh.flatMap((g) => g['kismet.devicerules.source.rules'] ?? []))
+                countEls.get(r['kismet.devicerules.rule.name'])?.(r);
         } catch {
             // Keep the last counts; Reload shows the error
         } finally {

@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <sstream>
@@ -50,6 +51,16 @@ constexpr alias aliases[] = {
     { "last_time", "kismet.device.base.last_time" },
     { "mod_time", "kismet.device.base.mod_time" },
     { "num_alerts", "kismet.device.base.num_alerts" },
+    { "alerts", "kismet.device.base.alerts/kismet.device.alerts.headers" },
+    { "alerts_sent", "kismet.device.base.alerts/kismet.device.alerts.sent" },
+    { "alerts_named", "kismet.device.base.alerts/kismet.device.alerts.named" },
+    { "sent_alerts", "kismet.device.base.alerts/kismet.device.alerts.sent_headers" },
+    { "sent_alert_classes", "kismet.device.base.alerts/kismet.device.alerts.sent_classes" },
+    { "alert_severity", "kismet.device.base.alerts/kismet.device.alerts.sent_severity" },
+    { "alert_time", "kismet.device.base.alerts/kismet.device.alerts.last_time" },
+    { "sent_alert_time", "kismet.device.base.alerts/kismet.device.alerts.sent_last_time" },
+    { "own_alerts", "kismet.device.base.alerts/kismet.device.alerts.own_sent" },
+    { "own_alert_severity", "kismet.device.base.alerts/kismet.device.alerts.own_severity" },
     { "signal", "kismet.device.base.signal/kismet.common.signal.last_signal" },
     { "min_signal", "kismet.device.base.signal/kismet.common.signal.min_signal" },
     { "max_signal", "kismet.device.base.signal/kismet.common.signal.max_signal" },
@@ -62,6 +73,9 @@ constexpr alias aliases[] = {
 constexpr const char *icase_fields[] = {
     "kismet.device.base.type",
     "kismet.device.base.display_type",
+    "kismet.device.alerts.headers",
+    "kismet.device.alerts.sent_headers",
+    "kismet.device.alerts.sent_classes",
 };
 
 char ascii_lower(char c) {
@@ -147,6 +161,18 @@ const char *field_alias(const std::string& name) {
     return nullptr;
 }
 
+namespace {
+std::atomic<int64_t> kismet_start_time{0};
+}
+
+void set_start_time(int64_t t) {
+    kismet_start_time.store(t);
+}
+
+int64_t start_time() {
+    return kismet_start_time.load();
+}
+
 class compiler {
 public:
     compiler(ruleset& rs, resolver& r) :
@@ -159,6 +185,10 @@ public:
             cur_now = &r->uses_now;
             r->uses_now = false;
             check(r->expr, true);
+
+            if (r->recheck != 0 && !r->uses_now)
+                error(r->expr.get(), "'recheck' needs a condition that changes over time, such as "
+                        "now, age(), uptime, hours_active, days_active or in_baseline()");
 
             compiled_rule cr;
             cr.entry = rs.code.size();
@@ -238,7 +268,7 @@ private:
     }
 
     int resolve_field(const node *n, const std::string& text, int index = -1,
-            const std::string& map_key = std::string()) {
+            const std::string& map_key = std::string(), derive how = derive::none) {
         std::string full = text;
 
         if (text.find('.') == std::string::npos && text.find('/') == std::string::npos) {
@@ -257,6 +287,8 @@ private:
         auto key = index < 0 ? full : full + (index == 1 ? "#lat" : "#lon");
         if (!map_key.empty())
             key = full + "#key=" + map_key;
+        if (how != derive::none)
+            key += "#derive=" + std::to_string(static_cast<int>(how));
         auto sm = slot_map.find(key);
         if (sm != slot_map.end())
             return sm->second;
@@ -330,6 +362,31 @@ private:
             if (fs.leaf != ftype::container || fs.multi)
                 error(n, "'" + full + "' isn't a map of tags");
             fs.key = map_key;
+        }
+
+        // Derived values are single numbers, or for in_baseline() an exists() test of a MAC
+        fs.how = how;
+        switch (how) {
+            case derive::none:
+                break;
+            case derive::tag_number:
+                fs.type = vtype::integer;
+                break;
+            case derive::hours_active:
+                if (fs.leaf != ftype::map || fs.multi)
+                    error(n, "hours_active needs the packet rate history");
+                fs.type = vtype::integer;
+                break;
+            case derive::days_active:
+                if ((fs.leaf != ftype::integer && fs.leaf != ftype::uinteger) || fs.multi)
+                    error(n, "days_active needs the day presence record");
+                fs.type = vtype::integer;
+                break;
+            case derive::baseline_mac:
+                if (fs.leaf != ftype::mac || fs.multi)
+                    error(n, "in_baseline() needs a field holding one MAC address, such as "
+                            "dot11.device/dot11.device.last_bssid");
+                break;
         }
 
         if (rs.fields.size() >= 65535)
@@ -459,8 +516,11 @@ private:
                 break;
 
             case nkind::field: {
-                n->slot = resolve_field(n.get(), n->str, n->aux);
+                n->slot = resolve_field(n.get(), n->str, n->aux, n->key, n->how);
                 const auto& f = rs.fields[n->slot];
+                // Activity counts change as time passes, with or without packets
+                if (f.how == derive::hours_active || f.how == derive::days_active)
+                    *cur_now = true;
                 if (f.type == vtype::none) {
                     if (f.leaf == ftype::map || f.leaf == ftype::container)
                         error(n.get(), "'" + n->str + "' is a group of fields; use exists() or count()");
@@ -472,8 +532,12 @@ private:
 
             case nkind::exists:
             case nkind::count: {
-                n->slot = resolve_field(n.get(), n->str, -1, n->key);
+                n->slot = resolve_field(n.get(), n->str, -1, n->key, n->how);
                 const auto& f = rs.fields[n->slot];
+                // Another device joining or leaving the baseline changes the answer, so these
+                // get the periodic full passes like rules using 'now'
+                if (f.how == derive::baseline_mac)
+                    *cur_now = true;
                 if (n->kind == nkind::count && !f.multi && f.leaf != ftype::container)
                     error(n.get(), "count() needs a field that holds several values");
                 n->type = n->kind == nkind::exists ? vtype::boolean : vtype::integer;
@@ -761,8 +825,11 @@ private:
     bool is_icase(const std::unique_ptr<node>& f) const {
         if (f->kind != nkind::field)
             return false;
+        // The last field of a path decides
+        const auto& text = rs.fields[f->slot].text;
+        const auto leaf = std::string_view(text).substr(text.rfind('/') + 1);
         for (const auto& p : icase_fields)
-            if (rs.fields[f->slot].text == p)
+            if (leaf == p)
                 return true;
         return false;
     }
@@ -1274,7 +1341,8 @@ int64_t ruleset::run_count(eval_ctx& ctx, uint32_t slot) const {
 bool ruleset::run_exists(eval_ctx& ctx, uint32_t slot) const {
     const auto& f = fields[slot];
 
-    if (f.multi || f.type == vtype::none)
+    // in_baseline() is a test the env makes, not a value
+    if (f.multi || f.type == vtype::none || f.how == derive::baseline_mac)
         return ctx.e->exists(f);
 
     value v;

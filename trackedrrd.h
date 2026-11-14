@@ -153,6 +153,28 @@ public:
         return last_value_n1.get();
     }
 
+    // Hours of the 24 up to now with samples.  The hour buckets only cover the day
+    // before the last sample, and nothing after it has a sample.
+    unsigned int active_hours(time_t now) {
+        kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_rrd active_hours");
+
+        const time_t ltime = get_last_time();
+        if (ltime <= 0 || now <= 0)
+            return 0;
+
+        const int64_t now_hour = now / 3600;
+        const int64_t last_hour = ltime / 3600;
+        const int64_t to = std::min(now_hour, last_hour);
+
+        unsigned int n = 0;
+        for (int64_t h = std::max(now_hour, last_hour) - 23; h <= to; h++) {
+            if (day_vec[h % 24] != d_agg.default_val())
+                n++;
+        }
+
+        return n;
+    }
+
     // Add a sample.  Use combinator function 'c' to derive the new sample value
     void add_sample(double in_s, time_t in_time) {
         kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_rrd add_sample");

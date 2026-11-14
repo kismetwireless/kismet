@@ -78,12 +78,142 @@ tracker_element *deref_alias(tracker_element *e) {
     return e;
 }
 
+// For in_baseline(); set while the device rules exist
+device_tracker *rules_devicetracker = nullptr;
+
+// A config time such as 10, 30s, 5m, 2h or 1d, in seconds; a bad or out of range value
+// is reported and the default used.  0 is allowed only when allow_off.
+unsigned int config_seconds(const char *key, unsigned int def, unsigned int lo, unsigned int hi,
+        bool allow_off) {
+    auto text = Globalreg::globalreg->kismet_config->fetch_opt(key);
+    if (text.empty())
+        return def;
+
+    size_t p = 0;
+    uint64_t v = 0;
+    while (p < text.size() && text[p] >= '0' && text[p] <= '9' && v <= hi) {
+        v = v * 10 + (text[p] - '0');
+        p++;
+    }
+
+    uint64_t mult = 1;
+    if (p + 1 == text.size()) {
+        switch (text[p]) {
+            case 's': mult = 1; break;
+            case 'm': mult = 60; break;
+            case 'h': mult = 3600; break;
+            case 'd': mult = 86400; break;
+            default: mult = 0; break;
+        }
+        p++;
+    }
+
+    const bool ok = p > 0 && p == text.size() && mult != 0 && v <= hi && v * mult <= hi &&
+        ((v == 0 && allow_off) || v * mult >= lo);
+
+    if (!ok) {
+        _MSG_ERROR("Invalid {}={}, expected a time from {}s to {}s{}; using {}s", key, text, lo, hi,
+                allow_off ? " or 0" : "", def);
+        return def;
+    }
+
+    return static_cast<unsigned int>(v * mult);
+}
+
+// Day presence record: the newest day with packets (days since the epoch) in the high 32
+// bits, and a bit for each of the 32 days up to it in the low 32, bit 0 the newest
+constexpr unsigned int presence_days = 32;
+constexpr unsigned int active_window_days = 7;
+
+uint64_t mark_day(uint64_t rec, int64_t day) {
+    if (day < 0 || day > (int64_t) UINT32_MAX)
+        return rec;
+
+    const auto d = (uint64_t) day;
+    if (rec == 0)
+        return (d << 32) | 1;
+
+    const uint64_t newest = rec >> 32;
+    uint64_t bits = rec & 0xFFFFFFFFULL;
+
+    if (d > newest) {
+        const uint64_t shift = d - newest;
+        bits = shift >= presence_days ? 0 : (bits << shift) & 0xFFFFFFFFULL;
+        return (d << 32) | bits | 1;
+    }
+
+    if (newest - d < presence_days)
+        bits |= 1ULL << (newest - d);
+
+    return (newest << 32) | bits;
+}
+
+// Days of the week up to now with packets
+int64_t active_days(uint64_t rec, int64_t now) {
+    if (rec == 0 || now < 0)
+        return 0;
+
+    const int64_t today = now / 86400;
+    const int64_t newest = (int64_t) (rec >> 32);
+    int64_t n = 0;
+
+    for (unsigned int i = 0; i < presence_days; i++) {
+        if (!(rec & (1ULL << i)))
+            continue;
+        const int64_t d = newest - i;
+        if (d <= today && d > today - (int64_t) active_window_days)
+            n++;
+    }
+
+    return n;
+}
+
+// A whole number at the start of a tag's text, such as a unix time; a fraction after it
+// is dropped, and anything else means it isn't a number
+bool tag_number(const std::string& s, int64_t& out) {
+    size_t i = 0;
+    int64_t v = 0;
+
+    while (i < s.size() && s[i] >= '0' && s[i] <= '9') {
+        if (i >= 18)
+            return false;
+        v = v * 10 + (s[i] - '0');
+        i++;
+    }
+
+    if (i == 0)
+        return false;
+
+    if (i < s.size()) {
+        if (s[i] != '.')
+            return false;
+        for (size_t j = i + 1; j < s.size(); j++)
+            if (s[j] < '0' || s[j] > '9')
+                return false;
+    }
+
+    out = v;
+    return true;
+}
+
+// A user tag's content, or null; the device must be locked
+const std::string *device_tag(kis_tracked_device_base *dev, const std::string& name) {
+    auto m = dev->get_tag_map();
+    auto t = m->find(name);
+    if (t == m->end() || t->second == nullptr || t->second->get_type() != tracker_type::tracker_string)
+        return nullptr;
+    return &static_cast<tracker_element_string *>(t->second.get())->get();
+}
+
 // Device field access over the tracked element tree; the device is locked by the caller
 class kismet_env : public env {
 public:
     tracker_element *root = nullptr;
 
     virtual bool load(const field_slot& f, value& out) override {
+        if (f.how != derive::none)
+            return load_derived(f, out);
+
         auto e = walk(root, f);
         if (e == nullptr)
             return false;
@@ -110,6 +240,14 @@ public:
     }
 
     virtual bool exists(const field_slot& f) override {
+        if (f.how == derive::baseline_mac) {
+            auto e = deref_alias(walk(root, f));
+            if (e == nullptr || e->get_type() != tracker_type::tracker_mac_addr)
+                return false;
+            const auto m = static_cast<tracker_element_mac_addr *>(e)->get().longmac;
+            return m != 0 && rules_devicetracker != nullptr && rules_devicetracker->mac_in_baseline(m);
+        }
+
         if (!f.key.empty()) {
             auto e = walk(root, f);
             if (e == nullptr || e->get_type() != tracker_type::tracker_string_map)
@@ -126,6 +264,46 @@ public:
     }
 
 private:
+    bool load_derived(const field_slot& f, value& out) {
+        out = value{};
+
+        auto e = deref_alias(walk(root, f));
+        if (e == nullptr)
+            return false;
+
+        switch (f.how) {
+            case derive::tag_number: {
+                if (e->get_type() != tracker_type::tracker_string_map)
+                    return false;
+                auto m = static_cast<tracker_element_string_map *>(e);
+                auto t = m->find(f.key);
+                if (t == m->end() || t->second == nullptr ||
+                        t->second->get_type() != tracker_type::tracker_string)
+                    return false;
+                if (!tag_number(static_cast<tracker_element_string *>(t->second.get())->get(), out.i))
+                    return false;
+                break;
+            }
+            case derive::hours_active: {
+                auto rrd = dynamic_cast<kis_tracked_rrd<> *>(e);
+                if (rrd == nullptr)
+                    return false;
+                out.i = rrd->active_hours(now);
+                break;
+            }
+            case derive::days_active:
+                if (e->get_type() != tracker_type::tracker_uint64)
+                    return false;
+                out.i = active_days(static_cast<tracker_element_uint64 *>(e)->get(), now);
+                break;
+            default:
+                return false;
+        }
+
+        out.valid = 1;
+        return true;
+    }
+
     // Children of lazily built maps only live as long as we hold them
     std::vector<shared_tracker_element> holds;
 
@@ -517,6 +695,13 @@ struct device_rules::pass_state {
     devicerules::eval_ctx ctx;
     kismet_env env;
     std::vector<uint8_t> out, prev;
+    // Per rule: seconds between checks of unchanged devices (0 never), when the next is
+    // due, and whether it's due this pass
+    std::vector<uint32_t> every;
+    std::vector<time_t> next_check;
+    std::vector<uint8_t> due;
+    std::vector<std::shared_ptr<kis_tracked_device_base>> changed;
+    std::vector<baseline_hit> bl_hits;
 };
 
 namespace {
@@ -862,11 +1047,11 @@ device_rules::device_rules() :
     deferred_startup(),
     next_gen{1},
     rule_state_id{-1},
+    day_presence_id{-1},
+    baseline_enabled{false},
     alert_ref{-1},
     timer_id{-1},
     pchain_id{-1},
-    pass_count{0},
-    last_pass{0},
     full_pending{true},
     stat_passes{0},
     stat_devices{0},
@@ -879,6 +1064,7 @@ device_rules::device_rules() :
     set_mutex.set_name("device_rules_set");
     query_mutex.set_name("device_rules_query");
     count_mutex.set_name("device_rules_count");
+    bl_stats_mutex.set_name("device_rules_baseline_stats");
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
@@ -888,6 +1074,15 @@ device_rules::device_rules() :
         entrytracker->register_field("kismet.device.base.rules",
                 tracker_element_factory<device_rule_state>(),
                 "device rule results");
+
+    day_presence_id =
+        entrytracker->register_field(devicerules::day_presence_field,
+                tracker_element_factory<tracker_element_uint64>(),
+                "days with packets, kept for baseline rules: the newest day (days since the epoch) "
+                "in the high 32 bits, a bit per day up to it in the low 32 bits, bit 0 the newest");
+
+    rules_devicetracker = devicetracker.get();
+    devicerules::set_start_time(Globalreg::globalreg->start_time);
 
     // New devices haven't been checked yet and start out in it; rule passes move them
     default_view = std::make_shared<device_tracker_view>("default",
@@ -900,8 +1095,13 @@ device_rules::device_rules() :
 
     auto conf = Globalreg::globalreg->kismet_config;
     use_jit = conf->fetch_opt_bool("device_rules_jit", true);
-    pass_interval = std::max(1U, conf->fetch_opt_uint("device_rules_interval", 1));
-    full_interval = conf->fetch_opt_uint("device_rules_full_interval", 10);
+    baseline_enabled = conf->fetch_opt_bool("device_rules_baseline", false);
+    baseline_max_changes = conf->fetch_opt_uint("device_rules_baseline_max_changes", 1000);
+    if (baseline_max_changes == 0 || baseline_max_changes > 100000)
+        baseline_max_changes = 1000;
+    pass_interval = config_seconds("device_rules_interval", 1, 1, 3600, false);
+    full_interval = config_seconds("device_rules_full_interval", 10, 1,
+            static_cast<unsigned int>(devicerules::recheck_max), true);
     alert_backlog_max = conf->fetch_opt_uint("device_rules_alert_backlog", 64);
     api_save = conf->fetch_opt_bool("device_rules_api_save", false);
     api_file = conf->fetch_opt_path("device_rules_api_file", "%h/.kismet/kismet_device_rules_api.txt");
@@ -948,6 +1148,7 @@ device_rules::device_rules() :
 
 device_rules::~device_rules() {
     trigger_deferred_shutdown();
+    rules_devicetracker = nullptr;
 }
 
 void device_rules::trigger_deferred_startup() {
@@ -1013,6 +1214,9 @@ void device_rules::trigger_deferred_startup() {
         }
     }
 
+    // Passes read only the devices modified since the last
+    devicetracker->enable_modified_queue(true);
+
     timer_id =
         Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(
                 SERVER_TIMESLICES_SEC * pass_interval, nullptr, 1, [this](int) -> int {
@@ -1032,6 +1236,9 @@ void device_rules::trigger_deferred_shutdown() {
         if (timetracker != nullptr)
             timetracker->remove_timer(timer_id);
         timer_id = -1;
+
+        if (devicetracker != nullptr)
+            devicetracker->enable_modified_queue(false);
     }
 
     if (pchain_id >= 0) {
@@ -1074,6 +1281,8 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
     size_t n = as->rs->size();
     as->live_want.assign(n, 0);
     as->now_want.assign(n, 0);
+    as->rule_want.assign(n, 0);
+    as->any_baseline = false;
     as->views.assign(n, nullptr);
     as->hooks.resize(n);
     as->hook_repeat.assign(n, 0);
@@ -1084,6 +1293,11 @@ std::shared_ptr<device_rules::active_set> device_rules::finish_set(std::unique_p
     for (size_t i = 0; i < n; i++) {
         const auto& rd = as->rs->rule(i);
         as->by_name[rd.name] = i;
+
+        if (rd.baseline)
+            as->any_baseline = true;
+        else
+            as->rule_want[i] = 1;
 
         for (const auto& t : rd.tags) {
             auto ti = tag_index.emplace(t, static_cast<uint32_t>(tag_index.size())).first;
@@ -1333,6 +1547,7 @@ void device_rules::load_configured() {
     if (files.empty()) {
         loader.load_file(conf->expand_log_path("%E/kismet_device_rules_highlights.txt"), false);
         loader.load_file(conf->expand_log_path("%E/kismet_device_rules.txt"), false);
+        loader.load_file(conf->expand_log_path("%E/kismet_baseline_rules.txt"), false);
     }
     for (const auto& f : files)
         loader.load_file(conf->expand_log_path(f.value), true);
@@ -1342,6 +1557,8 @@ void device_rules::load_configured() {
 
     for (const auto& v : conf->fetch_opt_vec_sourced("device_rule"))
         loader.load_line(v, devicerules::parse_source::block::rule);
+    for (const auto& v : conf->fetch_opt_vec_sourced("device_baseline"))
+        loader.load_line(v, devicerules::parse_source::block::baseline);
     for (const auto& v : conf->fetch_opt_vec_sourced("device_sort"))
         loader.load_line(v, devicerules::parse_source::block::sort);
 
@@ -1761,7 +1978,8 @@ void device_rules::install_set(std::shared_ptr<active_set> as) {
 
 void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
         const std::shared_ptr<kis_tracked_device_base>& dev, const uint8_t *want,
-        std::vector<uint8_t>& out, std::vector<uint8_t>& prev, std::vector<pending_change>& changes) {
+        std::vector<uint8_t>& out, std::vector<uint8_t>& prev, std::vector<pending_change>& changes,
+        std::vector<baseline_hit> *bl_hits) {
 
     if (dev->get_removed())
         return;
@@ -1770,12 +1988,62 @@ void device_rules::eval_device(active_set& as, devicerules::eval_ctx& ctx,
     out.resize(n);
     prev.assign(n, 0);
 
+    // The days a device was heard, for days_active, kept only for baseline rules
+    if (baseline_enabled && dev->get_last_time() > 0) {
+        auto days = dev->get_sub_as<tracker_element_uint64>(day_presence_id);
+        if (days == nullptr) {
+            days = entrytracker->get_shared_instance_as<tracker_element_uint64>(day_presence_id);
+            dev->insert(days);
+        }
+        days->set(mark_day(days->get(), dev->get_last_time() / 86400));
+    }
+
     auto env = static_cast<kismet_env *>(ctx.e);
     env->root = dev.get();
     ctx.next_device(Globalreg::globalreg->last_tv_sec);
     as.rs->eval_all(ctx, want, out.data());
     env->reset();
     env->root = nullptr;
+
+    // Baseline filters act on the baseline tag, never on the device's rule state
+    if (as.any_baseline) {
+        for (size_t r = 0; r < n; r++) {
+            if (as.rule_want[r])
+                continue;
+
+            if (bl_hits != nullptr && want != nullptr && want[r]) {
+                const auto& rd = as.rs->rule(r);
+                bool expired = false;
+
+                const auto since = device_tag(dev.get(), device_tracker::baseline_tag);
+
+                if (rd.expire != 0) {
+                    auto by = device_tag(dev.get(), device_tracker::baseline_by_tag);
+                    int64_t t;
+                    expired = by != nullptr && *by == rd.name && since != nullptr &&
+                        tag_number(*since, t) && t + (int64_t) rd.expire <= ctx.now;
+                }
+
+                // Only matches the filter would act on: a remove of a device in the baseline
+                // or not yet held, an add of one not in it, not held, and not expired by it
+                bool act = out[r];
+                if (act && rd.remove) {
+                    act = since != nullptr ||
+                        device_tag(dev.get(), device_tracker::baseline_hold_tag) == nullptr;
+                } else if (act) {
+                    auto ex = device_tag(dev.get(), device_tracker::baseline_expired_tag);
+                    act = since == nullptr &&
+                        device_tag(dev.get(), device_tracker::baseline_hold_tag) == nullptr &&
+                        (ex == nullptr || *ex != rd.name);
+                }
+
+                if (expired || act)
+                    bl_hits->push_back({r, expired, dev});
+            }
+
+            out[r] = 0;
+        }
+    }
 
     auto state = dev->get_sub_as<device_rule_state>(rule_state_id);
 
@@ -1999,55 +2267,259 @@ void device_rules::drain_alerts() {
     }
 }
 
+void device_rules::apply_baseline(active_set& as, std::vector<baseline_hit>& hits) {
+    // Removes go first, so a device a remove filter holds out isn't added by an add
+    // filter in the same pass; otherwise filters run in file order
+    std::stable_sort(hits.begin(), hits.end(), [&as](const baseline_hit& a, const baseline_hit& b) {
+            const bool ra = as.rs->rule(a.rule).remove, rb = as.rs->rule(b.rule).remove;
+            if (ra != rb)
+                return ra;
+            return a.rule < b.rule;
+        });
+
+    const time_t now = Globalreg::globalreg->last_tv_sec;
+    const auto now_s = std::to_string(now);
+
+    using dt = device_tracker;
+    std::vector<dt::tag_op> ops;
+
+    size_t g = 0;
+    while (g < hits.size()) {
+        const size_t r = hits[g].rule;
+        const auto& rd = as.rs->rule(r);
+
+        size_t end = g;
+        while (end < hits.size() && hits[end].rule == r)
+            end++;
+
+        ops.clear();
+        uint64_t added = 0, removed = 0, expired = 0, held = 0, skipped = 0;
+        size_t changed = 0;
+        std::vector<std::pair<mac_addr, std::string>> by_hand;
+
+        for (size_t i = g; i < end; i++) {
+            const auto& dev = hits[i].device;
+
+            if (changed >= baseline_max_changes) {
+                skipped++;
+                continue;
+            }
+
+            bool in_baseline, has_hold, expired_here;
+            std::string by;
+            bool has_by;
+            mac_addr mac;
+            std::string name;
+
+            {
+                kis_device_lock dlk(dev, true);
+                if (dev->get_removed())
+                    continue;
+                in_baseline = device_tag(dev.get(), dt::baseline_tag) != nullptr;
+                has_hold = device_tag(dev.get(), dt::baseline_hold_tag) != nullptr;
+                auto e = device_tag(dev.get(), dt::baseline_expired_tag);
+                expired_here = e != nullptr && *e == rd.name;
+                auto b = device_tag(dev.get(), dt::baseline_by_tag);
+                has_by = b != nullptr;
+                if (has_by)
+                    by = *b;
+                mac = dev->get_macaddr();
+                name = dev->get_commonname();
+            }
+
+            if (rd.remove) {
+                bool acted = false;
+
+                if (in_baseline) {
+                    ops.push_back({dev, dt::baseline_tag, "", true, false});
+                    if (has_by)
+                        ops.push_back({dev, dt::baseline_by_tag, "", true, false});
+                    if (!has_by || by == dt::baseline_user)
+                        by_hand.emplace_back(mac, name);
+                    removed++;
+                    acted = true;
+                }
+
+                // Held out, so add filters leave it be until the user adds it back
+                if (!has_hold) {
+                    ops.push_back({dev, dt::baseline_hold_tag, rd.name, false, rd.ephemeral});
+                    if (!in_baseline)
+                        held++;
+                    acted = true;
+                }
+
+                if (acted)
+                    changed++;
+                continue;
+            }
+
+            if (hits[i].expire) {
+                if (!in_baseline || by != rd.name)
+                    continue;
+                ops.push_back({dev, dt::baseline_tag, "", true, false});
+                ops.push_back({dev, dt::baseline_by_tag, "", true, false});
+                ops.push_back({dev, dt::baseline_expired_tag, rd.name, false, true});
+                expired++;
+                changed++;
+                continue;
+            }
+
+            if (in_baseline || has_hold || expired_here)
+                continue;
+
+            // A leftover saved baseline-by would refuse an ephemeral one
+            if (has_by)
+                ops.push_back({dev, dt::baseline_by_tag, "", true, false});
+            ops.push_back({dev, dt::baseline_tag, now_s, false, rd.ephemeral});
+            ops.push_back({dev, dt::baseline_by_tag, rd.name, false, rd.ephemeral});
+            added++;
+            changed++;
+        }
+
+        devicetracker->apply_tag_ops(ops);
+
+        {
+            kis_lock_guard<kis_mutex> lk(bl_stats_mutex, "device_rules apply_baseline");
+            auto& st = bl_stats[rd.name];
+            st.added += added;
+            st.removed += removed;
+            st.expired += expired;
+            st.held += held;
+            st.skipped += skipped;
+        }
+
+        if (added != 0)
+            _MSG_INFO("Baseline filter '{}' added {} device{} to the baseline", rd.name, added,
+                    added == 1 ? "" : "s");
+        if (removed != 0)
+            _MSG_INFO("Baseline filter '{}' removed {} device{} from the baseline", rd.name, removed,
+                    removed == 1 ? "" : "s");
+        if (expired != 0)
+            _MSG_INFO("Baseline filter '{}' expired {} device{} from the baseline", rd.name, expired,
+                    expired == 1 ? "" : "s");
+        if (skipped != 0)
+            _MSG_INFO("Baseline filter '{}' matched {} more device{} than its limit of {} per run "
+                    "(device_rules_baseline_max_changes); the rest wait for its next run", rd.name,
+                    skipped, skipped == 1 ? "" : "s", baseline_max_changes);
+
+        constexpr size_t max_hand_msgs = 10;
+        for (size_t i = 0; i < by_hand.size() && i < max_hand_msgs; i++)
+            _MSG(censor::format("Baseline filter '{}' removed device {} ({}), which was added to the "
+                        "baseline by hand", rd.name, by_hand[i].first, censor::name(by_hand[i].second)),
+                    MSGFLAG_INFO);
+        if (by_hand.size() > max_hand_msgs)
+            _MSG_INFO("Baseline filter '{}' removed {} more devices added to the baseline by hand",
+                    rd.name, by_hand.size() - max_hand_msgs);
+
+        g = end;
+    }
+}
+
 void device_rules::timer_pass() {
     drain_alerts();
 
-    auto as = get_current();
-    if (as == nullptr || as->rs->size() == 0)
-        return;
+    // Timers don't overlap, so the pass state is only used here.  The queue is drained even
+    // without rules so it can't hold devices that are gone.
+    auto& changed = pass->changed;
+    changed.clear();
+    devicetracker->take_modified(changed);
 
-    bool full;
+    auto as = get_current();
+    if (as == nullptr || as->rs->size() == 0) {
+        changed.clear();
+        return;
+    }
+
     bool reload;
-    time_t since;
 
     {
         kis_lock_guard<kis_mutex> lk(mutex, "device_rules timer_pass");
-
-        pass_count++;
         reload = full_pending;
-        full = full_pending ||
-            (as->rs->uses_now() && full_interval > 0 && pass_count % full_interval == 0);
         full_pending = false;
-        since = last_pass;
-        last_pass = Globalreg::globalreg->last_tv_sec;
     }
 
-    // Timers don't overlap, so the pass state is only used here
+    const time_t now = Globalreg::globalreg->last_tv_sec;
+    const size_t n = as->rs->size();
+
     if (pass->gen != as->gen) {
         pass->ctx.bind(as->rs.get(), &pass->env);
         pass->gen = as->gen;
+
+        pass->every.assign(n, 0);
+        pass->next_check.assign(n, 0);
+        pass->due.assign(n, 0);
+
+        for (size_t r = 0; r < n; r++) {
+            const auto& rd = as->rs->rule(r);
+            if (rd.baseline)
+                pass->every[r] = baseline_enabled ? rd.every : 0;
+            else if (rd.uses_now)
+                pass->every[r] = rd.recheck != 0 ? rd.recheck : full_interval;
+            if (pass->every[r] != 0)
+                pass->next_check[r] = now + pass->every[r];
+        }
+    }
+
+    // Rules using 'now', and baseline filters, whose time has come check every device,
+    // changed or not
+    bool any_due = false;
+    for (size_t r = 0; r < n; r++) {
+        pass->due[r] = pass->every[r] != 0 && now >= pass->next_check[r];
+        if (pass->due[r]) {
+            pass->next_check[r] = now + pass->every[r];
+            any_due = true;
+        }
+    }
+
+    const bool full = reload || any_due;
+
+    if (any_due && as->any_baseline) {
+        kis_lock_guard<kis_mutex> lk(bl_stats_mutex, "device_rules timer_pass");
+        for (size_t r = 0; r < n; r++)
+            if (pass->due[r] && !as->rule_want[r]) {
+                auto& st = bl_stats[as->rs->rule(r).name];
+                st.last_run = now;
+                st.runs++;
+            }
     }
 
     auto start = std::chrono::steady_clock::now();
     uint64_t evaluated = 0;
     std::vector<pending_change> changes;
 
-    // A reload evaluates everything once; otherwise devices that changed get every rule,
-    // and the full passes for 'now' give the others only the rules using it
-    device_tracker_view_function_worker worker(
-            [&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                const bool changed = (time_t) dev->get_mod_time() >= since;
-                if (!full && !changed)
-                    return false;
-                const uint8_t *want = (reload || changed) ? nullptr : as->now_want.data();
-                eval_device(*as, pass->ctx, dev, want, pass->out, pass->prev, changes);
-                evaluated++;
-                return false;
-            });
+    // A reload evaluates every device once with every rule, so the changed ones need
+    // nothing more
+    if (!reload) {
+        for (const auto& dev : changed) {
+            kis_device_lock dlk(dev, false);
+            eval_device(*as, pass->ctx, dev, as->rule_want.data(), pass->out, pass->prev, changes);
+            evaluated++;
+        }
+    }
 
-    devicetracker->do_device_work(worker);
+    changed.clear();
+
+    auto& bl_hits = pass->bl_hits;
+    bl_hits.clear();
+
+    if (full) {
+        const uint8_t *want = reload ? as->rule_want.data() : pass->due.data();
+        device_tracker_view_function_worker worker(
+                [&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                    eval_device(*as, pass->ctx, dev, want, pass->out, pass->prev, changes,
+                            reload ? nullptr : &bl_hits);
+                    evaluated++;
+                    return false;
+                });
+
+        devicetracker->do_device_work(worker);
+    }
 
     apply_changes(changes);
+
+    if (!bl_hits.empty())
+        apply_baseline(*as, bl_hits);
+    bl_hits.clear();
 
     // Every device has been seen once, so the matches webhooks record from here are new
     if (full && webhooks != nullptr)
@@ -2103,7 +2575,7 @@ void device_rules::check_device(const std::shared_ptr<kis_tracked_device_base>& 
 
     {
         kis_device_lock dlk(dev, false);
-        eval_device(*as, lc.ctx, dev, nullptr, lc.out, lc.prev, lc.changes);
+        eval_device(*as, lc.ctx, dev, as->rule_want.data(), lc.out, lc.prev, lc.changes);
     }
 
     apply_changes(lc.changes);
@@ -2271,6 +2743,72 @@ std::shared_ptr<tracker_element_map> device_rules::rule_record(const devicerules
     from_name->set(src.name);
     r->insert(from_type);
     r->insert(from_name);
+
+    auto f_recheck = entrytracker->register_and_get_field_as<tracker_element_uint32>("kismet.devicerules.rule.recheck",
+            tracker_element_factory<tracker_element_uint32>(),
+            "seconds between checks of devices that haven't changed, for rules that change over time; 0 never");
+    f_recheck->set(rd.uses_now && !rd.baseline ? (rd.recheck != 0 ? rd.recheck : full_interval) : 0);
+    r->insert(f_recheck);
+
+    if (rd.baseline) {
+        auto f_bl = entrytracker->register_and_get_field_as<tracker_element_string>("kismet.devicerules.rule.baseline",
+                tracker_element_factory<tracker_element_string>(),
+                "for a baseline filter, what it does: add or remove");
+        auto f_every = entrytracker->register_and_get_field_as<tracker_element_uint32>("kismet.devicerules.rule.every",
+                tracker_element_factory<tracker_element_uint32>(), "seconds between runs of a baseline filter");
+        auto f_eph = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.ephemeral",
+                tracker_element_factory<tracker_element_uint8>(), "baseline filter tags are for this run only");
+        auto f_exp = entrytracker->register_and_get_field_as<tracker_element_uint32>("kismet.devicerules.rule.expire",
+                tracker_element_factory<tracker_element_uint32>(),
+                "seconds until a baseline filter's tag comes off again; 0 never");
+        auto f_active = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.baseline_active",
+                tracker_element_factory<tracker_element_uint8>(),
+                "baseline filters run: device_rules_baseline is on");
+
+        f_bl->set(rd.remove ? "remove" : "add");
+        f_every->set(rd.every);
+        f_eph->set(rd.ephemeral);
+        f_exp->set(rd.expire);
+        f_active->set(baseline_enabled);
+        r->insert(f_bl);
+        r->insert(f_every);
+        r->insert(f_eph);
+        r->insert(f_exp);
+        r->insert(f_active);
+
+        baseline_stats st;
+        {
+            kis_lock_guard<kis_mutex> lk(bl_stats_mutex, "device_rules rule_record");
+            auto si = bl_stats.find(rd.name);
+            if (si != bl_stats.end())
+                st = si->second;
+        }
+
+        const std::pair<const char *, uint64_t> counts[] = {
+            {"kismet.devicerules.rule.last_run", (uint64_t) st.last_run},
+            {"kismet.devicerules.rule.runs", st.runs},
+            {"kismet.devicerules.rule.added", st.added},
+            {"kismet.devicerules.rule.removed", st.removed},
+            {"kismet.devicerules.rule.expired", st.expired},
+            {"kismet.devicerules.rule.held", st.held},
+            {"kismet.devicerules.rule.over_limit", st.skipped},
+        };
+        constexpr const char *count_desc[] = {
+            "when a baseline filter last ran",
+            "times a baseline filter has run",
+            "devices a baseline filter added to the baseline",
+            "devices a baseline filter removed from the baseline",
+            "devices a baseline filter's tag expired from",
+            "devices outside the baseline a remove filter held out",
+            "matches a baseline filter left for a later run, over device_rules_baseline_max_changes",
+        };
+        for (size_t i = 0; i < std::size(counts); i++) {
+            auto f = entrytracker->register_and_get_field_as<tracker_element_uint64>(counts[i].first,
+                    tracker_element_factory<tracker_element_uint64>(), count_desc[i]);
+            f->set(counts[i].second);
+            r->insert(f);
+        }
+    }
 
     auto f_enabled = entrytracker->register_and_get_field_as<tracker_element_uint8>("kismet.devicerules.rule.enabled",
             tracker_element_factory<tracker_element_uint8>(), "rule is in use; 0 when it's switched off with enable.cmd");

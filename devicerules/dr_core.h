@@ -57,6 +57,23 @@ enum class vtype : uint8_t {
 
 const char *vtype_name(vtype t);
 
+// Values the env works out from a field instead of reading it as it is
+enum class derive : uint8_t {
+    none,
+    // tag_time(): a user tag's text read as a whole number
+    tag_number,
+    // hours_active: hours of the last 24 with packets, from the packet rate history
+    hours_active,
+    // days_active: days of the last 7 with packets, from the day presence record
+    days_active,
+    // in_baseline(): the device with this MAC is in the baseline
+    baseline_mac,
+};
+
+// When Kismet started, for start_time and uptime; set once at startup
+void set_start_time(int64_t t);
+int64_t start_time();
+
 // Field types the env reports for a resolved path element
 enum class ftype : uint8_t {
     unsupported,
@@ -100,9 +117,11 @@ struct parse_source {
     enum class block : uint8_t {
         // Any number of rules, sorts and includes
         any,
-        // One rule or sort without its leading keyword, as written on a config line
+        // One rule, sort or baseline filter without its leading keyword, as written on a
+        // config line
         rule,
         sort,
+        baseline,
         // A device list filter: one expression, which becomes the rule 'filter'
         filter,
         // The keys of a sort, without 'by' or braces, which become the sort 'filter'
@@ -133,6 +152,7 @@ struct field_slot {
     int index = -1;
     // has_tag(): the key looked up in the string map at the end of the path
     std::string key;
+    derive how = derive::none;
     // First of this path's entries, one per element, in a table an env may keep
     uint32_t hint = 0;
 };
@@ -167,6 +187,9 @@ public:
 
     // Drop anything held for the last device
     virtual void reset() { }
+
+    // The evaluation's 'now', for derived values that age with time
+    int64_t now = 0;
 };
 
 enum class op : uint8_t {
@@ -207,6 +230,7 @@ struct node {
     std::string str;
     // has_tag(): the tag name
     std::string key;
+    derive how = derive::none;
     int slot;
     int aux;
     // String == != and 'in' ignore case
@@ -283,14 +307,41 @@ struct rule_def {
     // Leaves matching devices out of the default view
     bool exclude;
     bool uses_now;
+    // Seconds between checks of devices that haven't changed, for rules using 'now'; 0
+    // uses device_rules_full_interval
+    uint32_t recheck{0};
     std::vector<webhook_def> webhooks;
+
+    // A baseline filter: on its own schedule, every device matching it gains (or with
+    // 'remove' loses) the "baseline" tag, instead of the rule actions above
+    bool baseline{false};
+    bool remove{false};
+    bool ephemeral{false};
+    // Seconds between runs, and for add filters how long the tag lasts (0 for good)
+    uint32_t every{0};
+    uint32_t expire{0};
 };
+
+// Bounds of a rule's 'recheck'
+constexpr int64_t recheck_min = 1;
+constexpr int64_t recheck_max = 7 * 86400;
+
+// Bounds of a baseline filter's 'every' and 'expire'
+constexpr int64_t baseline_every_min = 10;
+constexpr int64_t baseline_every_default = 60;
+constexpr int64_t baseline_every_max = 7 * 86400;
+constexpr int64_t baseline_expire_min = 60;
+constexpr int64_t baseline_expire_max = 365 * 86400;
 
 // The field path of a short name such as 'signal', or null
 const char *field_alias(const std::string& name);
 
 // The device's user tags, which has_tag() looks in
 constexpr const char *user_tags_field = "kismet.device.base.tags";
+// Packet rate history, which hours_active reads, and the day presence record kept
+// for days_active
+constexpr const char *packets_rrd_field = "kismet.device.base.packets.rrd";
+constexpr const char *day_presence_field = "kismet.device.base.days_seen";
 constexpr size_t max_tag_name = 256;
 
 struct compiled_rule {
@@ -436,8 +487,10 @@ struct eval_ctx {
                 c.gen = 0;
             gen = 1;
         }
-        if (e != nullptr)
+        if (e != nullptr) {
             e->reset();
+            e->now = in_now;
+        }
     }
 };
 

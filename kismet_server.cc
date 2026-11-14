@@ -125,6 +125,7 @@
 #include "gpstracker.h"
 
 #include "devicetracker.h"
+#include "device_alerts.h"
 #include "device_rules.h"
 #include "range_tracker.h"
 
@@ -936,6 +937,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the device tracker
     auto devicetracker = device_tracker::create_device_tracker();
+
+    // Link alerts to the devices they name
+    device_alert_linker::create_device_alert_linker();
 
     // Add channel tracking
     // channel_tracker_v2::create_channeltracker();

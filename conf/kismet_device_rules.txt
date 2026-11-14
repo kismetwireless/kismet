@@ -13,6 +13,11 @@
 #       live                    check on every packet as well as on the timer
 #       exclude                 leave matching devices out of the 'default' view, which
 #                               the web UI lists as Default
+#       recheck <time>          for a condition that changes over time (see below), how
+#                               often to check devices that haven't changed, from 1s up
+#                               (default device_rules_full_interval).  Each recheck reads
+#                               every device: short times on a large or slow system cost
+#                               real CPU, so use the longest time that works
 #       webhook "<endpoint>"    send matching devices to a webhook endpoint from
 #                               kismet_webhooks.conf, optionally with { terms } below
 #   }
@@ -52,6 +57,9 @@
 # The endpoint's own rate, queue and retry limits apply on top of these, along with
 # webhook_global_rate; /webhooks/status.json shows what each webhook sent and held back.
 #
+# Baseline filters ('baseline <name> { ... }' blocks), which add devices to the baseline
+# or take them out on their own schedule, are described in kismet_baseline_rules.txt.
+#
 # Conditions compare device fields to values:
 #
 #   Fields are Kismet field names, such as kismet.device.base.manuf, or a path through
@@ -62,11 +70,38 @@
 #   first_time, last_time, mod_time, num_alerts, signal, min_signal, max_signal,
 #   seenby, location (the average location) and last_location.
 #
+#   Alerts are linked to the devices they name.  The device that sent an alert (its
+#   source, or its BSSID when it has no source) and the devices it only names are
+#   counted apart, since an alert can name its victim: a spoofed deauthentication
+#   flood names the access point it impersonates.  Short names: num_alerts (all
+#   alerts naming the device), alerts_sent, alerts_named, alerts (names of all alerts
+#   naming it), sent_alerts and sent_alert_classes (names and classes of the ones it
+#   sent, such as "EXPLOIT" or "DENIAL"), alert_severity (the highest severity it sent:
+#   0 info, 5 low, 10 medium, 15 high, 20 critical), alert_time and sent_alert_time.
+#   own_alerts and own_alert_severity count only the alerts it sent outside the classes
+#   in device_rules_alert_ignore_classes (DENIAL and SYSTEM by default), each alert's
+#   severity with its own class; sent_alert_classes and alert_severity can't tell a
+#   device that sent a low DENIAL alert and a high one of another class apart.
+#   Alert names and classes match in any case.  A list field such as
+#   sent_alert_classes is 'in' a list when any of its values is, so 'not in' means
+#   none of them are.
+#
 #   Numbers compare with == != < <= > >=, and take + - * / % (put spaces around '/'
 #   for division).  Durations such as 30s, 5m, 2h and 1d are seconds; 'now' is the
 #   current time and age(field) is now - field.  lat(field) and lon(field) are the
 #   latitude and longitude of a location, such as lat(location); a device without
 #   a location doesn't match.
+#
+#   start_time is when Kismet started, and uptime is now - start_time.
+#   hours_active counts the hours in the last day the device was seen, from 0 to
+#   24.  days_active counts the days in the last week it was seen, from 0 to 7, and
+#   needs device_rules_baseline=true in kismet_baseline_rules.conf to record them.
+#   Both cover only the time Kismet has been running.
+#
+#   A condition using now, age(), uptime, hours_active, days_active or in_baseline()
+#   can change without the device changing, so devices that haven't changed are
+#   checked against it again every device_rules_full_interval, or as often as the
+#   rule's 'recheck' says.
 #
 #   Strings compare with == and !=, or with contains, icontains (any case),
 #   startswith, endswith and matches (a PCRE regex), against a "string".
@@ -82,7 +117,19 @@
 #   'x in [a, b, c]' and 'x not in [...]' test against a list of values.
 #   exists(field) tests that a field is present, and count(field) counts entries.
 #   has_tag("<name>") tests that the device has the user tag <name>, such as the
-#   "baseline" tag the web UI sets from the device details.
+#   "baseline" tag the web UI sets from the device details; ephemeral tags, set for
+#   this run only and never saved, count the same.  tag_time("<name>") is
+#   the value of a tag holding a time or number, and a device without the tag, or
+#   with a tag that isn't a number, doesn't match.  in_baseline(field) tests that a
+#   MAC address field names a device with the "baseline" tag, such as
+#   in_baseline(dot11.device/dot11.device.last_bssid) for clients of baseline
+#   access points; an access point is its own last_bssid, so it matches too.
+#
+#   random_address matches Wi-Fi devices with a randomized MAC and BTLE devices
+#   with a resolvable or non-resolvable random address.  linked matches devices
+#   linked to another address of the same device (see the address linking options
+#   in kismet.conf).
+#
 #   Combine conditions with and, or, not, and parentheses.
 #
 #   A comparison with a field the device doesn't have is false.
@@ -186,26 +233,4 @@
 #     view "Devices in the quad"
 # }
 
-# Baseline: devices you've marked as known with "Add to baseline" in the web UI's
-# device details, which tags them "baseline", and every other device.  Devices in the
-# baseline are left out of the Default view, so it shows what's new; they're still in
-# All devices and Baseline devices.  Switch baseline-hide off in the web UI's device
-# rules window, or with device_rule_disable=baseline-hide, to keep them in Default.
-
-rule baseline {
-    description "Devices in the baseline"
-    when has_tag("baseline")
-    view "Baseline devices"
-}
-
-rule unknown {
-    description "Devices not in the baseline"
-    when not has_tag("baseline")
-    view "Unknown devices"
-}
-
-rule baseline-hide {
-    description "Leave devices in the baseline out of the Default view"
-    when has_tag("baseline")
-    exclude
-}
+# The baseline rules and filters are in kismet_baseline_rules.txt.

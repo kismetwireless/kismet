@@ -1,0 +1,131 @@
+# Kismet baseline rules
+#
+# The baseline is the devices you know: the ones tagged "baseline", by "Add to
+# baseline" in the web UI's device details or by the baseline filters below.  The rules
+# here collect the baseline and everything else into views, leave the baseline out of
+# the Default view, and highlight it.  This file is read after kismet_device_rules.txt,
+# in the device rules language described there; the baseline options are in
+# kismet_baseline_rules.conf.
+#
+# Baseline filters add devices to the baseline or take them out, on their own schedule.
+# They only run with device_rules_baseline=true in kismet_baseline_rules.conf:
+#
+#   baseline <name> {
+#       when <condition>
+#       add | remove            what to do with matching devices
+#       description "<text>"    what the filter is for
+#       every <time>            how often it runs, from 10s (default 1m); each run reads
+#                               every device, so keep it as long as works
+#       ephemeral               tags last for this run of Kismet only and are never saved
+#       expire <time>           for 'add', how long until the device leaves the baseline
+#                               again; this filter won't add it back until Kismet restarts
+#   }
+#
+#   A filter first runs one 'every' after the rules load.  An added device gets the tag
+#   "baseline" holding the time, and "baseline-by" naming the filter ("user" when it's
+#   added by hand).  A removed device gets "baseline-hold" naming the filter, and add
+#   filters leave a held device out until someone adds it back by hand, which clears
+#   the hold; taking a device out by hand holds it too.  Remove filters take out devices
+#   added by hand as well, and say so on the console.  In each run removes go first,
+#   and each filter changes at most device_rules_baseline_max_changes devices.
+#   Baseline filters can also be written as config lines: device_baseline=<name> {...}
+#
+# Switch a rule or filter off in the web UI's device rules window, or with
+# device_rule_disable=<name> in kismet_site.conf.
+
+# Devices in the baseline, and every other device.  Devices in the baseline are left out
+# of the Default view, so it shows what's new; they're still in All devices and Baseline
+# devices.  Switch baseline-hide off to keep them in Default.
+
+rule baseline {
+    description "Devices in the baseline"
+    when has_tag("baseline")
+    view "Baseline devices"
+}
+
+rule unknown {
+    description "Devices not in the baseline"
+    when not has_tag("baseline")
+    view "Unknown devices"
+}
+
+rule baseline-hide {
+    description "Leave devices in the baseline out of the Default view"
+    when has_tag("baseline")
+    exclude
+}
+
+# Highlight devices in the baseline wherever they're listed, such as All devices; the
+# row color can be changed or switched off under Settings > Appearance > Device
+# Highlights.
+rule baseline-highlight {
+    description "Devices in the baseline"
+    when has_tag("baseline")
+    tag "baseline"
+    color "#c5d3e8"
+}
+
+# Baseline filters: build the baseline on their own as devices settle in, and take out
+# devices that raise alerts.  Devices they add show their filter in the "baseline-by"
+# tag.
+
+# A random address that came and went in a couple of minutes, sent little, and isn't
+# linked to another address: a phone scanning or a passing device.  Kept for this run
+# only, and out again after a day.
+baseline one-off-random {
+    description "Random addresses seen briefly once"
+    when random_address and not linked and age(last_time) > 15m and
+        last_time - first_time < 2m and packets < 50
+    every 5m
+    add
+    ephemeral
+    expire 1d
+}
+
+# Here when Kismet started and still here an hour later.  Waiting the hour keeps the
+# rush of devices heard at startup from all going in.
+baseline startup {
+    description "Fixed addresses here since startup"
+    when uptime > 1h and first_time < start_time + 5m and age(last_time) < 10m and
+        not random_address
+    every 10m
+    add
+}
+
+# Sent an alert of low severity or above.  Denial of service alerts are left out (see
+# device_rules_alert_ignore_classes): they name the address they claim to come from,
+# and a spoofed deauthentication flood claims to be the access point it attacks.
+# System alerts aren't about a device.
+baseline alerts {
+    description "Devices that sent an alert"
+    when own_alerts > 0 and own_alert_severity >= 5
+    every 10s
+    remove
+}
+
+# Heard in most hours of the last day or on most days of the last week.
+baseline steady {
+    description "Fixed addresses heard most of the day or most days"
+    when not random_address and (hours_active >= 18 or days_active >= 4)
+    every 15m
+    add
+}
+
+# A fixed-address client of an access point in the baseline, heard for two hours of the
+# last day.
+baseline clients-of-baseline {
+    description "Clients of access points in the baseline"
+    when in_baseline(dot11.device/dot11.device.last_bssid) and not random_address and
+        hours_active >= 2
+    every 15m
+    add
+}
+
+# Weather and other sensors, utility meters, and Zigbee and Z-Wave devices heard on two
+# days or more.
+baseline fixed-sensors {
+    description "Sensors, meters and home automation heard on two days"
+    when phy in ["RFSENSOR", "METER", "802.15.4", "Z-Wave"] and days_active >= 2
+    every 1h
+    add
+}

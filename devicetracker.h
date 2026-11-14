@@ -238,13 +238,58 @@ public:
     void set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
             const std::string& in_username);
 
-    // Set an arbitrary tag (and log it in the database for future runs)
-    void set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
-            const std::string& in_tag, const std::string& in_content);
+    // Set an arbitrary tag (and log it in the database for future runs).  An ephemeral tag
+    // lasts for this run only and is never saved; it never replaces a saved tag, and
+    // returns false if the device has one by that name.  Setting a saved tag over an
+    // ephemeral one saves it.
+    bool set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
+            const std::string& in_tag, const std::string& in_content, bool ephemeral = false);
 
     // Remove a tag (and from the database); returns false if the device had no such tag
     bool remove_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
             const std::string& in_tag);
+
+    // One tag change for apply_tag_ops
+    struct tag_op {
+        std::shared_ptr<kis_tracked_device_base> dev;
+        std::string tag;
+        std::string content;
+        bool remove;
+        bool ephemeral;
+    };
+
+    // Apply tag changes as set_device_tag and remove_device_tag would, in order, with the
+    // saved ones written in one database transaction.  applied, when given, is set to
+    // whether each change was made.  No device may be locked.
+    void apply_tag_ops(const std::vector<tag_op>& ops, std::vector<uint8_t> *applied = nullptr);
+
+    // Limits on tags set through the API
+    static constexpr size_t max_tag_name = 256;
+    static constexpr size_t max_tag_value = 65536;
+
+    // The user tag marking a device as part of the baseline
+    static constexpr const char *baseline_tag = "baseline";
+    // Who added a device to the baseline: a baseline filter's name, or "user"
+    static constexpr const char *baseline_by_tag = "baseline-by";
+    // Set when a device is taken out of the baseline, by a filter's name or "user";
+    // baseline filters don't add it back until the user does
+    static constexpr const char *baseline_hold_tag = "baseline-hold";
+    // Set (ephemeral) to the filter whose 'expire' took the device out, so that filter
+    // doesn't add it again this run
+    static constexpr const char *baseline_expired_tag = "baseline-expired";
+    static constexpr const char *baseline_user = "user";
+
+    // Whether a tracked device with this MAC (mac_addr::longmac) is in the baseline, for
+    // rules that look at a related device.  Takes only its own lock, so it's safe to call
+    // with a device locked.
+    bool mac_in_baseline(uint64_t mac);
+
+    // Queue devices as they're modified, for a consumer that only wants changed devices;
+    // the consumer must drain the queue with take_modified regularly
+    void enable_modified_queue(bool enable);
+    // Devices modified since the last call, each once, ready to be queued again.  Takes the
+    // device list lock, so no device may be locked.
+    void take_modified(std::vector<std::shared_ptr<kis_tracked_device_base>>& out);
 
     // Check the device rules against a device the user just named or tagged
     void recheck_rules(std::shared_ptr<kis_tracked_device_base> in_dev);
@@ -339,6 +384,28 @@ protected:
     int device_list_base_id, device_base_id;
     int device_summary_base_id;
     int device_update_required_id, device_update_timestamp_id;
+
+    // Names of a device's ephemeral tags, present only on devices that have one
+    int ephemeral_tags_id;
+    // With the device locked: whether a tag is ephemeral, and marking it either way
+    bool tag_is_ephemeral(kis_tracked_device_base *dev, const std::string& tag);
+    void mark_ephemeral(kis_tracked_device_base *dev, const std::string& tag, bool ephemeral);
+
+    // The in-memory half of a tag change, and whether it was refused, needs nothing more,
+    // or needs saving to the database
+    enum class tag_result : uint8_t { refused, memory, save };
+    tag_result set_tag_memory(const std::shared_ptr<kis_tracked_device_base>& dev,
+            const std::string& tag, const std::string& content, bool ephemeral);
+    tag_result remove_tag_memory(const std::shared_ptr<kis_tracked_device_base>& dev,
+            const std::string& tag);
+
+    struct tag_write {
+        std::string key;
+        std::string tag;
+        std::string content;
+        bool remove;
+    };
+    void write_tags(const std::vector<tag_write>& writes);
 
     int dt_length_id, dt_filter_id, dt_draw_id;
 
@@ -506,6 +573,12 @@ protected:
 
     void lookup_stored_name(const std::string& keystring, stored_device_info& info);
     void lookup_stored_tags(const std::string& keystring, stored_device_info& info);
+
+    // Tracked devices in the baseline, by MAC; a MAC on several phys counts once for each.
+    // A leaf lock: nothing else is taken while it's held.
+    kis_mutex baseline_mac_mutex;
+    std::unordered_map<uint64_t, uint32_t> baseline_macs;
+    void count_baseline(const mac_addr& mac, bool add);
 
     // Stored name and tag queries run for every new device, so they're prepared once
     // per database handle; ds_mutex must be held, and they're finalized before the
