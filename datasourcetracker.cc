@@ -2171,6 +2171,11 @@ public:
         if (!in_src->get_source_running())
             return;
 
+        // Sources that don't hop - channel_hop=false, or set to a fixed channel since - aren't
+        // part of the split; calculate_source_hopping() only checks this for the new source
+        if (!in_src->get_definition_opt_bool("channel_hop", true) || !in_src->get_source_hopping())
+            return;
+
         bool match_list = true;
 
         auto initial_channels = initial_ds->get_source_channels_vec_copy();
