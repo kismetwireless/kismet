@@ -3512,7 +3512,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* Build model string from AT+CGMM if available */
         char model_resp[256];
-        n = at_command_t(local,"AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        n = at_info_command_t_reask(local, "AT+CGMM", model_resp,
+                                    sizeof(model_resp), 3000);
         if (n > 0) {
             char *saveptr2 = NULL;
             char *mline = strtok_r(model_resp, "\n", &saveptr2);
@@ -3555,7 +3556,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* Build model string from AT+CGMM */
         char model_resp[256];
-        n = at_command_t(local,"AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        n = at_info_command_t_reask(local, "AT+CGMM", model_resp,
+                                    sizeof(model_resp), 3000);
         if (n > 0) {
             char *saveptr2 = NULL;
             char *mline = strtok_r(model_resp, "\n", &saveptr2);
@@ -3587,7 +3589,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* Build model string from AT+CGMM */
         char model_resp[256];
-        n = at_command_t(local,"AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        n = at_info_command_t_reask(local, "AT+CGMM", model_resp,
+                                    sizeof(model_resp), 3000);
         if (n > 0) {
             char *saveptr2 = NULL;
             char *mline = strtok_r(model_resp, "\n", &saveptr2);
