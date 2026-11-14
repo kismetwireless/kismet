@@ -49,7 +49,8 @@ typedef struct {
     uint16_t vid;
     uint16_t pid;
     const char *name;
-    /* Terminated by a NULL role */
+    /* Terminated by a NULL role.  NULL for a vendor's unlisted model: its roles come
+     * from the interface descriptors (usbserial_iface_role) */
     const usbserial_role_t *roles;
 } usbserial_model_t;
 
@@ -83,7 +84,14 @@ typedef void (*usbserial_rx_cb_t)(usbserial_port_t *port, const uint8_t *data,
  * event thread */
 typedef void (*usbserial_err_cb_t)(usbserial_dev_t *dev, const char *reason, void *aux);
 
+/* The measured model, else the vendor's descriptor-roles entry when vid is a modem
+ * vendor (pid 0, roles NULL), else NULL */
 const usbserial_model_t *usbserial_find_model(uint16_t vid, uint16_t pid);
+
+/* The role of one interface of a model, from its measured map, or for a vendor
+ * entry from the interface class/subclass/protocol; NULL when it has none */
+const char *usbserial_iface_role(const usbserial_model_t *model, uint8_t ifnum,
+        uint8_t cls, uint8_t sub, uint8_t prot);
 
 /* Print the known devices that are attached, one per line */
 int usbserial_list(FILE *out);
