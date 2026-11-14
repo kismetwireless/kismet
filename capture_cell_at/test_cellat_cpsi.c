@@ -92,10 +92,11 @@ static void check_long(const char *json, const char *key, long want,
     }
 }
 
-/* --- MEASURED. A SIM7600NA (LE20B01SIM7600NA), verbatim from an AT survey.
- *     RSRQ -125 / RSRP -987 / RSSI -663 are dBm x10. --- */
+/* --- SYNTHETIC identity (PLMN 001-001, TAC 0x1234, cell ID 0xABCDE1, PCI 1,
+ *     EARFCN 100) in the reply layout a SIM7600NA (LE20B01SIM7600NA) returns,
+ *     including its dBm x10 signal form: RSRQ -125 / RSRP -987 / RSSI -663. --- */
 static const char *CPSI_LTE_TENTHS =
-    "+CPSI: LTE,Online,310-260,0x1A2B,27439874,7,EUTRAN-BAND4,2300,5,5,"
+    "+CPSI: LTE,Online,001-001,0x1234,11259361,1,EUTRAN-BAND1,100,5,5,"
     "-125,-987,-663,10\n"
     "OK\n";
 
@@ -104,7 +105,7 @@ static const char *CPSI_LTE_TENTHS =
  *     collapse "01" -> 1, losing the count; the emitter must carry it as the
  *     string "01". Same LTE layout as CPSI_LTE_TENTHS otherwise. --- */
 static const char *CPSI_LTE_ZEROMNC =
-    "+CPSI: LTE,Online,310-01,0x1A2B,27439874,7,EUTRAN-BAND4,2300,5,5,"
+    "+CPSI: LTE,Online,001-01,0x1234,11259361,1,EUTRAN-BAND1,100,5,5,"
     "-125,-987,-663,10\n"
     "OK\n";
 
@@ -125,10 +126,12 @@ static const char *CPSI_ENDC =
     "+CPSI: NR5G,257,629952,-11,-92,153\n"
     "OK\n";
 
-/* --- MANUAL. SIM8200 §4.2.14 NR5G-only camping form. Its signal columns
- *     are RSRP,RSRQ,RSSNR -- the OPPOSITE order to both LTE and EN-DC. --- */
+/* --- SYNTHETIC identity (PLMN 001-01, TAC 0x1234, cell ID 0xABCDE1, PCI 2,
+ *     ARFCN 100) in the SIM8200 §4.2.14 NR5G-only camping layout. Its signal
+ *     columns are RSRP,RSRQ,RSSNR -- the OPPOSITE order to both LTE and
+ *     EN-DC. --- */
 static const char *CPSI_NR_SA =
-    "+CPSI: NR5G,Online,311-480,0x1A2B,27439874,257,629952,-92,-11,15\n"
+    "+CPSI: NR5G,Online,001-01,0x1234,11259361,2,100,-92,-11,15\n"
     "OK\n";
 
 /* --- MEASURED. A SIM8202G-M2's (LE13B04SIM8202M44A-M2) actual reply,
@@ -165,22 +168,23 @@ int main(void) {
 
     printf("test_cellat_cpsi\n\n");
 
-    printf("[1] LTE, dBm x10 -- the measured SIM7600NA anchor\n");
+    printf("[1] LTE, dBm x10 -- the SIM7600NA layout\n");
     n = parse_cpsi(CPSI_LTE_TENTHS, obs, MAX_OBS);
     check(n == 1, "one observation parsed");
     if (n == 1) {
         check_has(obs[0], "\"rat\":\"LTE\"", "rat");
-        check_has(obs[0], "\"mcc\":\"310\"", "mcc from the PLMN pair (as-broadcast string)");
-        check_has(obs[0], "\"mnc\":\"260\"", "mnc from the PLMN pair (as-broadcast string)");
+        check_has(obs[0], "\"mcc\":\"001\"", "mcc from the PLMN pair (as-broadcast string)");
+        check_has(obs[0], "\"mnc\":\"001\"", "mnc from the PLMN pair (as-broadcast string)");
         /* Hex TAC beside a DECIMAL cell id, in one line. Reusing +QENG's
-         * all-hex habit turns 27439874 into 1351406146. */
-        check_has(obs[0], "\"tac\":6699", "tac 0x1A2B decoded as HEX");
-        check_has(obs[0], "\"cell_id\":27439874", "cell_id decoded as DECIMAL");
-        check_has(obs[0], "\"pci\":7", "pci");
-        check_has(obs[0], "\"band\":4", "band from the EUTRAN-BAND4 label");
-        check_has(obs[0], "\"earfcn\":2300", "earfcn");
-        /* dlbw is an ENUM index -- 5 is 20 MHz, not 5 MHz. AT+QSCAN
-         * reports EARFCN 2300 at 100 RB, which is the same 20 MHz. */
+         * all-hex habit turns 11259361 into 287675233. */
+        check_has(obs[0], "\"tac\":4660", "tac 0x1234 decoded as HEX");
+        check_has(obs[0], "\"cell_id\":11259361", "cell_id decoded as DECIMAL");
+        check_lacks(obs[0], "\"cell_id\":287675233", "cell_id NOT decoded as hex");
+        check_has(obs[0], "\"pci\":1", "pci");
+        check_has(obs[0], "\"band\":1", "band from the EUTRAN-BAND1 label");
+        check_has(obs[0], "\"earfcn\":100", "earfcn");
+        /* dlbw is an ENUM index -- 5 is 20 MHz, not 5 MHz (the same carrier
+         * reports 100 RB through AT+QSCAN on a measured unit). */
         check_has(obs[0], "\"bandwidth\":20", "dlbw enum 5 -> 20 MHz");
         /* The x10 normalisation, and the RSRQ-before-RSRP order. */
         check_has(obs[0], "\"rsrp\":-98", "rsrp -987 -> -98 dBm");
@@ -240,11 +244,11 @@ int main(void) {
         check_has(obs[0], "\"rat\":\"NR\"", "rat");
         check_has(obs[0], "\"observation_type\":\"serving\"",
                   "SA is a serving cell, not a secondary leg");
-        check_has(obs[0], "\"mcc\":\"311\"", "mcc -- SA DOES carry identity (as-broadcast string)");
-        check_has(obs[0], "\"tac\":6699", "tac");
-        check_has(obs[0], "\"cell_id\":27439874", "cell_id");
-        check_has(obs[0], "\"pci\":257", "pci");
-        check_has(obs[0], "\"earfcn\":629952", "arfcn");
+        check_has(obs[0], "\"mcc\":\"001\"", "mcc -- SA DOES carry identity (as-broadcast string)");
+        check_has(obs[0], "\"tac\":4660", "tac");
+        check_has(obs[0], "\"cell_id\":11259361", "cell_id");
+        check_has(obs[0], "\"pci\":2", "pci");
+        check_has(obs[0], "\"earfcn\":100", "arfcn");
         /* The trap this whole file exists for: RSRP precedes RSRQ here and
          * follows it in the other two forms. Swapping them yields rsrp=-11,
          * which is out of 3GPP range but silently emitted. */
@@ -273,7 +277,7 @@ int main(void) {
         /* The discriminator is a WORD-vs-NUMBER test on field[1], not a field
          * count -- so appending a column to either NR form must not flip it
          * into the other one's layout. */
-        char sa[] = "NR5G,Online,311-480,0x1A2B,27439874,257,629952,-92,-11,15,99";
+        char sa[] = "NR5G,Online,001-01,0x1234,11259361,2,100,-92,-11,15,99";
         char endc[] = "NR5G,257,629952,-11,-92,153,99";
         char *f[32];
         int nf = split_fields(sa, f, 32);
@@ -300,7 +304,7 @@ int main(void) {
         long b = 0;
         check(parse_band_label("EUTRAN-BAND4", &b) && b == 4, "EUTRAN-BAND4 -> 4");
         check(parse_band_label("NR5G-BAND78", &b) && b == 78, "NR5G-BAND78 -> 78");
-        check(!parse_band_label("2300", &b),
+        check(!parse_band_label("100", &b),
               "a bare number is not a band LABEL -- do not guess");
         check(!parse_band_label("EUTRAN-BAND", &b), "no digits -> no band");
     }
@@ -309,10 +313,10 @@ int main(void) {
     n = parse_cpsi(CPSI_LTE_ZEROMNC, obs, MAX_OBS);
     check(n == 1, "one observation parsed");
     if (n == 1) {
-        /* The key assertion: "310-01" must reach the server as mnc "01",
+        /* The key assertion: "001-01" must reach the server as mnc "01",
          * not the integer 1. A parse_int on the MNC half loses the count and
          * forces the lossy MCC-block reconstruction downstream. */
-        check_has(obs[0], "\"mcc\":\"310\"", "mcc as string");
+        check_has(obs[0], "\"mcc\":\"001\"", "mcc as string");
         check_has(obs[0], "\"mnc\":\"01\"", "mnc keeps the leading zero (NOT 1)");
     }
 
