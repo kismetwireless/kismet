@@ -269,6 +269,12 @@ inline bool kis_devicelist_owned() {
     return kis_devicelist_mutex != nullptr && kis_devicelist_mutex->owned_by_this_thread();
 }
 
+class kis_tracked_device_base;
+
+// Called once when a device is modified and isn't already queued, so the device rules
+// pass reads only devices that changed; set by the device tracker
+inline std::atomic<void (*)(kis_tracked_device_base *)> kis_device_mod_hook{nullptr};
+
 inline void kis_lock_order_violation(const char *what, std::atomic<bool>& reported) {
     static const bool abort_on_violation = getenv("KISMET_LOCK_ORDER_ABORT") != nullptr;
 
@@ -599,6 +605,11 @@ public:
     __Proxy(mod_time, uint64_t, time_t, time_t, mod_time);
     void update_modtime() {
         set_mod_time(Globalreg::globalreg->last_tv_sec);
+
+        auto hook = kis_device_mod_hook.load(std::memory_order_acquire);
+        if (hook != nullptr && !mod_queued.load(std::memory_order_relaxed) &&
+                !mod_queued.exchange(true, std::memory_order_acq_rel))
+            hook(this);
     }
 
     __Proxy(packets, uint64_t, uint64_t, uint64_t, packets);
@@ -701,6 +712,9 @@ public:
     std::array<std::atomic<uint64_t>, view_membership_capacity / 64> view_membership{};
 
     std::atomic<bool> removed{false};
+
+    // Set while the device is in the modified queue
+    std::atomic<bool> mod_queued{false};
 
     // Lock the device, or nest inside a lock this thread already holds.  An exclusive
     // request while this thread holds only a shared lock can't be satisfied and throws.

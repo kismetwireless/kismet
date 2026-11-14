@@ -162,21 +162,41 @@ export function register(kismet) {
                 id: 'baseline', title: 'Baseline',
                 help: 'Add the devices you know to the baseline; the Baseline devices and Unknown devices views ' +
                     'list the devices in it and not in it, and the Default view leaves it out (the baseline-hide ' +
-                    'device rule).  Kept by the server, with the device\'s name and notes.',
+                    'device rule).  Kept by the server, with the device\'s name and notes.  With ' +
+                    'device_rules_baseline=true, baseline filters add and remove devices on their own; ' +
+                    'taking a device out by hand keeps the filters from adding it back, and adding it by hand ' +
+                    'lets them again.',
                 draw: (cell, _v, dev, state) => {
-                    // The tag holds when the device was added
-                    const since = dev[`${base}.tags`]?.baseline;
+                    // The tag holds when the device was added; baseline filters say which of
+                    // them added it, or held it out, and may tag it until restart only
+                    const tags = dev[`${base}.tags`] ?? {};
+                    const since = tags.baseline;
+                    const by = tags['baseline-by'];
+                    const hold = tags['baseline-hold'];
+                    const expired = tags['baseline-expired'];
+                    // The field is only on devices that have an ephemeral tag
+                    const eph = dev[`${base}.ephemeral_tags`];
+                    const ephemeral = Array.isArray(eph) && eph.includes('baseline');
                     // Redraw only when it changes, so an update doesn't undo a click in progress
-                    if (state.since === since && cell.childElementCount)
+                    const shape = JSON.stringify([since, by, hold, expired, ephemeral]);
+                    if (state.shape === shape && cell.childElementCount)
                         return;
-                    state.since = since;
+                    state.shape = shape;
 
                     const inBaseline = since !== undefined;
                     const key = encodeURIComponent(dev[`${base}.key`]);
                     const t = Number(since);
-                    const text = inBaseline ?
-                        (t > 0 ? `In the baseline since ${format.time(t)}` : 'In the baseline') :
-                        muted('Not in the baseline');
+                    const who = (name) => (name === 'user' ? 'by hand' : `by the baseline filter ${name}`);
+                    let text;
+                    if (inBaseline) {
+                        text = el('span', {}, t > 0 ? `In the baseline since ${format.time(t)}` : 'In the baseline',
+                            by ? `, added ${who(by)}` : '',
+                            ephemeral ? muted(' (until Kismet restarts)') : '');
+                    } else {
+                        text = el('span', {}, muted('Not in the baseline'),
+                            hold ? muted(`; taken out ${who(hold)}, so filters won't add it again`) :
+                                expired ? muted(`; expired from the baseline filter ${expired}`) : '');
+                    }
                     const button = el('button', { type: 'button', onclick: () => {
                         button.disabled = true;
                         const sent = inBaseline ?
@@ -189,7 +209,7 @@ export function register(kismet) {
                             alert(`Could not change the baseline: ${err.message}`);
                         });
                     } }, inBaseline ? 'Remove from baseline' : 'Add to baseline');
-                    cell.replaceChildren(el('span', {}, text), ' ', button);
+                    cell.replaceChildren(text, ' ', button);
                 },
             },
             { title: 'MAC address', field: `${base}.macaddr`,

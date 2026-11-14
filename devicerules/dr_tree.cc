@@ -190,7 +190,7 @@ struct tree_eval {
 
             case nkind::exists: {
                 const auto& f = rs.fields[n->slot];
-                if (f.multi || f.type == vtype::none)
+                if (f.multi || f.type == vtype::none || f.how == derive::baseline_mac)
                     return boolean(ctx.e->exists(f));
                 value v{};
                 return boolean(ctx.e->load(f, v));

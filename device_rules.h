@@ -176,6 +176,10 @@ public:
         // matching
         std::vector<uint8_t> now_want;
 
+        // Every rule but the baseline filters, which only run on their own schedule
+        std::vector<uint8_t> rule_want;
+        bool any_baseline;
+
         // Webhooks of each rule, and which rules have one that sees repeat matches
         std::vector<std::vector<std::shared_ptr<webhook_binding>>> hooks;
         std::vector<uint8_t> hook_repeat;
@@ -304,15 +308,30 @@ protected:
     std::map<std::string, uint64_t> count_matches();
 
     int rule_state_id;
+    // Days each device was heard, kept when baseline rules are on
+    int day_presence_id;
+    bool baseline_enabled;
     int alert_ref;
     int timer_id;
     int pchain_id;
 
     bool use_jit;
+    // Most devices one baseline filter changes in one run
+    size_t baseline_max_changes;
+
+    // Per baseline filter, by name so they carry over a reload
+    struct baseline_stats {
+        time_t last_run = 0;
+        uint64_t runs = 0;
+        uint64_t added = 0, removed = 0, expired = 0, held = 0, skipped = 0;
+    };
+    kis_mutex bl_stats_mutex;
+    std::map<std::string, baseline_stats> bl_stats;
+
+    // Seconds between passes, and between checks of unchanged devices for rules using
+    // 'now' without their own 'recheck' (0 never)
     unsigned int pass_interval;
     unsigned int full_interval;
-    unsigned int pass_count;
-    time_t last_pass;
     bool full_pending;
 
     std::atomic<uint64_t> stat_passes, stat_devices, stat_last_us;
@@ -352,10 +371,23 @@ protected:
     void timer_pass();
     int packet_hook(const std::shared_ptr<kis_packet>& in_pack);
 
-    // Evaluate one locked device, queueing view and alert changes for after it's unlocked
+    // A device a baseline filter acts on: it matched, or (expire) its tag from that filter
+    // is old enough to come off
+    struct baseline_hit {
+        size_t rule;
+        bool expire;
+        std::shared_ptr<kis_tracked_device_base> device;
+    };
+
+    // Evaluate one locked device, queueing view and alert changes for after it's unlocked.
+    // Baseline filters wanted this time queue their hits in bl_hits.
     void eval_device(active_set& as, devicerules::eval_ctx& ctx, const std::shared_ptr<kis_tracked_device_base>& dev,
             const uint8_t *want, std::vector<uint8_t>& out, std::vector<uint8_t>& prev,
-            std::vector<pending_change>& changes);
+            std::vector<pending_change>& changes, std::vector<baseline_hit> *bl_hits = nullptr);
+
+    // Apply a pass's baseline filter hits: removes first, at most baseline_max_changes per
+    // filter, with the tag writes batched
+    void apply_baseline(active_set& as, std::vector<baseline_hit>& hits);
 
     void apply_changes(std::vector<pending_change>& changes);
 

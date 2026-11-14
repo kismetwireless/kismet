@@ -58,6 +58,17 @@
 #include "util.h"
 #include "zstr.hpp"
 
+namespace {
+    // Keys of modified devices; a leaf lock, taken with a device locked
+    std::mutex mod_queue_mutex;
+    std::vector<device_key> mod_queue;
+
+    void queue_modified(kis_tracked_device_base *dev) {
+        std::lock_guard<std::mutex> lk(mod_queue_mutex);
+        mod_queue.push_back(dev->get_key());
+    }
+}
+
 device_tracker::device_tracker() :
     lifetime_global(),
     kis_database("devicetracker"),
@@ -68,6 +79,7 @@ device_tracker::device_tracker() :
     phy_mutex.set_name("device_tracker::phy_mutex");
     devicelist_mutex.set_name("devicetracker::devicelist");
     kis_devicelist_mutex = &devicelist_mutex;
+    baseline_mac_mutex.set_name("device_tracker::baseline_macs");
 
     next_phy_id = 0;
 
@@ -113,6 +125,11 @@ device_tracker::device_tracker() :
         entrytracker->register_field("kismet.devicelist.timestamp",
                 tracker_element_factory<tracker_element_uint64>(),
                 "device list timestamp");
+
+    ephemeral_tags_id =
+        entrytracker->register_field("kismet.device.base.ephemeral_tags",
+                tracker_element_factory<tracker_element_vector_string>(),
+                "user tags set for this run only, which aren't saved");
 
     // These need unique IDs to be put in the map for serialization.
     // They also need unique field names, we can rename them with setlocalname
@@ -478,10 +495,46 @@ device_tracker::device_tracker() :
                     if (dev == nullptr)
                         throw std::runtime_error("no such device");
 
-                    std::string tag = con->json()["tagname"];
-                    std::string content = con->json()["tagvalue"];
+                    const auto& j = con->json();
 
-                    set_device_tag(dev, tag, content);
+                    if (!j.contains("tagname") || !j["tagname"].is_string() ||
+                            !j.contains("tagvalue") || !j["tagvalue"].is_string())
+                        throw std::runtime_error("expected tagname and tagvalue strings");
+
+                    const std::string tag = j["tagname"];
+                    const std::string content = j["tagvalue"];
+
+                    if (tag.empty() || tag.size() > max_tag_name)
+                        throw std::runtime_error("tagname must be 1 to 256 characters");
+                    if (content.size() > max_tag_value)
+                        throw std::runtime_error("tagvalue is longer than 65536 bytes");
+
+                    bool ephemeral = false;
+                    if (j.contains("ephemeral")) {
+                        if (!j["ephemeral"].is_boolean())
+                            throw std::runtime_error("ephemeral must be true or false");
+                        ephemeral = j["ephemeral"];
+                    }
+
+                    bool ok;
+
+                    if (tag == baseline_tag) {
+                        // Added by hand: by the user, and clear of any hold a filter put on it
+                        ok = set_device_tag(dev, tag, content, ephemeral);
+                        if (ok)
+                            apply_tag_ops({
+                                    {dev, baseline_by_tag, "", true, false},
+                                    {dev, baseline_by_tag, baseline_user, false, ephemeral},
+                                    {dev, baseline_hold_tag, "", true, false},
+                                    {dev, baseline_expired_tag, "", true, false},
+                                });
+                    } else {
+                        ok = set_device_tag(dev, tag, content, ephemeral);
+                    }
+
+                    if (!ok)
+                        throw std::runtime_error("the device has a saved tag by that name; an "
+                                "ephemeral tag can't replace it");
                     recheck_rules(dev);
 
                     std::ostream os(&con->response_stream());
@@ -502,10 +555,21 @@ device_tracker::device_tracker() :
                     if (dev == nullptr)
                         throw std::runtime_error("no such device");
 
-                    std::string tag = con->json()["tagname"];
+                    const auto& j = con->json();
+                    if (!j.contains("tagname") || !j["tagname"].is_string())
+                        throw std::runtime_error("expected a tagname string");
+
+                    const std::string tag = j["tagname"];
 
                     if (!remove_device_tag(dev, tag))
                         throw std::runtime_error("no such tag");
+
+                    // Taken out by hand: baseline filters leave it out until it's added back
+                    if (tag == baseline_tag)
+                        apply_tag_ops({
+                                {dev, baseline_by_tag, "", true, false},
+                                {dev, baseline_hold_tag, baseline_user, false, false},
+                            });
                     recheck_rules(dev);
 
                     std::ostream os(&con->response_stream());
@@ -955,6 +1019,7 @@ void device_tracker::trigger_deferred_startup() {
 }
 
 device_tracker::~device_tracker() {
+    enable_modified_queue(false);
     kis_devicelist_mutex = nullptr;
 
     // The kis_database destructor closes the handle after this runs
@@ -1441,6 +1506,9 @@ std::shared_ptr<kis_tracked_device_base>
                     auto tagc = std::make_shared<tracker_element_string>();
                     tagc->set(t.second);
                     device->get_tag_map()->insert(t.first, tagc);
+
+                    if (t.first == baseline_tag)
+                        count_baseline(in_mac, true);
                 }
 
                 // Add it before releasing the list so other threads find this device
@@ -1720,6 +1788,9 @@ void device_tracker::timetracker_event(int eventid) {
                 // Mark it under its own lock so anything holding a stale reference looks
                 // it up again instead of updating a device we no longer track
                 d->set_removed();
+
+                if (d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
+                    count_baseline(d->get_macaddr(), false);
             }
 
             {
@@ -1797,6 +1868,9 @@ void device_tracker::timetracker_event(int eventid) {
             {
                 kis_device_lock dlk(d, false);
                 d->set_removed();
+
+                if (d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
+                    count_baseline(d->get_macaddr(), false);
             }
 
             device_itr mi = tracked_map.find(d->get_key());
@@ -1939,6 +2013,12 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
 
     auto mm_pair = std::make_pair(device->get_macaddr(), device);
     tracked_mac_multimap.emplace(mm_pair);
+
+    // Modified before it was listed, so its queued key couldn't be found
+    if (device->mod_queued.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> qlk(mod_queue_mutex);
+        mod_queue.push_back(device->get_key());
+    }
 }
 
 bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
@@ -2241,130 +2321,250 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
     return;
 }
 
-void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
-        const std::string& in_tag, const std::string& in_content) {
+bool device_tracker::tag_is_ephemeral(kis_tracked_device_base *dev, const std::string& tag) {
+    auto eph = dev->get_sub_as<tracker_element_vector_string>(ephemeral_tags_id);
+    if (eph == nullptr)
+        return false;
+    return std::find(eph->begin(), eph->end(), tag) != eph->end();
+}
+
+void device_tracker::mark_ephemeral(kis_tracked_device_base *dev, const std::string& tag, bool ephemeral) {
+    auto eph = dev->get_sub_as<tracker_element_vector_string>(ephemeral_tags_id);
+
+    if (ephemeral) {
+        if (eph == nullptr) {
+            eph = Globalreg::globalreg->entrytracker->get_shared_instance_as<tracker_element_vector_string>(ephemeral_tags_id);
+            dev->insert(eph);
+        }
+        if (std::find(eph->begin(), eph->end(), tag) == eph->end())
+            eph->push_back(tag);
+        return;
+    }
+
+    if (eph == nullptr)
+        return;
+
+    auto i = std::find(eph->begin(), eph->end(), tag);
+    if (i != eph->end())
+        eph->erase(i);
+
+    // Devices without ephemeral tags carry no list
+    if (eph->empty())
+        dev->erase(eph);
+}
+
+device_tracker::tag_result device_tracker::set_tag_memory(const std::shared_ptr<kis_tracked_device_base>& in_dev,
+        const std::string& in_tag, const std::string& in_content, bool ephemeral) {
 
     auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);
 
-    {
-        kis_device_lock dlk(in_dev, false);
+    kis_device_lock dlk(in_dev, false);
 
-        auto sm = in_dev->get_tag_map();
+    auto sm = in_dev->get_tag_map();
 
-        auto t = sm->find(in_tag);
-        if (t != sm->end()) {
-            t->second = e;
-        } else {
-            sm->insert(in_tag, e);
-        }
+    auto t = sm->find(in_tag);
+    const bool was_ephemeral = t != sm->end() && tag_is_ephemeral(in_dev.get(), in_tag);
 
-        // A tag change is new device state; let last-time clients see it
-        in_dev->update_modtime();
+    if (ephemeral && t != sm->end() && !was_ephemeral)
+        return tag_result::refused;
+
+    if (t != sm->end()) {
+        t->second = e;
+    } else {
+        sm->insert(in_tag, e);
+
+        // A device already dropped from the list isn't counted again
+        if (in_tag == baseline_tag && !in_dev->get_removed())
+            count_baseline(in_dev->get_macaddr(), true);
     }
 
+    if (ephemeral != was_ephemeral)
+        mark_ephemeral(in_dev.get(), in_tag, ephemeral);
+
+    // A tag change is new device state; let last-time clients see it
+    in_dev->update_modtime();
+
+    return ephemeral ? tag_result::memory : tag_result::save;
+}
+
+device_tracker::tag_result device_tracker::remove_tag_memory(const std::shared_ptr<kis_tracked_device_base>& in_dev,
+        const std::string& in_tag) {
+
+    kis_device_lock dlk(in_dev, false);
+
+    auto sm = in_dev->get_tag_map();
+
+    auto t = sm->find(in_tag);
+    if (t == sm->end())
+        return tag_result::refused;
+
+    sm->erase(t);
+
+    if (in_tag == baseline_tag && !in_dev->get_removed())
+        count_baseline(in_dev->get_macaddr(), false);
+
+    const bool was_ephemeral = tag_is_ephemeral(in_dev.get(), in_tag);
+    if (was_ephemeral)
+        mark_ephemeral(in_dev.get(), in_tag, false);
+
+    // A tag change is new device state; let last-time clients see it
+    in_dev->update_modtime();
+
+    return was_ephemeral ? tag_result::memory : tag_result::save;
+}
+
+void device_tracker::write_tags(const std::vector<tag_write>& writes) {
+    if (writes.empty())
+        return;
+
     if (!database_valid()) {
-        _MSG("Unable to store device name to permanent storage, the database connection "
+        _MSG("Unable to store device tags to permanent storage, the database connection "
                 "is not available", MSGFLAG_ERROR);
         return;
     }
 
-    std::string sql;
+    kis_lock_guard<kis_mutex> lk(ds_mutex, "device_tracker write_tags");
 
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
+    sqlite3_stmt *ins = nullptr, *del = nullptr;
+    const char *pz = nullptr;
 
-    std::string keystring = in_dev->get_key().as_string();
+    static constexpr const char *ins_sql =
+        "INSERT INTO device_tags (key, tag, content) VALUES (?, ?, ?)";
+    static constexpr const char *del_sql =
+        "DELETE FROM device_tags WHERE key = ? AND tag = ?";
 
-    sql =
-        "INSERT INTO device_tags "
-        "(key, tag, content) "
-        "VALUES (?, ?, ?)";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database insert for device tags in " +
+    if (sqlite3_prepare_v2(db, ins_sql, -1, &ins, &pz) != SQLITE_OK ||
+            sqlite3_prepare_v2(db, del_sql, -1, &del, &pz) != SQLITE_OK) {
+        _MSG("device_tracker unable to prepare database writes for device tags in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        sqlite3_finalize(ins);
+        sqlite3_finalize(del);
         return;
     }
 
-    sqlite3_reset(stmt);
+    // Several writes go in one transaction, so a baseline pass costs one sync
+    const bool batch = writes.size() > 1;
+    if (batch)
+        sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
 
-    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, in_tag.c_str(), in_tag.length(), 0);
-    sqlite3_bind_text(stmt, 3, in_content.c_str(), in_content.length(), 0);
-
-    // Only lock the database while we're inserting
-    {
-        kis_lock_guard<kis_mutex> lk(ds_mutex);
+    for (const auto& w : writes) {
+        auto stmt = w.remove ? del : ins;
+        sqlite3_reset(stmt);
+        sqlite3_clear_bindings(stmt);
+        sqlite3_bind_text(stmt, 1, w.key.c_str(), w.key.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, w.tag.c_str(), w.tag.length(), SQLITE_TRANSIENT);
+        if (!w.remove)
+            sqlite3_bind_text(stmt, 3, w.content.c_str(), w.content.length(), SQLITE_TRANSIENT);
         sqlite3_step(stmt);
     }
 
-    sqlite3_finalize(stmt);
+    if (batch)
+        sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
 
-    return;
+    sqlite3_finalize(ins);
+    sqlite3_finalize(del);
+}
+
+bool device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
+        const std::string& in_tag, const std::string& in_content, bool ephemeral) {
+    const auto r = set_tag_memory(in_dev, in_tag, in_content, ephemeral);
+
+    if (r == tag_result::save)
+        write_tags({{in_dev->get_key().as_string(), in_tag, in_content, false}});
+
+    return r != tag_result::refused;
+}
+
+void device_tracker::apply_tag_ops(const std::vector<tag_op>& ops, std::vector<uint8_t> *applied) {
+    KIS_CHECK_NO_DEVICE_LOCKS("device_tracker apply_tag_ops");
+
+    std::vector<tag_write> writes;
+
+    if (applied != nullptr)
+        applied->assign(ops.size(), 0);
+
+    for (size_t i = 0; i < ops.size(); i++) {
+        const auto& op = ops[i];
+
+        const auto r = op.remove ? remove_tag_memory(op.dev, op.tag) :
+            set_tag_memory(op.dev, op.tag, op.content, op.ephemeral);
+
+        if (r == tag_result::refused)
+            continue;
+        if (applied != nullptr)
+            (*applied)[i] = 1;
+        if (r == tag_result::save)
+            writes.push_back({op.dev->get_key().as_string(), op.tag, op.content, op.remove});
+    }
+
+    write_tags(writes);
+}
+
+void device_tracker::enable_modified_queue(bool enable) {
+    kis_device_mod_hook.store(enable ? &queue_modified : nullptr, std::memory_order_release);
+
+    if (!enable) {
+        std::lock_guard<std::mutex> lk(mod_queue_mutex);
+        mod_queue.clear();
+        mod_queue.shrink_to_fit();
+    }
+}
+
+void device_tracker::take_modified(std::vector<std::shared_ptr<kis_tracked_device_base>>& out) {
+    KIS_CHECK_NO_DEVICE_LOCKS("device_tracker take_modified");
+
+    std::vector<device_key> keys;
+    {
+        std::lock_guard<std::mutex> lk(mod_queue_mutex);
+        keys.swap(mod_queue);
+    }
+
+    if (keys.empty())
+        return;
+
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker take_modified");
+
+    out.reserve(out.size() + keys.size());
+
+    // A key queued twice, or for a device removed and made again, is only returned while
+    // that device is still marked
+    for (const auto& k : keys) {
+        auto d = fetch_device_nr(k);
+        if (d != nullptr && d->mod_queued.exchange(false, std::memory_order_acq_rel))
+            out.push_back(d);
+    }
+}
+
+bool device_tracker::mac_in_baseline(uint64_t mac) {
+    kis_lock_guard<kis_mutex> lk(baseline_mac_mutex, "device_tracker mac_in_baseline");
+    return baseline_macs.find(mac) != baseline_macs.end();
+}
+
+void device_tracker::count_baseline(const mac_addr& mac, bool add) {
+    kis_lock_guard<kis_mutex> lk(baseline_mac_mutex, "device_tracker count_baseline");
+
+    if (add) {
+        baseline_macs[mac.longmac]++;
+        return;
+    }
+
+    auto i = baseline_macs.find(mac.longmac);
+    if (i == baseline_macs.end())
+        return;
+    if (--i->second == 0)
+        baseline_macs.erase(i);
 }
 
 bool device_tracker::remove_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         const std::string& in_tag) {
 
-    {
-        kis_device_lock dlk(in_dev, false);
+    const auto r = remove_tag_memory(in_dev, in_tag);
 
-        auto sm = in_dev->get_tag_map();
+    if (r == tag_result::save)
+        write_tags({{in_dev->get_key().as_string(), in_tag, std::string(), true}});
 
-        auto t = sm->find(in_tag);
-        if (t == sm->end())
-            return false;
-
-        sm->erase(t);
-
-        // A tag change is new device state; let last-time clients see it
-        in_dev->update_modtime();
-    }
-
-    if (!database_valid()) {
-        _MSG("Unable to remove device tag from permanent storage, the database connection "
-                "is not available", MSGFLAG_ERROR);
-        return true;
-    }
-
-    std::string sql;
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    std::string keystring = in_dev->get_key().as_string();
-
-    sql =
-        "DELETE FROM device_tags "
-        "WHERE key = ? AND tag = ?";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database delete for device tags in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return true;
-    }
-
-    sqlite3_reset(stmt);
-
-    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, in_tag.c_str(), in_tag.length(), 0);
-
-    // Only lock the database while we're deleting
-    {
-        kis_lock_guard<kis_mutex> lk(ds_mutex);
-        sqlite3_step(stmt);
-    }
-
-    sqlite3_finalize(stmt);
-
-    return true;
+    return r != tag_result::refused;
 }
 
 void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event> evt) {

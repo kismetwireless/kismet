@@ -212,7 +212,7 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                                                         {
                                                             kis_view_lock vlk(view_mutex, true);
                                                             auto pk = device_presence_map.find(i->get_key());
-                                                            if (pk == device_presence_map.end() || pk->second == false)
+                                                            if (pk == device_presence_map.end())
                                                                 continue;
                                                         }
 
@@ -363,7 +363,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(devic
 
         auto present_itr = device_presence_map.find(in_key);
 
-        if (present_itr == device_presence_map.end() || present_itr->second == false)
+        if (present_itr == device_presence_map.end())
             return nullptr;
     }
 
@@ -375,17 +375,28 @@ void device_tracker_view::set_present(const std::shared_ptr<kis_tracked_device_b
     auto dpmi = device_presence_map.find(device->get_key());
 
     if (present && dpmi == device_presence_map.end()) {
-        device_presence_map[device->get_key()] = true;
+        device_presence_map[device->get_key()] = device_list->size();
         device_list->push_back(device);
     } else if (!present && dpmi != device_presence_map.end()) {
-        // Removing from the vector is expensive, but rare
+        (*device_list)[dpmi->second] = nullptr;
         device_presence_map.erase(dpmi);
+        list_holes++;
 
-        for (auto vi = device_list->begin(); vi != device_list->end(); ++vi) {
-            if (*vi == device) {
-                device_list->erase(vi);
-                break;
+        // Squeeze out the holes in one pass, re-indexing what's left
+        constexpr size_t min_holes = 256;
+        if (list_holes >= min_holes && list_holes * 4 >= device_list->size()) {
+            auto& v = device_list->get();
+            size_t w = 0;
+            for (size_t r = 0; r < v.size(); r++) {
+                if (v[r] == nullptr)
+                    continue;
+                if (w != r)
+                    v[w] = std::move(v[r]);
+                device_presence_map[static_cast<kis_tracked_device_base *>(v[w].get())->get_key()] = w;
+                w++;
             }
+            v.resize(w);
+            list_holes = 0;
         }
     } else {
         return;
@@ -394,7 +405,7 @@ void device_tracker_view::set_present(const std::shared_ptr<kis_tracked_device_b
     if (tracks_membership_on_device())
         device->set_in_view(view_index, present);
 
-    list_sz->set(device_list->size());
+    list_sz->set(device_list->size() - list_holes);
 }
 
 void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
@@ -769,7 +780,10 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // we can sort and manipulate
     {
         kis_view_lock vlk(view_mutex, true);
-        next_work_vec->set(device_list->begin(), device_list->end());
+        next_work_vec->reserve(device_list->size() - list_holes);
+        for (const auto& d : *device_list)
+            if (d != nullptr)
+                next_work_vec->push_back(d);
     }
     total_sz_elem->set(next_work_vec->size());
 

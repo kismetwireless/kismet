@@ -517,7 +517,7 @@ public:
 
         if (keyword) {
             if (!is_word("rule"))
-                error("expected 'rule', 'sort' or 'include'");
+                error("expected 'rule', 'baseline', 'sort' or 'include'");
             expect_word("rule");
         } else {
             mark();
@@ -543,7 +543,7 @@ public:
                 error("rule '" + r->name + "' is missing '}'");
 
             if (cur.t != tok::ident)
-                error("expected when, description, tag, color, view, alert, live, exclude or webhook");
+                error("expected when, description, tag, color, view, alert, live, exclude, recheck or webhook");
 
             auto w = cur.text;
 
@@ -595,6 +595,11 @@ public:
             } else if (w == "exclude") {
                 advance();
                 r->exclude = true;
+            } else if (w == "recheck") {
+                advance();
+                if (r->recheck != 0)
+                    error("rule has more than one 'recheck'");
+                r->recheck = static_cast<uint32_t>(duration("recheck", recheck_min, recheck_max));
             } else if (w == "webhook") {
                 if (r->webhooks.size() >= hook_max_per_rule)
                     error("too many webhooks on one rule");
@@ -609,6 +614,103 @@ public:
 
         if (r->expr == nullptr)
             throw parse_error("rule '" + r->name + "' has no 'when'", line0, col0);
+
+        r->source = src.substr(start, end - start);
+
+        return r;
+    }
+
+    bool at_baseline() const {
+        return is_word("baseline");
+    }
+
+    // keyword is false for a block written without its 'baseline', as on a config line
+    std::unique_ptr<rule_def> parse_baseline(bool keyword = true) {
+        size_t start = cur.off;
+
+        if (keyword)
+            expect_word("baseline");
+        else
+            mark();
+
+        if (cur.t != tok::ident && cur.t != tok::integer)
+            error("expected a baseline filter name");
+
+        auto r = std::make_unique<rule_def>();
+        r->view = false;
+        r->alert = false;
+        r->live = false;
+        r->exclude = false;
+        r->uses_now = false;
+        r->baseline = true;
+
+        r->line = line0;
+        r->name = rule_name("baseline");
+
+        expect(tok::lbrace, "'{'");
+
+        bool add = false;
+
+        while (cur.t != tok::rbrace) {
+            if (cur.t == tok::end)
+                error("baseline filter '" + r->name + "' is missing '}'");
+
+            if (cur.t != tok::ident)
+                error("expected when, description, every, add, remove, ephemeral or expire");
+
+            auto w = cur.text;
+
+            if (w == "when") {
+                if (r->expr != nullptr)
+                    error("baseline filter has more than one 'when'");
+                advance();
+                ops = 0;
+                r->expr = parse_expr();
+            } else if (w == "description") {
+                advance();
+                if (!r->description.empty())
+                    error("baseline filter has more than one 'description'");
+                if (cur.t != tok::string || cur.text.empty())
+                    error("expected a description string");
+                if (cur.text.size() > 1024)
+                    error("description is longer than 1024 characters");
+                r->description = cur.text;
+                advance();
+            } else if (w == "every") {
+                advance();
+                if (r->every != 0)
+                    error("baseline filter has more than one 'every'");
+                r->every = static_cast<uint32_t>(duration("every", baseline_every_min, baseline_every_max));
+            } else if (w == "add" || w == "remove") {
+                if (add || r->remove)
+                    error("a baseline filter either adds or removes, once");
+                advance();
+                add = w == "add";
+                r->remove = !add;
+            } else if (w == "ephemeral") {
+                advance();
+                r->ephemeral = true;
+            } else if (w == "expire") {
+                advance();
+                if (r->expire != 0)
+                    error("baseline filter has more than one 'expire'");
+                r->expire = static_cast<uint32_t>(duration("expire", baseline_expire_min, baseline_expire_max));
+            } else {
+                error("unknown baseline filter statement '" + w + "'");
+            }
+        }
+
+        size_t end = lex.offset();
+        advance();
+
+        if (r->expr == nullptr)
+            throw parse_error("baseline filter '" + r->name + "' has no 'when'", line0, col0);
+        if (!add && !r->remove)
+            throw parse_error("baseline filter '" + r->name + "' needs 'add' or 'remove'", line0, col0);
+        if (r->remove && r->expire != 0)
+            throw parse_error("baseline filter '" + r->name + "': 'expire' is only for 'add'", line0, col0);
+        if (r->every == 0)
+            r->every = baseline_every_default;
 
         r->source = src.substr(start, end - start);
 
@@ -1241,6 +1343,73 @@ private:
             return n;
         }
 
+        if (w == "start_time" || w == "uptime") {
+            auto n = mk(nkind::literal);
+            n->type = vtype::integer;
+            n->lit.i = start_time();
+            n->lit.valid = 1;
+            advance();
+            if (w == "start_time")
+                return n;
+
+            // uptime is now - start_time
+            auto sub = mk(nkind::binary);
+            sub->line = n->line;
+            sub->col = n->col;
+            sub->o = op::sub;
+            sub->a = mk(nkind::now);
+            sub->a->type = vtype::integer;
+            sub->a->line = n->line;
+            sub->a->col = n->col;
+            sub->b = std::move(n);
+            return sub;
+        }
+
+        if (w == "hours_active" || w == "days_active") {
+            auto n = mk(nkind::field);
+            n->str = w == "hours_active" ? packets_rrd_field : day_presence_field;
+            n->how = w == "hours_active" ? derive::hours_active : derive::days_active;
+            advance();
+            return n;
+        }
+
+        if (w == "tag_time") {
+            // A user tag's text, such as the time a device was added to the baseline
+            auto n = mk(nkind::field);
+            advance();
+            expect(tok::lparen, "'('");
+            if (cur.t != tok::string || cur.text.empty())
+                error("tag_time() needs a tag name");
+            if (cur.text.size() > max_tag_name)
+                error("tag name is too long");
+            n->str = user_tags_field;
+            n->key = cur.text;
+            n->how = derive::tag_number;
+            advance();
+            expect(tok::rparen, "')'");
+            return n;
+        }
+
+        if (w == "in_baseline") {
+            auto n = mk(nkind::exists);
+            advance();
+            expect(tok::lparen, "'('");
+            if (cur.t != tok::ident || is_keyword(cur.text))
+                error("in_baseline() needs a MAC address field");
+            auto f = field();
+            expect(tok::rparen, "')'");
+            n->str = f->str;
+            n->how = derive::baseline_mac;
+            n->type = vtype::boolean;
+            return n;
+        }
+
+        if (w == "random_address" || w == "linked") {
+            auto line = cur.line, col = cur.col;
+            advance();
+            return expand(w == "random_address" ? random_address_expr : linked_expr, line, col);
+        }
+
         if (w == "exists" || w == "count" || w == "age") {
             auto n = mk(w == "exists" ? nkind::exists : w == "count" ? nkind::count : nkind::binary);
             advance();
@@ -1320,11 +1489,45 @@ private:
         return n;
     }
 
+    // Addresses that rotate (Wi-Fi locally administered, BTLE resolvable or
+    // non-resolvable), and addresses Kismet has linked to the device's other addresses
+    static constexpr const char *random_address_expr =
+        "(dot11.device/dot11.device.randomized_mac != 0 or "
+        "btle.device/btle.device.random_address_type in [\"resolvable\", \"non-resolvable\"])";
+    static constexpr const char *linked_expr =
+        "(exists(dot11.device/dot11.device.alias_group) or "
+        "exists(btle.device/btle.device.alias_group))";
+
+    // Parse fixed expression text standing in for a keyword, placed at the keyword
+    std::unique_ptr<node> expand(const char *text, size_t line, size_t col) {
+        const std::string s{text};
+        parser p(s, 1, 1);
+        auto n = p.parse_expr();
+        p.expect_end("expression");
+        ops += p.ops;
+        if (ops > max_expr_ops)
+            error("expression is too long");
+        place(n.get(), line, col);
+        return n;
+    }
+
+    static void place(node *n, size_t line, size_t col) {
+        if (n == nullptr)
+            return;
+        n->line = line;
+        n->col = col;
+        place(n->a.get(), line, col);
+        place(n->b.get(), line, col);
+        for (auto& s : n->set)
+            place(s.get(), line, col);
+    }
+
     static bool is_keyword(const std::string& w) {
         static const char *kw[] = { "and", "or", "not", "in", "contains", "icontains",
             "startswith", "endswith", "matches", "true", "false", "now", "exists",
-            "count", "age", "has_tag", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "exclude", "webhook", "rule",
-            "sort", "by", "asc", "desc", "include" };
+            "count", "age", "has_tag", "lat", "lon", "text", "when", "tag", "color", "view", "alert", "live", "exclude", "recheck", "webhook", "rule",
+            "sort", "by", "asc", "desc", "include", "baseline", "every", "add", "remove", "ephemeral", "expire", "start_time", "uptime", "hours_active", "days_active",
+            "tag_time", "in_baseline", "random_address", "linked" };
 
         for (auto k : kw)
             if (w == k)
@@ -1410,9 +1613,23 @@ void ruleset::parse(const std::string& text, const parse_source& src) {
             return;
         }
 
+        if (src.only == parse_source::block::baseline) {
+            if (p.at_end())
+                throw parse_error("expected a baseline filter", src.line_base + 1, 1);
+            auto r = p.parse_baseline(false);
+            p.expect_end("baseline filter");
+            add_rule(std::move(r));
+            return;
+        }
+
         while (!p.at_end()) {
             if (p.at_sort()) {
                 add_sort(p.parse_sort());
+                continue;
+            }
+
+            if (p.at_baseline()) {
+                add_rule(p.parse_baseline());
                 continue;
             }
 

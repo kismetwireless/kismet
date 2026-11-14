@@ -191,10 +191,13 @@ protected:
     // exclusively
     void set_present(const std::shared_ptr<kis_tracked_device_base>& device, bool present);
 
-    // Main vector of devices
+    // Main vector of devices.  A device that leaves the view leaves a null slot, so the
+    // order holds without moving the rest; the slots are squeezed out once they're a
+    // quarter of the list.  Copies of the list must skip nulls.
     std::shared_ptr<tracker_element_vector> device_list;
-    // Map of device presence in our list for fast reference during updates
-    std::unordered_map<device_key, bool> device_presence_map;
+    size_t list_holes = 0;
+    // Index of each device in device_list
+    std::unordered_map<device_key, size_t> device_presence_map;
 
     void device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     // Devices seen (last_time) or, with modified, changed (mod_time) since a timestamp
