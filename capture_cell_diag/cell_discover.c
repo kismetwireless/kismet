@@ -189,6 +189,15 @@ int cell_tty_usb_location(const char *dev_path, char *usbdev, size_t usbdevsz,
 
 static int read_small(const char *path, char *buf, size_t bufsz);
 
+int cell_diagport_scan_scope(const char *diagport, char *usbdev, size_t usbdevsz) {
+    if (usbdev == NULL || usbdevsz == 0)
+        return 0;
+    /* The lookup leaves usbdev untouched on a NULL or empty path, and finds no
+     * sysfs tty for a usb: libusb spec, so it refuses one. */
+    usbdev[0] = '\0';
+    return cell_tty_usb_location(diagport, usbdev, usbdevsz, NULL);
+}
+
 int cell_usb_matches(const char *usbdev, const char *want) {
     if (usbdev == NULL || want == NULL || *usbdev == '\0' || *want == '\0')
         return 0;
@@ -904,6 +913,27 @@ static void test_usb_location(void) {
     check(!cell_tty_usb_location("/dev/ttyACM0", dev, 3, &ifn), "short buffer refused");
     check(!cell_tty_usb_location("/dev/ttyS0", dev, sizeof(dev), &ifn), "no sysfs entry");
     check(!cell_tty_usb_location("", dev, sizeof(dev), &ifn), "empty path");
+
+    /* An explicit diagport= scopes the IMEI scan to its own USB device */
+    char scope[32];
+    check(cell_diagport_scan_scope("/dev/ttyUSB2", scope, sizeof(scope)) &&
+          strcmp(scope, "1-5.1") == 0, "tty diagport: scan scoped to 1-5.1");
+    check(cell_diagport_scan_scope("/dev/ttyACM0", scope, sizeof(scope)) &&
+          strcmp(scope, "3-2") == 0, "cdc_acm diagport: scan scoped to 3-2");
+    snprintf(scope, sizeof(scope), "stale");
+    check(!cell_diagport_scan_scope("usb:1-9:0", scope, sizeof(scope)) &&
+          scope[0] == '\0', "libusb spec: host-wide scan");
+    snprintf(scope, sizeof(scope), "stale");
+    check(!cell_diagport_scan_scope("/dev/ttyS0", scope, sizeof(scope)) &&
+          scope[0] == '\0', "no USB device: host-wide scan");
+    snprintf(scope, sizeof(scope), "stale");
+    check(!cell_diagport_scan_scope("", scope, sizeof(scope)) && scope[0] == '\0',
+          "no diagport: host-wide scan");
+    check(!cell_diagport_scan_scope(NULL, scope, sizeof(scope)) && scope[0] == '\0',
+          "NULL diagport: host-wide scan");
+    snprintf(scope, sizeof(scope), "stale");
+    check(!cell_diagport_scan_scope("/dev/ttyUSB2", scope, 3) && scope[0] == '\0',
+          "short buffer: host-wide scan, not a truncated id");
     cell_discover_set_root("");
 }
 
