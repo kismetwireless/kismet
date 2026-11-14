@@ -126,10 +126,34 @@ static const char *GTCC_MNC3 =
     "1,4,001,123,1234,000ABCDE1,100,1,148,100,26,50,50,21\r\n"
     "OK\r\n";
 
-/* A RAT code this decoder has never seen: skipped, not guessed. */
+/* A RAT code this decoder doesn't decode (2 = WCDMA, whose rows have another
+ * layout): skipped, not guessed. */
 static const char *GTCC_UNKNOWN_RAT =
     "+GTCCINFO: \r\n"
-    "1,9,001,1,1234,000ABCDE1,100,1,148,100,26,50,50,21\r\n"
+    "1,2,001,1,1234,000ABCDE1,100,1,148,100,26,50,50,21\r\n"
+    "OK\r\n";
+
+/* NR (rat 9), the manual's two NR layouts. Serving: <..>,<narfcn>,<pci>,<band>,
+ * <bandwidth>,<ss_sinr>,<rxlev>,<ss_rsrp>,<ss_rsrq>; band code 5078 = n78.
+ * Neighbour: <..>,<narfcn>,<pci>,<ss_sinr>,<rxlev>,<ss_rsrp>,<ss_rsrq> -- field 9
+ * is ss_sinr here where an LTE neighbour has its bandwidth. */
+static const char *GTCC_NR =
+    "+GTCCINFO: \r\n"
+    "1,9,001,1,1234,000ABCDE1,100,1,5078,100,60,80,80,90\r\n"
+    "2,9,001,1,1234,000ABCDE2,100,2,60,70,70,80\r\n"
+    "OK\r\n";
+
+/* NR signals all 255 (not known), and a short band code. */
+static const char *GTCC_NR_UNKNOWN =
+    "+GTCCINFO: \r\n"
+    "1,9,001,1,1234,000ABCDE1,100,1,501,100,255,255,255,255\r\n"
+    "OK\r\n";
+
+/* EN-DC: the LTE anchor and the NR leg are both serving rows. */
+static const char *GTCC_ENDC =
+    "+GTCCINFO: \r\n"
+    "1,4,001,1,1234,000ABCDE1,100,1,148,100,26,50,50,21\r\n"
+    "1,9,001,1,1234,000ABCDE1,100,1,5010,100,60,80,80,90\r\n"
     "OK\r\n";
 
 int main(void) {
@@ -230,9 +254,70 @@ int main(void) {
     n = parse_gtccinfo(GTCC_UNKNOWN_RAT, obs, MAX_OBS);
     check(n == 0, "zero observations");
 
+    printf("\n[10] NR serving and neighbour rows\n");
+    n = parse_gtccinfo(GTCC_NR, obs, MAX_OBS);
+    check(n == 2, "two observations");
+    if (n == 2) {
+        check_has(obs[0], "\"rat\":\"NR\"", "rat 9 -> NR");
+        check_has(obs[0], "\"earfcn\":100", "narfcn in the earfcn key, as +QENG NR5G-SA");
+        check_has(obs[0], "\"band\":78", "band code 5078 -> n78");
+        check_lacks(obs[0], "\"bandwidth\"", "NR bandwidth unit is unbound: not emitted");
+        check_has(obs[0], "\"sinr\":6", "ss_sinr 60 -> 6 dB");
+        check_lacks(obs[0], "\"snr\"", "ss_sinr is sinr, not the LTE RSSNR key");
+        check_has(obs[0], "\"rsrp\":-77", "ss_rsrp 80 -> -77 dBm");
+        check_has(obs[0], "\"rsrq\":1", "ss_rsrq 90 -> 1 dB (1.5 truncated)");
+        check_has(obs[0], "\"observation_type\":\"serving\"", "serving");
+        check_has(obs[1], "\"rat\":\"NR\"", "neighbour rat NR");
+        check_has(obs[1], "\"pci\":2", "neighbour pci");
+        check_has(obs[1], "\"sinr\":6", "neighbour field 9 is ss_sinr");
+        check_has(obs[1], "\"rsrp\":-87", "neighbour ss_rsrp 70 -> -87 dBm");
+        check_has(obs[1], "\"rsrq\":-3", "neighbour ss_rsrq 80 -> -3 dB (-3.5 truncated)");
+        check_lacks(obs[1], "\"band\":", "NR neighbour carries no band");
+        check_lacks(obs[1], "\"bandwidth\"", "NR neighbour field 9 is not a bandwidth");
+        check_has(obs[1], "\"observation_type\":\"observation\"", "neighbour");
+    }
+
+    printf("\n[11] NR 255 = not known; short band code\n");
+    n = parse_gtccinfo(GTCC_NR_UNKNOWN, obs, MAX_OBS);
+    check(n == 1, "one observation");
+    if (n == 1) {
+        check_has(obs[0], "\"band\":1", "band code 501 -> n1");
+        check_lacks(obs[0], "\"sinr\"", "no sinr");
+        check_lacks(obs[0], "\"rsrp\"", "no rsrp");
+        check_lacks(obs[0], "\"rsrq\"", "no rsrq");
+    }
+
+    printf("\n[12] EN-DC: an LTE and an NR serving row\n");
+    n = parse_gtccinfo(GTCC_ENDC, obs, MAX_OBS);
+    check(n == 2, "two observations");
+    if (n == 2) {
+        check_has(obs[0], "\"rat\":\"LTE\"", "anchor LTE");
+        check_has(obs[0], "\"band\":48", "anchor band");
+        check_has(obs[0], "\"snr\":13", "anchor keeps its RSSNR as snr");
+        check_has(obs[1], "\"rat\":\"NR\"", "leg NR");
+        check_has(obs[1], "\"band\":10", "band code 5010 -> n10");
+    }
+
     printf("\n[9] index conversions at the 3GPP bounds\n");
     {
         long v = 0;
+        check(gtcc_nr_band("5078", &v) && v == 78, "nr band 5078 -> 78");
+        check(gtcc_nr_band("50512", &v) && v == 512, "nr band 50512 -> 512");
+        check(!gtcc_nr_band("50513", &v), "nr band 50513 rejected");
+        check(!gtcc_nr_band("50", &v), "nr band 50 rejected");
+        check(!gtcc_nr_band("5001", &v), "nr band 5001 rejected (leading zero)");
+        check(!gtcc_nr_band("148", &v), "an LTE code is not an NR band");
+        check(!gtcc_nr_band("", &v), "empty nr band rejected");
+        check(gtcc_ss_rsrp_dbm(0, 1, &v) && v == -157, "ss_rsrp 0 -> -157");
+        check(gtcc_ss_rsrp_dbm(126, 1, &v) && v == -31, "ss_rsrp 126 -> -31");
+        check(!gtcc_ss_rsrp_dbm(127, 1, &v), "ss_rsrp 127 rejected");
+        check(gtcc_ss_rsrq_db(1, 1, &v) && v == -43, "ss_rsrq 1 -> -43");
+        check(gtcc_ss_rsrq_db(126, 1, &v) && v == 19, "ss_rsrq 126 -> 19 (19.5 truncated)");
+        check(!gtcc_ss_rsrq_db(127, 1, &v), "ss_rsrq 127 rejected");
+        check(gtcc_ss_sinr_db(1, 1, &v) && v == -23, "ss_sinr 1 -> -23");
+        check(gtcc_ss_sinr_db(127, 1, &v) && v == 40, "ss_sinr 127 -> 40");
+        check(!gtcc_ss_sinr_db(128, 1, &v), "ss_sinr 128 rejected");
+        check(!gtcc_ss_sinr_db(60, 0, &v), "absent ss_sinr rejected");
         check(gtcc_rsrp_dbm(0, 1, &v) && v == -141, "rsrp idx 0 -> -141");
         check(gtcc_rsrp_dbm(97, 1, &v) && v == -44, "rsrp idx 97 -> -44");
         check(!gtcc_rsrp_dbm(98, 1, &v), "rsrp idx 98 rejected");

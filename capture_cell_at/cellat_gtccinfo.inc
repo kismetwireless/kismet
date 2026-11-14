@@ -44,6 +44,30 @@
  *     ...one line per cell...
  *     OK
  *
+ * NR (<rat> 9; same manual section, not yet seen live on this unit):
+ *
+ *     serving (14 fields):
+ *       <IsServiceCell>,<rat>,<mcc>,<mnc>,<tac>,<cellid>,<narfcn>,<pci>,
+ *       <band>,<bandwidth>,<ss_sinr>,<rxlev>,<ss_rsrp>,<ss_rsrq>
+ *     neighbour (12 fields, no band and no bandwidth):
+ *       <IsServiceCell>,<rat>,<mcc>,<mnc>,<tac>,<cellid>,<narfcn>,<pci>,
+ *       <ss_sinr>,<rxlev>,<ss_rsrp>,<ss_rsrq>
+ *
+ *   An EN-DC reply carries an LTE serving row and an NR serving row. Note that
+ *   field 9 of a 12-field row is the BANDWIDTH on LTE but SS-SINR on NR, so the
+ *   layout is chosen by RAT and field count together.
+ *
+ *   NR field     encoding
+ *   7  NR-ARFCN  decimal; emitted in "earfcn", as the +QENG NR5G-SA decode does
+ *   9  band      "50" then the band number: 501 = n1, 5078 = n78, 50512 = n512
+ *   10 bandwidth unit not defined for this verb (range 0-255, while +GTCAINFO's
+ *                NR codes run to 2000); not emitted
+ *   ss_sinr      38.133 10.1.16 index 0..127, dB = (idx - 47) / 2; "sinr"
+ *   rxlev        SS-RSRP index again; not emitted
+ *   ss_rsrp      38.133 10.1.6 index 0..126, dBm = idx - 157
+ *   ss_rsrq      38.133 10.1.11 index 0..126, dB = (idx - 87) / 2
+ *   (halves truncated toward zero, as on LTE; 255 = not known)
+ *
  * A modem that is not camped answers the prefix line and OK with no rows: a
  * valid reply with zero observations, exactly like +CPSI: NO SERVICE.
  *
@@ -52,7 +76,7 @@
  *
  *   field  meaning      encoding (serving layout)
  *   1      serving      1 = serving cell, 2 = neighbour (manual)
- *   2      RAT          4 = LTE (the only value seen; others are skipped)
+ *   2      RAT          4 = LTE, 9 = NR (below); others are skipped
  *   3      MCC          decimal
  *   4      MNC          decimal, LEADING ZEROS DROPPED (see trap 1)
  *   5      TAC          hex, no 0x
@@ -90,6 +114,7 @@
 #define GTCCINFO_FIELDS 14
 #define GTCCINFO_NB_FIELDS 12
 #define GTCCINFO_RAT_LTE 4
+#define GTCCINFO_RAT_NR 9
 
 /* 3GPP TS 36.133 RSRP index (0..97) to whole dBm. 255 / out of range -> 0. */
 static int gtcc_rsrp_dbm(long idx, int have, long *out) {
@@ -114,6 +139,41 @@ static int gtcc_rssnr_db(long v, int have, long *out) {
     if (!have || v < -100 || v > 100)
         return 0;
     *out = v / 2;
+    return 1;
+}
+
+/* Fibocom NR band code: "50" followed by the band number with no leading zero
+ * (501 = n1, 5010 = n10, 50512 = n512). */
+static int gtcc_nr_band(const char *s, long *out) {
+    long b = 0;
+    if (s == NULL || strncmp(s, "50", 2) != 0 || s[2] < '1' || s[2] > '9' ||
+        !parse_int(s + 2, &b) || b < 1 || b > 512)
+        return 0;
+    *out = b;
+    return 1;
+}
+
+/* 3GPP TS 38.133 SS-RSRP index (0..126) to whole dBm. */
+static int gtcc_ss_rsrp_dbm(long idx, int have, long *out) {
+    if (!have || idx < 0 || idx > 126)
+        return 0;
+    *out = idx - 157;
+    return 1;
+}
+
+/* 3GPP TS 38.133 SS-RSRQ index (0..126) to dB, halves truncated toward zero. */
+static int gtcc_ss_rsrq_db(long idx, int have, long *out) {
+    if (!have || idx < 0 || idx > 126)
+        return 0;
+    *out = (idx - 87) / 2;
+    return 1;
+}
+
+/* 3GPP TS 38.133 SS-SINR index (0..127) to dB, halves truncated toward zero. */
+static int gtcc_ss_sinr_db(long idx, int have, long *out) {
+    if (!have || idx < 0 || idx > 127)
+        return 0;
+    *out = (idx - 47) / 2;
     return 1;
 }
 
@@ -164,15 +224,18 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
         long serving = 0, rat = 0;
         if ((nf != GTCCINFO_FIELDS && nf != GTCCINFO_NB_FIELDS) ||
             !parse_int(fields[0], &serving) ||
-            !parse_int(fields[1], &rat) || rat != GTCCINFO_RAT_LTE) {
+            !parse_int(fields[1], &rat) ||
+            (rat != GTCCINFO_RAT_LTE && rat != GTCCINFO_RAT_NR)) {
             line = strtok_r(NULL, "\n", &saveptr);
             continue;
         }
-        /* Field positions differ by layout; -1 = absent from this layout. */
+        /* Field positions differ by layout; -1 = absent from this layout.
+         * f_snr is RSSNR on LTE and SS-SINR on NR. */
         int full = nf == GTCCINFO_FIELDS;
+        int nr = rat == GTCCINFO_RAT_NR;
         int f_band = full ? 8 : -1;
-        int f_bw = full ? 9 : 8;
-        int f_snr = full ? 10 : -1;
+        int f_bw = nr ? -1 : full ? 9 : 8;
+        int f_snr = full ? 10 : nr ? 8 : -1;
         int f_rsrp = full ? 12 : 10;
         int f_rsrq = full ? 13 : 11;
 
@@ -187,17 +250,31 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
         int h_cell_id = parse_hex(fields[5], &cell_id);
         int h_earfcn = parse_int(fields[6], &earfcn);
         int h_pci = parse_int(fields[7], &pci);
-        int h_band = f_band >= 0 && parse_int(fields[f_band], &band_code) &&
+        int h_band;
+        if (nr) {
+            h_band = f_band >= 0 && gtcc_nr_band(fields[f_band], &band);
+        } else {
+            h_band = f_band >= 0 && parse_int(fields[f_band], &band_code) &&
                      band_code > 100 && band_code < 200;
-        if (h_band)
-            band = band_code - 100;
-        int h_bw = parse_int(fields[f_bw], &rb) && lte_bw_rb_to_mhz(rb, &bw);
+            if (h_band)
+                band = band_code - 100;
+        }
+        int h_bw = f_bw >= 0 && parse_int(fields[f_bw], &rb) &&
+                   lte_bw_rb_to_mhz(rb, &bw);
         int h_ri = parse_int(fields[f_rsrp], &rsrp_idx);
         int h_qi = parse_int(fields[f_rsrq], &rsrq_idx);
-        int h_rsrp = gtcc_rsrp_dbm(rsrp_idx, h_ri, &rsrp);
-        int h_rsrq = gtcc_rsrq_db(rsrq_idx, h_qi, &rsrq);
         int h_sv = f_snr >= 0 && parse_int(fields[f_snr], &snr_v);
-        int h_snr = gtcc_rssnr_db(snr_v, h_sv, &snr);
+        int h_rsrp, h_rsrq, h_snr = 0, h_sinr = 0;
+        long sinr = 0;
+        if (nr) {
+            h_rsrp = gtcc_ss_rsrp_dbm(rsrp_idx, h_ri, &rsrp);
+            h_rsrq = gtcc_ss_rsrq_db(rsrq_idx, h_qi, &rsrq);
+            h_sinr = gtcc_ss_sinr_db(snr_v, h_sv, &sinr);
+        } else {
+            h_rsrp = gtcc_rsrp_dbm(rsrp_idx, h_ri, &rsrp);
+            h_rsrq = gtcc_rsrq_db(rsrq_idx, h_qi, &rsrq);
+            h_snr = gtcc_rssnr_db(snr_v, h_sv, &snr);
+        }
 
         char mcc_buf[8] = "", mnc_buf[8] = "";
         const char *mcc = NULL, *mnc_str = NULL;
@@ -213,13 +290,13 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
 
         int is_serving = serving == 1;
         build_cell_json(json_out[obs_count], JSON_BUF_MAX,
-                        "LTE", NULL,
+                        nr ? "NR" : "LTE", NULL,
                         mcc, mnc_str,
                         cell_id, h_cell_id, pci, h_pci,
                         tac, h_tac, earfcn, h_earfcn,
                         band, h_band, bw, h_bw,
                         rsrp, h_rsrp, rsrq, h_rsrq,
-                        0, 0, 0, 0,
+                        sinr, h_sinr, 0, 0,
                         is_serving ? "serving" : "observation",
                         is_serving, NULL);
         if (h_mcc && h_mnc && !mnc_str)
