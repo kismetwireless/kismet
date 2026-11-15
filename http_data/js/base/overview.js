@@ -486,7 +486,7 @@ export function register(kismet) {
                         return r.node;
                     });
                     const shown = new Set(ranked.map((t) => t.d[`${base}.key`]));
-                    for (const [key, r] of rows)
+                    for (const key of rows.keys())
                         if (!shown.has(key))
                             rows.delete(key);
                     list.replaceChildren(...order);

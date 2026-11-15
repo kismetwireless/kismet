@@ -66,7 +66,7 @@ function hasHandshake(list) {
 }
 
 export function register(kismet) {
-    const { ui, icons, format, dom, api } = kismet;
+    const { ui, icons, format, dom } = kismet;
     // Search box names for fields in the Wi-Fi details
     const probed = 'dot11.device/dot11.device.probed_ssid_map/dot11.probedssid';
     const filterHint = (id, names, fields, more = {}) =>
