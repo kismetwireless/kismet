@@ -610,6 +610,9 @@ export function openCoverage({ view: startView = null } = {}) {
                 settings.set('coverage.band', band);
                 tabKey = '';
                 buildTabs();
+                // The heat map and time views only redraw on new data otherwise
+                tip.hidden = true;
+                draw();
             },
         }, b.title)));
         if (!list.length)
