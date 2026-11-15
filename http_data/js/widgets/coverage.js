@@ -52,6 +52,10 @@ const spans = {
 // Small numbers keep a decimal, the rest are rounded
 const num = (v) => (v > 0 && v < 10 && v % 1 ? v.toFixed(1) : format.count(Math.round(v)));
 
+// One of channelsAt's channels as text: 'BLE 4', or 'ADSB' for a phy naming
+// the channel after itself
+const channelText = (c) => (c.channel === c.phy ? c.channel : `${c.phy} ${c.channel}`);
+
 // The channels at a frequency, by phy, from each phy's channel numbering:
 // [{ phy: 'Wi-Fi', channel: '1' }, { phy: 'BLE', channel: '4' }]
 export function channelsAt(khz) {
@@ -68,18 +72,24 @@ export function channelsAt(khz) {
     return out;
 }
 
-// A frequency's short name: the server's channel name, else the phys'
-// channel numbering (the first phy plainly, others with their name, like
-// 'BLE 37'), else the frequency
+// A channel the server names only by its frequency ('162.025MHz', '1090MHz')
+export const isFrequencyChannel = (channel) => /^[\d.]+\s*[kmg]?hz$/i.test(String(channel ?? '').trim());
+
+// A frequency's short name: the server's channel name, unless it's only the
+// frequency, else the phys' channel numbering (the first phy plainly, others
+// with their name, like 'BLE 37'; a phy naming the channel after itself, like
+// 'ADSB', just that), else the frequency
 export function frequencyLabel(khz, channel = null) {
-    if (channel && channel !== 'unknown' && channel !== '0')
+    const named = channel && channel !== 'unknown' && channel !== '0';
+    if (named && !isFrequencyChannel(channel))
         return String(channel);
     const at = channelsAt(khz);
     if (at.length) {
         const first = channelNames.list()[0];
-        return at[0].phy === (first?.title ?? first?.id) ? at[0].channel : `${at[0].phy} ${at[0].channel}`;
+        return at[0].phy === (first?.title ?? first?.id) || at[0].channel === at[0].phy ?
+            at[0].channel : `${at[0].phy} ${at[0].channel}`;
     }
-    return format.frequency(khz).replace(' ', '');
+    return named ? String(channel) : format.frequency(khz).replace(' ', '');
 }
 
 // A channel name with no frequency: placed only if every phy that knows the
@@ -707,9 +717,9 @@ export function openCoverage({ view: startView = null } = {}) {
     let sourceLabels = new Map();
     const label = (khz) => {
         const channel = freqs.get(khz)?.channel;
-        if (channel && channel !== 'unknown' && channel !== '0')
+        if (channel && channel !== 'unknown' && channel !== '0' && !isFrequencyChannel(channel))
             return String(channel);
-        return sourceLabels.get(khz) ?? frequencyLabel(khz);
+        return sourceLabels.get(khz) ?? frequencyLabel(khz, channel);
     };
 
     // Frequency labels on their side under a graph: the channel nearest the
@@ -1005,12 +1015,17 @@ export function openCoverage({ view: startView = null } = {}) {
         return out;
     }
 
-    // Rows outside the Wi-Fi bands are named by frequency, where a channel
-    // name means little
+    // Rows outside the Wi-Fi bands are named by frequency, and by a phy's
+    // name for the channel when there is one
     const heatLabel = (r) => {
         if (r.mhz !== undefined)
             return `${r.mhz} MHz`;
-        return bandOf(r.f).compact ? `${+(r.f / 1000).toFixed(3)} MHz` : label(r.f);
+        if (!bandOf(r.f).compact)
+            return label(r.f);
+        // The frequency, after a phy's name for it ('ADSB 1090 MHz')
+        const name = label(r.f);
+        const mhz = `${+(r.f / 1000).toFixed(3)} MHz`;
+        return isFrequencyChannel(name) ? mhz : `${name} ${mhz}`;
     };
 
     // Labels under the columns: seconds ago, or the clock time of the minute or hour
@@ -1184,7 +1199,7 @@ export function openCoverage({ view: startView = null } = {}) {
             lines.push(el('b', {}, `${cell.mhz} MHz`),
                 el('div', { class: 'muted' }, `${cell.fs.length} frequencies, ${mhz(cell.fs[0])} to ${mhz(cell.fs.at(-1))} MHz, added together`));
         } else {
-            const named = channelsAt(cell.f).map((c) => `${c.phy} ${c.channel}`);
+            const named = channelsAt(cell.f).map(channelText);
             const rec = freqs.get(cell.f);
             const server = rec?.channel && rec.channel !== 'unknown' && rec.channel !== '0' ? `Channel ${rec.channel}` : null;
             lines.push(el('b', {}, [server, ...named, format.frequency(cell.f)].filter(Boolean)
@@ -1418,7 +1433,7 @@ export function openCoverage({ view: startView = null } = {}) {
             return;
         }
         const est1 = est.byFreq.get(best);
-        const named = channelsAt(best).map((c) => `${c.phy} ${c.channel}`);
+        const named = channelsAt(best).map(channelText);
         const lines = [el('b', {}, [...named, format.frequency(best)].filter((v, i, a) => a.indexOf(v) === i).join(' · '))];
         if (!est1) {
             lines.push(el('div', {}, 'No source listens here'));
@@ -1611,7 +1626,7 @@ export function openCoverage({ view: startView = null } = {}) {
         const rec = freqs.get(best);
         const busiest = Math.max(0, ...history(best, 'devices'));
         // Every phy's channel here: Wi-Fi 1 and BLE 4 share 2412 MHz
-        const named = channelsAt(best).map((c) => `${c.phy} ${c.channel}`);
+        const named = channelsAt(best).map(channelText);
         const server = rec.channel && rec.channel !== 'unknown' && rec.channel !== '0' ? `Channel ${rec.channel}` : null;
         tip.replaceChildren(
             el('b', {}, [server, ...named, format.frequency(best)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ')),

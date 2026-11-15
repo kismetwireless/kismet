@@ -42,6 +42,10 @@ export function register(kismet) {
     filterHint('adsb_operator', ['operator'], [`${icao}/adsb.icao.owner`], { filterEmpty: '', help: 'Registered owner or operator' });
     filterHint('adsb_aircraft_type', ['aircraft_type'], [`${icao}/adsb.icao.atype`], { filterEmpty: '', help: 'Aircraft type' });
 
+    ui.channelNames.add({ id: 'ADSB', title: 'ADSB', priority: 41,
+        name: (khz) => (khz === 1090000 ? 'ADSB' : null),
+        frequency: (channel) => (/^adsb$/i.test(String(channel ?? '').trim()) ? 1090000 : null) });
+
     const { el } = dom;
     const isAdsb = (row) => row[`${base}.phyname`] === 'ADSB';
 

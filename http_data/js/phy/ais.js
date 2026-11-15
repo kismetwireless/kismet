@@ -20,6 +20,10 @@ export function register(kismet) {
     // Speed over ground, in knots
     filterHint('ais_sog', ['sog', 'knots'], [`${ais}/${ais}.sog`], { filterKind: 'number', help: 'Speed over ground, in knots' });
 
+    // Both AIS channels, A at 161.975 MHz and B at 162.025 MHz, are named AIS
+    ui.channelNames.add({ id: 'AIS', title: 'AIS', priority: 40,
+        name: (khz) => (khz === 161975 || khz === 162025 ? 'AIS' : null) });
+
     const { el } = dom;
     const isAis = (row) => row[`${base}.phyname`] === 'AIS';
 
