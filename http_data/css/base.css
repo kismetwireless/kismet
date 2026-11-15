@@ -1849,6 +1849,9 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
     background: var(--accent-soft); border: 1px solid var(--accent); font-size: 0.88em; max-width: 20rem; }
 .fl-focus > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fl-trim { font-size: 0.85em; }
+.fl-pager { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.88em; white-space: nowrap; }
+.fl-pager .link-button { padding: 0 0.25rem; }
+.fl-mx-cut { font-size: 0.85em; margin: 0.4rem 0 0; }
 .fl-name { cursor: pointer; }
 .fl-name:hover text { fill: var(--accent); }
 .fl-name.more rect, .fl-hub.more circle:not(.fl-flag) { stroke-dasharray: 2 3; }

@@ -15,6 +15,11 @@ import { gather, condense, flowCaps } from './groups.js';
 const svgNs = 'http://www.w3.org/2000/svg';
 const rowH = 34;
 const bothMin = 1150;
+const narrowMax = 600;
+// the table stops at this many columns and address rows
+const tableCols = 80;
+const tableRows = 120;
+const pageTitles = { hubs: 'Access points', names: 'Networks', sought: 'Names looked for' };
 
 // What each view shows, for the collapsible note at the foot of the tab
 const aboutGraph = [
@@ -29,8 +34,10 @@ const aboutGraph = [
         'point or a group of devices lists the devices in it.  A yellow ring marks an entry which has a ' +
         'finding in the Unusual tab.',
     'In a busy area, each column shows its busiest entries, and every entry with a finding; the rest are ' +
-        'merged into one "more" entry, which shows them all when clicked.  Clicking a network, or "Show only what ' +
-        'links through this" on an access point or group, shows only what links through it, and so does a search.',
+        'merged into one "more" entry.  Clicking a "more" network or access point entry pages through that column, ' +
+        'and clicking a "more" group of devices lists them.  Clicking a network, or "Show only what links through ' +
+        'this" on an access point or group, shows only what links through it, and so does a search.  Back returns ' +
+        'to the view before.',
 ];
 const aboutTable = 'Each row of the flow table is an access point address, grouped by access point, and each column ' +
     'is a network or a connected device.  A colored cell indicates a link, in the color of the link type ' +
@@ -108,6 +115,14 @@ export function flow({ onPick = null, linkKinds }) {
     // A busy area: the busiest entries only, a search, or one entry and what links through it
     let showAll = settings.get('insights.flowAll', false);
     let focus = null;           // { ids, label } picked from the graph
+    let page = null;            // { col, n }: a column opened from its "more" entry, a page at a time
+    // Views left by clicking into the graph, for Back
+    const back = [];
+    const remember = () => {
+        back.push({ showAll, focus, page, find: find.value });
+        if (back.length > 20)
+            back.shift();
+    };
     let findTimer = null;
     const find = el('input', { type: 'search', class: 'fl-find', placeholder: 'Find a network, access point or device',
         'aria-label': 'Show only what links through a network, access point or device',
@@ -115,17 +130,45 @@ export function flow({ onPick = null, linkKinds }) {
             clearTimeout(findTimer);
             findTimer = setTimeout(() => {
                 focus = null;
+                page = null;
                 draw();
             }, 250);
         } });
     const allBtn = el('button', { type: 'button', class: 'fl-all', onclick: () => {
         showAll = !showAll;
+        page = null;
         settings.set('insights.flowAll', showAll);
         draw();
     } });
+    const turn = (step) => {
+        if (!page)
+            return;
+        page = { ...page, n: page.n + step };
+        pop.hidden = true;
+        draw();
+    };
+    const pageText = el('span');
+    const pager = el('span', { class: 'fl-pager', hidden: true },
+        el('button', { type: 'button', class: 'link-button', 'aria-label': 'Previous page', onclick: () => turn(-1) }, '‹'),
+        pageText,
+        el('button', { type: 'button', class: 'link-button', 'aria-label': 'Next page', onclick: () => turn(1) }, '›'),
+        el('button', { type: 'button', class: 'link-button', 'aria-label': 'Close the pages', onclick: () => {
+            page = null;
+            draw();
+        } }, '✕'));
+    const backBtn = el('button', { type: 'button', class: 'fl-back', hidden: true, title: 'Back to the view before',
+        onclick: () => {
+            const s = back.pop();
+            if (!s)
+                return;
+            ({ showAll, focus, page } = s);
+            find.value = s.find;
+            pop.hidden = true;
+            draw();
+        } }, '← Back');
     const focusChip = el('span', { class: 'fl-focus', hidden: true });
     const trimNote = el('span', { class: 'muted fl-trim' });
-    const bar = el('div', { class: 'fl-bar' }, modes, find, focusChip, allBtn, trimNote, legend);
+    const bar = el('div', { class: 'fl-bar' }, modes, backBtn, find, focusChip, pager, allBtn, trimNote, legend);
     const node = el('div', { class: 'fl' }, bar, views, quiet, pop, helpPop);
     const wrap = el('div', { class: 'fl-wrap' }, node, aboutBox);
     let mode = 'lines';
@@ -153,7 +196,12 @@ export function flow({ onPick = null, linkKinds }) {
         redrawing = true;
         requestAnimationFrame(() => {
             redrawing = false;
-            if (view && !svgBox.hidden)
+            if (!view || svgBox.hidden)
+                return;
+            // a phone-sized graph holds fewer entries
+            if (isNarrow() !== viewNarrow)
+                draw();
+            else
                 drawLines(view);
         });
     };
@@ -264,18 +312,22 @@ export function flow({ onPick = null, linkKinds }) {
     }
 
     function setFocus(item) {
+        if (item)
+            remember();
         focus = item ? { ids: [item.id], label: item.title ?? item.label } : null;
+        page = null;
         find.value = '';
         pop.hidden = true;
         draw();
     }
 
-    // A merged "more" entry opens everything; a group of several devices
-    // offers a list to pick from, and to show only what links through it
+    // A merged "more" entry pages through its column; a group of several
+    // devices offers a list to pick from, and to show only what links through it
     function pick(item, evt) {
-        if (item.more) {
-            showAll = true;
-            settings.set('insights.flowAll', true);
+        if (item.opens) {
+            remember();
+            page = { col: item.opens, n: page?.col === item.opens ? page.n + 1 : 0 };
+            pop.hidden = true;
             draw();
             return;
         }
@@ -288,7 +340,7 @@ export function flow({ onPick = null, linkKinds }) {
             return;
         const r = node.getBoundingClientRect();
         pop.replaceChildren(...[el('div', { class: 'fl-pop-title' }, item.title ?? item.label),
-            view?.focused ? null : el('button', { type: 'button', class: 'link-button fl-pop-focus', onclick: (e) => {
+            view?.focused || item.more ? null : el('button', { type: 'button', class: 'link-button fl-pop-focus', onclick: (e) => {
                 e.stopPropagation();
                 setFocus(item);
             } }, 'Show only what links through this'),
@@ -309,14 +361,17 @@ export function flow({ onPick = null, linkKinds }) {
 
     function groupLabel(g) {
         const k = kindOf(g.kind);
-        if (g.members.length === 1)
+        if (g.members.length === 1 && !g.more)
             return g.members[0].label;
-        return `${format.count(g.members.length)} ${k.groupTitle ?? 'devices'}`;
+        return `${format.count(g.members.length)} ${g.more ? 'more ' : ''}${k.groupTitle ?? 'devices'}`;
     }
+
+    const isNarrow = () => (svgBox.clientWidth || node.clientWidth || 360) < narrowMax;
+    let viewNarrow = false;
 
     function drawLines(r) {
         width = svgBox.clientWidth || node.clientWidth || 360;
-        const narrow = width < 600;
+        const narrow = width < narrowMax;
         // a phone gets smaller text, shapes and lines, and tighter rows
         const fs = narrow ? { main: 10, sub: 8.5 } : { main: 12, sub: 10 };
         const rh = narrow ? 25 : rowH;
@@ -471,7 +526,7 @@ export function flow({ onPick = null, linkKinds }) {
             const p = at.get(n.id);
             const g = svgEl('g', { class: ['fl-node', 'fl-name', n.sought && 'sought', n.more && 'more'].filter(Boolean).join(' ') });
             const rr = narrow ? 8.5 : 11;
-            const tip = n.more ? `${n.label}: click to show them all` :
+            const tip = n.more ? `${n.label}: click to page through them` :
                 `${n.sought ? `${n.label}: looked for, not advertised here` : n.label}${r.focused ? '' : '\nClick to show only what links through it'}`;
             g.append(svgEl('rect', { x: colX.name, y: p.y - rr, width: colW.name, height: rr * 2, rx: rr }),
                 label(colX.name + textX.name, p.y + fs.main / 3, n.label, null, colW.name - textX.name * 2 + 2),
@@ -497,7 +552,7 @@ export function flow({ onPick = null, linkKinds }) {
             g.append(svgEl('circle', { cx, cy: p.y, r: rad }),
                 label(colX.hub + textX.hub, p.y, t1, null, room),
                 label(colX.hub + textX.hub, p.y + fs.main, t2, 'fl-sub', room),
-                svgEl('title', {}, h.more ? `${h.label}: click to show them all` : `${h.label}\n${h.members.map((m) => m.mac).join('\n')}`));
+                svgEl('title', {}, h.more ? `${h.label}: click to page through them` : `${h.label}\n${h.members.map((m) => m.mac).join('\n')}`));
             g.addEventListener('click', (e) => pick({ ...h, title: h.label }, e));
             nodesG.append(g);
         }
@@ -538,24 +593,27 @@ export function flow({ onPick = null, linkKinds }) {
         const cols = [...r.names.filter((n) => !n.sought && !n.more).map((n) => ({ id: n.id, label: n.label, item: n })),
             ...r.attached.filter((g) => !g.more).flatMap((g) => g.members.map((d) => ({ id: d.id, label: d.label, dev: d, kind: g.kind })))];
         const seen = new Set();
-        const uniq = cols.filter((c) => !seen.has(c.id) && seen.add(c.id));
+        const all = cols.filter((c) => !seen.has(c.id) && seen.add(c.id));
+        const uniq = all.slice(0, tableCols);
+        const addrs = r.hubs.filter((x) => !x.more).flatMap((h) => h.members.map((m, i) => ({ h, m, i })));
         const has = (a, b) => linkKind.get(`${a.id}|${b.id}`);
         const table = el('table', { class: 'fl-mx' });
         table.append(el('thead', {}, el('tr', {}, el('th', { class: 'corner' }),
             ...uniq.map((c) => el('th', { title: c.label }, el('span', { class: c.dev ? 'dev' : 'name', onclick: () => c.dev && onPick?.(c.dev.key) }, c.label))))));
         const body = el('tbody');
-        for (const h of r.hubs.filter((x) => !x.more)) {
-            h.members.forEach((m, i) => {
-                body.append(el('tr', { class: i === 0 ? 'grp' : null },
-                    el('th', { title: m.mac, onclick: () => onPick?.(m.key) }, i === 0 ? el('span', { class: 'fl-mx-hub' }, h.label) : null, el('span', { class: 'muted mono' }, m.mac ?? '')),
-                    ...uniq.map((c) => {
-                        const k = has(m, c.item?.thing ?? c.dev);
-                        return el('td', { style: k ? { background: `var(${kindOf(k).color})` } : null, title: k ? kindOf(k).title : null });
-                    })));
-            });
+        for (const { h, m, i } of addrs.slice(0, tableRows)) {
+            body.append(el('tr', { class: i === 0 ? 'grp' : null },
+                el('th', { title: m.mac, onclick: () => onPick?.(m.key) }, i === 0 ? el('span', { class: 'fl-mx-hub' }, h.label) : null, el('span', { class: 'muted mono' }, m.mac ?? '')),
+                ...uniq.map((c) => {
+                    const k = has(m, c.item?.thing ?? c.dev);
+                    return el('td', { style: k ? { background: `var(${kindOf(k).color})` } : null, title: k ? kindOf(k).title : null });
+                })));
         }
         table.append(body);
-        tableBox.replaceChildren(table);
+        const cut = [all.length > uniq.length && `${format.count(uniq.length)} of ${plural(all.length, 'column', 'columns')}`,
+            addrs.length > tableRows && `${format.count(tableRows)} of ${plural(addrs.length, 'address', 'addresses')}`].filter(Boolean);
+        tableBox.replaceChildren(table, cut.length ? el('p', { class: 'muted fl-mx-cut' },
+            `Showing ${cut.join(' and ')}; search to narrow it.`) : '');
     }
 
     // The entries a search names: by their label, or an address or name of a device in them
@@ -569,20 +627,25 @@ export function flow({ onPick = null, linkKinds }) {
 
     function showBar() {
         const q = find.value.trim();
+        backBtn.hidden = !back.length;
         focusChip.hidden = !focus;
         if (focus)
             focusChip.replaceChildren(el('span', {}, `Only ${focus.label}`),
                 el('button', { type: 'button', class: 'link-button', 'aria-label': 'Show everything again', onclick: () => setFocus(null) }, '✕'));
         const h = view.hidden;
-        const trimmed = h.hubs + h.names + h.sought > 0;
-        const busy = last.hubs.length > flowCaps.hubs || last.names.length > flowCaps.names;
-        allBtn.hidden = !!(focus || q) || !(trimmed || (showAll && busy));
+        const caps = flowCaps[viewNarrow ? 'narrow' : 'wide'];
+        const trimmed = h.hubs + h.names + h.sought + h.att > 0;
+        const busy = h.total.hubs > caps.hubs || h.total.names > caps.names;
+        allBtn.hidden = !(trimmed || (showAll && busy));
         allBtn.textContent = showAll ? 'Show the busiest' : 'Show all';
-        const names = last.names.length - h.names - h.sought;
-        trimNote.textContent = view.focused ? `${plural(view.hubs.length, 'access point', 'access points')}, ` +
-            `${plural(view.names.length, 'network', 'networks')}` :
-            trimmed ? `Busiest ${format.count(last.hubs.length - h.hubs)} of ${plural(last.hubs.length, 'access point', 'access points')}, ` +
-                `${format.count(names)} of ${plural(last.names.length, 'network', 'networks')}` : '';
+        pager.hidden = !h.page;
+        if (h.page)
+            pageText.textContent = `${pageTitles[h.page.col]} ${format.count(h.page.from)}–${format.count(h.page.to)} ` +
+                `of ${format.count(h.page.total)}`;
+        const names = h.total.names - h.names - h.sought;
+        trimNote.textContent = trimmed && !h.page ? `Busiest ${format.count(h.total.hubs - h.hubs)} of ` +
+            `${plural(h.total.hubs, 'access point', 'access points')}, ${format.count(names)} of ${plural(h.total.names, 'network', 'networks')}` :
+            view.focused ? `${plural(h.total.hubs, 'access point', 'access points')}, ${plural(h.total.names, 'network', 'networks')}` : '';
     }
 
     let linkKind = new Map();
@@ -592,7 +655,13 @@ export function flow({ onPick = null, linkKinds }) {
             return;
         const q = find.value.trim();
         const seeds = focus ? focus.ids : q ? matching(q) : null;
-        const r = view = condense(last, { seeds, all: showAll });
+        viewNarrow = isNarrow();
+        const r = view = condense(last, { seeds, all: showAll, page, caps: flowCaps[viewNarrow ? 'narrow' : 'wide'] });
+        // keep the page number in range, so Next after wrapping counts from there
+        if (page && r.hidden.page?.col === page.col)
+            page = { ...page, n: r.hidden.page.n };
+        else
+            page = null;
         showBar();
         if (!r.hubs.length && !r.names.length) {
             svgBox.replaceChildren(el('p', { class: 'muted fl-empty' }, q ? `Nothing here matches “${q}”.` :
