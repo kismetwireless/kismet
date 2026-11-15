@@ -222,6 +222,10 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                 uint32_t fields_present = kis_letoh32(ppigps->fields_present);
                 const unsigned int gps_len = declared_gps_len - gps_header_len;
 
+                // The GPS flags field comes before the position; skip it
+                if (fields_present & PPI_GPS_FLAG_GPSFLAGS)
+                    data_offt += 4;
+
                 union block {
                     uint8_t u8;
                     uint16_t u16;
