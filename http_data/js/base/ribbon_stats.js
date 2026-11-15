@@ -18,6 +18,8 @@ export function register(kismet) {
         create(body) {
             const spark = kismet.widgets.sparkline();
             const v = valueStat('packets');
+            // Room for up to 99,999/s, so the entry keeps its width as the rate changes
+            v.value.classList.add('stat-value-pps');
             body.append(el('div', { class: 'stat-graph' }, spark.canvas), v.node);
             const stat = body.parentElement;
             stat.classList.add('clickable');
