@@ -511,6 +511,10 @@ void kis_meshtastic_phy::handle_user_pb(const std::string_view& pbuf,
             case meshtastic_user_pb::fn_long_name:
                 data = dec.get_bytearray();
                 node->set_longname(std::string(data.data(), data.length()));
+                // Name the device after the node, as phy_meshcore does with the advert name;
+                // a name the user set still wins (set_devicename leaves the common name alone)
+                if (data.length() > 0)
+                    base->set_devicename(std::string(data.data(), data.length()));
                 break;
             case meshtastic_user_pb::fn_short_name:
                 data = dec.get_bytearray();
