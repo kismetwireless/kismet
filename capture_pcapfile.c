@@ -60,6 +60,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <time.h>
+
 #include <unistd.h>
 #include <errno.h>
 
@@ -76,12 +78,17 @@ typedef struct {
 
     int realtime;
     struct timeval last_ts;
+    /* Monotonic time (usec) the next record is due at in realtime replay */
+    int64_t replay_due;
 
     unsigned int pps_throttle;
 } local_pcap_t;
 
-/* Realtime replay delay between two records.  Timestamps come from the file, so a
- * backwards, huge, or malformed jump is clamped instead of stalling the replay */
+/* Realtime replay delay before a record: how far it is past the latest timestamp so
+ * far.  Timestamps come from the file, so a huge or malformed jump is clamped instead
+ * of stalling the replay.  A record older than that (several sources merged by arrival)
+ * is sent right away and doesn't move the latest timestamp back, or the next record
+ * would be waited for again. */
 static unsigned long replay_delay_usec(local_pcap_t *local_pcap, int64_t ts_sec, int64_t ts_usec) {
     const int64_t max_delay = 10 * 1000000LL;
     int64_t delay = 0;
@@ -103,11 +110,14 @@ static unsigned long replay_delay_usec(local_pcap_t *local_pcap, int64_t ts_sec,
             delay = (int64_t) dsec * 1000000LL + (ts_usec - last_usec);
     }
 
-    local_pcap->last_ts.tv_sec = ts_sec;
-    local_pcap->last_ts.tv_usec = ts_usec;
-
     if (delay < 0)
         return 0;
+
+    if ((local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) ||
+            ts_sec >= (int64_t) local_pcap->last_ts.tv_sec) {
+        local_pcap->last_ts.tv_sec = ts_sec;
+        local_pcap->last_ts.tv_usec = ts_usec;
+    }
     if (delay > max_delay)
         return max_delay;
 
@@ -298,11 +308,24 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
      * simulates blocking IO for capturing from hardware, too.
      */
     if (local_pcap->realtime) {
+        /* Sleep until the record is due rather than for the gap to the previous one; the time
+         * spent sending and the sleep overshoot would otherwise add up with every record and
+         * stretch the replay */
+        struct timespec mono;
+        int64_t now;
+
+        clock_gettime(CLOCK_MONOTONIC, &mono);
+        now = (int64_t) mono.tv_sec * 1000000LL + mono.tv_nsec / 1000;
+
         delay_usec = replay_delay_usec(local_pcap, header->ts.tv_sec, header->ts.tv_usec);
 
-        if (delay_usec != 0) {
-            usleep(delay_usec);
-        }
+        if (local_pcap->replay_due == 0)
+            local_pcap->replay_due = now;
+
+        local_pcap->replay_due += delay_usec;
+
+        if (local_pcap->replay_due > now)
+            usleep((useconds_t) (local_pcap->replay_due - now));
     }
 
     /* If we're doing 'packet per second' throttling, delay accordingly */
@@ -390,6 +413,7 @@ int main(int argc, char *argv[]) {
         .realtime = 0,
         .last_ts.tv_sec = 0,
         .last_ts.tv_usec = 0,
+        .replay_due = 0,
         .pps_throttle = 0,
     };
 
