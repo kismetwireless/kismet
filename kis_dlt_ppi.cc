@@ -209,7 +209,9 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
 
             ppi_gps_hdr *ppigps = (ppi_gps_hdr *) ppi_fh;
 
-            if (ppigps->version == 0) {
+            // PPI-GEOLOCATION GPS tags are version 1 or 2 (the same layout), and Kismet's
+            // own pcapppi logger writes 2; keep 0 for older captures
+            if (ppigps->version <= 2) {
                 const unsigned int declared_gps_len = kis_letoh16(ppigps->gps_len);
                 if (declared_gps_len < gps_header_len || declared_gps_len > fh_len) {
                     _MSG("pcap PPI converter got invalid GPS length", MSGFLAG_ERROR);
