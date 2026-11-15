@@ -1285,7 +1285,7 @@ int main(int argc, char *argv[]) {
                 // WiGLE v1.6 CSV row
                 fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
                         cell_key,
-                        wiglecsv_munge(oper),
+                        wiglecsv_munge(oper, true),
                         authmode,
                         tmstr,
                         "",  // channel: blank for cells, the ARFCN is the frequency
