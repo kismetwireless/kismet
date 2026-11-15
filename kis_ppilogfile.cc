@@ -469,6 +469,19 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     wh.ts.tv_usec = in_pack->ts.tv_usec;
     wh.caplen = wh.len = dump_len;
 
+    // A frame captured short (snap length, truncate_data) or cut by hidedata keeps its size on
+    // the air in original_len; record what's missing in the original length, like pcapng does.
+    // The missing part includes the FCS, which is already appended above if we have it
+    auto linkframe = in_pack->fetch<kis_datachunk>(ppilog->pack_comp_linkframe);
+    if (linkframe != nullptr && in_pack->original_len > linkframe->length()) {
+        size_t missing = in_pack->original_len - linkframe->length();
+
+        if (fcsdata != nullptr && in_pack->signal_info.data_ok)
+            missing = missing > 4 ? missing - 4 : 0;
+
+        wh.len = dump_len + missing;
+    }
+
     // Dump it
     {
         kis_lock_guard<kis_mutex> lk(ppilog->log_mutex);
