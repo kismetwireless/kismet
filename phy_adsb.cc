@@ -242,7 +242,9 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
                     virtual_source->set_source_key(adler32_checksum(src_uuid.uuid_to_string()));
                     virtual_source->set_source_name(src_name);
 
-                    datasourcetracker->merge_source(virtual_source);
+                    // Another request can add the same UUID after the check above
+                    if (!datasourcetracker->merge_source(virtual_source))
+                        throw std::runtime_error("datasource with that UUID already exists");
 
                     auto uri = fmt::format("/phy/ADSB/by-uuid/{}/proxy", src_uuid);
                     httpd->register_websocket_route(uri, {httpd->LOGON_ROLE, "datasource"}, {"ws"},
