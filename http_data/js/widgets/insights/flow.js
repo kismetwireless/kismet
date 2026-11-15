@@ -10,7 +10,7 @@
 import { el } from '../../core/dom.js';
 import * as format from '../../core/format.js';
 import * as settings from '../../core/settings.js';
-import { gather } from './groups.js';
+import { gather, condense, flowCaps } from './groups.js';
 
 const svgNs = 'http://www.w3.org/2000/svg';
 const rowH = 34;
@@ -28,6 +28,9 @@ const aboutGraph = [
         'The color and style of a line show the type of link, as listed in the legend.  Clicking an access ' +
         'point or a group of devices lists the devices in it.  A yellow ring marks an entry which has a ' +
         'finding in the Unusual tab.',
+    'In a busy area, each column shows its busiest entries, and every entry with a finding; the rest are ' +
+        'merged into one "more" entry, which shows them all when clicked.  Clicking a network, or "Show only what ' +
+        'links through this" on an access point or group, shows only what links through it, and so does a search.',
 ];
 const aboutTable = 'Each row of the flow table is an access point address, grouped by access point, and each column ' +
     'is a network or a connected device.  A colored cell indicates a link, in the color of the link type ' +
@@ -102,7 +105,27 @@ export function flow({ onPick = null, linkKinds }) {
     const divider = el('div', { class: 'fl-divider', role: 'separator', 'aria-orientation': 'vertical', tabindex: '0',
         title: 'Drag to share the room between the lines and the table; double-click to reset' });
     const views = el('div', { class: 'fl-views' }, svgBox, divider, tableBox);
-    const bar = el('div', { class: 'fl-bar' }, modes, legend);
+    // A busy area: the busiest entries only, a search, or one entry and what links through it
+    let showAll = settings.get('insights.flowAll', false);
+    let focus = null;           // { ids, label } picked from the graph
+    let findTimer = null;
+    const find = el('input', { type: 'search', class: 'fl-find', placeholder: 'Find a network, access point or device',
+        'aria-label': 'Show only what links through a network, access point or device',
+        oninput: () => {
+            clearTimeout(findTimer);
+            findTimer = setTimeout(() => {
+                focus = null;
+                draw();
+            }, 250);
+        } });
+    const allBtn = el('button', { type: 'button', class: 'fl-all', onclick: () => {
+        showAll = !showAll;
+        settings.set('insights.flowAll', showAll);
+        draw();
+    } });
+    const focusChip = el('span', { class: 'fl-focus', hidden: true });
+    const trimNote = el('span', { class: 'muted fl-trim' });
+    const bar = el('div', { class: 'fl-bar' }, modes, find, focusChip, allBtn, trimNote, legend);
     const node = el('div', { class: 'fl' }, bar, views, quiet, pop, helpPop);
     const wrap = el('div', { class: 'fl-wrap' }, node, aboutBox);
     let mode = 'lines';
@@ -130,8 +153,8 @@ export function flow({ onPick = null, linkKinds }) {
         redrawing = true;
         requestAnimationFrame(() => {
             redrawing = false;
-            if (last && !svgBox.hidden)
-                drawLines(last);
+            if (view && !svgBox.hidden)
+                drawLines(view);
         });
     };
     divider.addEventListener('pointerdown', (e) => {
@@ -240,10 +263,24 @@ export function flow({ onPick = null, linkKinds }) {
         draw();
     }
 
-    // A group of several devices offers a list to pick from
+    function setFocus(item) {
+        focus = item ? { ids: [item.id], label: item.title ?? item.label } : null;
+        find.value = '';
+        pop.hidden = true;
+        draw();
+    }
+
+    // A merged "more" entry opens everything; a group of several devices
+    // offers a list to pick from, and to show only what links through it
     function pick(item, evt) {
+        if (item.more) {
+            showAll = true;
+            settings.set('insights.flowAll', true);
+            draw();
+            return;
+        }
         const devs = item.members.filter((m) => m.kind === 'device');
-        if (devs.length === 1) {
+        if (devs.length === 1 && view?.focused) {
             onPick?.(devs[0].key);
             return;
         }
@@ -251,6 +288,10 @@ export function flow({ onPick = null, linkKinds }) {
             return;
         const r = node.getBoundingClientRect();
         pop.replaceChildren(...[el('div', { class: 'fl-pop-title' }, item.title ?? item.label),
+            view?.focused ? null : el('button', { type: 'button', class: 'link-button fl-pop-focus', onclick: (e) => {
+                e.stopPropagation();
+                setFocus(item);
+            } }, 'Show only what links through this'),
             ...devs.slice(0, 60).map((d) => el('button', { type: 'button', class: 'link-button', onclick: () => {
                 pop.hidden = true;
                 onPick?.(d.key);
@@ -377,7 +418,9 @@ export function flow({ onPick = null, linkKinds }) {
         settle(att, 'att', 'right');
         settle(seek, 'seek', 'left');
 
-        const svg = svgEl('svg', { viewBox: `0 0 ${drawnW} ${H}`, width: drawnW, height: H, class: `fl-svg${narrow ? ' narrow' : ''}` });
+        // many lines are drawn fainter, so where they bunch up reads as weight, not a solid block
+        const svg = svgEl('svg', { viewBox: `0 0 ${drawnW} ${H}`, width: drawnW, height: H,
+            class: ['fl-svg', narrow && 'narrow', r.edges.length > 60 && 'busy'].filter(Boolean).join(' ') });
         const linesG = svgEl('g');
         const nodesG = svgEl('g');
         svg.append(linesG, nodesG);
@@ -426,11 +469,20 @@ export function flow({ onPick = null, linkKinds }) {
 
         for (const n of names) {
             const p = at.get(n.id);
-            const g = svgEl('g', { class: ['fl-node', 'fl-name', n.sought && 'sought'].filter(Boolean).join(' ') });
+            const g = svgEl('g', { class: ['fl-node', 'fl-name', n.sought && 'sought', n.more && 'more'].filter(Boolean).join(' ') });
             const rr = narrow ? 8.5 : 11;
+            const tip = n.more ? `${n.label}: click to show them all` :
+                `${n.sought ? `${n.label}: looked for, not advertised here` : n.label}${r.focused ? '' : '\nClick to show only what links through it'}`;
             g.append(svgEl('rect', { x: colX.name, y: p.y - rr, width: colW.name, height: rr * 2, rx: rr }),
                 label(colX.name + textX.name, p.y + fs.main / 3, n.label, null, colW.name - textX.name * 2 + 2),
-                svgEl('title', {}, n.sought ? `${n.label}: looked for, not advertised here` : n.label));
+                svgEl('title', {}, tip));
+            g.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (n.more)
+                    pick(n, e);
+                else if (!r.focused)
+                    setFocus(n);
+            });
             nodesG.append(g);
         }
         for (const h of hubs) {
@@ -439,13 +491,13 @@ export function flow({ onPick = null, linkKinds }) {
             const cx = colX.hub + shapeX.hub;
             const room = colW.hub - textX.hub - 4;
             const [t1, t2] = hubText(h);
-            const g = svgEl('g', { class: 'fl-node fl-hub' });
+            const g = svgEl('g', { class: `fl-node fl-hub${h.more ? ' more' : ''}` });
             if (h.flags.length)
                 flagRing(g, cx, p.y, rad);
             g.append(svgEl('circle', { cx, cy: p.y, r: rad }),
                 label(colX.hub + textX.hub, p.y, t1, null, room),
                 label(colX.hub + textX.hub, p.y + fs.main, t2, 'fl-sub', room),
-                svgEl('title', {}, `${h.label}\n${h.members.map((m) => m.mac).join('\n')}`));
+                svgEl('title', {}, h.more ? `${h.label}: click to show them all` : `${h.label}\n${h.members.map((m) => m.mac).join('\n')}`));
             g.addEventListener('click', (e) => pick({ ...h, title: h.label }, e));
             nodesG.append(g);
         }
@@ -482,8 +534,9 @@ export function flow({ onPick = null, linkKinds }) {
     }
 
     function drawTable(r) {
-        const cols = [...r.names.filter((n) => !n.sought).map((n) => ({ id: n.id, label: n.label, item: n })),
-            ...r.attached.flatMap((g) => g.members.map((d) => ({ id: d.id, label: d.label, dev: d, kind: g.kind })))];
+        // merged "more" entries have no single address to put in a row or column
+        const cols = [...r.names.filter((n) => !n.sought && !n.more).map((n) => ({ id: n.id, label: n.label, item: n })),
+            ...r.attached.filter((g) => !g.more).flatMap((g) => g.members.map((d) => ({ id: d.id, label: d.label, dev: d, kind: g.kind })))];
         const seen = new Set();
         const uniq = cols.filter((c) => !seen.has(c.id) && seen.add(c.id));
         const has = (a, b) => linkKind.get(`${a.id}|${b.id}`);
@@ -491,7 +544,7 @@ export function flow({ onPick = null, linkKinds }) {
         table.append(el('thead', {}, el('tr', {}, el('th', { class: 'corner' }),
             ...uniq.map((c) => el('th', { title: c.label }, el('span', { class: c.dev ? 'dev' : 'name', onclick: () => c.dev && onPick?.(c.dev.key) }, c.label))))));
         const body = el('tbody');
-        for (const h of r.hubs) {
+        for (const h of r.hubs.filter((x) => !x.more)) {
             h.members.forEach((m, i) => {
                 body.append(el('tr', { class: i === 0 ? 'grp' : null },
                     el('th', { title: m.mac, onclick: () => onPick?.(m.key) }, i === 0 ? el('span', { class: 'fl-mx-hub' }, h.label) : null, el('span', { class: 'muted mono' }, m.mac ?? '')),
@@ -505,13 +558,45 @@ export function flow({ onPick = null, linkKinds }) {
         tableBox.replaceChildren(table);
     }
 
+    // The entries a search names: by their label, or an address or name of a device in them
+    function matching(text) {
+        const q = text.toLowerCase();
+        const hit = (s) => String(s ?? '').toLowerCase().includes(q);
+        return [...last.names, ...last.hubs, ...last.attached]
+            .filter((it) => hit(it.label) || (it.members ?? []).some((m) => hit(m.label) || hit(m.mac)))
+            .map((it) => it.id);
+    }
+
+    function showBar() {
+        const q = find.value.trim();
+        focusChip.hidden = !focus;
+        if (focus)
+            focusChip.replaceChildren(el('span', {}, `Only ${focus.label}`),
+                el('button', { type: 'button', class: 'link-button', 'aria-label': 'Show everything again', onclick: () => setFocus(null) }, '✕'));
+        const h = view.hidden;
+        const trimmed = h.hubs + h.names + h.sought > 0;
+        const busy = last.hubs.length > flowCaps.hubs || last.names.length > flowCaps.names;
+        allBtn.hidden = !!(focus || q) || !(trimmed || (showAll && busy));
+        allBtn.textContent = showAll ? 'Show the busiest' : 'Show all';
+        const names = last.names.length - h.names - h.sought;
+        trimNote.textContent = view.focused ? `${plural(view.hubs.length, 'access point', 'access points')}, ` +
+            `${plural(view.names.length, 'network', 'networks')}` :
+            trimmed ? `Busiest ${format.count(last.hubs.length - h.hubs)} of ${plural(last.hubs.length, 'access point', 'access points')}, ` +
+                `${format.count(names)} of ${plural(last.names.length, 'network', 'networks')}` : '';
+    }
+
     let linkKind = new Map();
+    let view = null;
     function draw() {
         if (!last)
             return;
-        const r = last;
+        const q = find.value.trim();
+        const seeds = focus ? focus.ids : q ? matching(q) : null;
+        const r = view = condense(last, { seeds, all: showAll });
+        showBar();
         if (!r.hubs.length && !r.names.length) {
-            svgBox.replaceChildren(el('p', { class: 'muted fl-empty' }, 'No relations among the devices heard in this time window yet.'));
+            svgBox.replaceChildren(el('p', { class: 'muted fl-empty' }, q ? `Nothing here matches “${q}”.` :
+                'No relations among the devices heard in this time window yet.'));
             tableBox.replaceChildren();
         } else {
             if (!svgBox.hidden)

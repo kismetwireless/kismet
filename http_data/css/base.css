@@ -1842,7 +1842,17 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
 .fl-svg.narrow .fl-hub circle:not(.fl-flag) { stroke-width: 1.8; }
 .fl-svg.narrow .fl-flag { stroke-width: 1.5; }
 .fl-line { fill: none; stroke-opacity: 0.55; stroke-linecap: round; }
-.fl-line:hover { stroke-opacity: 0.9; }
+.fl-svg.busy .fl-line { stroke-opacity: 0.3; }
+.fl-line:hover, .fl-svg.busy .fl-line:hover { stroke-opacity: 0.9; }
+.fl-find { flex: 0 1 18rem; min-width: 10rem; }
+.fl-focus { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.1rem 0.5rem; border-radius: 999px;
+    background: var(--accent-soft); border: 1px solid var(--accent); font-size: 0.88em; max-width: 20rem; }
+.fl-focus > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-trim { font-size: 0.85em; }
+.fl-name { cursor: pointer; }
+.fl-name:hover text { fill: var(--accent); }
+.fl-name.more rect, .fl-hub.more circle:not(.fl-flag) { stroke-dasharray: 2 3; }
+.fl-pop-focus { font-weight: 600; margin-bottom: 0.2rem; }
 .fl-name rect { fill: var(--surface-2); stroke: var(--border); }
 .fl-name.sought rect { fill: none; stroke-dasharray: 4 3; }
 .fl-name.sought text { fill: var(--muted); }
