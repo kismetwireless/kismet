@@ -77,8 +77,8 @@ typedef struct {
 #define PPI_GPS_MAGIC				0xCF
 
 #define PPI_GPS_FLAG_GPSFLAGS		1
-#define PPI_GPS_FLAG_LON			2
-#define PPI_GPS_FLAG_LAT			4
+#define PPI_GPS_FLAG_LAT			2
+#define PPI_GPS_FLAG_LON			4
 #define PPI_GPS_FLAG_ALT			8
 #define PPI_GPS_FLAG_ALT_G			16
 #define PPI_GPS_FLAG_GPSTIME		32
