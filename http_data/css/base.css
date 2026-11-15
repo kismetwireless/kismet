@@ -167,11 +167,14 @@ input:focus, select:focus, button:focus-visible {
 .censored .df-edit input, .censored .df-edit textarea { -webkit-text-security: disc; }
 .map-censored { padding: 2rem; text-align: center; }
 
+/* The Kismet logo, colored by connection state */
 .connection {
-    width: 0.6em;
-    height: 0.6em;
-    border-radius: 50%;
+    width: 1.3em;
+    height: 1.3em;
+    flex: none;
     background: var(--error);
+    -webkit-mask: url(../icons/logo.svg) center / contain no-repeat;
+    mask: url(../icons/logo.svg) center / contain no-repeat;
 }
 .connection.up { background: var(--ok); }
 

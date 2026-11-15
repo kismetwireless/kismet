@@ -19,7 +19,7 @@ const metaKey = new URL('__kismet_cache__', scope).href;
 const shellPrefixes = ['css/', 'js/', 'vendor/', 'icons/'];
 const shellFiles = ['', 'index.html', 'manifest.webmanifest'];
 const precache = ['./', 'index.html', 'manifest.webmanifest', 'css/themes.css', 'css/base.css', 'js/main.js',
-    'icons/icon.svg', 'icons/icon-192.png'];
+    'icons/icon.svg', 'icons/icon-192.png', 'icons/logo.svg'];
 
 function isShell(url) {
     if (url.origin !== scope.origin || !url.pathname.startsWith(scope.pathname) || url.search)
