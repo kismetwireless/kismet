@@ -27,26 +27,7 @@
 #include "phy_cell_decisions.h"
 #include "version.h"
 #include "wiglecsv_crypt.h"
-
-// Aggressive additional mangle of text to handle converting ',' and '"' to
-// hexcode for CSV
-std::string munge_for_csv(const std::string& in_data) {
-	std::string ret;
-
-	for (size_t i = 0; i < in_data.length(); i++) {
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126 &&
-				in_data[i] != ',' && in_data[i] != '\"' ) {
-			ret += in_data[i];
-		} else {
-			ret += '\\';
-			ret += ((in_data[i] >> 6) & 0x03) + '0';
-			ret += ((in_data[i] >> 3) & 0x07) + '0';
-			ret += ((in_data[i] >> 0) & 0x07) + '0';
-		}
-	}
-
-	return ret;
-}
+#include "wiglecsv_field.h"
 
 int frequency_to_wifi_channel(double in_freq) {
     if (in_freq == 0)
@@ -175,7 +156,7 @@ void kis_wiglecsv_logfile::print_wifi_row(const std::shared_ptr<kis_tracked_devi
         auto last_ssid = last_ssid_a->get_as<dot11_advertised_ssid>();
 
         if (last_ssid != nullptr) {
-            name = munge_for_csv(last_ssid->get_ssid());
+            name = wiglecsv_munge(last_ssid->get_ssid());
             crypt = wiglecsv_crypt_string(last_ssid->get_crypt_set());
         }
 
@@ -334,7 +315,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
             return 1;
 
         auto timestamp = dev->get_first_time();
-        auto name = munge_for_csv(dev->get_commonname());
+        auto name = wiglecsv_munge(dev->get_commonname());
         auto crypt = std::string("");
 
         std::time_t timet(timestamp);
@@ -387,7 +368,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
             return 1;
 
         auto timestamp = dev->get_first_time();
-        auto name = munge_for_csv(dev->get_commonname());
+        auto name = wiglecsv_munge(dev->get_commonname());
 
         std::time_t timet(timestamp);
         std::tm tm;
@@ -477,9 +458,9 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         //   [RCOIs],[MfgrId],[Type]
         // Cells leave Channel blank and give the ARFCN as the frequency
         fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
-                munge_for_csv(emit_key),
-                munge_for_csv(emit_operator),
-                munge_for_csv(authmode),
+                wiglecsv_munge(emit_key),
+                wiglecsv_munge(emit_operator),
+                wiglecsv_munge(authmode),
                 ts.str(),
                 "",
                 (uint32_t) cell->get_cell_arfcn(),
@@ -488,7 +469,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
                 0,
                 "",
                 "",
-                munge_for_csv(cell->get_cell_rat()));
+                wiglecsv_munge(cell->get_cell_rat()));
     } else {
         // No WiGLE record type for this phy
         return 1;

@@ -48,6 +48,7 @@
 #include "phy_cell_decisions.h"
 #include "version.h"
 #include "wiglecsv_crypt.h"
+#include "wiglecsv_field.h"
 
 #ifdef HAVE_LIBPCRE1
 #include <pcre.h>
@@ -57,26 +58,6 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
 #endif
-
-// Aggressive additional mangle of text to handle converting ',' and '"' to
-// hexcode for CSV
-std::string MungeForCSV(const std::string& in_data) {
-	std::string ret;
-
-	for (size_t i = 0; i < in_data.length(); i++) {
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126 &&
-				in_data[i] != ',' && in_data[i] != '\"' ) {
-			ret += in_data[i];
-		} else {
-			ret += '\\';
-			ret += ((in_data[i] >> 6) & 0x03) + '0';
-			ret += ((in_data[i] >> 3) & 0x07) + '0';
-			ret += ((in_data[i] >> 0) & 0x07) + '0';
-		}
-	}
-
-	return ret;
-}
 
 // Some conversion functions from Kismet for Wi-Fi channels
 int FrequencyToWifiChannel(double in_freq) {
@@ -566,17 +547,17 @@ int main(int argc, char *argv[]) {
             return nullptr;
 
         if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
-            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
+            name = wiglecsv_munge(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
         } else if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].is_null()) {
-            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
+            name = wiglecsv_munge(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
         } else {
             name = "";
         }
 
         if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
-            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
+            name = wiglecsv_munge(json["dot11.device"]["dot11.device.last_beaconed_ssid"]);
         } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].is_string()) {
-            name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
+            name = wiglecsv_munge(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"]);
         } else {
             name = "";
         }
@@ -690,6 +671,11 @@ int main(int argc, char *argv[]) {
             auto devmac = sqlite3_column_as<std::string>(h, 0);
             auto record = sqlite3_column_as<std::string>(h, 1);
 
+            // MACs are written to the CSV as they are, so a damaged or crafted log
+            // can't be allowed to add fields or rows
+            if (!wiglecsv_valid_mac(devmac))
+                continue;
+
             if (record.find("dot11.device.mbssid_transmitter") == std::string::npos)
                 continue;
 
@@ -762,6 +748,9 @@ int main(int argc, char *argv[]) {
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
         auto sourcemac = sqlite3_column_as<std::string>(p, 1);
         auto phy = sqlite3_column_as<std::string>(p, 2);
+
+        if (!wiglecsv_valid_mac(sourcemac))
+            continue;
 
         double lat = 0, lon = 0, alt = 0;
 
@@ -968,6 +957,9 @@ int main(int argc, char *argv[]) {
             auto sourcemac = sqlite3_column_as<std::string>(p, 1);
             auto phy = sqlite3_column_as<std::string>(p, 2);
 
+            if (!wiglecsv_valid_mac(sourcemac))
+                continue;
+
             double lat = 0, lon = 0, alt = 0;
             auto signal = 0;
 
@@ -1015,7 +1007,7 @@ int main(int argc, char *argv[]) {
 
                     auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
                     auto type = json["kismet.device.base.type"].get<std::string>();
-                    auto name = MungeForCSV(json["kismet.device.base.commonname"]);
+                    auto name = wiglecsv_munge(json["kismet.device.base.commonname"]);
 
                     if (name == sourcemac)
                         name = "";
@@ -1293,7 +1285,7 @@ int main(int argc, char *argv[]) {
                 // WiGLE v1.6 CSV row
                 fmt::print(ofile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
                         cell_key,
-                        MungeForCSV(oper),
+                        wiglecsv_munge(oper),
                         authmode,
                         tmstr,
                         "",  // channel: blank for cells, the ARFCN is the frequency
