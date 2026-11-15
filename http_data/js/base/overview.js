@@ -146,7 +146,8 @@ export function register(kismet) {
         create(body) {
             const rate = stat('packets per second');
             const tabs = spanTabs('packets', () => draw());
-            const graph = historyGraph({ type: 'bar', unit: 'packets/s', height: null, minBar: true });
+            // No unit on the axis, as on New devices: the card is narrow
+            const graph = historyGraph({ type: 'bar', unit: '', height: null, minBar: true });
             const problems = el('div', { class: 'muted ov-note' });
             body.append(rate.node, tabs.node, graph.node, problems);
             let last = null;
