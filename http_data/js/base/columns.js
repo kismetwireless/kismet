@@ -66,8 +66,12 @@ export function register(kismet) {
         fields: [`${base}.channel`, `${base}.frequency`],
         sortField: `${base}.channel`,
         render: (row) => {
-            if (row[`${base}.channel`])
-                return row[`${base}.channel`];
+            const channel = row[`${base}.channel`];
+            // A channel that's only a frequency takes a phy's name for it, such as AIS
+            if (channel && row[`${base}.frequency`] && kismet.widgets.coverage.isFrequencyChannel(channel))
+                return kismet.widgets.coverage.frequencyLabel(row[`${base}.frequency`], channel);
+            if (channel)
+                return channel;
             if (row[`${base}.frequency`])
                 return format.frequency(row[`${base}.frequency`]);
             return dom.el('i', { class: 'muted' }, 'n/a');
