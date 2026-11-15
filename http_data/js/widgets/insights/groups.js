@@ -7,6 +7,8 @@
 //   const r = gather(graph, findings);
 //   r.names, r.hubs, r.attached, r.seekers   lists of items, each { id, label, members, ... }
 //   r.edges        [{ from, to, kind, count }] between items of neighboring columns
+//
+//   condense(r, { seeds, all })   the same, trimmed for drawing a busy area
 
 const shortManuf = (m) => (m ?? '').replace(/\(.*?\)|,|\b(Inc|Ltd|LLC|Co|Corp|Corporation|Limited|Technologies|Technology|Electronics)\b\.?/gi, '')
     .trim().split(/\s+/).slice(0, 2).join(' ');
@@ -138,5 +140,120 @@ export function gather(graph, findings = []) {
         edges: [...edges.values()],
         flagged,
         quietHubs: (graph.units ?? []).filter((u) => u.members.some((m) => m.role === 'ap') && !hubs.has(u)),
+    };
+}
+
+// How many of each column a busy area shows before the rest are merged
+export const flowCaps = { hubs: 25, names: 30, sought: 10 };
+
+// A gathered graph trimmed for drawing.  With seeds (item ids), only what
+// links through them: everything reached from a seed going right, and going
+// left.  Otherwise, unless all is set, a column over its cap keeps its
+// busiest entries and every one with a finding, and the rest of it becomes
+// one "more" entry carrying their links.  hidden counts what was merged.
+export function condense(r, { seeds = null, all = false } = {}) {
+    const hidden = { hubs: 0, names: 0, sought: 0, total: { hubs: r.hubs.length, names: r.names.length } };
+    if (seeds) {
+        const right = new Map(), left = new Map();
+        for (const e of r.edges) {
+            right.set(e.from.id, [...(right.get(e.from.id) ?? []), e.to]);
+            left.set(e.to.id, [...(left.get(e.to.id) ?? []), e.from]);
+        }
+        const keep = new Set(seeds);
+        for (const way of [right, left]) {
+            const stack = [...seeds];
+            const seen = new Set(seeds);
+            while (stack.length) {
+                for (const next of way.get(stack.pop()) ?? []) {
+                    if (seen.has(next.id))
+                        continue;
+                    seen.add(next.id);
+                    keep.add(next.id);
+                    stack.push(next.id);
+                }
+            }
+        }
+        const has = (it) => keep.has(it.id);
+        return { ...r, names: r.names.filter(has), hubs: r.hubs.filter(has), attached: r.attached.filter(has),
+            seekers: r.seekers.filter(has), edges: r.edges.filter((e) => has(e.from) && has(e.to)), hidden, focused: true };
+    }
+    if (all)
+        return { ...r, hidden };
+
+    // How much flows through an item, with a finding first
+    const weight = new Map();
+    for (const e of r.edges)
+        for (const it of [e.from, e.to])
+            weight.set(it.id, (weight.get(it.id) ?? 0) + e.count);
+    const rank = (list) => [...list].sort((a, b) => (b.flags?.length ? 1 : 0) - (a.flags?.length ? 1 : 0) ||
+        (weight.get(b.id) ?? 0) - (weight.get(a.id) ?? 0));
+    const top = (list, cap) => {
+        if (list.length <= cap)
+            return [list, []];
+        const sorted = rank(list);
+        const kept = new Set(sorted.filter((it, i) => i < cap || it.flags?.length));
+        return [list.filter((it) => kept.has(it)), list.filter((it) => !kept.has(it))];
+    };
+
+    const into = new Map();
+    const merge = (rest, item) => {
+        if (!rest.length)
+            return null;
+        item.members = rest.flatMap((it) => it.members);
+        for (const it of rest)
+            into.set(it.id, item);
+        return item;
+    };
+    const plural = (n, one, many) => `${n.toLocaleString()} more ${n === 1 ? one : many}`;
+
+    const [hubs, hubRest] = top(r.hubs, flowCaps.hubs);
+    hidden.hubs = hubRest.length;
+    const moreHub = merge(hubRest, { id: 'more:hub', more: true, label: plural(hubRest.length, 'access point', 'access points'),
+        parts: { short: `${hubRest.length.toLocaleString()} more`, maker: 'access points', named: true },
+        channels: [], names: new Set(), flags: [] });
+
+    const [sought, soughtRest] = top(r.names.filter((n) => n.sought), flowCaps.sought);
+    const [named, namedRest] = top(r.names.filter((n) => !n.sought), Math.max(1, flowCaps.names - sought.length));
+    hidden.names = namedRest.length;
+    hidden.sought = soughtRest.length;
+    const moreName = merge(namedRest, { id: 'more:name', more: true, sought: false,
+        label: plural(namedRest.length, 'network', 'networks') });
+    const moreSought = merge(soughtRest, { id: 'more:sought', more: true, sought: true,
+        label: plural(soughtRest.length, 'name looked for', 'names looked for') });
+
+    // A merged access point's own devices go with it, one group per kind
+    const attached = [];
+    const moreAtt = new Map();
+    const hubOfGroup = new Map(r.edges.filter((e) => e.from.id.startsWith('hub:')).map((e) => [e.to, e.from]));
+    for (const g of r.attached) {
+        const hub = hubOfGroup.get(g);
+        if (!g.shared && hub && into.has(hub.id)) {
+            if (!moreAtt.has(g.kind))
+                moreAtt.set(g.kind, { id: `more:att:${g.kind}`, kind: g.kind, more: true, shared: false, members: [], flags: [] });
+            const m = moreAtt.get(g.kind);
+            m.members.push(...g.members);
+            into.set(g.id, m);
+        } else {
+            attached.push(g);
+        }
+    }
+
+    // Links into merged entries become one link per pair and kind
+    const edges = new Map();
+    for (const e of r.edges) {
+        const from = into.get(e.from.id) ?? e.from;
+        const to = into.get(e.to.id) ?? e.to;
+        const id = `${from.id}|${to.id}|${e.kind}`;
+        const x = edges.get(id) ?? { from, to, kind: e.kind, count: 0 };
+        x.count += e.count;
+        edges.set(id, x);
+    }
+    return {
+        ...r,
+        names: [...named, ...(moreName ? [moreName] : []), ...sought, ...(moreSought ? [moreSought] : [])],
+        hubs: [...hubs, ...(moreHub ? [moreHub] : [])],
+        attached: [...attached, ...moreAtt.values()],
+        edges: [...edges.values()],
+        hidden,
     };
 }
