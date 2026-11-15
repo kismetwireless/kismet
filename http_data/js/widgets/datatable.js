@@ -22,6 +22,7 @@
 //       noun: 'SSIDs',
 //       query,                         // optional; the search box's filters (below)
 //       pausable: true,                // optional; a button to stop the updates
+//       countIn: () => ...,            // optional; a wider list to count the search's matches in too
 //   });
 //
 // endpoint is any Kismet list that pages like the device views (page,
@@ -32,6 +33,13 @@
 // query(text) turns the search box into { search } or, for the device views,
 // a device rules { filter, sort } (see js/core/filterquery.js); it throws an
 // error with a pos for text it can't use.
+//
+// countIn() gives { endpoint, label, open } for a list the search's matches
+// are counted in as well (all devices, while the device list shows a smaller
+// view), or null for none; open() switches to that list.  Searching a whole
+// list costs the server about as much as the search itself (about 45 ms for
+// 20,000 devices), so the count is fetched again only every countSeconds, or
+// when the search or the list changes.
 
 import { el, debounce } from '../core/dom.js';
 import * as shortener from '../core/shorten.js';
@@ -98,6 +106,8 @@ export function createDataTable(container, {
     query = null,
     searchHelp = null,
     pausable = false,
+    countIn = null,
+    countSeconds = 10,
 }) {
     const firstSortable = columns.list().find((c) => c.sortField);
     const state = {
@@ -120,6 +130,9 @@ export function createDataTable(container, {
         editing: false,
         snapshot: null,
         paused: false,
+        // The search's matches in countIn's list, for the search key
+        other: { key: null, count: null, at: 0, busy: false },
+        info: [0, 0],
     };
 
     // An empty box (deleted, or cleared with its clear button, which only
@@ -169,6 +182,8 @@ export function createDataTable(container, {
     }
 
     const countInfo = el('span', { class: 'count-info' });
+    const otherInfo = el('button', { class: 'link-button count-other', hidden: true,
+        onclick: () => (searching() ? countIn?.() : null)?.open?.() });
 
     const helpButton = query && searchHelp ? el('button', { class: 'icon-button', title: 'Search and filter help',
         'aria-label': 'Search and filter help', onclick: () => searchHelp() }, icon('help')) : null;
@@ -683,8 +698,54 @@ export function createDataTable(container, {
 
     const searching = () => !!(state.search || state.filter?.filter);
 
+    const searchKey = (target) => JSON.stringify([target.endpoint, state.search, state.filter?.filter ?? '']);
+
+    // The matches in countIn's list, when it has one and the count is for
+    // the current search
+    function otherCount() {
+        const target = searching() ? countIn?.() : null;
+        return target && state.other.count !== null && state.other.key === searchKey(target) ?
+            { target, count: state.other.count } : null;
+    }
+
+    async function countOther() {
+        const target = searching() ? countIn?.() : null;
+        if (!target || state.other.busy)
+            return;
+        const key = searchKey(target);
+        if (key === state.other.key && Date.now() - state.other.at < countSeconds * 1000)
+            return;
+        state.other.busy = true;
+        let count = null;
+        try {
+            // Only the count: one row, unsorted
+            const result = await api.post(target.endpoint, { fields: wantedFields() }, {
+                page: 0, length: 1,
+                search: state.search || undefined,
+                filter: state.filter?.filter || undefined,
+            });
+            count = result.last_row ?? 0;
+        } catch {
+            count = null;
+        }
+        state.other = { key, count, at: Date.now(), busy: false };
+        updateInfo(...state.info);
+        // The search changed while this one ran
+        const now = searching() ? countIn?.() : null;
+        if (now && searchKey(now) !== key)
+            countOther();
+    }
+
     function updateInfo(first, last) {
+        state.info = [first, last];
         const total = rows.total;
+        const other = otherCount();
+        otherInfo.hidden = !other || total === null;
+        if (other) {
+            otherInfo.textContent = `${other.count.toLocaleString()} in ${other.target.label}`;
+            otherInfo.title = other.target.open ? `Show the matches in ${other.target.label}` : '';
+            otherInfo.disabled = !other.target.open;
+        }
         if (total === null) {
             countInfo.textContent = '';
         } else if (total === 0) {
@@ -702,12 +763,15 @@ export function createDataTable(container, {
         if (state.error && rows.total === null)
             text = `Could not load ${noun}: ${state.error.message}`;
         else if (total === 0)
-            text = searching() ? `No ${noun} match the search` : (emptyText ?? `No ${noun} yet`);
+            text = searching() ? `No ${noun} match the search` +
+                (other?.count ? `; ${other.count.toLocaleString()} in ${other.target.label}` : '') :
+                (emptyText ?? `No ${noun} yet`);
         message.textContent = text;
         message.hidden = text === '';
     }
 
     async function loadPage(page, size, signal) {
+        countOther();
         const sortColumn = columns.get(state.sort.column);
         const vars = {
             page,
@@ -864,6 +928,7 @@ export function createDataTable(container, {
         queryError,
         el('div', { class: 'spacer' }),
         countInfo,
+        otherInfo,
         editButton].filter(Boolean));
 
     buildHeader();

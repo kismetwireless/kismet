@@ -293,6 +293,8 @@ input:focus, select:focus, button:focus-visible {
 .search-box:has(input[aria-invalid]) { border-color: var(--error); }
 .search-error { color: var(--error); font-size: 0.85em; }
 .count-info { color: var(--muted); font-variant-numeric: tabular-nums; }
+.count-other { font-variant-numeric: tabular-nums; }
+.count-other:disabled { color: var(--muted); text-decoration: none; cursor: default; }
 .pause-button.paused { color: var(--accent); background: var(--accent-soft); }
 .data-table th .th-variant { padding: 0 0.1em; margin-left: 0.1em; }
 .data-table th .th-variant .icon { margin-left: 0; }
