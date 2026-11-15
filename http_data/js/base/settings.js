@@ -1,5 +1,5 @@
-// The standard settings sections: appearance, units and the ribbon.  Device list
-// columns and row highlights are edited on the list itself.
+// The standard settings sections: appearance, units, the device list and the
+// ribbon.  Device list columns and row highlights are edited on the list itself.
 
 export function register(kismet) {
     const { ui, settings, theme, dom, shorten } = kismet;
@@ -88,6 +88,19 @@ export function register(kismet) {
                 el('h4', {}, 'Temperature'),
                 choice('units-temperature', kismet.format.temperatureUnits, kismet.format.temperatureUnits.find((u) =>
                     u.id === settings.get('units.temperature'))?.id ?? 'c', (id) => settings.set('units.temperature', id)));
+        },
+    });
+
+    ui.settingsPanes.add({
+        id: 'devicelist', title: 'Device list', priority: 4,
+        create(body) {
+            body.append(el('h4', {}, 'Searching'),
+                el('label', { class: 'check-item' },
+                    el('input', { type: 'checkbox', checked: settings.get('devicelist.countAll', true),
+                        onchange: (e) => settings.set('devicelist.countAll', e.target.checked) }),
+                    'Count matches in all devices',
+                    el('span', { class: 'muted' }, ' - a search in a smaller view also shows how many devices ' +
+                        'match in all devices; the server runs the search a second time for it, every 10 seconds')));
         },
     });
 

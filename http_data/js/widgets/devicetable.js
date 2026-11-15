@@ -146,6 +146,18 @@ export function createDeviceTable(container) {
         noun: 'devices',
         toolbar: () => viewSelect,
         pausable: true,
+        // A search in a smaller view counts its matches in all devices too,
+        // unless turned off in the settings
+        countIn: () => (view === 'all' || !settings.get('devicelist.countAll', true) ? null : {
+            endpoint: 'devices/views/all/devices.json',
+            label: 'all devices',
+            open: () => {
+                view = 'all';
+                settings.set('devicelist.view', view);
+                viewSelect.value = view;
+                table.restart(true);
+            },
+        }),
         // Filters in the search box name the device list's columns, search fields and hints
         query: (text) => compileQuery(text, fieldContext(deviceColumns.list(), searchFields.list(),
             filterHints.list(), serverPhys)),
@@ -190,6 +202,11 @@ export function createDeviceTable(container) {
             loadViews();
         }
         table.restart(true);
+    });
+    // Show or drop the count of matches in all devices
+    settings.watch('devicelist.countAll', () => {
+        table.draw();
+        table.refresh();
     });
     // Views come and go with datasources and phys
     setInterval(() => {
