@@ -764,7 +764,7 @@ export function openCoverage({ view: startView = null } = {}) {
         const font = 11 * ratio;
         ctx.font = `${font}px system-ui, sans-serif`;
 
-        const { left, right, plotW, segments, x, list } = layout(W, ratio);
+        const { left, plotW, segments, x, list } = layout(W, ratio);
         const lanes = sourceLanes();
 
         // Two areas, top to bottom; the sources are in their own strip below

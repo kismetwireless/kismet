@@ -2,7 +2,6 @@
 // Bluetooth traffic, DJI DroneID, or Open Drone ID / Remote ID broadcasts.
 // They're Wi-Fi or Bluetooth devices with an extra 'uav.device' record.
 
-const base = 'kismet.device.base';
 const uav = 'uav.device';
 const rid = `${uav}/uav.remoteid/uav.remoteid`;
 
