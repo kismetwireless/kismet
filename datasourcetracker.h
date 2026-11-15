@@ -418,8 +418,9 @@ public:
     // Access the defaults
     std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
-    // Merge a source into the source list, preserving UUID and source number
-    virtual void merge_source(shared_datasource in_source);
+    // Merge a source into the source list, preserving UUID and source number.  Returns false,
+    // and closes the source, if another source already has its UUID
+    virtual bool merge_source(shared_datasource in_source);
 
     // Remote capture info
     bool remote_enabled() const {
