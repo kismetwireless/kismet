@@ -8,7 +8,7 @@
 //   r.names, r.hubs, r.attached, r.seekers   lists of items, each { id, label, members, ... }
 //   r.edges        [{ from, to, kind, count }] between items of neighboring columns
 //
-//   condense(r, { seeds, all })   the same, trimmed for drawing a busy area
+//   condense(r, { seeds, all, page, caps })   the same, trimmed for drawing a busy area
 
 const shortManuf = (m) => (m ?? '').replace(/\(.*?\)|,|\b(Inc|Ltd|LLC|Co|Corp|Corporation|Limited|Technologies|Technology|Electronics)\b\.?/gi, '')
     .trim().split(/\s+/).slice(0, 2).join(' ');
@@ -143,16 +143,22 @@ export function gather(graph, findings = []) {
     };
 }
 
-// How many of each column a busy area shows before the rest are merged
-export const flowCaps = { hubs: 25, names: 30, sought: 10 };
+// How many of each column a busy area shows before the rest are merged, and
+// how many a page of an opened column holds
+export const flowCaps = {
+    wide: { hubs: 15, names: 20, sought: 8, att: 20, page: 30 },
+    narrow: { hubs: 8, names: 10, sought: 4, att: 10, page: 15 },
+};
 
 // A gathered graph trimmed for drawing.  With seeds (item ids), only what
 // links through them: everything reached from a seed going right, and going
-// left.  Otherwise, unless all is set, a column over its cap keeps its
-// busiest entries and every one with a finding, and the rest of it becomes
-// one "more" entry carrying their links.  hidden counts what was merged.
-export function condense(r, { seeds = null, all = false } = {}) {
-    const hidden = { hubs: 0, names: 0, sought: 0, total: { hubs: r.hubs.length, names: r.names.length } };
+// left.  Then, unless all is set, a column over its cap keeps its busiest
+// entries and every one with a finding, and the rest of it becomes one "more"
+// entry carrying their links.  page ({ col, n }, col one of 'hubs', 'names',
+// 'sought') shows that column a page at a time instead, busiest first; each
+// "more" entry names its column in opens.  hidden counts what was merged.
+export function condense(r, { seeds = null, all = false, page = null, caps = flowCaps.wide } = {}) {
+    let focused = false;
     if (seeds) {
         const right = new Map(), left = new Map();
         for (const e of r.edges) {
@@ -174,11 +180,14 @@ export function condense(r, { seeds = null, all = false } = {}) {
             }
         }
         const has = (it) => keep.has(it.id);
-        return { ...r, names: r.names.filter(has), hubs: r.hubs.filter(has), attached: r.attached.filter(has),
-            seekers: r.seekers.filter(has), edges: r.edges.filter((e) => has(e.from) && has(e.to)), hidden, focused: true };
+        r = { ...r, names: r.names.filter(has), hubs: r.hubs.filter(has), attached: r.attached.filter(has),
+            seekers: r.seekers.filter(has), edges: r.edges.filter((e) => has(e.from) && has(e.to)) };
+        focused = true;
     }
+    const hidden = { hubs: 0, names: 0, sought: 0, att: 0, page: null,
+        total: { hubs: r.hubs.length, names: r.names.length } };
     if (all)
-        return { ...r, hidden };
+        return { ...r, hidden, focused };
 
     // How much flows through an item, with a finding first
     const weight = new Map();
@@ -187,11 +196,19 @@ export function condense(r, { seeds = null, all = false } = {}) {
             weight.set(it.id, (weight.get(it.id) ?? 0) + e.count);
     const rank = (list) => [...list].sort((a, b) => (b.flags?.length ? 1 : 0) - (a.flags?.length ? 1 : 0) ||
         (weight.get(b.id) ?? 0) - (weight.get(a.id) ?? 0));
-    const top = (list, cap) => {
-        if (list.length <= cap)
-            return [list, []];
-        const sorted = rank(list);
-        const kept = new Set(sorted.filter((it, i) => i < cap || it.flags?.length));
+    const top = (list, cap, col = null) => {
+        let kept;
+        if (col && page?.col === col && list.length) {
+            const pages = Math.ceil(list.length / caps.page);
+            const n = ((page.n % pages) + pages) % pages;
+            const from = n * caps.page;
+            kept = new Set(rank(list).slice(from, from + caps.page));
+            hidden.page = { col, n, from: from + 1, to: from + kept.size, total: list.length };
+        } else {
+            if (list.length <= cap)
+                return [list, []];
+            kept = new Set(rank(list).filter((it, i) => i < cap || it.flags?.length));
+        }
         return [list.filter((it) => kept.has(it)), list.filter((it) => !kept.has(it))];
     };
 
@@ -206,37 +223,45 @@ export function condense(r, { seeds = null, all = false } = {}) {
     };
     const plural = (n, one, many) => `${n.toLocaleString()} more ${n === 1 ? one : many}`;
 
-    const [hubs, hubRest] = top(r.hubs, flowCaps.hubs);
+    const [hubs, hubRest] = top(r.hubs, caps.hubs, 'hubs');
     hidden.hubs = hubRest.length;
-    const moreHub = merge(hubRest, { id: 'more:hub', more: true, label: plural(hubRest.length, 'access point', 'access points'),
+    const moreHub = merge(hubRest, { id: 'more:hub', more: true, opens: 'hubs', label: plural(hubRest.length, 'access point', 'access points'),
         parts: { short: `${hubRest.length.toLocaleString()} more`, maker: 'access points', named: true },
         channels: [], names: new Set(), flags: [] });
 
-    const [sought, soughtRest] = top(r.names.filter((n) => n.sought), flowCaps.sought);
-    const [named, namedRest] = top(r.names.filter((n) => !n.sought), Math.max(1, flowCaps.names - sought.length));
+    // networks and names looked for share a column, so paging one folds the other away
+    const [sought, soughtRest] = top(r.names.filter((n) => n.sought), page?.col === 'names' ? 0 : caps.sought, 'sought');
+    const [named, namedRest] = top(r.names.filter((n) => !n.sought),
+        page?.col === 'sought' ? 0 : Math.max(1, caps.names - Math.min(sought.length, caps.sought)), 'names');
     hidden.names = namedRest.length;
     hidden.sought = soughtRest.length;
-    const moreName = merge(namedRest, { id: 'more:name', more: true, sought: false,
+    const moreName = merge(namedRest, { id: 'more:name', more: true, opens: 'names', sought: false,
         label: plural(namedRest.length, 'network', 'networks') });
-    const moreSought = merge(soughtRest, { id: 'more:sought', more: true, sought: true,
+    const moreSought = merge(soughtRest, { id: 'more:sought', more: true, opens: 'sought', sought: true,
         label: plural(soughtRest.length, 'name looked for', 'names looked for') });
 
-    // A merged access point's own devices go with it, one group per kind
-    const attached = [];
+    // A merged access point's own devices go with it, and past the cap the
+    // smaller groups merge too, one "more" entry per kind
     const moreAtt = new Map();
+    const mergeAtt = (g) => {
+        if (!moreAtt.has(g.kind))
+            moreAtt.set(g.kind, { id: `more:att:${g.kind}`, kind: g.kind, more: true, shared: false, members: [], flags: [] });
+        const m = moreAtt.get(g.kind);
+        m.members.push(...g.members);
+        into.set(g.id, m);
+        hidden.att++;
+    };
     const hubOfGroup = new Map(r.edges.filter((e) => e.from.id.startsWith('hub:')).map((e) => [e.to, e.from]));
+    const shown = [];
     for (const g of r.attached) {
         const hub = hubOfGroup.get(g);
-        if (!g.shared && hub && into.has(hub.id)) {
-            if (!moreAtt.has(g.kind))
-                moreAtt.set(g.kind, { id: `more:att:${g.kind}`, kind: g.kind, more: true, shared: false, members: [], flags: [] });
-            const m = moreAtt.get(g.kind);
-            m.members.push(...g.members);
-            into.set(g.id, m);
-        } else {
-            attached.push(g);
-        }
+        if (!g.shared && hub && into.has(hub.id))
+            mergeAtt(g);
+        else
+            shown.push(g);
     }
+    const [attached, attRest] = top(shown, page?.col === 'hubs' ? caps.page : caps.att);
+    attRest.forEach(mergeAtt);
 
     // Links into merged entries become one link per pair and kind
     const edges = new Map();
@@ -255,5 +280,6 @@ export function condense(r, { seeds = null, all = false } = {}) {
         attached: [...attached, ...moreAtt.values()],
         edges: [...edges.values()],
         hidden,
+        focused,
     };
 }
