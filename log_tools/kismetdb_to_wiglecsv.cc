@@ -667,6 +667,9 @@ int main(int argc, char *argv[]) {
     // Only Wi-Fi is exported from the packets table here; BTLE from sniffers is exported with
     // the Bluetooth records below, and the other phys have no WiGLE record type
     query.append_where(AND, _WHERE("phyname", EQ, "IEEE802.11"));
+    // Oldest first, so the rate limit sees each device's packets in time order; with several
+    // sources the table isn't, and a row older than the device's last one would be dropped
+    query.append_clause(ORDERBY, "ts_sec");
 
     auto bt_query = _SELECT(db, "data", bt_fields,
             _WHERE("lat", NEQ, 0, AND, "lon", NEQ, 0));
