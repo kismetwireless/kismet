@@ -669,7 +669,7 @@ int main(int argc, char *argv[]) {
     query.append_where(AND, _WHERE("phyname", EQ, "IEEE802.11"));
     // Oldest first, so the rate limit sees each device's packets in time order; with several
     // sources the table isn't, and a row older than the device's last one would be dropped
-    query.append_clause(ORDERBY, "ts_sec");
+    query.append_clause(ORDERBY, "ts_sec, ts_usec");
 
     auto bt_query = _SELECT(db, "data", bt_fields,
             _WHERE("lat", NEQ, 0, AND, "lon", NEQ, 0));
@@ -923,8 +923,8 @@ int main(int argc, char *argv[]) {
         // Both oldest first and merged, so the rate limit sees each device's sightings in
         // time order; one source read after the other would drop every sniffer row older
         // than the device's last scan report
-        bt_query.append_clause(ORDERBY, "ts_sec");
-        btle_packet_query.append_clause(ORDERBY, "ts_sec");
+        bt_query.append_clause(ORDERBY, "ts_sec, ts_usec");
+        btle_packet_query.append_clause(ORDERBY, "ts_sec, ts_usec");
 
         auto data_i = bt_query.begin();
         auto packet_i = btle_packet_query.begin();
