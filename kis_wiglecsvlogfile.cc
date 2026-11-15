@@ -459,7 +459,7 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
         // Cells leave Channel blank and give the ARFCN as the frequency
         fmt::print(wigle->csvfile, "{},{},{},{},{},{},{},{:3.6f},{:3.6f},{:f},{},{},{},{}\n",
                 wiglecsv_munge(emit_key),
-                wiglecsv_munge(emit_operator),
+                wiglecsv_munge(emit_operator, true),
                 wiglecsv_munge(authmode),
                 ts.str(),
                 "",

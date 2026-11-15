@@ -26,7 +26,11 @@
 // Fields aren't quoted, so ',' and '"' and non-printable bytes are written as \ooo octal.
 // A leading '=', '+', '-' or '@' is escaped the same way, so a spreadsheet opening the
 // file doesn't read the field as a formula.
-inline std::string wiglecsv_munge(const std::string& in_data) {
+//
+// SSIDs and Bluetooth names are stored with '\' already written as "\\"; text stored as it
+// arrived, such as a cell operator name, sets raw_text so a '\' is written the same way and
+// can't be read as one of the escapes.
+inline std::string wiglecsv_munge(const std::string& in_data, bool raw_text = false) {
     std::string ret;
 
     ret.reserve(in_data.length());
@@ -36,7 +40,9 @@ inline std::string wiglecsv_munge(const std::string& in_data) {
 
         const bool formula = i == 0 && (c == '=' || c == '+' || c == '-' || c == '@');
 
-        if (c >= 32 && c <= 126 && c != ',' && c != '"' && !formula) {
+        if (raw_text && c == '\\') {
+            ret += "\\\\";
+        } else if (c >= 32 && c <= 126 && c != ',' && c != '"' && !formula) {
             ret += static_cast<char>(c);
         } else {
             ret += '\\';
