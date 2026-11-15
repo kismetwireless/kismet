@@ -98,13 +98,24 @@ function frequencyOfChannel(channel) {
     return found.size === 1 ? [...found][0] : null;
 }
 
+// compact: the band's graphs give each MHz in use one narrow slot, side by
+// side, instead of drawing it to scale, so 433, 915 and 1090 MHz take
+// little room and the Wi-Fi bands get the rest
 export const bands = [
-    { id: 'sub', title: 'Below 1 GHz', min: 0, max: 1e6 },
+    { id: 'sub', title: 'Below 1 GHz', min: 0, max: 1e6, compact: true },
+    { id: 'l', title: '1 to 2.3 GHz', min: 1e6, max: 2.3e6, compact: true },
     { id: '2.4', title: '2.4 GHz', min: 2.3e6, max: 2.6e6 },
     { id: '5', title: '5 GHz', min: 4.9e6, max: 5.93e6 },
     { id: '6', title: '6 GHz', min: 5.93e6, max: 7.2e6 },
-    { id: 'other', title: 'Other', min: 1e6, max: Infinity },
+    { id: 'other', title: 'Other', min: 2.6e6, max: Infinity },
 ];
+// A compact slot's width, and the most of the graph compact bands take together
+const compactSlot = 34;
+const compactShare = 0.25;
+
+// The heat map puts frequencies in the same MHz on one row once there are
+// this many of them, such as 433 MHz sensors each a few kHz apart
+const heatGroupMin = 3;
 
 function bandOf(khz) {
     return bands.find((b) => b.id !== 'other' && khz >= b.min && khz < b.max) ?? bands.at(-1);
@@ -565,10 +576,9 @@ export function openCoverage({ view: startView = null } = {}) {
         for (const sg of segments) {
             const lo = Math.max(sp.low, sg.lo);
             const hi = Math.min(sp.high, sg.hi);
-            if (lo >= hi || bandOf((lo + hi) / 2) !== sg.band)
+            if (lo >= hi || !sg.bands.has(bandOf((lo + hi) / 2)))
                 continue;
-            const at = (f) => sg.x0 + ((f - sg.lo) / (sg.hi - sg.lo)) * sg.w;
-            out.push([at(lo), at(hi)]);
+            out.push([sg.at(lo), sg.at(hi)]);
         }
         return out;
     }
@@ -608,6 +618,7 @@ export function openCoverage({ view: startView = null } = {}) {
 
     // Where everything goes across the width.  Each band with something in
     // it gets a segment, to scale inside itself and trimmed to what's there;
+    // the compact bands share one segment, a narrow slot per MHz in use.
     // "All" puts the segments side by side, a single band fills the width.
     // x(f) is the canvas x of a frequency, or null if it isn't shown.
     function layout(W, ratio, leftCss = 110) {
@@ -632,34 +643,62 @@ export function openCoverage({ view: startView = null } = {}) {
                 note(f);
 
         const used = shownBands.filter((b) => byBand.has(b));
-        const gap = used.length > 1 ? 28 * ratio : 0;
-        // Busier bands get more room, but every band gets some
-        const weights = used.map((b) => 3 + byBand.get(b).size);
+        const compact = used.filter((b) => b.compact);
+        const groups = [...(compact.length ? [compact] : []), ...used.filter((b) => !b.compact).map((b) => [b])];
+        const gap = groups.length > 1 ? 28 * ratio : 0;
+        const room = plotW - gap * Math.max(0, groups.length - 1);
+        const slots = [...new Set(compact.flatMap((b) => [...byBand.get(b)].map((f) => Math.floor(f / 1000))))]
+            .sort((a, z) => a - z);
+        // The compact segment is as narrow as its slots allow, unless it's
+        // all there is; busier bands get more of the rest, but every band gets some
+        const compactW = groups.length === 1 ? room : Math.min(slots.length * compactSlot * ratio, room * compactShare);
+        const weights = groups.map((g) => (g[0].compact ? 0 : 3 + byBand.get(g[0]).size));
         const total = weights.reduce((a, z) => a + z, 0) || 1;
-        const room = plotW - gap * Math.max(0, used.length - 1);
         let at = left;
-        const segments = used.map((b, i) => {
-            const fs = [...byBand.get(b)];
-            let lo = Math.min(...fs);
-            let hi = Math.max(...fs);
-            const pad = Math.max((hi - lo) * 0.06, 10000);
-            lo -= pad;
-            hi += pad;
-            const w = (room * weights[i]) / total;
-            const seg = { band: b, lo, hi, x0: at, w };
-            at += w + gap;
+        const segments = groups.map((g, i) => {
+            const seg = { bands: new Set(g), x0: at };
+            if (g[0].compact) {
+                // Each MHz in use is a slot; frequencies spread across the
+                // middle of theirs, and a frequency between slots sits on the edge
+                const slotW = compactW / Math.max(1, slots.length);
+                Object.assign(seg, {
+                    title: g.length > 1 ? `Below ${g.at(-1).max / 1e6} GHz` : g[0].title,
+                    lo: slots[0] * 1000, hi: (slots.at(-1) + 1) * 1000, w: compactW,
+                    at: (f) => {
+                        const mhz = Math.floor(f / 1000);
+                        let n = 0;
+                        while (n < slots.length && slots[n] < mhz)
+                            n++;
+                        const inside = slots[n] === mhz ? 0.2 + 0.6 * ((f - mhz * 1000) / 1000) : 0;
+                        return seg.x0 + (n + inside) * slotW;
+                    },
+                });
+            } else {
+                const fs = [...byBand.get(g[0])];
+                const pad = Math.max((Math.max(...fs) - Math.min(...fs)) * 0.06, 10000);
+                Object.assign(seg, {
+                    title: g[0].title, lo: Math.min(...fs) - pad, hi: Math.max(...fs) + pad,
+                    w: ((room - (compact.length ? compactW : 0)) * weights[i]) / total,
+                    at: (f) => seg.x0 + ((f - seg.lo) / (seg.hi - seg.lo)) * seg.w,
+                });
+            }
+            at += seg.w + gap;
             return seg;
         });
 
         const x = (f) => {
-            const seg = segments.find((sg) => sg.band === bandOf(f));
+            const b = bandOf(f);
+            const seg = segments.find((sg) => sg.bands.has(b));
             if (!seg || f < seg.lo || f > seg.hi)
                 return null;
-            return seg.x0 + ((f - seg.lo) / (seg.hi - seg.lo)) * seg.w;
+            return seg.at(f);
         };
         const list = [...freqs.keys()].filter((f) => x(f) !== null).sort((a, z) => a - z);
         return { left, right, plotW, segments, x, list };
     }
+
+    // How many places bars stand in: a compact band's MHz counts once
+    const spots = (list) => new Set(list.map((f) => (bandOf(f).compact ? `m${Math.floor(f / 1000)}` : f))).size;
 
     // A frequency's label: the server's channel name, else the channel a
     // source listens to there, by its phy ('802.15.4 12'), else the phys'
@@ -778,9 +817,10 @@ export function openCoverage({ view: startView = null } = {}) {
         const histTop = actH + gapH;
         const histBottom = H - sourcesH - labelsH;
 
-        const barW = Math.max(3 * ratio, Math.min(28 * ratio, plotW / Math.max(1, list.length) * 0.5,
-            // never wider than the gap to the nearest neighbour
-            ...list.slice(1).map((f, i) => (x(f) - x(list[i])) * 0.8).filter((d) => d > 0)));
+        const barW = Math.max(3 * ratio, Math.min(28 * ratio, plotW / Math.max(1, spots(list)) * 0.5,
+            // never wider than the gap to the nearest neighbour, outside the
+            // compact bands, where a slot's frequencies overlap
+            ...list.slice(1).map((f, i) => (bandOf(f).compact ? 0 : (x(f) - x(list[i])) * 0.8)).filter((d) => d > 0)));
 
         // Section names down the left
         ctx.fillStyle = muted;
@@ -798,7 +838,7 @@ export function openCoverage({ view: startView = null } = {}) {
             ctx.textBaseline = 'top';
             ctx.fillStyle = muted;
             segments.forEach((sg, i) => {
-                ctx.fillText(sg.band.title, sg.x0 + sg.w / 2, 0);
+                ctx.fillText(sg.title, sg.x0 + sg.w / 2, 0);
                 if (i > 0) {
                     const bx = Math.round(sg.x0 - 14 * ratio) + 0.5;
                     ctx.strokeStyle = grid;
@@ -921,8 +961,9 @@ export function openCoverage({ view: startView = null } = {}) {
     }
 
     // The heat map: a row per frequency, grouped by band, and a column per
-    // second, minute, or hour.  Cells are shaded on a log scale up to the
-    // busiest cell shown; the last column is still filling.
+    // second, minute, or hour.  Frequencies crowded into one MHz share a row
+    // (fs, f being the first), which sums them.  Cells are shaded on a log
+    // scale up to the busiest cell shown; the last column is still filling.
     let heatLayout = null;
 
     function heatRows() {
@@ -934,18 +975,43 @@ export function openCoverage({ view: startView = null } = {}) {
                 continue;
             if (shownBands.length > 1)
                 rows.push({ band: b });
-            for (const f of fs)
-                rows.push({ f });
+            const byMhz = new Map();
+            for (const f of fs) {
+                const mhz = Math.floor(f / 1000);
+                if (!byMhz.has(mhz))
+                    byMhz.set(mhz, []);
+                byMhz.get(mhz).push(f);
+            }
+            for (const [mhz, group] of byMhz) {
+                if (group.length >= heatGroupMin)
+                    rows.push({ f: group[0], fs: group, mhz });
+                else
+                    rows.push(...group.map((f) => ({ f, fs: [f] })));
+            }
         }
         return rows;
     }
 
-    function heatColumns(f) {
+    function heatColumns(fs) {
         const sp = spans[span];
-        const r = freqs.get(f)?.rrds?.[metric];
-        const h = rrd.history(r, serverNow, span);
-        return h.length ? h : new Array(sp.columns).fill(0);
+        const out = new Array(sp.columns).fill(0);
+        for (const f of fs) {
+            const h = rrd.history(freqs.get(f)?.rrds?.[metric], serverNow, span);
+            h.forEach((v, i) => {
+                if (i < out.length && Number.isFinite(v))
+                    out[i] += v;
+            });
+        }
+        return out;
     }
+
+    // Rows outside the Wi-Fi bands are named by frequency, where a channel
+    // name means little
+    const heatLabel = (r) => {
+        if (r.mhz !== undefined)
+            return `${r.mhz} MHz`;
+        return bandOf(r.f).compact ? `${+(r.f / 1000).toFixed(3)} MHz` : label(r.f);
+    };
 
     // Labels under the columns: seconds ago, or the clock time of the minute or hour
     function columnLabel(i, n) {
@@ -962,7 +1028,8 @@ export function openCoverage({ view: startView = null } = {}) {
         const ratio = window.devicePixelRatio || 1;
         const rows = heatRows();
         const font = 11 * ratio;
-        const rowMin = 9;
+        // Tall enough for every row's label; more rows scroll
+        const rowMin = 12;
         const top = 34;
         const bottom = 26;
         const cssW = Math.max(1, heatScroll.clientWidth);
@@ -998,7 +1065,7 @@ export function openCoverage({ view: startView = null } = {}) {
             return;
         }
 
-        const data = rows.map((r) => (r.f ? heatColumns(r.f) : null));
+        const data = rows.map((r) => (r.f ? heatColumns(r.fs) : null));
         const heatLanes = sourceLanes();
         const peak = Math.max(0, ...data.filter(Boolean).flat());
         const logPeak = Math.log1p(peak) || 1;
@@ -1047,7 +1114,7 @@ export function openCoverage({ view: startView = null } = {}) {
             }
             ctx.globalAlpha = 1;
             // A mark by the rows a source is taking in now
-            if (listeningAt(r.f, heatLanes).length) {
+            if (r.fs.some((f) => listeningAt(f, heatLanes).length)) {
                 ctx.fillStyle = accent;
                 ctx.fillRect(left - 5 * ratio, y, 3 * ratio, Math.max(1, rowH - ratio));
             }
@@ -1055,7 +1122,7 @@ export function openCoverage({ view: startView = null } = {}) {
             if (rowH >= font * 0.9 || i % Math.ceil((font * 0.9) / rowH) === 0) {
                 ctx.fillStyle = r.f === heatHover?.f ? accent : text;
                 ctx.textAlign = 'right';
-                ctx.fillText(label(r.f), left - 9 * ratio, y + rowH / 2);
+                ctx.fillText(heatLabel(r), left - 9 * ratio, y + rowH / 2);
             }
         });
 
@@ -1100,7 +1167,7 @@ export function openCoverage({ view: startView = null } = {}) {
         if (ri < 0 || ri >= rows.length || !rows[ri].f)
             return null;
         const col = px >= left ? Math.min(columns - 1, Math.floor((px - left) / colW)) : undefined;
-        return { f: rows[ri].f, col };
+        return { f: rows[ri].f, fs: rows[ri].fs, mhz: rows[ri].mhz, col };
     }
 
     heatCanvas.addEventListener('pointermove', (e) => {
@@ -1111,17 +1178,23 @@ export function openCoverage({ view: startView = null } = {}) {
             tip.hidden = true;
             return;
         }
-        const named = channelsAt(cell.f).map((c) => `${c.phy} ${c.channel}`);
-        const rec = freqs.get(cell.f);
-        const server = rec?.channel && rec.channel !== 'unknown' && rec.channel !== '0' ? `Channel ${rec.channel}` : null;
-        const title = [server, ...named, format.frequency(cell.f)].filter(Boolean)
-            .filter((v, i, a) => a.indexOf(v) === i).join(' · ');
-        const lines = [el('b', {}, title)];
+        const lines = [];
+        if (cell.mhz !== undefined) {
+            const mhz = (f) => (f / 1000).toFixed(3);
+            lines.push(el('b', {}, `${cell.mhz} MHz`),
+                el('div', { class: 'muted' }, `${cell.fs.length} frequencies, ${mhz(cell.fs[0])} to ${mhz(cell.fs.at(-1))} MHz, added together`));
+        } else {
+            const named = channelsAt(cell.f).map((c) => `${c.phy} ${c.channel}`);
+            const rec = freqs.get(cell.f);
+            const server = rec?.channel && rec.channel !== 'unknown' && rec.channel !== '0' ? `Channel ${rec.channel}` : null;
+            lines.push(el('b', {}, [server, ...named, format.frequency(cell.f)].filter(Boolean)
+                .filter((v, i, a) => a.indexOf(v) === i).join(' · ')));
+        }
         if (cell.col === undefined) {
             lines.push(el('div', { class: 'muted' }, 'Click to see it in the live view'));
         } else {
             const sp = spans[span];
-            const v = heatColumns(cell.f)[cell.col] ?? 0;
+            const v = heatColumns(cell.fs)[cell.col] ?? 0;
             const when = span === 'minute' ? columnLabel(cell.col, sp.columns) :
                 `${span === 'hour' ? 'the minute' : 'the hour'} from ${columnLabel(cell.col, sp.columns)}`;
             lines.push(el('div', {}, `${metrics[metric].fmt(v)} ${metrics[metric].unit.toLowerCase()}`,
@@ -1129,7 +1202,7 @@ export function openCoverage({ view: startView = null } = {}) {
             if (cell.col === sp.columns - 1)
                 lines.push(el('div', { class: 'muted' }, 'Still being counted'));
         }
-        lines.push(...listening(cell.f));
+        lines.push(...listening(cell.fs));
         tip.replaceChildren(...lines);
         tip.hidden = false;
         const sr = stage.getBoundingClientRect();
@@ -1146,7 +1219,8 @@ export function openCoverage({ view: startView = null } = {}) {
         const cell = heatCell(e);
         if (!cell || cell.col !== undefined)
             return;
-        pinned = cell.f;
+        // A shared row picks its busiest frequency
+        pinned = cell.fs.reduce((best, f) => (activity(f) > activity(best) ? f : best));
         setView('live');
     });
 
@@ -1239,7 +1313,7 @@ export function openCoverage({ view: startView = null } = {}) {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
                 for (const sg of segments)
-                    ctx.fillText(sg.band.title, sg.x0 + sg.w / 2, 0);
+                    ctx.fillText(sg.title, sg.x0 + sg.w / 2, 0);
             }
 
             if (!list.length) {
@@ -1248,7 +1322,7 @@ export function openCoverage({ view: startView = null } = {}) {
             }
 
             const barW = Math.max(3 * ratio, Math.min(18 * ratio,
-                ...list.slice(1).map((f, i) => (x(f) - x(list[i])) * 0.7).filter((d) => d > 0)));
+                ...list.slice(1).map((f, i) => (bandOf(f).compact ? 0 : (x(f) - x(list[i])) * 0.7)).filter((d) => d > 0)));
             const radius = Math.min(4 * ratio, barW / 2);
             for (const f of list) {
                 const v = coverage(f);
@@ -1481,8 +1555,10 @@ export function openCoverage({ view: startView = null } = {}) {
     }
 
     // The sources taking in a frequency now, for the tooltips
-    function listening(f) {
-        const on = listeningAt(f);
+    // fs: a frequency, or a heat map row's frequencies
+    function listening(fs) {
+        const lanes = sourceLanes();
+        const on = lanes.filter((l) => [fs].flat().some((f) => listeningAt(f, lanes).includes(l)));
         if (!on.length)
             return [];
         return [el('div', { class: 'muted' }, `Listening: ${on.map((l) =>
