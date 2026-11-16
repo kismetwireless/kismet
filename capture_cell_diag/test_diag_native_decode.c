@@ -336,6 +336,7 @@ static bool check_capacity_clamp(void) {
  *   `_POS_FMT` v1/v2/v10        (default)                  lat@40 lon@48 alt@56
  *   mdm9600 gpsOne              version==2 && size==797     lat@36 lon@44 alt@52
  *   v13 (SDX55) / v24 (SDX62+)  version>=13 && size>=407    lat@49 lon@57 alt@65
+ *   / v30 (SDX72)
  *
  * and the REFERENCE MODEM USES THE LAST ONE: all 16 0x1476 records in the
  * RM520N-GL capture are version=24. A leg reading the first regime's offsets on
@@ -407,6 +408,16 @@ static const gnss_case_t kGnssCases[] = {
      * that hardcoded one of the two passes on the other. */
     {"v13_sdx55",   13, 2477, 49, 57, 65, -0.5, 2.0,   50.25f, true,
       -28.64788975654116, 114.59155902616465, 50.25},
+    /* v30 = SDX72: the v24 layout, 1245 + 30*N bytes. The version allowlist
+     * once refused it, so every fix from such a modem was dropped. 1245 is the
+     * N = 0 edge, 1305 has two satellite rows. */
+    {"v30_sdx72",   30, 1245, 49, 57, 65,  0.5, -1.0,  100.0f, true,
+      28.64788975654116, -57.29577951308232, 100.0},
+    {"v30_sdx72_2sv", 30, 1305, 49, 57, 65, -0.5, 2.0, 50.25f, true,
+      -28.64788975654116, 114.59155902616465, 50.25},
+    /* ...and its size rule: off the 30-byte satellite stride is not v30. */
+    {"reject_v30_stride", 30, 1250, 49, 57, 65, 0.5, -1.0, 100.0f, false,
+      0, 0, 0, 0, DIAG_NATIVE_GPS_DECLINE_UNPARSEABLE},
     /* mdm9600: the only regime that reads EARLIER than the seq (no fake_align). */
     {"mdm9600_797",  2,  797, 36, 44, 52,  0.5, -1.0,  1418.0f, true,
       28.64788975654116, -57.29577951308232, 1418.0,

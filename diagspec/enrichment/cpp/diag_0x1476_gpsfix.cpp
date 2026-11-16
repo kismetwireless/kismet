@@ -65,7 +65,8 @@ namespace {
 // the generated reader would look. The census counts such a record DROPPED.
 bool layout_refused(const std::string& p) {
     static const uint8_t kVersions[] = {0x02, 0x04, 0x06, 0x07, 0x08, 0x0A,
-                                        0x0B, 0x0C, 0x0D, 0x15, 0x18, 0x1A};
+                                        0x0B, 0x0C, 0x0D, 0x15, 0x18, 0x1A,
+                                        0x1E};
     const size_t kPosSz = 291, kPosMdm9600Sz = 797;
     const size_t kPosV13FixedSz = 2477, kPosV13MinSz = 407, kSv30Stride = 30;
     if (p.empty())
@@ -90,7 +91,8 @@ bool layout_refused(const std::string& p) {
     case 0x0A: if (!(n == 2237 || n == 2325 || n == 2332 || n > 2332)) return true; break;
     case 0x15: if (n < 647 || (n - 647) % kSv30Stride) return true; break;  // _SV30_BASE
     case 0x18:
-    case 0x1A: if (n < 1215 || (n - 1215) % kSv30Stride) return true; break;
+    case 0x1A:
+    case 0x1E: if (n < 1215 || (n - 1215) % kSv30Stride) return true; break;
     default: break;
     }
     if (compact || (v == 0x02 && n == kPosMdm9600Sz) || (v >= 13 && n >= kPosV13MinSz))

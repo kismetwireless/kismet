@@ -21,6 +21,7 @@
 //   mdm9600 gpsOne                  week@19 lat@36 lon@44 alt@52   (version==2 && size==797)
 //   compact v4/v6 | v11 | v12       week@19 | 23 | 24, lat/lon/alt at +17/+25/+33
 //   v13 (SDX55) / v24 (SDX62+)      week@32 lat@49 lon@57 alt@65   (version>=13 && size>=407)
+//   / v30 (SDX72)
 //
 // RM520N-GL records are version=24. Read through the seq offsets they yield
 // lat=0.0 and a ~1e185 lon, which the validity gate rejects, so a leg built on
