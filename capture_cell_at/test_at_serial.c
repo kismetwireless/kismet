@@ -851,6 +851,94 @@ static void test_stale_reply_on_a_nontty_is_not_the_next_answer(void) {
     waitpid(pid, NULL, 0);
 }
 
+/* ---- at_info_command_reask: a silent first try is asked once more ---- */
+
+/* A mock modem that ignores the first `drop` commands it reads, answers the
+ * next with `reply`, then counts any further command for 800 ms. Its exit
+ * status is the number of commands it read. */
+static pid_t reask_modem(int fd, int drop, const char *reply) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        char buf[256];
+        int seen = 0;
+        while (seen < drop + 1) {
+            struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+            if (poll(&pfd, 1, 5000) <= 0 || read(fd, buf, sizeof(buf)) <= 0)
+                _exit(seen);
+            seen++;
+        }
+        (void)!write(fd, reply, strlen(reply));
+        for (;;) {
+            struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+            if (poll(&pfd, 1, 800) <= 0 || read(fd, buf, sizeof(buf)) <= 0)
+                break;
+            seen++;
+        }
+        _exit(seen);
+    }
+    return pid;
+}
+
+static int reask_modem_reads(pid_t pid) {
+    int status = 0;
+    waitpid(pid, &status, 0);
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+}
+
+static void test_reask_a_lost_command_is_asked_again(void) {
+    int sv[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) { perror("socketpair"); fail = 1; return; }
+    pid_t pid = reask_modem(sv[1], 1, "\r\nLM960A18\r\n\r\nOK\r\n");
+    close(sv[1]);
+
+    char resp[256];
+    long last_ms = -1;
+    int n = at_info_command_reask(sv[0], "AT+CGMM", resp, sizeof(resp), 400, 200,
+                                  &last_ms);
+
+    check(n > 0 && strstr(resp, "LM960A18") != NULL,
+          "reask: a command the modem dropped is answered on the second try");
+    check(last_ms >= 0 && last_ms < 300,
+          "reask: last_ms times the try that answered, not the silent one");
+
+    close(sv[0]);
+    check(reask_modem_reads(pid) == 2, "reask: a dropped command is sent exactly twice");
+}
+
+static void test_reask_any_reply_is_final(void) {
+    int sv[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) { perror("socketpair"); fail = 1; return; }
+    pid_t pid = reask_modem(sv[1], 0, "\r\nERROR\r\n");
+    close(sv[1]);
+
+    char resp[256];
+    int n = at_info_command_reask(sv[0], "AT+CGMM", resp, sizeof(resp), 400, 200, NULL);
+
+    check(n > 0 && strstr(resp, "ERROR") != NULL, "reask: an ERROR reply is returned");
+
+    close(sv[0]);
+    check(reask_modem_reads(pid) == 1, "reask: a modem that answers is asked only once");
+}
+
+static void test_reask_gives_up_after_two_silent_tries(void) {
+    int sv[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) { perror("socketpair"); fail = 1; return; }
+    pid_t pid = reask_modem(sv[1], 5, "\r\nOK\r\n");
+    close(sv[1]);
+
+    char resp[256];
+    struct timeval a, b;
+    gettimeofday(&a, NULL);
+    int n = at_info_command_reask(sv[0], "AT+CGMM", resp, sizeof(resp), 300, 200, NULL);
+    gettimeofday(&b, NULL);
+
+    check(n == 0, "reask: a port that stays silent still reads as no reply");
+    check(elapsed_ms(a, b) < 900, "reask: a silent port costs two deadlines, no more");
+
+    close(sv[0]);
+    check(reask_modem_reads(pid) == 2, "reask: a silent port is asked twice, not more");
+}
+
 int main(void) {
     signal(SIGPIPE, SIG_IGN);   /* writing to a closed peer must not kill us */
 
@@ -876,6 +964,9 @@ int main(void) {
     test_a_terminated_info_read_owes_nothing();
     test_a_reopened_port_owes_nothing();
     test_stale_reply_on_a_nontty_is_not_the_next_answer();
+    test_reask_a_lost_command_is_asked_again();
+    test_reask_any_reply_is_final();
+    test_reask_gives_up_after_two_silent_tries();
 
     if (fail) {
         fprintf(stderr, "test_at_serial: FAILURES\n");

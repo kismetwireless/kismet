@@ -667,4 +667,32 @@ static int at_info_command(int fd, const char *cmd, char *resp_buf,
                              idle_ms);
 }
 
+/* at_info_command, asked once more when the first try drew no reply at all.
+ * A command can be lost on its way into the modem: a Telit LM960A18 on a
+ * USB 2.0 link with hardware LPM enabled can drop a write that arrives after
+ * an idle gap, and a single lost identity read would otherwise list the modem
+ * with no firmware, IMEI or model. Any reply, ERROR included, is final, so a
+ * modem that answers is asked only once. A reply that arrives late, after the
+ * second command, is the previous exchange's and the read discards it.
+ *
+ * `last_ms`, when given, is how long the try that produced the result took, so
+ * a caller timing the reply (modemident_followup_ms) is not charged for the
+ * silent one. */
+static int at_info_command_reask(int fd, const char *cmd, char *resp_buf,
+                                 size_t resp_max, int timeout_ms, int idle_ms,
+                                 long *last_ms) {
+    uint64_t t0 = at_mono_ns();
+    int n = at_info_command(fd, cmd, resp_buf, resp_max, timeout_ms, idle_ms);
+
+    if (n == 0) {
+        t0 = at_mono_ns();
+        n = at_info_command(fd, cmd, resp_buf, resp_max, timeout_ms, idle_ms);
+    }
+
+    if (last_ms != NULL)
+        *last_ms = (long)((at_mono_ns() - t0) / 1000000ULL);
+
+    return n;
+}
+
 #endif /* AT_SERIAL_INC */

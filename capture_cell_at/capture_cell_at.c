@@ -559,6 +559,19 @@ static int at_info_command_t(local_cell_t *local, const char *cmd,
                            MODEMIDENT_INFO_IDLE_MS);
 }
 
+/* at_info_command_t, asked once more when the first try drew no reply at all
+ * (see at_info_command_reask). Each try is its own RawAT row. */
+static int at_info_command_t_reask(local_cell_t *local, const char *cmd,
+                                   char *resp_buf, size_t resp_max,
+                                   int timeout_ms) {
+    int n = at_info_command_t(local, cmd, resp_buf, resp_max, timeout_ms);
+
+    if (n == 0)
+        n = at_info_command_t(local, cmd, resp_buf, resp_max, timeout_ms);
+
+    return n;
+}
+
 /* Which exchange each parsed observation came from -- the two stamps its
  * prov block carries (inject_prov_x). Tagged at PARSE time, not at emit time:
  * Telit's neighbour path sends AT#MONI=0 after its parse, so "the last
@@ -939,8 +952,8 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
      * `firmware_match` globs in capture_cell_at/profiles/ -- so that modem
      * would silently get no DIAG profile at all. See cellat_qeng.inc. */
     fw_buf[0] = '\0';
-    n = at_info_command(fd, "AT+CGMR", resp, sizeof(resp), 3000,
-                        MODEMIDENT_INFO_IDLE_MS);
+    n = at_info_command_reask(fd, "AT+CGMR", resp, sizeof(resp), 3000,
+                              MODEMIDENT_INFO_IDLE_MS, NULL);
     if (n > 0)
         at_response_value(resp, fw_buf, fw_sz);
 
@@ -952,11 +965,9 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
     /* IMEI. Same extraction: the SIM8202G-M2 answers +CGSN bare, but the
      * response-code form is equally legal and other firmware may use it. */
     imei_buf[0] = '\0';
-    struct timespec cgsn_t0;   /* see modemident_followup_ms() */
-    clock_gettime(CLOCK_MONOTONIC, &cgsn_t0);
-    n = at_info_command(fd, "AT+CGSN", resp, sizeof(resp), 3000,
-                        MODEMIDENT_INFO_IDLE_MS);
-    long cgsn_ms = scan_elapsed_ms(&cgsn_t0);
+    long cgsn_ms = 0;          /* see modemident_followup_ms() */
+    n = at_info_command_reask(fd, "AT+CGSN", resp, sizeof(resp), 3000,
+                              MODEMIDENT_INFO_IDLE_MS, &cgsn_ms);
     if (n > 0)
         at_response_value(resp, imei_buf, imei_sz);
 
@@ -992,15 +1003,15 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
 
         snprintf(id->imei, sizeof(id->imei), "%s", imei_buf);
         snprintf(id->firmware, sizeof(id->firmware), "%s", fw_buf);
-        n = at_info_command(fd, "AT+CGMI", resp, sizeof(resp), follow_ms,
-                            MODEMIDENT_INFO_IDLE_MS);
+        n = at_info_command_reask(fd, "AT+CGMI", resp, sizeof(resp), follow_ms,
+                                  MODEMIDENT_INFO_IDLE_MS, NULL);
         enum modem_vendor vendor = VENDOR_UNKNOWN;
         if (n > 0) {
             modemident_value(resp, id->make, sizeof(id->make));
             vendor = vendor_from_cgmi(resp);
         }
-        n = at_info_command(fd, "AT+CGMM", resp, sizeof(resp), follow_ms,
-                            MODEMIDENT_INFO_IDLE_MS);
+        n = at_info_command_reask(fd, "AT+CGMM", resp, sizeof(resp), follow_ms,
+                                  MODEMIDENT_INFO_IDLE_MS, NULL);
         if (n > 0)
             modemident_value(resp, id->model, sizeof(id->model));
 
@@ -1032,12 +1043,11 @@ static enum modem_vendor detect_vendor(int fd, char *make_out, size_t make_sz,
     /* Try AT+CGMI (manufacturer identification). Its answer is also the
      * modem's make, verbatim, and how long it took tells the open whether this
      * port terminates info replies (modemident_followup_ms). */
-    struct timespec t0;
-    clock_gettime(CLOCK_MONOTONIC, &t0);
-    int n = at_info_command(fd, "AT+CGMI", resp, sizeof(resp), 3000,
-                            MODEMIDENT_INFO_IDLE_MS);
+    long ms = 0;
+    int n = at_info_command_reask(fd, "AT+CGMI", resp, sizeof(resp), 3000,
+                                  MODEMIDENT_INFO_IDLE_MS, &ms);
     if (cgmi_ms != NULL)
-        *cgmi_ms = scan_elapsed_ms(&t0);
+        *cgmi_ms = ms;
     if (make_out != NULL && make_sz > 0) {
         make_out[0] = '\0';
         if (n > 0)
@@ -3502,7 +3512,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* Build model string from AT+CGMM if available */
         char model_resp[256];
-        n = at_command_t(local,"AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        n = at_info_command_t_reask(local, "AT+CGMM", model_resp,
+                                    sizeof(model_resp), 3000);
         if (n > 0) {
             char *saveptr2 = NULL;
             char *mline = strtok_r(model_resp, "\n", &saveptr2);
@@ -3545,7 +3556,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* Build model string from AT+CGMM */
         char model_resp[256];
-        n = at_command_t(local,"AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        n = at_info_command_t_reask(local, "AT+CGMM", model_resp,
+                                    sizeof(model_resp), 3000);
         if (n > 0) {
             char *saveptr2 = NULL;
             char *mline = strtok_r(model_resp, "\n", &saveptr2);
@@ -3577,7 +3589,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* Build model string from AT+CGMM */
         char model_resp[256];
-        n = at_command_t(local,"AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        n = at_info_command_t_reask(local, "AT+CGMM", model_resp,
+                                    sizeof(model_resp), 3000);
         if (n > 0) {
             char *saveptr2 = NULL;
             char *mline = strtok_r(model_resp, "\n", &saveptr2);
@@ -3740,8 +3753,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* The model, read on the port this source holds (the make came
      * from detect_vendor above). Through at_command_t, so the exchange is also
      * a RawAT row: the container keeps the raw answer beside the record. */
-    if (at_info_command_t(local, "AT+CGMM", resp, sizeof(resp),
-                          (int)modemident_followup_ms(cgmi_ms, local->ident.make[0] != '\0')) > 0)
+    if (at_info_command_t_reask(local, "AT+CGMM", resp, sizeof(resp),
+                                (int)modemident_followup_ms(cgmi_ms, local->ident.make[0] != '\0')) > 0)
         modemident_value(resp, local->ident.model, sizeof(local->ident.model));
 
     /* Vouch for what was just read, on the port this source now holds
