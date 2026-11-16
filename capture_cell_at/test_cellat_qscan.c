@@ -23,10 +23,10 @@
     drives it over recorded QSCAN responses, so both the strcmp(rat,"LTE")
     gate and the fields[11] index are pinned.
 
-    Every +QSCAN line below marked "corpus" is VERBATIM from an AT+QSCAN=3,1
-    transcript captured on an RM520N-GL (RM520NGLAAR03A04M4G). Do not "tidy"
-    them: the "-" placeholders, the extra NR5G trailing fields, and the
-    T-Mobile/AT&T dual-PLMN rows are the parser's actual input.
+    Every +QSCAN line below marked "corpus" keeps the SHAPE of an AT+QSCAN=3,1
+    transcript captured on an RM520N-GL (RM520NGLAAR03A04M4G), with synthetic
+    identifiers. Do not "tidy" them: the "-" placeholders, the extra NR5G
+    trailing fields, and the two-PLMN rows are the parser's actual input.
 
     The free oracle for the LTE-only gate: the SAME numeric field[11]=100 is an
     RB count on an LTE row (-> 20 MHz) and NOT a bandwidth on an NR5G row (its
@@ -80,22 +80,25 @@ static const char *obs_with(char json[][JSON_BUF_MAX], int n, const char *needle
     return NULL;
 }
 
-/* --- Verbatim recorded AT+QSCAN=3,1 slice (RM520N-GL R03A04) --- */
+/* --- The SHAPE of a recorded AT+QSCAN=3,1 slice (RM520N-GL R03A04). The
+ * identifiers are synthetic: PLMN 001/001 and 001/002, PCI 1-9, band-first
+ * channel numbers (499200 n41, 620000 n77, 173800 n5, 66436 B66, 600 B2,
+ * 5010 B12, 5180 B13), placeholder TAC and cell IDs. --- */
 static const char *QSCAN_CORPUS =
     "AT+QSCAN=3,1\n"
-    "+QSCAN: \"NR5G\",310,260,521310,11,-95,-11,16,1,1A2B97138,1A2B00,245,41,34,14,1\n"
-    "+QSCAN: \"NR5G\",311,480,647328,12,-111,-16,-1,1,0BBB9002A,BBB00,273,77,28,6,1\n"
-    "+QSCAN: \"NR5G\",311,480,177150,13,-102,-18,26,0,0BBB7C028,BBB00,52,5,20,2,-\n"
-    "+QSCAN: \"LTE\",310,260,66786,8,-106,-17,18,17,1A2D601,1A2B,100,4\n"
-    "+QSCAN: \"LTE\",310,260,900,9,-104,-16,21,18,1A2E70C,1A2B,50,2\n"
-    "+QSCAN: \"LTE\",310,260,5035,14,-88,-8,36,23,1A2E816,1A2B,25,12\n"
-    "+QSCAN: \"LTE\",311,480,5230,1,-99,-22,29,107,BBB202,BBB,50,13\n"
+    "+QSCAN: \"NR5G\",001,001,499200,1,-95,-11,16,1,1A2B97138,1A2B00,245,41,34,14,1\n"
+    "+QSCAN: \"NR5G\",001,002,620000,2,-111,-16,-1,1,0BBB9002A,BBB00,273,77,28,6,1\n"
+    "+QSCAN: \"NR5G\",001,002,173800,3,-102,-18,26,0,0BBB7C028,BBB00,52,5,20,2,-\n"
+    "+QSCAN: \"LTE\",001,001,66436,8,-106,-17,18,17,1A2D601,1A2B,100,4\n"
+    "+QSCAN: \"LTE\",001,001,600,9,-104,-16,21,18,1A2E70C,1A2B,50,2\n"
+    "+QSCAN: \"LTE\",001,001,5010,4,-88,-8,36,23,1A2E816,1A2B,25,12\n"
+    "+QSCAN: \"LTE\",001,002,5180,1,-99,-22,29,107,BBB202,BBB,50,13\n"
     "\nOK\n";
 
 /* The gate free-oracle: same field[11]=100, LTE vs NR5G, differ only in RAT. */
 static const char *QSCAN_GATE =
-    "+QSCAN: \"LTE\",310,260,66786,8,-106,-17,18,17,1A2D601,1A2B,100,4\n"   /* corpus */
-    "+QSCAN: \"NR5G\",310,260,521310,11,-95,-11,16,1,1A2B97138,1A2B00,100,41\n"; /* field[11] forced to a valid RB */
+    "+QSCAN: \"LTE\",001,001,66436,8,-106,-17,18,17,1A2D601,1A2B,100,4\n"   /* corpus */
+    "+QSCAN: \"NR5G\",001,001,499200,1,-95,-11,16,1,1A2B97138,1A2B00,100,41\n"; /* field[11] forced to a valid RB */
 
 int main(void) {
     char json[MAX_OBS][JSON_BUF_MAX];
@@ -117,35 +120,35 @@ int main(void) {
     int n = parse_qscan(QSCAN_CORPUS, json, MAX_OBS);
     check(n == 7, "seven +QSCAN rows decode to seven observations");
 
-    const char *lte4 = obs_with(json, n, "\"earfcn\":66786");
-    check(lte4 != NULL, "LTE B4 EARFCN 66786 row is present");
+    const char *lte4 = obs_with(json, n, "\"earfcn\":66436");
+    check(lte4 != NULL, "LTE B4 EARFCN 66436 row is present");
     if (lte4) {
-        check(strstr(lte4, "\"rat\":\"LTE\"") != NULL, "  66786 rat=LTE");
-        check(json_has(lte4, "\"pci\":8"),     "  66786 pci=8");
-        check(json_has(lte4, "\"band\":4"),       "  66786 band=4");
-        check(json_has(lte4, "\"bandwidth\":20"), "  66786 RB 100 -> bandwidth=20 MHz");
-        check(json_has(lte4, "\"rsrp\":-106"),    "  66786 rsrp=-106");
+        check(strstr(lte4, "\"rat\":\"LTE\"") != NULL, "  66436 rat=LTE");
+        check(json_has(lte4, "\"pci\":8"),     "  66436 pci=8");
+        check(json_has(lte4, "\"band\":4"),       "  66436 band=4");
+        check(json_has(lte4, "\"bandwidth\":20"), "  66436 RB 100 -> bandwidth=20 MHz");
+        check(json_has(lte4, "\"rsrp\":-106"),    "  66436 rsrp=-106");
     }
 
-    const char *lte900 = obs_with(json, n, "\"earfcn\":900");
-    check(lte900 && json_has(lte900, "\"bandwidth\":10"), "LTE 900 RB 50 -> bandwidth=10 MHz");
-    check(lte900 && json_has(lte900, "\"band\":2"),        "LTE 900 band=2");
+    const char *lte900 = obs_with(json, n, "\"earfcn\":600");
+    check(lte900 && json_has(lte900, "\"bandwidth\":10"), "LTE 600 RB 50 -> bandwidth=10 MHz");
+    check(lte900 && json_has(lte900, "\"band\":2"),        "LTE 600 band=2");
 
-    const char *lte5035 = obs_with(json, n, "\"earfcn\":5035");
-    check(lte5035 && json_has(lte5035, "\"bandwidth\":5"), "LTE 5035 RB 25 -> bandwidth=5 MHz");
-    check(lte5035 && json_has(lte5035, "\"band\":12"),      "LTE 5035 band=12");
+    const char *lte5035 = obs_with(json, n, "\"earfcn\":5010");
+    check(lte5035 && json_has(lte5035, "\"bandwidth\":5"), "LTE 5010 RB 25 -> bandwidth=5 MHz");
+    check(lte5035 && json_has(lte5035, "\"band\":12"),      "LTE 5010 band=12");
 
-    const char *nr41 = obs_with(json, n, "\"earfcn\":521310");
-    check(nr41 != NULL, "NR5G n41 ARFCN 521310 row is present");
+    const char *nr41 = obs_with(json, n, "\"earfcn\":499200");
+    check(nr41 != NULL, "NR5G n41 ARFCN 499200 row is present");
     if (nr41) {
-        check(strstr(nr41, "\"rat\":\"NR\"") != NULL,   "  521310 rat=NR (normalize_rat folds NR5G -> NR)");
-        check(json_has(nr41, "\"band\":41"),       "  521310 band=41 (field[12], not field[11])");
-        check(strstr(nr41, "\"bandwidth\"") == NULL,     "  521310 emits NO bandwidth key (NR5G value unmapped)");
+        check(strstr(nr41, "\"rat\":\"NR\"") != NULL,   "  499200 rat=NR (normalize_rat folds NR5G -> NR)");
+        check(json_has(nr41, "\"band\":41"),       "  499200 band=41 (field[12], not field[11])");
+        check(strstr(nr41, "\"bandwidth\"") == NULL,     "  499200 emits NO bandwidth key (NR5G value unmapped)");
     }
 
-    const char *nr77 = obs_with(json, n, "\"earfcn\":647328");
-    check(nr77 && json_has(nr77, "\"band\":77"),       "NR5G 647328 band=77");
-    check(nr77 && strstr(nr77, "\"bandwidth\"") == NULL, "NR5G 647328 emits no bandwidth key");
+    const char *nr77 = obs_with(json, n, "\"earfcn\":620000");
+    check(nr77 && json_has(nr77, "\"band\":77"),       "NR5G 620000 band=77");
+    check(nr77 && strstr(nr77, "\"bandwidth\"") == NULL, "NR5G 620000 emits no bandwidth key");
 
     printf("== parse_qscan: LTE-only gate isolation (free oracle) ==\n");
     int g = parse_qscan(QSCAN_GATE, json, MAX_OBS);

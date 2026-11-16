@@ -1194,13 +1194,13 @@ static bool check_serialize(void) {
     b193n.rat = "LTE"; b193n.log_code = 0xB193; b193n.pci = 16; b193n.earfcn = 66500;
     b193n.is_serving = false;
     b193n.has_identity = true;
-    strcpy(b193n.mcc, "310"); strcpy(b193n.mnc, "410");
+    strcpy(b193n.mcc, "001"); strcpy(b193n.mnc, "003");
     b193n.tac = 1234; b193n.cell_id = 173696769;
     ok &= check_serialize_one("b193_enriched_norsrp", &b193n,
         "{\"rat\":\"LTE\",\"pci\":16,\"earfcn\":66500,\"prov\":{\"src\":\"diag\","
         "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"observation_type\":\"observation\","
-        "\"is_serving\":false,\"mcc\":\"310\",\"mnc\":\"410\",\"tac\":1234,"
+        "\"is_serving\":false,\"mcc\":\"001\",\"mnc\":\"003\",\"tac\":1234,"
         "\"cell_id\":173696769,\"band\":66,\"duplex\":\"FDD\"}");
 
     /* 0x512F GSM SI3: no pci/earfcn, identity inline, tac == lac, prov last,
@@ -1210,10 +1210,10 @@ static bool check_serialize(void) {
     memset(&gsm2, 0, sizeof(gsm2));
     gsm2.rat = "GSM"; gsm2.log_code = 0x512F; gsm2.is_serving = false;
     gsm2.has_identity = true;
-    strcpy(gsm2.mcc, "310"); strcpy(gsm2.mnc, "01");
+    strcpy(gsm2.mcc, "001"); strcpy(gsm2.mnc, "01");
     gsm2.tac = 4660; gsm2.cell_id = 22136;
     ok &= check_serialize_one("512f_si3_mnc2", &gsm2,
-        "{\"rat\":\"GSM\",\"mcc\":\"310\",\"mnc\":\"01\",\"lac\":4660,\"tac\":4660,"
+        "{\"rat\":\"GSM\",\"mcc\":\"001\",\"mnc\":\"01\",\"lac\":4660,\"tac\":4660,"
         "\"cell_id\":22136,\"observation_type\":\"observation\",\"is_serving\":false,"
         "\"prov\":{\"src\":\"diag\",\"origin\":\"0x512F\",\"imei\":\"000000000000000\","
         "\"captured_at\":1719873600.5,\"log_tick\":60345938315396}}");
@@ -1233,13 +1233,13 @@ static bool check_serialize(void) {
     b192.rat = "LTE"; b192.log_code = 0xB192; b192.pci = 42; b192.earfcn = 2050;
     b192.is_serving = false;
     b192.has_identity = true;
-    strcpy(b192.mcc, "310"); strcpy(b192.mnc, "01");
+    strcpy(b192.mcc, "001"); strcpy(b192.mnc, "01");
     b192.tac = 5; b192.cell_id = 7;
     ok &= check_serialize_one("b192_enriched", &b192,
         "{\"rat\":\"LTE\",\"pci\":42,\"earfcn\":2050,\"observation_type\":\"observation\","
         "\"is_serving\":false,\"prov\":{\"src\":\"diag\",\"origin\":\"0xB192\","
         "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
-        "\"log_tick\":60345938315396},\"mcc\":\"310\",\"mnc\":\"01\",\"tac\":5,"
+        "\"log_tick\":60345938315396},\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":5,"
         "\"cell_id\":7,\"band\":4,\"duplex\":\"FDD\"}");
 
     /* 0xB0C0: identity is INLINE (mid-dict) and prov is LAST -- the branch whose
@@ -1249,10 +1249,10 @@ static bool check_serialize(void) {
     b0c0.rat = "LTE"; b0c0.log_code = 0xB0C0; b0c0.pci = 7; b0c0.earfcn = 2050;
     b0c0.is_serving = false;
     b0c0.has_identity = true;
-    strcpy(b0c0.mcc, "311"); strcpy(b0c0.mnc, "480");
+    strcpy(b0c0.mcc, "001"); strcpy(b0c0.mnc, "002");
     b0c0.tac = 23130; b0c0.cell_id = 173694465;
     ok &= check_serialize_one("b0c0_inline_identity", &b0c0,
-        "{\"rat\":\"LTE\",\"pci\":7,\"earfcn\":2050,\"mcc\":\"311\",\"mnc\":\"480\","
+        "{\"rat\":\"LTE\",\"pci\":7,\"earfcn\":2050,\"mcc\":\"001\",\"mnc\":\"002\","
         "\"tac\":23130,\"cell_id\":173694465,\"observation_type\":\"observation\","
         "\"is_serving\":false,\"prov\":{\"src\":\"diag\",\"origin\":\"0xB0C0\","
         "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
@@ -1384,10 +1384,12 @@ static bool check_serialize(void) {
 }
 
 /* The 0xB197 cell-config cache and the 0xB97F beam keys, through the
- * learn -> attach -> render path the helper runs. The 0xB197 payload is a live
- * RM500Q-AE record (EARFCN 66786 truncated to 1250, PCI 19, 100 RB, 2 ports);
+ * learn -> attach -> render path the helper runs. The 0xB197 payload is the
+ * SHAPE of a live RM500Q-AE record with a synthetic identity (EARFCN 66436,
+ * the first B66 channel, truncated to its low 16 bits 900; PCI 9; 100 RB,
+ * 2 ports);
  * diagspec's own tests pin the cache itself. */
-static const char *kHex_b197_rm500q = "02643000e20400001342000000000000df050000a4596d0000000000000030a800000200";
+static const char *kHex_b197_rm500q = "02643000840300000942000000000000df050000a4596d0000000000000030a800000200";
 
 static bool check_cell_config_and_beams(void) {
     bool ok = true;
@@ -1411,7 +1413,7 @@ static bool check_cell_config_and_beams(void) {
     /* An NR row is never attached, and must not enter the alias guard. */
     diag_native_obs_t nr;
     memset(&nr, 0, sizeof(nr));
-    nr.rat = "NR"; nr.log_code = 0xB97F; nr.pci = 19; nr.earfcn = 1250;
+    nr.rat = "NR"; nr.log_code = 0xB97F; nr.pci = 9; nr.earfcn = 900;
     if (diag_native_lte_cell_config(map, &nr) || nr.has_bandwidth_rb) {
         printf("  FAIL cell_config: attached to an NR row\n");
         ok = false;
@@ -1420,25 +1422,25 @@ static bool check_cell_config_and_beams(void) {
     /* The live case: the LTE row carries the FULL earfcn, 0xB197 the low 16. */
     diag_native_obs_t o;
     memset(&o, 0, sizeof(o));
-    o.rat = "LTE"; o.log_code = 0xB193; o.pci = 19; o.earfcn = 66786;
+    o.rat = "LTE"; o.log_code = 0xB193; o.pci = 9; o.earfcn = 66436;
     o.is_serving = true;
     if (!diag_native_lte_cell_config(map, &o)) {
-        printf("  FAIL cell_config: 66786 did not find the 1250-keyed config\n");
+        printf("  FAIL cell_config: 66436 did not find the 900-keyed config\n");
         ok = false;
     }
     ok &= check_serialize_one("b193_cell_config_b66", &o,
-        "{\"rat\":\"LTE\",\"pci\":19,\"earfcn\":66786,\"prov\":{\"src\":\"diag\","
+        "{\"rat\":\"LTE\",\"pci\":9,\"earfcn\":66436,\"prov\":{\"src\":\"diag\","
         "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"observation_type\":\"serving\","
         "\"is_serving\":true,\"band\":66,\"duplex\":\"FDD\",\"bandwidth_rb\":100,"
         "\"bandwidth\":20,\"tx_antennas\":2}");
 
-    /* Alias guard: a second full EARFCN under the same key (B3 1250) gets
-     * nothing, and from then on neither does 66786. */
+    /* Alias guard: a second full EARFCN under the same key (B2 900) gets
+     * nothing, and from then on neither does 66436. */
     diag_native_obs_t b3 = o;
-    b3.earfcn = 1250; b3.has_bandwidth_rb = false; b3.has_tx_antennas = false;
+    b3.earfcn = 900; b3.has_bandwidth_rb = false; b3.has_tx_antennas = false;
     diag_native_obs_t again = b3;
-    again.earfcn = 66786;
+    again.earfcn = 66436;
     if (diag_native_lte_cell_config(map, &b3) || diag_native_lte_cell_config(map, &again)) {
         printf("  FAIL cell_config: the alias guard did not drop the config\n");
         ok = false;

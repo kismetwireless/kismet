@@ -17,16 +17,17 @@
 
     Selftest for the AT+QENG decode core.
 
-    The anchor case is a real one: an RM520N-GL (RM520NGLAAR03A04M4G) parked on
-    Verizon B66 reports RSSI -56 in its serving-cell response at fields[15]. A
+    The anchor case comes from a real one: an RM520N-GL (RM520NGLAAR03A04M4G)
+    parked on a B66 cell reports RSSI -56 in its serving-cell response at
+    fields[15]. A
     serving parser that never reads that field leaves every serving device at
     rssi=0 while the modem said -56.
 
-    Every response string below is a VERBATIM line from a cellat transcript of
-    that modem. Do not "tidy" them -- the "-" placeholders and the field counts
-    are the parser's actual input.
+    Every response string below keeps the SHAPE of a line from a cellat
+    transcript of that modem, with synthetic identifiers. Do not "tidy" them --
+    the "-" placeholders and the field counts are the parser's actual input.
 
-    The free oracle: the same physical cell (PCI 9, EARFCN 66536) is reported
+    The free oracle: the same physical cell (PCI 9, EARFCN 66436) is reported
     by BOTH AT+QENG="servingcell" and AT+QENG="neighbourcell" in the same poll
     cycle, and the neighbour path decodes RSSI independently. So the two
     paths must agree on -56 -- that cross-check is what makes this a real
@@ -84,9 +85,11 @@ static void check_lacks(const char *json, const char *frag, const char *what) {
     }
 }
 
-/* --- the anchor: RM520N-GL on Verizon B66, verbatim from the transcript --- */
+/* --- the anchor: the SHAPE of an RM520N-GL B66 servingcell line from a
+ * transcript. The identifiers are synthetic: PLMN 001/002, PCI 9, EARFCN
+ * 66436 (the first B66 channel), placeholder TAC and cell ID. --- */
 static const char *SERVING_LTE =
-    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"NOCONN\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,0,-,29\n"
     "OK\n";
 
@@ -97,37 +100,39 @@ static const char *SERVING_LTE =
  * the 19-field form (EM06x-K; tx_power then srxlev), a 21-field line from a
  * firmware that grew a column, and 20-field CQIs. */
 static const char *SERVING_LTE_18 =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,7\n"   /* srxlev 7: inside CQI's 0..15, so only the field count can tell */
     "OK\n";
 static const char *SERVING_LTE_19 =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,-,7\n"
     "OK\n";
 static const char *SERVING_LTE_21 =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,9,-,29,1\n"
     "OK\n";
 static const char *SERVING_LTE_CQI0 =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,0,-,29\n"
     "OK\n";
 static const char *SERVING_LTE_CQI9 =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,9,-,29\n"
     "OK\n";
 static const char *SERVING_LTE_CQI_BAD =
-    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",311,480,BBB320,9,66536,"
+    "+QENG: \"servingcell\",\"CONNECT\",\"LTE\",\"FDD\",001,002,BBB320,9,66436,"
     "66,5,5,BBB,-96,-11,-56,14,16,-,29\n"
     "OK\n";
 
-/* Same poll cycle, same physical cell (PCI 9 / EARFCN 66536) via the
+/* Same poll cycle, same physical cell (PCI 9 / EARFCN 66436) via the
  * neighbour path. */
 static const char *NEIGHBOUR_LTE =
-    "+QENG: \"neighbourcell intra\",\"LTE\",66536,9,-10,-96,-56,-,29,7,8,4,255\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",66436,9,-10,-96,-56,-,29,7,8,4,255\n"
     "OK\n";
 
-/* --- a SIM-less EG25-G at LIMSRV, verbatim from a cellat transcript ---
+/* --- the SHAPE of a SIM-less EG25-G LIMSRV neighbour list from a cellat
+ * transcript; the LTE identifiers are synthetic (PCI 1-2, EARFCN 1950 = the
+ * first B4 channel, 600 = B2, 5010 = B12) ---
  *
  * Twelve neighbour rows, four of them LTE. The other eight are GSM and are
  * DROPPED ON PURPOSE (the legacy-RAT policy) -- the tally exists so the
@@ -138,10 +143,10 @@ static const char *NEIGHBOUR_LTE =
  * to earfcn_to_band() lands inside B2 (600-1199). A GSM row reaching the
  * observation layer would render as "LTE B2" in WiGLE-bound output. */
 static const char *NEIGHBOUR_EG25G_MIXED =
-    "+QENG: \"neighbourcell intra\",\"LTE\",2300,7,-16,-101,-65,-20,22,6,2,0,46\n"
-    "+QENG: \"neighbourcell intra\",\"LTE\",2300,8,-17,-104,-78,-20,19,6,2,0,46\n"
-    "+QENG: \"neighbourcell inter\",\"LTE\",900,-,-,-,-,-,-,0,8,5\n"
-    "+QENG: \"neighbourcell inter\",\"LTE\",5035,-,-,-,-,-,-,0,8,2\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",1950,1,-16,-101,-65,-20,22,6,2,0,46\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",1950,2,-17,-104,-78,-20,19,6,2,0,46\n"
+    "+QENG: \"neighbourcell inter\",\"LTE\",600,-,-,-,-,-,-,0,8,5\n"
+    "+QENG: \"neighbourcell inter\",\"LTE\",5010,-,-,-,-,-,-,0,8,2\n"
     "+QENG: \"neighbourcell\",\"GSM\",685,0,4,10,255,1,0,-1920,0\n"
     "+QENG: \"neighbourcell\",\"GSM\",684,0,4,10,255,1,0,-1920,0\n"
     "+QENG: \"neighbourcell\",\"GSM\",683,0,4,10,255,1,0,-1920,0\n"
@@ -163,7 +168,7 @@ static const char *NEIGHBOUR_EG25G_MIXED =
  * value, so a parser that kept the last one would re-report on every poll of a
  * modem emitting two. */
 static const char *NEIGHBOUR_UNKNOWN_RAT =
-    "+QENG: \"neighbourcell intra\",\"LTE\",2300,7,-16,-101,-65,-20,22,6,2,0,46\n"
+    "+QENG: \"neighbourcell intra\",\"LTE\",1950,1,-16,-101,-65,-20,22,6,2,0,46\n"
     "+QENG: \"neighbourcell\",\"NR5G-XX\",123456,505,-11,-88,-,-,-,-,-\n"
     "+QENG: \"neighbourcell\",\"ZZ-RAT\",654321,101,-12,-90,-,-,-,-,-\n"
     "OK\n";
@@ -171,7 +176,7 @@ static const char *NEIGHBOUR_UNKNOWN_RAT =
 /* Recognised by normalize_rat(), declined by parse_qeng_neighbor()'s LTE-only
  * body. Distinct from the row above: this is policy, that is a surprise. */
 static const char *NEIGHBOUR_NR_DECLINED =
-    "+QENG: \"neighbourcell\",\"NR5G-NSA\",504990,505,-11,-88,-,-,-,-,-\n"
+    "+QENG: \"neighbourcell\",\"NR5G-NSA\",620000,5,-11,-88,-,-,-,-,-\n"
     "OK\n";
 
 /* NR5G-SA shares the serving call site but its field layout carries NO RSSI:
@@ -179,16 +184,16 @@ static const char *NEIGHBOUR_NR_DECLINED =
  * Fixing RSSI at the shared call site instead of inside the LTE branch would
  * make this row report a fabricated RSSI lifted from an unrelated column. */
 static const char *SERVING_NR5G_SA =
-    "+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",311,480,1A2B3C4,505,"
-    "BBB,504990,78,12,-88,-11,15,1,31\n"
+    "+QENG: \"servingcell\",\"NOCONN\",\"NR5G-SA\",\"TDD\",001,002,1A2B3C4,5,"
+    "BBB,620000,78,12,-88,-11,15,1,31\n"
     "OK\n";
 
 /* The same row in RRC-connected state -- the only state in which the
  * manuals define NR_DL_bandwidth. Synthetic: no recorded capture has a
  * CONNECT NR5G-SA servingcell line (all are LIMSRV/NOCONN). */
 static const char *SERVING_NR5G_SA_CONNECT =
-    "+QENG: \"servingcell\",\"CONNECT\",\"NR5G-SA\",\"TDD\",311,480,1A2B3C4,505,"
-    "BBB,504990,78,12,-88,-11,15,1,31\n"
+    "+QENG: \"servingcell\",\"CONNECT\",\"NR5G-SA\",\"TDD\",001,002,1A2B3C4,5,"
+    "BBB,620000,78,12,-88,-11,15,1,31\n"
     "OK\n";
 
 /* --- the NR5G-NSA secondary row -- VERBATIM from the vendor manual ---
@@ -236,10 +241,10 @@ int main(void) {
         /* Hex identity decode, verified against a live modem. */
         check_has(obs[0], "\"cell_id\":12301088", "cell_id 0xBBB320 decoded as hex");
         check_has(obs[0], "\"tac\":3003", "tac 0xBBB decoded as hex");
-        check_has(obs[0], "\"mcc\":\"311\"", "mcc (as-broadcast string)");
-        check_has(obs[0], "\"mnc\":\"480\"", "mnc (as-broadcast string)");
+        check_has(obs[0], "\"mcc\":\"001\"", "mcc (as-broadcast string)");
+        check_has(obs[0], "\"mnc\":\"002\"", "mnc (as-broadcast string)");
         check_has(obs[0], "\"pci\":9", "pci");
-        check_has(obs[0], "\"earfcn\":66536", "earfcn");
+        check_has(obs[0], "\"earfcn\":66436", "earfcn");
         check_has(obs[0], "\"band\":66", "band");
         /* DL_BW 5 is the enum for 20 MHz. AT+QSCAN reports the same B66
          * carriers at 100 RB and Telit #CSURV at 20 -- three commands, one
@@ -270,7 +275,7 @@ int main(void) {
         /* Prove the row decoded at all, so the check above is not passing
          * merely because nothing was parsed. */
         check_has(obs[0], "\"rsrp\":-88", "rsrp decoded");
-        check_has(obs[0], "\"pci\":505", "pci decoded");
+        check_has(obs[0], "\"pci\":5", "pci decoded");
         /* NR_DL_BW 12 is present on this NOCONN row, but the manuals
          * define it only in RRC-connected state, so it must not be mapped. */
         check_lacks(obs[0], "\"bandwidth\"", "idle NR5G-SA row carries no bandwidth");
@@ -452,8 +457,8 @@ int main(void) {
         }
         /* ...and prove the LTE EARFCNs DID land, so the check above is not
          * passing merely because nothing was parsed. */
-        check_has(nobs[0], "\"earfcn\":2300", "the LTE rows kept their earfcn");
-        check_has(nobs[0], "\"pci\":7", "...and their pci");
+        check_has(nobs[0], "\"earfcn\":1950", "the LTE rows kept their earfcn");
+        check_has(nobs[0], "\"pci\":1", "...and their pci");
 
         /* The rendered suffix for the existing `observation: N cells` line. */
         check(qeng_drops_summary(&d, summary, sizeof(summary)) > 0,
@@ -576,12 +581,12 @@ int main(void) {
     /* These three helpers are the shared core of EVERY AT PLMN path (CPSI/QENG
      * via plmn_split_dash/plmn_field; Telit SERVINFO/SCELLINFO via
      * plmn_split_mccmnc; RFSTS/MONI/gstatus via plmn_field). The formats below
-     * are the VERBATIM shapes measured on live modems: LM960 #SERVINFO
-     * "310260", #RFSTS "310 260"; RM500Q/EG25 +QENG ...,310,260,... */
+     * are the shapes measured on live modems, with synthetic PLMNs: LM960
+     * #SERVINFO "001001", #RFSTS "001 001"; RM500Q/EG25 +QENG ...,001,001,... */
     {
         /* plmn_field: 1-3 digit tokens pass through; a leading zero is kept */
-        check(plmn_field("310") && strcmp(plmn_field("310"), "310") == 0,
-              "plmn_field(\"310\") -> \"310\"");
+        check(plmn_field("001") && strcmp(plmn_field("001"), "001") == 0,
+              "plmn_field(\"001\") -> \"001\"");
         check(plmn_field("01") && strcmp(plmn_field("01"), "01") == 0,
               "plmn_field(\"01\") -> \"01\" (leading zero kept, NOT 1)");
         check(plmn_field("00") && strcmp(plmn_field("00"), "00") == 0,
@@ -593,16 +598,16 @@ int main(void) {
     {
         /* plmn_split_dash: CPSI/gstatus "MCC-MNC" */
         char mc[8] = "", mn[8] = "";
-        check(plmn_split_dash("310-260", mc, sizeof mc, mn, sizeof mn) &&
-              strcmp(mc, "310") == 0 && strcmp(mn, "260") == 0,
-              "plmn_split_dash(\"310-260\") -> 310/260");
+        check(plmn_split_dash("001-001", mc, sizeof mc, mn, sizeof mn) &&
+              strcmp(mc, "001") == 0 && strcmp(mn, "001") == 0,
+              "plmn_split_dash(\"001-001\") -> 001/001");
         mc[0] = mn[0] = '\0';
         check(plmn_split_dash("460-00", mc, sizeof mc, mn, sizeof mn) &&
               strcmp(mc, "460") == 0 && strcmp(mn, "00") == 0,
               "plmn_split_dash(\"460-00\") -> 460/00 (leading zeros kept)");
         mc[0] = mn[0] = '\0';
-        check(plmn_split_dash("311-01", mc, sizeof mc, mn, sizeof mn) &&
-              strcmp(mn, "01") == 0, "plmn_split_dash(\"311-01\") -> mnc 01");
+        check(plmn_split_dash("001-01", mc, sizeof mc, mn, sizeof mn) &&
+              strcmp(mn, "01") == 0, "plmn_split_dash(\"001-01\") -> mnc 01");
         check(plmn_split_dash("nodash", mc, sizeof mc, mn, sizeof mn) == 0,
               "plmn_split_dash(\"nodash\") -> 0 (no dash)");
         check(plmn_split_dash("31x-26", mc, sizeof mc, mn, sizeof mn) == 0,
@@ -611,19 +616,19 @@ int main(void) {
     {
         /* plmn_split_mccmnc: Telit #SERVINFO / SCELLINFO CGI blob */
         char mc[8] = "", mn[8] = "";
-        check(plmn_split_mccmnc("310260", mc, sizeof mc, mn, sizeof mn) &&
-              strcmp(mc, "310") == 0 && strcmp(mn, "260") == 0,
-              "plmn_split_mccmnc(\"310260\") -> 310/260 (live #SERVINFO shape)");
+        check(plmn_split_mccmnc("001001", mc, sizeof mc, mn, sizeof mn) &&
+              strcmp(mc, "001") == 0 && strcmp(mn, "001") == 0,
+              "plmn_split_mccmnc(\"001001\") -> 001/001 (live #SERVINFO shape)");
         mc[0] = mn[0] = '\0';
-        check(plmn_split_mccmnc("31000", mc, sizeof mc, mn, sizeof mn) &&
-              strcmp(mc, "310") == 0 && strcmp(mn, "00") == 0,
-              "plmn_split_mccmnc(\"31000\") -> 310/00 (2-digit MNC, zeros kept)");
+        check(plmn_split_mccmnc("00100", mc, sizeof mc, mn, sizeof mn) &&
+              strcmp(mc, "001") == 0 && strcmp(mn, "00") == 0,
+              "plmn_split_mccmnc(\"00100\") -> 001/00 (2-digit MNC, zeros kept)");
         mc[0] = mn[0] = '\0';
         check(plmn_split_mccmnc("46001", mc, sizeof mc, mn, sizeof mn) &&
               strcmp(mn, "01") == 0, "plmn_split_mccmnc(\"46001\") -> mnc 01");
         check(plmn_split_mccmnc("123", mc, sizeof mc, mn, sizeof mn) == 0,
               "plmn_split_mccmnc(\"123\") -> 0 (too short)");
-        check(plmn_split_mccmnc("3102x0", mc, sizeof mc, mn, sizeof mn) == 0,
+        check(plmn_split_mccmnc("0010x1", mc, sizeof mc, mn, sizeof mn) == 0,
               "plmn_split_mccmnc rejects a non-digit blob");
     }
 

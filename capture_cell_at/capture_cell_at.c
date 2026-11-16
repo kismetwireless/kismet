@@ -1099,7 +1099,7 @@ static const char *vendor_probed_cmds(enum modem_vendor v) {
  *   #SERVINFO: EARFCN,RSSI,"operator","MCCMNC",cell_id(hex),TAC(hex),DRX,SD,RSRP
  *
  * Example:
- *   #SERVINFO: 66786,-62,"T-Mobile","310260",1A2B302,1A2B,1280,3,-94
+ *   #SERVINFO: 66436,-62,"Operator A","001001",1A2B302,1A2B,1280,3,-94
  *
  * Note: field[6] is DRX (not PCI as incorrectly documented in some sources).
  * SERVINFO does NOT include PCI on LTE. PCI comes from AT#MONI or AT#CSURVC.
@@ -1467,10 +1467,10 @@ static int parse_csurvc(const char *response, char json_out[][JSON_BUF_MAX],
  *   Current Time:  423212         Temperature: 36
  *   System mode:   NR5G           PS state:    Not attached
  *   NR5G TAC:        1a2b00       NR5G Cell ID:    1A2B9D138 (7025054008)
- *   NR5G MCC-MNC:    310-260
+ *   NR5G MCC-MNC:    001-001
  *   NR5G band:       n41          NR5G Carrier ID: 0
  *   NR5G dl bw:      20 MHz
- *   NR5G Rx chan:    521232
+ *   NR5G Rx chan:    499200
  *   NR5G RSRP (dBm): -104        NR5G RSRQ (dB):  -15
  *   NR5G SINR (dB):   0.5
  */
@@ -1518,14 +1518,14 @@ static int parse_gstatus(const char *response, int serial_fd,
     long sinr = 0;
     const char *p;
 
-    /* Parse MCC-MNC (format: "310-260") — same label prefix for both RATs */
+    /* Parse MCC-MNC (format: "001-001") — same label prefix for both RATs */
     const char *mcc_mnc_label = (strcmp(rat, "NR") == 0) ? "NR5G MCC-MNC:" : "MCC-MNC:";
     f = extract_gstatus_field(response, mcc_mnc_label);
     if (f) {
         char mcc_mnc_buf[16];
         strncpy(mcc_mnc_buf, f, sizeof(mcc_mnc_buf) - 1);
         mcc_mnc_buf[sizeof(mcc_mnc_buf) - 1] = '\0';
-        /* "310-260" split, preserving the broadcast digit count */
+        /* "001-001" split, preserving the broadcast digit count */
         if (plmn_split_dash(mcc_mnc_buf, mcc_buf, sizeof mcc_buf,
                             mnc_buf, sizeof mnc_buf)) {
             mcc = mcc_buf;
@@ -1614,7 +1614,7 @@ static int parse_gstatus(const char *response, int serial_fd,
              *   EARFCN MCC MNC TAC CID(hex) Bd D U SNR PCI RSRQ RSRP RSSI RXLV
              *
              * Example:
-             *   66786 310 260 6699 01A2B302 66 5 5 -1 7 -14.9 -103.3 -66.6 20
+             *   66436 001 001 6699 01A2B302 66 5 5 -1 1 -14.9 -103.3 -66.6 20
              */
             char lte_resp[4096];
             int n = at_command(serial_fd, "AT!LTEINFO?", lte_resp, sizeof(lte_resp), 5000);
@@ -1940,11 +1940,11 @@ static long earfcn_to_freq_khz(long earfcn) {
  *   RSRP:-105
  *   RSRQ:-15
  *   BAND:4
- *   CHANNEL:2300
+ *   CHANNEL:1950
  *   SINR:1.0
- *   CGI:310260
+ *   CGI:001001
  *   TX_PWR:0
- *   PCI:7
+ *   PCI:1
  */
 static int parse_scellinfo(const char *response, char json_out[][JSON_BUF_MAX],
                            int max_obs) {
@@ -2006,7 +2006,7 @@ static int parse_scellinfo(const char *response, char json_out[][JSON_BUF_MAX],
         } else if (strcmp(key, "LAC_ID") == 0) {
             h_tac = parse_int(val, (long *)&tac);
         } else if (strcmp(key, "CGI") == 0) {
-            /* CGI is PLMN as concatenated MCC+MNC, e.g. "310260";
+            /* CGI is PLMN as concatenated MCC+MNC, e.g. "001001";
              * split preserving the broadcast digit count */
             if (plmn_split_mccmnc(val, mcc_buf, sizeof mcc_buf,
                                   mnc_buf, sizeof mnc_buf)) {
@@ -2056,9 +2056,9 @@ static int parse_scellinfo(const char *response, char json_out[][JSON_BUF_MAX],
  * Parse AT$QCRSRP? response (Orbic RC400L, passive multi-cell scan).
  *
  * Response format — comma-separated PCI,EARFCN,"RSRP" triplets:
- *   $QCRSRP: 310,2050,"-115.80",001,2050,"-118.80",263,2050,"-125.00",
- *            001,5230,"-096.20",310,5230,"-097.00",001,975,"-113.70",
- *            007,975,"-115.50",310,975,"-110.90"
+ *   $QCRSRP: 001,1950,"-115.80",002,1950,"-118.80",003,1950,"-125.00",
+ *            001,5180,"-096.20",002,5180,"-097.00",001,600,"-113.70",
+ *            007,600,"-115.50",003,600,"-110.90"
  *
  * In COPS=2 (deregistered) mode, returns ALL visible cells across ALL bands.
  * In registered mode, returns only the serving cell.

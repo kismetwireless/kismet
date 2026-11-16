@@ -217,15 +217,15 @@ static int parse_hex(const char *s, unsigned long *out) {
  * a wrong value, not a rounding (the DIAG leg makes the same call and carries
  * bandwidth_rb=6 instead).
  *
- * Grounding -- manual tables PLUS a cross-command check on the same EARFCNs in
+ * Grounding -- manual tables PLUS a cross-command check on the same carriers in
  * captured survey data, so no table is trusted on its own:
  *
- *   EARFCN   QENG DL_BW (enum)  QSCAN bw (RB)  Telit #CSURV bw (MHz)
- *   66786    5                  100            20
- *   2300     5                  100            -
- *   5230     3  (B13)           50             -
- *   66986    3                  50             -
- *   8665     -                  25             5
+ *   carrier  QENG DL_BW (enum)  QSCAN bw (RB)  Telit #CSURV bw (MHz)
+ *   B66 (a)  5                  100            20
+ *   B4       5                  100            -
+ *   B13      3                  50             -
+ *   B66 (b)  3                  50             -
+ *   B25      -                  25             5
  *
  * Four independent readings, one answer per cell. */
 
@@ -447,7 +447,7 @@ static const char *plmn_field(const char *s) {
     return s;
 }
 
-/* Split a dash-joined "MCC-MNC" (e.g. "310-260", "460-01") into its two digit
+/* Split a dash-joined "MCC-MNC" (e.g. "001-001", "460-01") into its two digit
  * strings, copied NUL-terminated into the caller's buffers with the broadcast
  * digit count intact. Returns 1 iff both halves are well-formed decimal. */
 static int plmn_split_dash(const char *s, char *mcc_out, size_t mcc_sz,
@@ -475,7 +475,7 @@ static int plmn_split_dash(const char *s, char *mcc_out, size_t mcc_sz,
     return 1;
 }
 
-/* Split a concatenated "MCCMNC" (e.g. "310260", "31000") into MCC (first 3
+/* Split a concatenated "MCCMNC" (e.g. "001001", "00100") into MCC (first 3
  * digits) and MNC (the remaining 2-3), preserving the broadcast digit count.
  * Returns 1 iff well-formed. */
 static int plmn_split_mccmnc(const char *s, char *mcc_out, size_t mcc_sz,

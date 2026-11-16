@@ -11,7 +11,7 @@
 //   * learn() caches first-wins per field, and only fields the parser bound.
 //   * attach() records every full EARFCN seen under a truncated key, and once two
 //     DIFFERENT full EARFCNs have shared one, the config is attached to neither
-//     (0xB197 truncates its EARFCN to 16 bits, so B66 66786 and B3 1250
+//     (0xB197 truncates its EARFCN to 16 bits, so B66 66436 and B2 900
 //     alias). attach() therefore MUTATES the state, and must be called on every
 //     LTE observation in emit order, not only on the ones that render.
 #ifndef DIAGSPEC_LTE_CELL_CONFIG_H
