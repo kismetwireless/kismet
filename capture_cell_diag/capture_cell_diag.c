@@ -4024,6 +4024,43 @@ static int diag_at_rescan(kis_capture_handler_t *caph, local_diag_t *local,
     return found;
 }
 
+/* The USB IMEI scan, plus its one busy-port rescan.
+ *
+ * An explicit ttyUSB diagport= already names one physical modem, so the scan
+ * walks only that USB device's ports (the celldiag-usb<port> filter,
+ * g_scan_usbdev). Without the scope, a celldiag-<IMEI> source AT-probes every
+ * unheld modem port on the host until its IMEI answers, writing "AT" to modems
+ * that belong to nobody in this capture. A diagport= the scan cannot place on
+ * a USB device (a usb: spec, a node that is gone) keeps the host-wide scan.
+ * Returns 1 when the IMEI was found (at_port / fw / imei / ident filled). */
+static int diag_scan_usb_for_imei(kis_capture_handler_t *caph,
+                                  local_diag_t *local, const char *imei_def,
+                                  const char *diagport,
+                                  char *at_port, size_t at_port_sz,
+                                  char *fw_buf, size_t fw_sz,
+                                  char *imei_buf, size_t imei_sz,
+                                  int *rescanned, modemident_t *ident) {
+    char scope[CELL_NAME_USB_MAX];
+    if (cell_diagport_scan_scope(diagport, scope, sizeof(scope))) {
+        char buf[STATUS_MAX];
+        snprintf(buf, sizeof(buf),
+                 "%s IMEI %s: explicit diagport=%s is on USB device %s; the AT "
+                 "identify scan probes only that device's ports",
+                 local->name ? local->name : "celldiag", imei_def, diagport,
+                 scope);
+        cf_send_message(caph, buf, MSGFLAG_INFO);
+    }
+    snprintf(g_scan_usbdev, sizeof(g_scan_usbdev), "%s", scope);
+    int found = find_port_by_imei(imei_def, at_port, at_port_sz, fw_buf, fw_sz,
+                                  imei_buf, imei_sz, SCAN_ALL_PORTS, ident) ||
+                (g_scan_busy > 0 &&
+                 diag_at_rescan(caph, local, imei_def, at_port, at_port_sz,
+                                fw_buf, fw_sz, imei_buf, imei_sz, rescanned,
+                                SCAN_ALL_PORTS, ident));
+    g_scan_usbdev[0] = '\0';
+    return found;
+}
+
 /* Let go of the DIAG port, taking back what this session armed on the modem:
  * the LOG mask, and with qsh=on the QSH-trace latch (which survives
  * reboots) and the 0x60 event stream it switched on. All
@@ -4239,14 +4276,11 @@ static int diag_bringup_run(kis_capture_handler_t *caph, local_diag_t *local,
                      diagport_override);
         }
         cf_send_message(caph, buf, MSGFLAG_INFO);
-    } else if (!find_port_by_imei(imei_def, at_port, sizeof(at_port),
-                           fw_buf, sizeof(fw_buf), imei_buf, sizeof(imei_buf),
-                           SCAN_ALL_PORTS, &ident) &&
-               !(g_scan_busy > 0 &&
-                 diag_at_rescan(caph, local, imei_def, at_port, sizeof(at_port),
-                                fw_buf, sizeof(fw_buf),
-                                imei_buf, sizeof(imei_buf), &rescanned,
-                                SCAN_ALL_PORTS, &ident))) {
+    } else if (!diag_scan_usb_for_imei(caph, local, imei_def, diagport_override,
+                                       at_port, sizeof(at_port),
+                                       fw_buf, sizeof(fw_buf),
+                                       imei_buf, sizeof(imei_buf),
+                                       &rescanned, &ident)) {
         /* Scan failed -- after its one rescan, if a busy port earned one. An
          * explicit (ttyUSB) diagport still lets us bind on the source-name
          * IMEI; without one there is nothing to open. */

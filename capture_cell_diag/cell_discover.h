@@ -90,6 +90,13 @@ int cell_tty_usb_location(const char *dev_path, char *usbdev, size_t usbdevsz,
  * libusb port, mapped through /sys/bus/usb/devices) is USB device `want`. */
 int cell_usb_matches(const char *usbdev, const char *want);
 
+/* The USB device ("1-5.1") an explicit tty diagport= sits on: the one modem
+ * an IMEI scan for that source needs to walk. 1 and `usbdev` filled when the
+ * node is a USB tty; 0 and `usbdev` "" when it names no such device (empty, a
+ * usb: libusb spec, a non-USB node, a node sysfs cannot place), which leaves
+ * the scan host-wide. */
+int cell_diagport_scan_scope(const char *diagport, char *usbdev, size_t usbdevsz);
+
 /* The modems a simple name's scan found, one per IMEI. */
 #define CELL_PICK_MAX 8
 
