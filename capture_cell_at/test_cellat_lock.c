@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pwd.h>
 
 #include "cellat_lock.h"
 
@@ -222,6 +223,44 @@ static void test_state_file(void) {
     char p[512];
     cellat_lock_default_state_path("351234567890123", p, sizeof(p));
     CHECK(strstr(p, "cellat-lock-351234567890123.state") != NULL, "default path %s", p);
+}
+
+/* The state file's home when the helper's environment has no $HOME, as under a
+ * systemd unit without User=: the password database, the way the server finds
+ * its own ~/.kismet, not a refused lock. */
+static void test_state_path_home(void) {
+    char saved[1024] = "";
+    const char *h = getenv("HOME");
+    int had_home = h != NULL;
+    if (had_home)
+        snprintf(saved, sizeof(saved), "%s", h);
+
+    struct passwd *pw = getpwuid(getuid());
+    CHECK(pw != NULL && pw->pw_dir != NULL && pw->pw_dir[0] == '/',
+          "no password-database home for uid %d", (int) getuid());
+    char want[1100] = "";
+    if (pw != NULL && pw->pw_dir != NULL)
+        snprintf(want, sizeof(want), "%s/.kismet/cellat-lock-001010123456781.state",
+                 pw->pw_dir);
+
+    char p[1200];
+    setenv("HOME", "/nonexistent-home-for-test", 1);
+    cellat_lock_default_state_path("001010123456781", p, sizeof(p));
+    CHECK(strcmp(p, "/nonexistent-home-for-test/.kismet/cellat-lock-001010123456781.state") == 0,
+          "with $HOME set: %s", p);
+
+    unsetenv("HOME");
+    cellat_lock_default_state_path("001010123456781", p, sizeof(p));
+    CHECK(strcmp(p, want) == 0, "with $HOME unset: '%s', want '%s'", p, want);
+
+    setenv("HOME", "", 1);
+    cellat_lock_default_state_path("001010123456781", p, sizeof(p));
+    CHECK(strcmp(p, want) == 0, "with $HOME empty: '%s', want '%s'", p, want);
+
+    if (had_home)
+        setenv("HOME", saved, 1);
+    else
+        unsetenv("HOME");
 }
 
 /* ── RAT-only backends (Sierra AT!SELRAT, the Telit LM960) ───────────────
@@ -576,6 +615,7 @@ int main(void) {
     test_target();
     test_writes();
     test_state_file();
+    test_state_path_home();
     test_selrat();
     test_ws46();
     test_cnmp();
