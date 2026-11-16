@@ -276,7 +276,8 @@ static int parse_gtccinfo(const char *response, char json_out[][JSON_BUF_MAX],
             h_snr = gtcc_rssnr_db(snr_v, h_sv, &snr);
         }
 
-        char mcc_buf[8] = "", mnc_buf[8] = "";
+        /* sized for any long so newer compilers can't see a truncation; values are 0..999 */
+        char mcc_buf[24] = "", mnc_buf[24] = "";
         const char *mcc = NULL, *mnc_str = NULL;
         if (h_mcc) {
             snprintf(mcc_buf, sizeof mcc_buf, "%03ld", mcc_n);

@@ -68,8 +68,9 @@
       Commands: AT^SCELLINFO (serving cell), AT$QCRSRP? (multi-cell passive scan)
 
     Fibocom FM350-GL / MediaTek T700 (5G NR + LTE):
-      No vendor manual for this verb; grammar bound field by field against
-      +CEREG, +COPS, +GTCAINFO? and +CESQ on live firmware 29.22.06.
+      Row layouts from the FM350 AT Commands User Manual V2.10.1 (11.1.15),
+      checked field by field against +CEREG, +COPS, +GTCAINFO? and +CESQ on
+      live firmware 29.22.06.
       Commands: AT+GTCCINFO? (serving + neighbour cells; cellat_gtccinfo.inc)
 
     Common 3GPP commands (all vendors, per 3GPP TS 27.007):
