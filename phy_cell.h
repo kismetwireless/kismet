@@ -183,6 +183,17 @@ public:
     __Proxy(cell_cqi, int64_t, int16_t, int16_t, cell_cqi);
     __Proxy(cell_min_rsrp, int64_t, int16_t, int16_t, cell_min_rsrp);
     __Proxy(cell_max_rsrp, int64_t, int16_t, int16_t, cell_max_rsrp);
+    __Proxy(cell_min_rsrq, int64_t, int16_t, int16_t, cell_min_rsrq);
+    __Proxy(cell_max_rsrq, int64_t, int16_t, int16_t, cell_max_rsrq);
+    __Proxy(cell_min_sinr, int64_t, int16_t, int16_t, cell_min_sinr);
+    __Proxy(cell_max_sinr, int64_t, int16_t, int16_t, cell_max_sinr);
+    __Proxy(cell_min_snr, int64_t, int16_t, int16_t, cell_min_snr);
+    __Proxy(cell_max_snr, int64_t, int16_t, int16_t, cell_max_snr);
+    __Proxy(cell_min_rssi, int64_t, int16_t, int16_t, cell_min_rssi);
+    __Proxy(cell_max_rssi, int64_t, int16_t, int16_t, cell_max_rssi);
+    __Proxy(cell_min_cqi, int64_t, int16_t, int16_t, cell_min_cqi);
+    __Proxy(cell_max_cqi, int64_t, int16_t, int16_t, cell_max_cqi);
+    __Proxy(cell_signal_seen, uint64_t, uint32_t, uint32_t, cell_signal_seen);
 
     // Identity level: "full" (MCC+MNC+CID) or "partial" (PCI+EARFCN+RAT only)
     __Proxy(cell_identity_level, std::string, std::string, std::string, cell_identity_level);
@@ -236,6 +247,17 @@ protected:
         register_field("cellular.cell.rssi", "Last RSSI dBm", &cell_rssi);
         register_field("cellular.cell.min_rsrp", "Minimum RSRP dBm seen", &cell_min_rsrp);
         register_field("cellular.cell.max_rsrp", "Maximum RSRP dBm seen", &cell_max_rsrp);
+        register_field("cellular.cell.min_rsrq", "Minimum RSRQ dB seen (valid when its signal_seen bit is set)", &cell_min_rsrq);
+        register_field("cellular.cell.max_rsrq", "Maximum RSRQ dB seen (valid when its signal_seen bit is set)", &cell_max_rsrq);
+        register_field("cellular.cell.min_sinr", "Minimum SINR dB seen (valid when its signal_seen bit is set)", &cell_min_sinr);
+        register_field("cellular.cell.max_sinr", "Maximum SINR dB seen (valid when its signal_seen bit is set)", &cell_max_sinr);
+        register_field("cellular.cell.min_snr", "Minimum SNR dB seen (valid when its signal_seen bit is set)", &cell_min_snr);
+        register_field("cellular.cell.max_snr", "Maximum SNR dB seen (valid when its signal_seen bit is set)", &cell_max_snr);
+        register_field("cellular.cell.min_rssi", "Minimum RSSI dBm seen (valid when its signal_seen bit is set)", &cell_min_rssi);
+        register_field("cellular.cell.max_rssi", "Maximum RSSI dBm seen (valid when its signal_seen bit is set)", &cell_max_rssi);
+        register_field("cellular.cell.min_cqi", "Minimum LTE CQI seen (valid when its signal_seen bit is set)", &cell_min_cqi);
+        register_field("cellular.cell.max_cqi", "Maximum LTE CQI seen (valid when its signal_seen bit is set)", &cell_max_cqi);
+        register_field("cellular.cell.signal_seen", "Signal metrics reported at least once, as bits: rsrp=1 rsrq=2 sinr=4 snr=8 rssi=16 cqi=32 (a 0 field whose bit is clear was never reported)", &cell_signal_seen);
 
         // Identity level
         register_field("cellular.cell.identity_level", "Identity level: full or partial", &cell_identity_level);
@@ -281,6 +303,17 @@ protected:
     std::shared_ptr<tracker_element_int64> cell_cqi;
     std::shared_ptr<tracker_element_int64> cell_min_rsrp;
     std::shared_ptr<tracker_element_int64> cell_max_rsrp;
+    std::shared_ptr<tracker_element_int64> cell_min_rsrq;
+    std::shared_ptr<tracker_element_int64> cell_max_rsrq;
+    std::shared_ptr<tracker_element_int64> cell_min_sinr;
+    std::shared_ptr<tracker_element_int64> cell_max_sinr;
+    std::shared_ptr<tracker_element_int64> cell_min_snr;
+    std::shared_ptr<tracker_element_int64> cell_max_snr;
+    std::shared_ptr<tracker_element_int64> cell_min_rssi;
+    std::shared_ptr<tracker_element_int64> cell_max_rssi;
+    std::shared_ptr<tracker_element_int64> cell_min_cqi;
+    std::shared_ptr<tracker_element_int64> cell_max_cqi;
+    std::shared_ptr<tracker_element_uint64> cell_signal_seen;
 
     // Identity level
     std::shared_ptr<tracker_element_string> cell_identity_level;

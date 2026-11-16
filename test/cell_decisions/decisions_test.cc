@@ -406,6 +406,43 @@ static void test_json_validation() {
         CHECK(!plmn_from_json(json::parse(s)).present);
 }
 
+static void test_fold_signal() {
+    // The first reading sets both ends, whatever its value: 0 included
+    auto r = fold_signal(false, 0, 0, 0);
+    CHECK(r.min == 0 && r.max == 0);
+    r = fold_signal(false, 0, 0, -7);
+    CHECK(r.min == -7 && r.max == -7);
+    r = fold_signal(false, 0, 0, 12);
+    CHECK(r.min == 12 && r.max == 12);
+
+    // A seen 0 is a real end of the range, not "unset"
+    r = fold_signal(true, 0, 0, 5);
+    CHECK(r.min == 0 && r.max == 5);
+    r = fold_signal(true, 0, 0, -3);
+    CHECK(r.min == -3 && r.max == 0);
+
+    // Later readings widen the range, never narrow it
+    r = fold_signal(true, -3, 5, 2);
+    CHECK(r.min == -3 && r.max == 5);
+    r = fold_signal(true, -3, 5, -10);
+    CHECK(r.min == -10 && r.max == 5);
+    r = fold_signal(true, -3, 5, 9);
+    CHECK(r.min == -3 && r.max == 9);
+
+    // One bit per metric, none shared
+    const uint32_t bits[] = {SIGNAL_RSRP, SIGNAL_RSRQ, SIGNAL_SINR, SIGNAL_SNR,
+                             SIGNAL_RSSI, SIGNAL_CQI};
+    uint32_t all = 0;
+    for (auto b : bits) {
+        CHECK(b != 0 && (b & (b - 1)) == 0);
+        CHECK((all & b) == 0);
+        all |= b;
+    }
+    // The values the field's help text and the web UI name
+    CHECK(SIGNAL_RSRP == 1 && SIGNAL_RSRQ == 2 && SIGNAL_SINR == 4 &&
+          SIGNAL_SNR == 8 && SIGNAL_RSSI == 16 && SIGNAL_CQI == 32);
+}
+
 int main() {
     test_tables_match_the_helper_and_spec();
     test_duplex_matches_the_helper();
@@ -415,6 +452,7 @@ int main() {
     test_label_band_cases();
     test_key_strings();
     test_json_validation();
+    test_fold_signal();
 
     if (failures) {
         fprintf(stderr, "%d failures\n", failures);

@@ -269,6 +269,32 @@ cell_fields_t cell_fields(const nlohmann::json& j);
  * not-reported sentinel. */
 bool have_usable_rsrp(bool rsrp_is_number, int rsrp);
 
+/* The signal metrics a cell device tracks, as bits of
+ * cellular.cell.signal_seen: a bit is set once that metric has been reported.
+ *
+ * Every tracked field starts at 0, and 0 is a real reading for most of them
+ * (a 0 dB SINR, SNR or RSRQ, a CQI of 0). Without the bit, "never reported"
+ * and "reported 0" read the same, and a min/max seeded on "is it 0?" treats a
+ * real 0 as unset. RSRP is the exception: 0 is its not-reported sentinel
+ * (have_usable_rsrp), so a 0 RSRP sets no bit. */
+enum signal_bit : uint32_t {
+    SIGNAL_RSRP = 1u << 0,
+    SIGNAL_RSRQ = 1u << 1,
+    SIGNAL_SINR = 1u << 2,
+    SIGNAL_SNR  = 1u << 3,
+    SIGNAL_RSSI = 1u << 4,
+    SIGNAL_CQI  = 1u << 5,
+};
+
+struct signal_range {
+    int64_t min;
+    int64_t max;
+};
+
+/* Fold one reading `v` into a metric's min/max. `seen` is whether the metric
+ * had a reading before: the first one sets both ends, whatever its value. */
+signal_range fold_signal(bool seen, int64_t cur_min, int64_t cur_max, int64_t v);
+
 /* Derive the LTE band number from an EARFCN (TS 36.101 Table 5.7.3-1).
  * Returns 0 when the EARFCN is in no known band. */
 int earfcn_to_band(uint32_t earfcn);
