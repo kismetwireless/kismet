@@ -16,6 +16,11 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+// First, so the SYS_LINUX guard below sees configure's platform define; without
+// it <sys/syscall.h> was never included, SYS_close_range was never defined, and
+// every helper launch closed fds one at a time up to RLIMIT_NOFILE
+#include "config.h"
+
 #include <algorithm>
 #include <climits>
 #include <memory>
