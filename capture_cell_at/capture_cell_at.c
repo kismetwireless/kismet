@@ -67,6 +67,11 @@
       Discovered via binary analysis of atfwd_daemon.
       Commands: AT^SCELLINFO (serving cell), AT$QCRSRP? (multi-cell passive scan)
 
+    Fibocom FM350-GL / MediaTek T700 (5G NR + LTE):
+      No vendor manual for this verb; grammar bound field by field against
+      +CEREG, +COPS, +GTCAINFO? and +CESQ on live firmware 29.22.06.
+      Commands: AT+GTCCINFO? (serving + neighbour cells; cellat_gtccinfo.inc)
+
     Common 3GPP commands (all vendors, per 3GPP TS 27.007):
       AT, ATE0, AT+CGMI, AT+CGMM, AT+CGMR, AT+CGSN, AT+COPS=?
 */
@@ -147,6 +152,7 @@ enum modem_vendor {
     VENDOR_SIERRA,
     VENDOR_ORBIC,
     VENDOR_SIMCOM,
+    VENDOR_FIBOCOM,
 };
 
 /* -----------------------------------------------------------------------
@@ -186,6 +192,7 @@ typedef struct {
     int has_scellinfo; /* Orbic/QC AT^SCELLINFO */
     int has_qcrsrp;    /* Orbic/QC AT$QCRSRP? */
     int has_cpsi;      /* SIMCom AT+CPSI? */
+    int has_gtccinfo;  /* Fibocom AT+GTCCINFO? (MediaTek FM350-GL) */
 
     /* The last unrecognised +QENG neighbour RAT token reported for this
      * modem. A token normalize_rat() does not know is a firmware surprise
@@ -571,7 +578,8 @@ static void obs_mark(const local_cell_t *local, obs_exchange_t *ref,
 }
 
 /* True when this modem exposes no vendor engineering command --
- * neither a serving/neighbour one (QENG/RFSTS/SERVINFO/GSTATUS/SCELLINFO/CPSI)
+ * neither a serving/neighbour one (QENG/RFSTS/SERVINFO/GSTATUS/SCELLINFO/CPSI/
+ * GTCCINFO)
  * nor a full-scan one (QSCAN/CSURVC). Such a modem falls back to the standard
  * 3GPP reads: parse_generic_serving() for the serving poll, AT+COPS=? for the
  * full scan. A modem with a vendor command but no full-scan command (Sierra,
@@ -580,7 +588,7 @@ static void obs_mark(const local_cell_t *local, obs_exchange_t *ref,
 static int cellat_no_vendor_cmd(const local_cell_t *local) {
     return !local->has_qeng && !local->has_rfsts && !local->has_servinfo &&
            !local->has_gstatus && !local->has_scellinfo && !local->has_cpsi &&
-           !local->has_qscan && !local->has_csurvc;
+           !local->has_gtccinfo && !local->has_qscan && !local->has_csurvc;
 }
 
 /* Issue AT+CCLK? and emit a ClockAnchor row pairing the host clock with
@@ -748,6 +756,7 @@ static void cellat_stats_emit(local_cell_t *local, const char *state) {
  * two AT+QENG parsers. Shared with test_cellat_qeng. */
 #include "cellat_qeng.inc"
 #include "cellat_cpsi.inc"
+#include "cellat_gtccinfo.inc"
 #include "cellat_rfsts.inc"
 #include "cellat_tacfix.inc"
 /* AT+QSCAN=3,1 full-band-scan decode core. Must follow cellat_qeng.inc:
@@ -850,6 +859,11 @@ static enum modem_vendor vendor_from_cgmi(const char *resp) {
     if (strcasestr(resp, "SIMCOM") != NULL ||
         strcasestr(resp, "SIMTECH") != NULL)
         return VENDOR_SIMCOM;
+    /* "Fibocom Wireless Inc." on the FM350-GL, FM101-GL and L8x0-GL alike. The
+     * vendor match only picks the probe; whether +GTCCINFO? works is measured
+     * (the Dell-packaged FM101-GL refuses it, the Intel L8x0 has no such verb). */
+    if (strcasestr(resp, "Fibocom") != NULL)
+        return VENDOR_FIBOCOM;
     /* Orbic RC400L reports "Manufacturer" or "Reliance" or "Sino" via CGMI
      * (cheap ODM firmware quirk — varies by unit) */
     if (strstr(resp, "Reliance") != NULL || strstr(resp, "Sino") != NULL ||
@@ -863,7 +877,7 @@ static enum modem_vendor vendor_from_cgmi(const char *resp) {
  * open would refuse it. */
 static const char *const kUnknownVendorSurveyCmds[] = {
     "AT+QENG=\"servingcell\"", "AT#RFSTS", "AT!GSTATUS?", "AT+CPSI?",
-    "AT^SCELLINFO", "AT$QCRSRP?",
+    "AT^SCELLINFO", "AT$QCRSRP?", "AT+GTCCINFO?",
 };
 
 /* 1 when the modem on `fd` explicitly REFUSED (ERROR / +CME ERROR) every
@@ -993,6 +1007,12 @@ static int identify_modem(const char *path, char *fw_buf, size_t fw_sz,
          * its own command set, and probing every modem would slow --list. */
         if (vendor == VENDOR_UNKNOWN && imei_buf[0])
             g_probe_no_survey = survey_all_refused(fd);
+        /* Fibocom's branch has one survey command; a unit that refuses it
+         * (a Dell-locked FM101-GL, an Intel L8x0) can never open. */
+        else if (vendor == VENDOR_FIBOCOM && imei_buf[0]) {
+            n = at_command(fd, "AT+GTCCINFO?", resp, sizeof(resp), 1500);
+            g_probe_no_survey = n > 0 && strstr(resp, "ERROR") != NULL;
+        }
     }
 
     probe_release(fd, path);
@@ -1032,6 +1052,7 @@ static const char *vendor_name(enum modem_vendor v) {
         case VENDOR_SIERRA:  return "Sierra";
         case VENDOR_ORBIC:   return "Orbic";
         case VENDOR_SIMCOM:  return "SIMCom";
+        case VENDOR_FIBOCOM: return "Fibocom";
         default:             return "Unknown";
     }
 }
@@ -1061,9 +1082,10 @@ static const char *vendor_probed_cmds(enum modem_vendor v) {
         case VENDOR_SIERRA:  return "AT!GSTATUS?";
         case VENDOR_SIMCOM:  return "AT+CPSI?";
         case VENDOR_ORBIC:   return "AT^SCELLINFO, AT$QCRSRP?";
+        case VENDOR_FIBOCOM: return "AT+GTCCINFO?";
         default:             return "AT+QENG=\"servingcell\", AT#RFSTS, "
                                     "AT!GSTATUS?, AT+CPSI?, AT^SCELLINFO, "
-                                    "AT$QCRSRP?";
+                                    "AT$QCRSRP?, AT+GTCCINFO?";
     }
 }
 
@@ -3592,6 +3614,33 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(model_buf, sizeof(model_buf), "SIMCom %.40s", fw_buf);
         local->modem_model = strdup(model_buf);
 
+    } else if (local->vendor == VENDOR_FIBOCOM) {
+        /* AT+GTCCINFO? answers the prefix line on any camped-or-not modem that
+         * supports it -- an uncamped one adds no rows -- so the prefix (or a
+         * bare OK) is the capability, as with +CPSI: NO SERVICE. */
+        int n = at_command_t(local, "AT+GTCCINFO?", resp, sizeof(resp), 5000);
+        if (n > 0 && (strstr(resp, "+GTCCINFO:") || at_response_ok(resp)))
+            local->has_gtccinfo = 1;
+
+        char model_resp[256];
+        n = at_command_t(local, "AT+CGMM", model_resp, sizeof(model_resp), 3000);
+        if (n > 0) {
+            char *saveptr2 = NULL;
+            char *mline = strtok_r(model_resp, "\n", &saveptr2);
+            while (mline) {
+                while (*mline == ' ') mline++;
+                if (*mline && strcmp(mline, "OK") != 0 && strncmp(mline, "+CME", 4) != 0) {
+                    char mbuf[64];
+                    snprintf(mbuf, sizeof(mbuf), "Fibocom %s", mline);
+                    local->modem_model = strdup(mbuf);
+                    break;
+                }
+                mline = strtok_r(NULL, "\n", &saveptr2);
+            }
+        }
+        if (!local->modem_model)
+            local->modem_model = strdup("Fibocom");
+
     } else {
         /* Unknown vendor — try probing for common commands */
         local->modem_model = strdup(fw_buf);
@@ -3652,11 +3701,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local->vendor = VENDOR_ORBIC;
             }
         }
+
+        /* Fibocom AT+GTCCINFO?, for a rebadged unit whose AT+CGMI names
+         * someone else. */
+        if (!local->has_qeng && !local->has_rfsts && !local->has_gstatus &&
+            !local->has_cpsi && !local->has_scellinfo && !local->has_qcrsrp) {
+            n = at_command_t(local, "AT+GTCCINFO?", resp, sizeof(resp), 5000);
+            if (n > 0 && strstr(resp, "+GTCCINFO:")) {
+                local->has_gtccinfo = 1;
+                local->vendor = VENDOR_FIBOCOM;
+            }
+        }
     }
 
     if (!local->has_qeng && !local->has_rfsts && !local->has_servinfo &&
         !local->has_gstatus && !local->has_scellinfo && !local->has_qcrsrp &&
-        !local->has_cpsi) {
+        !local->has_cpsi && !local->has_gtccinfo) {
         /* This refusal is why a capability gap is not silent: rather than
          * open and sit at zero observations forever, open_callback fails here
          * with a named message. It names the vendor the modem gave and the
@@ -4642,6 +4702,12 @@ void capture_thread(kis_capture_handler_t *caph) {
                 n = at_command_t(local, "AT+CPSI?", resp, sizeof(resp), 5000);
                 if (n > 0)
                     obs_count = parse_cpsi(resp, json_obs, MAX_OBS_PER_RESP);
+            } else if (local->has_gtccinfo) {
+                /* Fibocom. One reply carries the serving cell and any
+                 * neighbours, one observation per row. */
+                n = at_command_t(local, "AT+GTCCINFO?", resp, sizeof(resp), 5000);
+                if (n > 0)
+                    obs_count = parse_gtccinfo(resp, json_obs, MAX_OBS_PER_RESP);
             } else {
                 /* Generic 3GPP fallback: no vendor engineering
                  * command was detected on this modem. Gather the standard
@@ -4682,6 +4748,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 local->has_gstatus   ? "AT!GSTATUS?" :
                 local->has_scellinfo ? "AT^SCELLINFO" :
                 local->has_cpsi      ? "AT+CPSI?" :
+                local->has_gtccinfo  ? "AT+GTCCINFO?" :
                 used_generic         ? "3gpp-generic" : "at";
 
             for (int i = 0; i < obs_count; i++) {
