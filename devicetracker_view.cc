@@ -287,6 +287,18 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     return do_readonly_device_work(worker, immutable_copy);
 }
 
+std::shared_ptr<tracker_element_vector> device_tracker_view::copy_devices() {
+    auto ret = std::make_shared<tracker_element_vector>();
+
+    kis_view_lock vlk(view_mutex, true);
+    ret->reserve(device_list->size() - list_holes);
+    for (const auto& d : *device_list)
+        if (d != nullptr)
+            ret->push_back(d);
+
+    return ret;
+}
+
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker,
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
