@@ -45,6 +45,7 @@
 #include "btle_corotation.h"
 #include "randomized_alias.h"
 #include "btle_related.h"
+#include "btle_random_expire.h"
 
 #include "bluetooth_parsers/btle_tracker.h"
 #include "bluetooth_ids.h"
@@ -956,6 +957,15 @@ protected:
     // and a device's other advertising sets which rotate at the same moment
     std::unique_ptr<btle_corotation> corotation;
     void apply_alias_links(const std::vector<randomized_alias_linker::link>& links);
+
+    // btle_random_expire: forget small rotating random addresses nothing correlated
+    // once they're past every linking window; 0 is off
+    time_t random_expire_idle = 0;
+    uint64_t random_expire_packets = 2;
+    int random_expire_timer_id = -1;
+    // With the device list lock held and the device locked
+    btle_random_expire::verdict random_expire_judge(kis_tracked_device_base& dev,
+            time_t now, uint16_t uav_device_id);
 
     int alert_bleedingtooth_ref, alert_flipper_ref, alert_trackerfollow_ref;
 

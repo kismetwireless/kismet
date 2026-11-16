@@ -1865,6 +1865,17 @@ size_t device_tracker::expire_devices(const std::function<bool(kis_tracked_devic
     return drop.size();
 }
 
+bool device_tracker::has_saved_tag(kis_tracked_device_base *dev) {
+    if (!dev->has_tag_map())
+        return false;
+
+    for (const auto& t : *dev->get_tag_map())
+        if (!tag_is_ephemeral(dev, t.first))
+            return true;
+
+    return false;
+}
+
 void device_tracker::usage(const char *name __attribute__((unused))) {
     printf("\n");
 	printf(" *** Device Tracking Options ***\n");

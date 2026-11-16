@@ -257,6 +257,11 @@ TEST_BTLE_RELATED_O = \
 	test/randomized_alias/device_key_stub.cc.o \
 	btle_related.cc.o
 
+# The BTLE rotating random address expiry tests; built on request
+TEST_BTLE_EXPIRE = test/btle_expire/expire_test
+TEST_BTLE_EXPIRE_O = \
+	test/btle_expire/expire_test.cc.o
+
 # The device rules baseline grammar tests; built on request
 TEST_DEVICE_RULES = test/device_rules/baseline_test
 TEST_DEVICE_RULES_O = \
@@ -454,6 +459,9 @@ $(TEST_BTLE_COROTATION):	$(TEST_BTLE_COROTATION_O)
 
 $(TEST_BTLE_RELATED):	$(TEST_BTLE_RELATED_O)
 	$(LD) $(LDFLAGS) -o $(TEST_BTLE_RELATED) $(TEST_BTLE_RELATED_O) $(CXXLIBS)
+
+$(TEST_BTLE_EXPIRE):	$(TEST_BTLE_EXPIRE_O)
+	$(LD) $(LDFLAGS) -o $(TEST_BTLE_EXPIRE) $(TEST_BTLE_EXPIRE_O) $(CXXLIBS)
 
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
@@ -1055,6 +1063,7 @@ depclean:
 	@-rm -f log_tools/*.d
 	@-rm -f test/cell_decisions/*.d diagspec/enrichment/cpp/lte_band.cpp.d
 	@-rm -f test/randomized_alias/*.d test/btle_corotation/*.d test/btle_related/*.d
+	@-rm -f test/btle_expire/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -1069,6 +1078,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/randomized_alias/*.o $(TEST_RANDOMIZED_ALIAS)
 	@-rm -f test/btle_corotation/*.o $(TEST_BTLE_COROTATION)
 	@-rm -f test/btle_related/*.o $(TEST_BTLE_RELATED)
+	@-rm -f test/btle_expire/*.o $(TEST_BTLE_EXPIRE)
 	@-rm -f test/device_rules/*.o $(TEST_DEVICE_RULES)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
@@ -1189,6 +1199,7 @@ include $(wildcard $(patsubst %.o,%.d,$(TEST_CELL_DECISIONS_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_RANDOMIZED_ALIAS_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_COROTATION_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_RELATED_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_EXPIRE_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DEVICE_RULES_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
