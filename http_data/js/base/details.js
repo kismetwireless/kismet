@@ -216,7 +216,10 @@ export function register(kismet) {
                 format: (v) => el('span', {}, el('span', { class: 'mono' }, v), copyButton(v)) },
             { title: 'Manufacturer', field: `${base}.manuf`, empty: muted('Unknown') },
             { title: 'Type', field: `${base}.type`, empty: muted('Unknown'),
-                format: (v, rec, d) => (d?.[`${base}.display_type`] ? `${d[`${base}.display_type`]} (${v})` : v) },
+                format: (v, rec, d) => {
+                    const s = d?.[`${base}.simple_type`];
+                    return s && s !== v ? `${v} (${s})` : v;
+                } },
             { title: 'Phy', field: `${base}.phyname` },
             { title: 'Encryption', field: `${base}.crypt`, hideEmpty: true },
             { title: 'First seen', field: `${base}.first_time`, format: format.time },

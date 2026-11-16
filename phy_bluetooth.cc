@@ -298,15 +298,15 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
         if (devtype_j.is_number()) {
             switch (devtype_j.get<unsigned int>()) {
                 case 0:
-                    basedev->set_tracker_type_string(btphy->btdev_bredr);
+                    basedev->set_simple_type(btphy->btdev_bredr);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
                     break;
                 case 1:
-                    basedev->set_tracker_type_string(btphy->btdev_btle);
+                    basedev->set_simple_type(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
                     break;
                 case 2: {
-                    basedev->set_tracker_type_string(btphy->btdev_btle);
+                    basedev->set_simple_type(btphy->btdev_btle);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
 
                     // LE random
@@ -317,7 +317,7 @@ int kis_bluetooth_phy::packet_bluetooth_hci_json_classifier(CHAINCALL_PARMS) {
                     break;
                 }
                 default:
-                    basedev->set_tracker_type_string(btphy->btdev_bt);
+                    basedev->set_simple_type(btphy->btdev_bt);
                     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
                     break;
             }
@@ -1254,7 +1254,7 @@ std::shared_ptr<bluetooth_tracked_device> kis_bluetooth_phy::hci_device(
 
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-    basedev->set_tracker_type_string(btdev_bredr);
+    basedev->set_simple_type(btdev_bredr);
     btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
 
     return btdev;
@@ -1612,16 +1612,16 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
     if (btpi->type == 0) {
-        basedev->set_tracker_type_string(btphy->btdev_bredr);
+        basedev->set_simple_type(btphy->btdev_bredr);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bredr));
     } else if (btpi->type == 1) {
-        basedev->set_tracker_type_string(btphy->btdev_btle);
+        basedev->set_simple_type(btphy->btdev_btle);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
     } else if (btpi->type == 2) {
-        basedev->set_tracker_type_string(btphy->btdev_btle);
+        basedev->set_simple_type(btphy->btdev_btle);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::btle));
     } else {
-        basedev->set_tracker_type_string(btphy->btdev_bt);
+        basedev->set_simple_type(btphy->btdev_bt);
         btdev->set_bt_device_type(static_cast<uint8_t>(bt_device_type::bt));
     }
 

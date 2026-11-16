@@ -771,7 +771,7 @@ int kis_meshcore_phy::packet_handler(CHAINCALL_PARMS) {
 
     if (new_node_info) {
         _MSG_INFO("Detected new {} \"{}\" ({})",
-                source_dev->get_tracker_type_string()->get(), censor::name(advert->name),
+                source_dev->get_simple_type(), censor::name(advert->name),
                 censor::ident(to_hex(advert->pubkey.substr(0, 4))));
     }
 

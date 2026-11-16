@@ -62,7 +62,7 @@ kis_cellular_phy::kis_cellular_phy(int in_phyid) :
 
     // Cache device type strings — "Cell" has full identity (MCC+MNC+CID),
     // "Cell (Partial)" has only PCI+EARFCN (observed via signal, no global cell identity).
-    devicetracker->register_type_alias("Cellular", "Cell");
+    devicetracker->get_cached_display_type("Cellular", "Cell");
     devtype_cell_partial = devicetracker->get_cached_display_type("Cell (Partial)");
 
     alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();

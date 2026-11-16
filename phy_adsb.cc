@@ -154,7 +154,7 @@ kis_adsb_phy::kis_adsb_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
-    devicetracker->register_type_alias("ADSB Transmitter", "ADSB");
+    devicetracker->get_cached_display_type("ADSB Transmitter", "ADSB");
     datasourcetracker = 
         Globalreg::fetch_mandatory_global_as<datasource_tracker>();
 

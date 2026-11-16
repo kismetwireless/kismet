@@ -178,17 +178,12 @@ kismet_ui.AddDeviceColumn("commonname", {
     },
 });
 
-// Shows the display type when there is one; sorts by the real type
 kismet_ui.AddDeviceColumn("type", {
     'title': 'Type',
     'description': 'Device type',
     'field': 'kismet.device.base.type',
-    'fields': ['kismet.device.base.display_type'],
     'sortable': true,
     'searchable': true,
-    'render': (data, row, cell, onrender, aux) => {
-        return row['original_data']['kismet.device.base.display_type'] || data;
-    },
 });
 
 kismet_ui.AddDeviceColumn("crypt", {
@@ -515,9 +510,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 title: "Type",
                 empty: "<i>Unknown</i>",
                 draw: function(opts) {
-                    var d = kismet.ObjectByString(opts['data'], "kismet.device.base.display_type");
-                    if (d)
-                        return kismet.censorString(d) + " (" + kismet.censorString(opts['value']) + ")";
+                    var s = kismet.ObjectByString(opts['data'], "kismet.device.base.simple_type");
+                    if (s && s !== opts['value'])
+                        return kismet.censorString(opts['value']) + " (" + kismet.censorString(s) + ")";
                     return kismet.censorString(opts['value']);
                 },
             },

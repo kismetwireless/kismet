@@ -212,10 +212,10 @@ kismet_ui.AddDeviceRowHighlight({
     defaultcolor: "#ddccff",
     defaultenable: false,
     fields: [
-        'kismet.device.base.type',
+        'kismet.device.base.simple_type',
     ],
     selector: function(data) {
-        return (data['kismet.device.base.type'] === 'BR/EDR');
+        return (data['kismet.device.base.simple_type'] === 'BR/EDR');
     }
 });
 
@@ -226,12 +226,12 @@ kismet_ui.AddDeviceRowHighlight({
     defaultcolor: "#b3d9ff",
     defaultenable: false,
     fields: [
-        'kismet.device.base.type',
+        'kismet.device.base.simple_type',
         'kismet.device.base.phyname',
     ],
     selector: function(data) {
-        // The real type: trackers and Continuity devices only change the display type
-        return data['kismet.device.base.type'] === 'BTLE' ||
+        // The simple type: trackers and Continuity devices are shown as what they are
+        return data['kismet.device.base.simple_type'] === 'BTLE' ||
             data['kismet.device.base.phyname'] === 'BTLE';
     }
 });

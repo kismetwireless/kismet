@@ -39,7 +39,7 @@ kis_sensor_phy::kis_sensor_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker = 
         Globalreg::fetch_mandatory_global_as<device_tracker>();
-    devicetracker->register_type_alias("RF Sensor", "Sensor");
+    devicetracker->get_cached_display_type("RF Sensor", "Sensor");
 
     pack_comp_json =
         packetchain->register_packet_component("JSON");

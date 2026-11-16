@@ -33,6 +33,7 @@
 #include "datasourcetracker.h"
 #include "devicetracker_component.h"
 #include "kis_datasource.h"
+#include "devicetracker.h"
 
 kis_tracked_ip_data::kis_tracked_ip_data() :
     tracker_component() {
@@ -480,6 +481,11 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, time_t tv
     }
 }
 
+std::shared_ptr<tracker_element_string> kis_tracked_device_base::shown_simple_type() const {
+    auto devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
+    return devicetracker->get_cached_devicetype(simple_type->get()).shown;
+}
+
 void kis_tracked_device_base::register_fields() {
     tracker_component::register_fields();
     
@@ -493,11 +499,10 @@ void kis_tracked_device_base::register_fields() {
         register_dynamic_field("kismet.device.base.username", "user name", &username);
     register_field("kismet.device.base.commonname", 
             "common name alias of custom or device names", &commonname);
-    register_field("kismet.device.base.type", "device type, such as Wi-Fi or BTLE", &type_string);
-    display_type_id =
-        register_dynamic_field("kismet.device.base.display_type",
-                "device type to show, such as Wi-Fi AP or Apple Watch, when it says more than the type",
-                &display_type);
+    register_field("kismet.device.base.type", "printable device type, such as Wi-Fi AP or Apple Watch",
+            &type_string);
+    register_field("kismet.device.base.simple_type", "basic device type, such as Wi-Fi or BTLE",
+            &simple_type);
     register_field("kismet.device.base.basic_type_set", "bitset of basic type", &basic_type_set);
 
     register_field("kismet.device.base.crypt", "printable basic encryption information", &crypt_string);

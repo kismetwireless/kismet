@@ -108,14 +108,9 @@ bool in_exclusion_zone(const std::vector<std::tuple<double, double, double>>& zo
     return false;
 }
 
-// What the device is shown as: the display type, or in logs older than the split
-// between real and display types, the type
-std::string shown_type(const nlohmann::json& dev) {
-    const auto d = dev.find("kismet.device.base.display_type");
-    if (d != dev.end() && d->is_string())
-        return d->get<std::string>();
-
-    const auto t = dev.find("kismet.device.base.type");
+// A string field of a device record, or "" when it's missing
+std::string device_string(const nlohmann::json& dev, const char *field) {
+    const auto t = dev.find(field);
     if (t != dev.end() && t->is_string())
         return t->get<std::string>();
 
@@ -541,9 +536,8 @@ int main(int argc, char *argv[]) {
         auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
         auto name = std::string{""};
         auto crypt = std::string{""};
-        auto type = shown_type(json);
-
-        if (type != "Wi-Fi AP")
+        if (device_string(json, "kismet.device.base.simple_type") != "Wi-Fi" ||
+                device_string(json, "kismet.device.base.type") != "Wi-Fi AP")
             return nullptr;
 
         if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].is_string()) {
@@ -1006,7 +1000,7 @@ int main(int argc, char *argv[]) {
                     ss >> json;
 
                     auto timestamp = json["kismet.device.base.first_time"].get<uint64_t>();
-                    auto type = json["kismet.device.base.type"].get<std::string>();
+                    const auto simple_type = device_string(json, "kismet.device.base.simple_type");
                     auto name = wiglecsv_munge(json["kismet.device.base.commonname"]);
 
                     if (name == sourcemac)
@@ -1025,9 +1019,9 @@ int main(int argc, char *argv[]) {
                     ts << tmstr;
 
                     // Every device of the BTLE phy is LE; Bluetooth phy devices are LE when
-                    // their type says so ("BTLE", or "BTLE Tracker" in older logs), or when
-                    // they hold an LE tracker or Apple Continuity record
-                    if (phy == "BTLE" || type.rfind("BTLE", 0) == 0 || bt_le_record(json)) {
+                    // their simple type is BTLE, or when they hold an LE tracker or Apple
+                    // Continuity record
+                    if (phy == "BTLE" || simple_type == "BTLE" || bt_le_record(json)) {
                         crypt = "Misc [LE]";
                         mod_type = "BLE";
                     } else {

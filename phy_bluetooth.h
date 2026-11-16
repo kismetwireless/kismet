@@ -412,9 +412,9 @@ protected:
     kis_mutex hci_handle_mutex;
     std::unordered_map<uint64_t, hci_link> hci_handles;
 
-    std::shared_ptr<tracker_element_string> btdev_bredr;
-    std::shared_ptr<tracker_element_string> btdev_btle;
-    std::shared_ptr<tracker_element_string> btdev_bt;
+    device_simple_type btdev_bredr;
+    device_simple_type btdev_btle;
+    device_simple_type btdev_bt;
     device_display_type btdev_tracker;
     std::unique_ptr<continuity_device_types> continuity_types;
 
