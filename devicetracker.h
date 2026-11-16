@@ -333,22 +333,19 @@ public:
     // Get phy views
     std::shared_ptr<device_tracker_view> get_phy_view(int in_phy);
 
-    // Get a cached device type; use this to de-dup thousands of devices of the same types.
-    // This is the real type, such as "Wi-Fi" or "BTLE", which logs and filters work on.
-    std::shared_ptr<tracker_element_string> get_cached_devicetype(const std::string& type);
+    // Get a cached simple type, such as "Wi-Fi" or "BTLE", which logs and filters work on;
+    // use this to de-dup thousands of devices of the same types.
+    device_simple_type get_cached_devicetype(const std::string& type);
 
-    // Get a cached display type, such as "Wi-Fi AP" or "Apple Watch", shown in place of the
-    // real type.  With a real type, the name is also registered as a type for new devices:
+    // Get a cached display type, such as "Wi-Fi AP" or "Apple Watch", shown as the device
+    // type.  With a simple type, the name is also registered as a type for new devices:
     // update_common_device with "Wi-Fi AP" makes a "Wi-Fi" device shown as "Wi-Fi AP".
     device_display_type get_cached_display_type(const std::string& display,
-            const std::string& real = "");
+            const std::string& simple = "");
 
-    // Register a name for new devices which only stands for a real type, such as "Wi-Fi
-    // Device" for "Wi-Fi"; devices made with it have no display type
-    void register_type_alias(const std::string& name, const std::string& real);
-
-    // Names registered as display types, for rules which compare the real type to one
-    bool is_display_type_name(const std::string& name);
+    // Register a name for new devices which only stands for a simple type, such as
+    // "Bluetooth Device" for "Bluetooth"; devices made with it are shown as the simple type
+    void register_type_alias(const std::string& name, const std::string& simple);
 
     // Get a cached phyname; use this to de-dup thousands of devices phynames
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
@@ -599,20 +596,21 @@ protected:
     sqlite3_stmt *get_stored_stmt(sqlite3_stmt*& stmt, const char *sql);
     void finalize_stored_stmts();
 
-    // Cached device type map
-    std::map<std::string, std::shared_ptr<tracker_element_string>> device_type_cache;
+    // Cached simple types
+    std::map<std::string, device_simple_type> device_type_cache;
     kis_mutex device_type_cache_mutex;
 
-    // Cached display types, and the names new devices can be made with which map to a real
+    // Cached shown types, and the names new devices can be made with which map to a simple
     // type and display type; under device_type_cache_mutex
     std::map<std::string, std::shared_ptr<tracker_element_string>> display_type_cache;
     struct new_device_type {
-        std::shared_ptr<tracker_element_string> real;
+        device_simple_type simple;
         std::shared_ptr<tracker_element_string> display;
     };
     std::map<std::string, new_device_type> new_device_types;
 
-    std::shared_ptr<tracker_element_string> get_cached_devicetype_nl(const std::string& type);
+    device_simple_type get_cached_devicetype_nl(const std::string& type);
+    std::shared_ptr<tracker_element_string> get_cached_shown_type_nl(const std::string& type);
     new_device_type resolve_new_device_type(const std::string& name);
 
     // Cached phyname map

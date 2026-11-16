@@ -40,7 +40,7 @@ constexpr alias aliases[] = {
     { "name", "kismet.device.base.commonname" },
     { "phy", "kismet.device.base.phyname" },
     { "type", "kismet.device.base.type" },
-    { "display_type", "kismet.device.base.display_type" },
+    { "simple_type", "kismet.device.base.simple_type" },
     { "manuf", "kismet.device.base.manuf" },
     { "crypt", "kismet.device.base.crypt" },
     { "channel", "kismet.device.base.channel" },
@@ -72,7 +72,7 @@ constexpr alias aliases[] = {
 // Fields whose string values match without regard to case
 constexpr const char *icase_fields[] = {
     "kismet.device.base.type",
-    "kismet.device.base.display_type",
+    "kismet.device.base.simple_type",
     "kismet.device.alerts.headers",
     "kismet.device.alerts.sent_headers",
     "kismet.device.alerts.sent_classes",

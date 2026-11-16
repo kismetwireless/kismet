@@ -59,7 +59,7 @@ kis_ant_phy::kis_ant_phy(int in_phyid) :
     ant_manuf = Globalreg::globalreg->manufdb->make_manuf("ANT");
 
     // Real type ANT; the ANT+ profile is the display type
-    devicetracker->register_type_alias("ANT device", "ANT");
+    devicetracker->get_cached_display_type("ANT device", "ANT");
     devicetracker->get_cached_display_type("ANT+ device", "ANT");
     for (const auto t : ant_profile_types)
         devicetracker->get_cached_display_type("ANT+ " + ant_type_name(t), "ANT");

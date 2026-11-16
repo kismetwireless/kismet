@@ -296,9 +296,16 @@ inline void kis_lock_order_violation(const char *what, std::atomic<bool>& report
         } \
     } while (0)
 
-// Base of all device tracking under the new trackerentry system
-// A display type from device_tracker::get_cached_display_type; kept apart from the
-// real type strings, which carry another field id
+// A simple type from device_tracker::get_cached_devicetype, such as "Wi-Fi" or "BTLE": the
+// simple type field, and the same name as the shown type for devices without a more
+// specific one.  Both are shared per name.
+struct device_simple_type {
+    std::shared_ptr<tracker_element_string> simple;
+    std::shared_ptr<tracker_element_string> shown;
+};
+
+// A shown type from device_tracker::get_cached_display_type, such as "Wi-Fi AP" or
+// "Apple Watch"
 struct device_display_type {
     std::shared_ptr<tracker_element_string> type;
 
@@ -311,6 +318,7 @@ struct device_display_type {
     }
 };
 
+// Base of all device tracking under the new trackerentry system
 class kis_tracked_device_base : public tracker_component {
 public:
     kis_tracked_device_base() :
@@ -346,7 +354,7 @@ public:
 
             __ImportField(commonname, p);
             __ImportField(type_string, p);
-            __ImportId(display_type_id, p);
+            __ImportField(simple_type, p);
             __ImportField(basic_type_set,p );
             __ImportField(crypt_string, p);
             __ImportField(basic_crypt_set, p);
@@ -486,9 +494,6 @@ public:
         return commonname->get();
     }
 
-    // __Proxy(type_string, std::string, std::string, std::string, type_string);
-    __ProxySwappingTrackable(type_string, tracker_element_string, type_string);
-
     __Proxy(basic_type_set, uint64_t, uint64_t, uint64_t, basic_type_set);
     __ProxyBitset(basic_type_set, uint64_t, basic_type_set);
 
@@ -505,31 +510,49 @@ public:
             bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
     }
 
+    // The type the device is shown as, such as "Wi-Fi AP" or "Apple Watch", or its simple
+    // type when nothing more specific is known
     __ProxyGet(type_string, std::string, std::string, type_string);
 
-    // What the device is shown as, such as "Wi-Fi AP" or "Apple Watch"; the type is the
-    // real type ("Wi-Fi", "BTLE") which logs and filters work on.  Shared per name.
-    device_display_type get_display_type() const {
-        return device_display_type{display_type};
-    }
+    // The phy's basic classification, such as "Wi-Fi" or "BTLE", which logs, filters and
+    // phy views work on
+    __ProxyGet(simple_type, std::string, std::string, simple_type);
 
-    void set_display_type(const device_display_type& in) {
-        if (display_type == in.type)
+    void set_simple_type(const device_simple_type& in) {
+        if (simple_type == in.simple)
             return;
 
-        if (display_type != nullptr)
-            erase(display_type);
+        const bool shown_simple = !has_display_type();
 
-        display_type = in.type;
+        swap_type_element(simple_type, in.simple);
 
-        if (display_type != nullptr)
-            insert(display_type);
+        if (shown_simple)
+            swap_type_element(type_string, in.shown);
     }
 
-    // The display type when there is one, the real type otherwise
+    bool has_display_type() const {
+        return type_string->get() != simple_type->get();
+    }
+
+    // The shown type, when it is more specific than the simple type
+    device_display_type get_display_type() const {
+        if (!has_display_type())
+            return {};
+        return device_display_type{type_string};
+    }
+
+    // Show a more specific type; an empty one shows the simple type again
+    void set_display_type(const device_display_type& in) {
+        if (in.type == nullptr) {
+            if (has_display_type())
+                swap_type_element(type_string, shown_simple_type());
+            return;
+        }
+
+        swap_type_element(type_string, in.type);
+    }
+
     std::string get_display_type_string() const {
-        if (display_type != nullptr)
-            return display_type->get();
         return type_string->get();
     }
 
@@ -552,37 +575,6 @@ public:
     void set_display_type_ifnotany(const device_display_type& in, uint64_t if_set) {
         if (!(get_basic_type_set() & if_set))
             set_display_type(in);
-    }
-
-    // Use a function on the following so that we don't force a lookup / cache cycle unless we need the data
-
-    // Set the type string if any of the matching set are found
-    void set_type_string_if(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if (get_basic_type_set() & if_set)
-            set_tracker_type_string(in_type());
-    }
-
-    // Set the type string if only the matching set is found
-    void set_type_string_ifonly(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if (get_basic_type_set() == if_set)
-            set_tracker_type_string(in_type());
-    }
-
-    // Set the type string if the matching set is NOT found
-    void set_type_string_ifnot(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if ((get_basic_type_set() & if_set) != if_set)
-            set_tracker_type_string(in_type());
-    }
-
-    // Set the type string if the matching set is NOT found
-    void set_type_string_ifnotany(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if (!(get_basic_type_set() & if_set))
-            set_tracker_type_string(in_type());
-    }
-
-    void set_type_string_ifany(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
-        if ((get_basic_type_set() & if_set))
-            set_tracker_type_string(in_type());
     }
 
     void set_crypt_string(const std::string& string) {
@@ -849,14 +841,23 @@ protected:
     // Common name connected via preserialize
     std::shared_ptr<tracker_element_string> commonname;
 
-    // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
-    // This can be set per-phy and is treated as a printable interpretation.
-    // This should be empty if the phy layer is unable to add something intelligent
+    // Shown type ("Wi-Fi AP", "Apple Watch") and simple type ("Wi-Fi", "BTLE"); both are
+    // shared per name, so they're swapped, never written
     std::shared_ptr<tracker_element_string> type_string;
+    std::shared_ptr<tracker_element_string> simple_type;
 
-    // Shown in place of the type when set
-    std::shared_ptr<tracker_element_string> display_type;
-    int display_type_id;
+    void swap_type_element(std::shared_ptr<tracker_element_string>& cvar,
+            const std::shared_ptr<tracker_element_string>& in) {
+        if (cvar == in || in == nullptr)
+            return;
+        if (cvar != nullptr)
+            erase(cvar);
+        insert(in);
+        cvar = in;
+    }
+
+    // The shown type element for the current simple type
+    std::shared_ptr<tracker_element_string> shown_simple_type() const;
 
     // Basic phy-neutral type for sorting and classification
     std::shared_ptr<tracker_element_uint64> basic_type_set;

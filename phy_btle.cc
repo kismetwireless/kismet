@@ -194,7 +194,7 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
-    devicetracker->register_type_alias("BTLE Device", "BTLE");
+    devicetracker->get_cached_display_type("BTLE Device", "BTLE");
     btmanuf = Globalreg::fetch_global_as<kis_bt_manuf>();
     btoid = Globalreg::fetch_global_as<kis_bt_oid>();
 

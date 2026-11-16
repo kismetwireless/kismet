@@ -181,7 +181,7 @@ kis_uav_phy::kis_uav_phy(int in_phyid) :
         Globalreg::globalreg->manufdb->make_manuf("DJI");
 
     // Drones seen over Wi-Fi or BTLE keep their phy's type and are shown as drones
-    devicetracker->register_type_alias("DRONEID", "Drone / UAV");
+    devicetracker->get_cached_display_type("DRONEID", "Drone / UAV");
     devtype_uav = devicetracker->get_cached_display_type("Drone / UAV");
     devtype_dji = devicetracker->get_cached_display_type("DJI UAV");
 

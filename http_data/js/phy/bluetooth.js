@@ -39,17 +39,17 @@ export function register(kismet) {
         id: 'bluetooth_bredr', name: 'Bluetooth BR/EDR device', priority: 101,
         description: 'Classic (BR/EDR) Bluetooth devices',
         defaultColor: '#d0bfff',
-        fields: [`${base}.type`],
-        match: (row) => row[`${base}.type`] === 'BR/EDR',
+        fields: [`${base}.simple_type`],
+        match: (row) => row[`${base}.simple_type`] === 'BR/EDR',
     });
 
     ui.rowHighlights.add({
         id: 'bluetooth_ble', name: 'Bluetooth BLE device', priority: 103,
         description: 'Bluetooth Low Energy devices',
         defaultColor: '#b3d9ff',
-        fields: [`${base}.type`, `${base}.phyname`],
-        // The real type: trackers and Continuity devices only change the display type
-        match: (row) => row[`${base}.type`] === 'BTLE' || row[`${base}.phyname`] === 'BTLE',
+        fields: [`${base}.simple_type`, `${base}.phyname`],
+        // The simple type: trackers and Continuity devices are shown as what they are
+        match: (row) => row[`${base}.simple_type`] === 'BTLE' || row[`${base}.phyname`] === 'BTLE',
     });
 
     const b = 'bluetooth.device';

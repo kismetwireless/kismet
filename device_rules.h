@@ -277,10 +277,6 @@ protected:
     // user switched off
     std::shared_ptr<active_set> build_set(const std::string& api);
 
-    // Rules comparing type to a display type such as "Wi-Fi AP" no longer match; said once
-    // per rule and name
-    void warn_display_types(const devicerules::ruleset& rs);
-    std::set<std::string> warned_display_types;
     bool save_api(const std::string& text, std::string& err);
 
     std::shared_ptr<device_tracker> devicetracker;
