@@ -572,6 +572,12 @@ bool have_usable_rsrp(bool rsrp_is_number, int rsrp) {
     return rsrp_is_number && rsrp != 0;
 }
 
+signal_range fold_signal(bool seen, int64_t cur_min, int64_t cur_max, int64_t v) {
+    if (!seen)
+        return {v, v};
+    return {v < cur_min ? v : cur_min, v > cur_max ? v : cur_max};
+}
+
 std::string channel_string(const std::string& rat, int explicit_band,
         bool have_earfcn, uint32_t earfcn) {
     int band_num = 0;

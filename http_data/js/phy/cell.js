@@ -278,6 +278,11 @@ export function register(kismet) {
     const unknown = muted('Unknown');
     const rsrpColor = (v) => (v > -80 ? 'ok-text' : v > -100 ? 'warn-text' : 'error-text');
     const yesNo = (v) => (v ? 'Yes' : 'No');
+    // cellular.cell.signal_seen bits: a metric's 0 is a reading only when its bit is set
+    const seenBits = (dev) => dev[cd]?.['cellular.cell.signal_seen'] ?? 0;
+    const seenBit = (bit) => (v, dev) => typeof v === 'number' && (seenBits(dev) & bit) !== 0;
+    const range = (f, bit, unit) => (dev) => (seenBits(dev) & bit) !== 0
+        ? `${dev[cd]['cellular.cell.min_' + f]} to ${dev[cd]['cellular.cell.max_' + f]} ${unit}` : null;
 
     ui.deviceDetails.add({
         id: 'cell', title: 'Cell', priority: 5,
@@ -312,11 +317,11 @@ export function register(kismet) {
                 help: 'FDD uses separate uplink and downlink frequencies; TDD takes turns on one.' },
             { title: 'RSRP', field: c('rsrp'), hideZero: true, format: (v) => span(rsrpColor(v), `${v} dBm`),
                 help: 'Reference signal received power, the latest signal strength.  Above -80 dBm is strong, below -100 weak.' },
-            { title: 'RSRQ', field: c('rsrq'), hideZero: true, format: (v) => `${v} dB`,
+            { title: 'RSRQ', field: c('rsrq'), show: seenBit(2), format: (v) => `${v} dB`,
                 help: 'Reference signal received quality, which counts interference and load; closer to 0 is better.' },
-            { title: 'SINR', field: c('sinr'), hideZero: true, format: (v) => `${v} dB`,
+            { title: 'SINR', field: c('sinr'), show: seenBit(4), format: (v) => `${v} dB`,
                 help: 'Signal to interference and noise ratio; higher is better.' },
-            { title: 'SNR', field: c('snr'), hideZero: true, format: (v) => `${v} dB`,
+            { title: 'SNR', field: c('snr'), show: seenBit(8), format: (v) => `${v} dB`,
                 help: 'Signal to noise ratio.  Unlike SINR it leaves out interference, so the two can differ widely.  Only some modems report it.' },
             { title: 'CQI', field: c('cqi'), show: (v) => typeof v === 'number' && v >= 0,
                 help: 'Channel quality indicator (0-15) a connected modem reported for the downlink; higher is better.  Only some Quectel modems report it.' },
@@ -325,6 +330,12 @@ export function register(kismet) {
                 const hi = dev[cd]?.['cellular.cell.max_rsrp'];
                 return lo || hi ? `${lo} to ${hi} dBm` : null;
             }, help: 'The weakest and strongest signal seen from this cell.' },
+            { title: 'RSRQ range', value: range('rsrq', 2, 'dB'),
+                help: 'The lowest and highest RSRQ seen from this cell.' },
+            { title: 'SINR range', value: range('sinr', 4, 'dB'),
+                help: 'The lowest and highest SINR seen from this cell.' },
+            { title: 'SNR range', value: range('snr', 8, 'dB'),
+                help: 'The lowest and highest SNR seen from this cell.' },
             { title: 'Observations', field: c('observation_count'), hideZero: true, format: format.count,
                 help: 'How many times the capture sources reported this cell.' },
             { title: 'Serving cell', field: c('seen_serving'), format: yesNo,
