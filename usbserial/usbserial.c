@@ -33,7 +33,34 @@ static const usbserial_role_t quectel_roles[] = {
     { 0, NULL },
 };
 
+/* Telit LM960A18 (1bc7:1040): if00 is DIAG (ff/ff/ff) and if03 streams NMEA
+ * with GNSS on, the measured layout behind diag_portadmit.c's table. if04 and
+ * if05 answer AT through this engine. On a USB 2.0 link with hardware LPM
+ * enabled this modem can drop, or hold for seconds, a write that follows an
+ * idle gap; the kernel tty driver sees the same loss, so it is the link and not
+ * this engine. A caller should ask again rather than read one silent reply as a
+ * dead port. */
+static const usbserial_role_t telit_lm960_roles[] = {
+    { 0, "diag" },
+    { 3, "nmea" },
+    { 4, "at" },
+    { 5, "modem" },
+    { 0, NULL },
+};
+
+/* Fibocom FM350-GL (0e8d:7127, MediaTek T700): every serial interface is
+ * ff/00/00, so only a measured map will do. if06 is the AT port. if02 is the
+ * module's log agent and if04 its META factory port; neither is ever claimed.
+ * if03 also answers AT, but only on LF-terminated lines, beside the GNSS daemon,
+ * so it is left to the host driver. There is no DIAG on this chipset. */
+static const usbserial_role_t fibocom_fm350_roles[] = {
+    { 6, "at" },
+    { 0, NULL },
+};
+
 static const usbserial_model_t models[] = {
+    { 0x1bc7, 0x1040, "Telit LM960A18", telit_lm960_roles },
+    { 0x0e8d, 0x7127, "Fibocom FM350-GL", fibocom_fm350_roles },
     { 0x2c7c, 0x0121, "Quectel EC21", quectel_roles },
     { 0x2c7c, 0x0125, "Quectel EC25 / EG25-G", quectel_roles },
     { 0x2c7c, 0x0191, "Quectel EG91", quectel_roles },
@@ -110,6 +137,35 @@ struct usbserial_dev {
     void *aux;
 };
 
+/* Modem vendors whose models the table above doesn't list.  Such a model is served
+ * with roles read from its interface descriptors.  The table is always consulted
+ * first, so a measured map (the FM350-GL's META port) is never second-guessed.
+ * MediaTek (0e8d) is deliberately absent: its serial functions are all ff/00/00. */
+static const usbserial_model_t vendors[] = {
+    { 0x2c7c, 0, "Quectel modem", NULL },
+    { 0x05c6, 0, "Qualcomm modem", NULL },
+    { 0x1410, 0, "Novatel / Inseego modem", NULL },
+    { 0x2cb7, 0, "Fibocom modem", NULL },
+    { 0x1199, 0, "Sierra Wireless modem", NULL },
+    { 0x1bc7, 0, "Telit modem", NULL },
+    { 0x1e0e, 0, "SIMCom modem", NULL },
+    { 0x413c, 0, "Dell modem", NULL },
+    { 0x0489, 0, "Foxconn modem", NULL },
+};
+
+/* Interface class/subclass/protocol triples with one meaning across the modems
+ * measured so far.  ff/ff/ff (DIAG, QMI / RmNet or AT, by modem) and ff/00/00 (AT,
+ * a PPP modem port, or a vendor tool port) say nothing, so they get no role here;
+ * such an interface is only served from a measured map. */
+static const struct {
+    uint8_t cls, sub, prot;
+    const char *role;
+} descriptor_roles[] = {
+    { 0xff, 0xff, 0x30, "diag" },   /* Quectel RM520N if0, Inseego FX3100 if3 */
+    { 0xff, 0xff, 0x40, "at" },     /* Inseego FX3100 (SDX62) if2 */
+    { 0xff, 0x00, 0x40, "nmea" },   /* Quectel RM520N if1 */
+};
+
 const usbserial_model_t *usbserial_find_model(uint16_t vid, uint16_t pid) {
     size_t i;
 
@@ -118,18 +174,74 @@ const usbserial_model_t *usbserial_find_model(uint16_t vid, uint16_t pid) {
             return &models[i];
     }
 
-    return NULL;
-}
-
-static const char *model_role(const usbserial_model_t *model, uint8_t ifnum) {
-    const usbserial_role_t *r;
-
-    for (r = model->roles; r->role != NULL; r++) {
-        if (r->ifnum == ifnum)
-            return r->role;
+    for (i = 0; i < sizeof(vendors) / sizeof(vendors[0]); i++) {
+        if (vendors[i].vid == vid)
+            return &vendors[i];
     }
 
     return NULL;
+}
+
+const char *usbserial_iface_role(const usbserial_model_t *model, uint8_t ifnum,
+        uint8_t cls, uint8_t sub, uint8_t prot) {
+    const usbserial_role_t *r;
+    size_t i;
+
+    if (model == NULL)
+        return NULL;
+
+    if (model->roles != NULL) {
+        for (r = model->roles; r->role != NULL; r++) {
+            if (r->ifnum == ifnum)
+                return r->role;
+        }
+        return NULL;
+    }
+
+    for (i = 0; i < sizeof(descriptor_roles) / sizeof(descriptor_roles[0]); i++) {
+        if (descriptor_roles[i].cls == cls && descriptor_roles[i].sub == sub &&
+                descriptor_roles[i].prot == prot)
+            return descriptor_roles[i].role;
+    }
+
+    return NULL;
+}
+
+static const char *model_role(const usbserial_model_t *model,
+        const struct libusb_interface_descriptor *id) {
+    return usbserial_iface_role(model, id->bInterfaceNumber, id->bInterfaceClass,
+            id->bInterfaceSubClass, id->bInterfaceProtocol);
+}
+
+/* How many of a device's interfaces have a role; a vendor entry's device with none
+ * (a Dell keyboard, a Qualcomm part in a mode with no serial function) isn't a
+ * modem this can serve, so it isn't listed */
+static int config_roles(const struct libusb_config_descriptor *cd,
+        const usbserial_model_t *model) {
+    int f, n = 0;
+
+    for (f = 0; f < cd->bNumInterfaces; f++) {
+        if (cd->interface[f].num_altsetting >= 1 &&
+                model_role(model, &cd->interface[f].altsetting[0]) != NULL)
+            n++;
+    }
+
+    return n;
+}
+
+static int device_roles(libusb_device *d, const usbserial_model_t *model) {
+    struct libusb_config_descriptor *cd = NULL;
+    int n;
+
+    if (model->roles != NULL)
+        return 1;
+
+    if (libusb_get_active_config_descriptor(d, &cd) != 0)
+        return 0;
+
+    n = config_roles(cd, model);
+    libusb_free_config_descriptor(cd);
+    return n;
 }
 
 int usbserial_list(FILE *out) {
@@ -150,7 +262,8 @@ int usbserial_list(FILE *out) {
         if (libusb_get_device_descriptor(list[i], &dd) != 0)
             continue;
 
-        if ((model = usbserial_find_model(dd.idVendor, dd.idProduct)) == NULL)
+        if ((model = usbserial_find_model(dd.idVendor, dd.idProduct)) == NULL ||
+                device_roles(list[i], model) == 0)
             continue;
 
         fprintf(out, "%04x:%04x bus %u addr %u  %s\n", dd.idVendor, dd.idProduct,
@@ -231,7 +344,7 @@ int usbserial_enum(usbserial_enum_cb_t cb, void *aux) {
 
             id = &cd->interface[f].altsetting[0];
 
-            if ((role = model_role(model, id->bInterfaceNumber)) == NULL)
+            if ((role = model_role(model, id)) == NULL)
                 continue;
 
             memset(&info, 0, sizeof(info));
@@ -427,7 +540,8 @@ usbserial_dev_t *usbserial_open_ports(uint16_t vid, uint16_t pid, int bus, int a
         if (addr >= 0 && libusb_get_device_address(list[i]) != addr)
             continue;
 
-        if ((model = usbserial_find_model(dd.idVendor, dd.idProduct)) == NULL)
+        if ((model = usbserial_find_model(dd.idVendor, dd.idProduct)) == NULL ||
+                device_roles(list[i], model) == 0)
             continue;
 
         dev->model = model;
@@ -471,7 +585,7 @@ usbserial_dev_t *usbserial_open_ports(uint16_t vid, uint16_t pid, int bus, int a
 
         id = &cd->interface[f].altsetting[0];
 
-        if ((role = model_role(dev->model, id->bInterfaceNumber)) == NULL)
+        if ((role = model_role(dev->model, id)) == NULL)
             continue;
 
         if (ifmask != 0 && (id->bInterfaceNumber >= 32 ||
@@ -1021,6 +1135,145 @@ static void check_split(const char *what, const uint8_t *q, size_t qsize, size_t
     printf("ok: %s\n", what);
 }
 
+static void check_role(const char *what, uint16_t vid, uint16_t pid, uint8_t ifnum,
+        uint8_t cls, uint8_t sub, uint8_t prot, const char *want) {
+    const char *got = usbserial_iface_role(usbserial_find_model(vid, pid), ifnum, cls,
+            sub, prot);
+
+    if ((got == NULL) != (want == NULL) || (got != NULL && strcmp(got, want) != 0)) {
+        fprintf(stderr, "FAIL: %s: role %s, want %s\n", what, got ? got : "(none)",
+                want ? want : "(none)");
+        fail = 1;
+        return;
+    }
+
+    printf("ok: %s\n", what);
+}
+
+static void check_roles(void) {
+    static const char *const old_quectel[] = { "diag", "nmea", "at", "modem" };
+    size_t i;
+    uint8_t f;
+
+    /* Every listed Quectel model keeps the fixed map, whatever its descriptors say */
+    for (i = 0; i < sizeof(models) / sizeof(models[0]); i++) {
+        const usbserial_model_t *m = usbserial_find_model(models[i].vid, models[i].pid);
+        if (m != &models[i]) {
+            fprintf(stderr, "FAIL: %s is not found by its own vid:pid\n", models[i].name);
+            fail = 1;
+        }
+        if (models[i].vid != 0x2c7c)
+            continue;
+        for (f = 0; f < 4; f++) {
+            const char *r = usbserial_iface_role(m, f, 0xff, 0xff, 0xff);
+            if (r == NULL || strcmp(r, old_quectel[f]) != 0) {
+                fprintf(stderr, "FAIL: %s if%02u: %s, want %s\n", models[i].name, f,
+                        r ? r : "(none)", old_quectel[f]);
+                fail = 1;
+            }
+        }
+        if (usbserial_iface_role(m, 4, 0xff, 0xff, 0x30) != NULL) {
+            fprintf(stderr, "FAIL: %s if04 got a role from its descriptor\n",
+                    models[i].name);
+            fail = 1;
+        }
+    }
+    printf("ok: the listed models keep their maps\n");
+
+    /* A measured map wins over the descriptors */
+    check_role("FM350-GL if04 (META) has no role, even as ff/ff/30", 0x0e8d, 0x7127, 4,
+            0xff, 0xff, 0x30, NULL);
+    check_role("FM350-GL if06 is at", 0x0e8d, 0x7127, 6, 0xff, 0x00, 0x00, "at");
+    check_role("LM960A18 if00 is diag from its map", 0x1bc7, 0x1040, 0, 0xff, 0xff, 0xff,
+            "diag");
+
+    /* An unlisted model of an admitted vendor: roles from the descriptor triple */
+    check_role("unlisted Quectel ff/ff/30 is diag", 0x2c7c, 0x0122, 0, 0xff, 0xff, 0x30,
+            "diag");
+    check_role("unlisted Quectel ff/00/40 is nmea", 0x2c7c, 0x0122, 1, 0xff, 0x00, 0x40,
+            "nmea");
+    check_role("FX3100 if02 ff/ff/40 is at", 0x1410, 0xb023, 2, 0xff, 0xff, 0x40, "at");
+    check_role("FX3100 if03 ff/ff/30 is diag", 0x1410, 0xb023, 3, 0xff, 0xff, 0x30, "diag");
+
+    /* Ambiguous triples are never guessed */
+    check_role("unlisted Telit ff/ff/ff gets no role", 0x1bc7, 0x9999, 0, 0xff, 0xff, 0xff,
+            NULL);
+    check_role("unlisted Quectel ff/00/00 gets no role", 0x2c7c, 0x0122, 2, 0xff, 0x00,
+            0x00, NULL);
+    check_role("an admitted vendor's HID interface gets no role", 0x413c, 0x2113, 0, 0x03,
+            0x01, 0x01, NULL);
+
+    /* A vendor entry's device is served only when some interface has a role */
+    {
+        static const uint8_t trip[][3] = {
+            { 0xff, 0xff, 0x30 }, { 0xff, 0x00, 0x40 }, { 0xff, 0x00, 0x00 },
+            { 0xff, 0x00, 0x00 }, { 0xff, 0xff, 0xff }, { 0x03, 0x01, 0x01 },
+        };
+        struct libusb_interface_descriptor alt[6];
+        struct libusb_interface ifs[6];
+        struct libusb_config_descriptor cd;
+        int k;
+
+        memset(alt, 0, sizeof(alt));
+        memset(ifs, 0, sizeof(ifs));
+        memset(&cd, 0, sizeof(cd));
+        for (k = 0; k < 6; k++) {
+            alt[k].bInterfaceNumber = (uint8_t) k;
+            alt[k].bInterfaceClass = trip[k][0];
+            alt[k].bInterfaceSubClass = trip[k][1];
+            alt[k].bInterfaceProtocol = trip[k][2];
+            ifs[k].altsetting = &alt[k];
+            ifs[k].num_altsetting = 1;
+        }
+        cd.interface = ifs;
+
+        cd.bNumInterfaces = 5;     /* an unlisted Quectel: diag, nmea, 2 x ff/00/00, ff/ff/ff */
+        k = config_roles(&cd, usbserial_find_model(0x2c7c, 0x0122));
+        if (k != 2) {
+            fprintf(stderr, "FAIL: an unlisted Quectel has %d served interfaces, want 2\n", k);
+            fail = 1;
+        } else {
+            printf("ok: an unlisted Quectel serves its diag and nmea interfaces\n");
+        }
+
+        cd.interface = &ifs[5];    /* a Dell keyboard: one HID interface */
+        cd.bNumInterfaces = 1;
+        k = config_roles(&cd, usbserial_find_model(0x413c, 0x2113));
+        if (k != 0) {
+            fprintf(stderr, "FAIL: a Dell keyboard has %d served interfaces, want 0\n", k);
+            fail = 1;
+        } else {
+            printf("ok: a Dell keyboard is not served\n");
+        }
+
+        ifs[5].num_altsetting = 0; /* an interface with no altsetting is skipped */
+        cd.interface = ifs;
+        cd.bNumInterfaces = 1;
+        ifs[0].num_altsetting = 0;
+        k = config_roles(&cd, usbserial_find_model(0x2c7c, 0x0122));
+        if (k != 0) {
+            fprintf(stderr, "FAIL: an interface with no altsetting was served\n");
+            fail = 1;
+        } else {
+            printf("ok: an interface with no altsetting is skipped\n");
+        }
+    }
+
+    /* A vendor that isn't admitted stays unsupported */
+    if (usbserial_find_model(0x0e8d, 0x1234) != NULL) {
+        fprintf(stderr, "FAIL: an unlisted MediaTek model was admitted\n");
+        fail = 1;
+    } else {
+        printf("ok: an unlisted MediaTek model is not admitted\n");
+    }
+    if (usbserial_find_model(0x1a86, 0x7523) != NULL) {
+        fprintf(stderr, "FAIL: a USB-UART bridge was admitted\n");
+        fail = 1;
+    } else {
+        printf("ok: a USB-UART bridge is not admitted\n");
+    }
+}
+
 int main(void) {
     /* VERNO: cmd 0x00, CRC 0xf078 little-endian, closing flag */
     static const uint8_t resync_verno[] = { 0x7e, 0x00, 0x78, 0xf0, 0x7e };
@@ -1055,6 +1308,8 @@ int main(void) {
 
     static const size_t w6[] = { 1, 4, 4 };
     check_split("the split holds across the ring's wrap", ring, sizeof(ring), 8, 9, w6, 3);
+
+    check_roles();
 
     if (diag_xfer_len(verno, sizeof(verno), 0, 0) != 0) {
         fprintf(stderr, "FAIL: an empty queue sends nothing\n");
