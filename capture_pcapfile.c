@@ -113,6 +113,15 @@ static unsigned long replay_delay_usec(local_pcap_t *local_pcap, int64_t ts_sec,
     if (delay < 0)
         return 0;
 
+    /* Far behind the latest is a clock step or a bad timestamp, not a late source;
+     * pace from this record again so the rest of the file isn't sent all at once */
+    if (ts_sec < (int64_t) local_pcap->last_ts.tv_sec &&
+            (uint64_t) (int64_t) local_pcap->last_ts.tv_sec - (uint64_t) ts_sec > 10) {
+        local_pcap->last_ts.tv_sec = ts_sec;
+        local_pcap->last_ts.tv_usec = ts_usec;
+        return 0;
+    }
+
     if ((local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) ||
             ts_sec >= (int64_t) local_pcap->last_ts.tv_sec) {
         local_pcap->last_ts.tv_sec = ts_sec;
