@@ -315,6 +315,35 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
         }
     }
 
+    // Small rotating random addresses nothing correlated, forgotten once no link to them
+    // can form any more; ignore mode never makes them
+    const auto expire_conf = std::min(conf->fetch_opt_uint("btle_random_expire", 0), 7U * 86400U);
+    random_expire_idle = btle_random_expire::effective_idle((time_t) expire_conf, alias_linker != nullptr);
+    random_expire_packets = std::clamp(conf->fetch_opt_uint("btle_random_expire_packets", 2), 1U, 1000U);
+
+    if (random_expire_idle > 0 && random_addrs != random_mode::ignore) {
+        if (random_expire_idle != (time_t) expire_conf)
+            _MSG_INFO("btle_random_expire={} is shorter than random address linking can still "
+                    "join an address; using {} seconds.", expire_conf, random_expire_idle);
+
+        random_expire_timer_id =
+            Globalreg::fetch_mandatory_global_as<time_tracker>()->register_timer(
+                    SERVER_TIMESLICES_SEC * 60, nullptr, 1, [this](int) -> int {
+                        const time_t now = Globalreg::globalreg->last_tv_sec;
+                        const auto uav_id = entrytracker->get_field_id("uav.device");
+                        devicetracker->expire_devices([this, now, uav_id](kis_tracked_device_base& dev) {
+                                return random_expire_judge(dev, now, uav_id) ==
+                                    btle_random_expire::verdict::expire;
+                            });
+                        return 1;
+                    });
+
+        _MSG_INFO("Forgetting BTLE devices on rotating random addresses with {} or fewer packets, "
+                "{} seconds after they were last heard, unless they were linked to other addresses, "
+                "share their payload, or are trackers, Remote ID, alerted, named or tagged.",
+                random_expire_packets, random_expire_idle);
+    }
+
     // The addresses in a device's related or similar group, for the web UI's timeline
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
     auto group_route = [this, httpd](const std::string& uri,
@@ -356,14 +385,58 @@ kis_btle_phy::kis_btle_phy(int in_phyid) :
 }
 
 kis_btle_phy::~kis_btle_phy() {
-    if (related_timer_id >= 0) {
-        auto timetracker = Globalreg::fetch_global_as<time_tracker>();
-        if (timetracker != nullptr)
+    auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+    if (timetracker != nullptr) {
+        if (related_timer_id >= 0)
             timetracker->remove_timer(related_timer_id);
+        if (random_expire_timer_id >= 0)
+            timetracker->remove_timer(random_expire_timer_id);
     }
 
     packetchain->remove_handler(&common_classifier, CHAINPOS_CLASSIFIER);
     packetchain->remove_handler(&dissector, CHAINPOS_LLCDISSECT);
+}
+
+btle_random_expire::verdict kis_btle_phy::random_expire_judge(kis_tracked_device_base& dev,
+        time_t now, uint16_t uav_device_id) {
+    using namespace btle_random_expire;
+
+    // Cheap rejects first; most devices are kept by one of these
+    if (dev.get_phyid() != phyid)
+        return verdict::keep_static;
+    if (dev.get_packets() > random_expire_packets)
+        return verdict::keep_packets;
+    if (now - dev.get_last_time() < random_expire_idle)
+        return verdict::keep_recent;
+
+    auto btle = dev.get_sub_as<btle_tracked_device>(btle_device_id);
+    if (btle == nullptr)
+        return verdict::keep_static;
+
+    // has_ before get_: the dynamic getters create what they return
+    constexpr uint32_t findmy_bit = (uint32_t) 1 << static_cast<uint8_t>(btle_continuity::msg_type::findmy);
+    bool rotating = false;
+    if (btle->has_random_address_type())
+        rotating = btle->get_random_address_type() != "static";
+    if (!rotating && btle->has_adv()) {
+        auto adv = btle->get_tracker_adv();
+        rotating = adv->has_continuity() &&
+            (adv->get_tracker_continuity()->get_seen_types() & findmy_bit) != 0;
+    }
+
+    facts f{};
+    f.rotating = rotating;
+    f.packets = dev.get_packets();
+    f.idle = now - dev.get_last_time();
+    f.linked = btle->has_alias_group();
+    f.related_count = btle->has_related_count() ? btle->get_related_count() : 0;
+    f.tracker = btle->has_tracker();
+    f.remoteid = uav_device_id != 0 && dev.get_sub(uav_device_id) != nullptr;
+    f.alerts = dev.get_num_alerts();
+    f.named = dev.has_username() && !dev.get_username().empty();
+    f.saved_tag = devicetracker->has_saved_tag(&dev);
+
+    return judge(f, params{random_expire_idle, random_expire_packets});
 }
 
 void kis_btle_phy::apply_alias_links(const std::vector<randomized_alias_linker::link>& links) {

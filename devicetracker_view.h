@@ -124,6 +124,9 @@ public:
     // Do read-only work; this MAY NOT modify devices in the worker!
     virtual std::shared_ptr<tracker_element_vector> do_readonly_device_work(device_tracker_view_worker& worker);
 
+    // A copy of the devices in the view, in the order they joined it
+    std::shared_ptr<tracker_element_vector> copy_devices();
+
     // Do work on a specific vector; this does NOT make an immutable copy of the vector.  You
     // must not call this on a vector which can be altered in another thread.
     virtual std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker,

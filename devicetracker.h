@@ -263,6 +263,13 @@ public:
     // whether each change was made.  No device may be locked.
     void apply_tag_ops(const std::vector<tag_op>& ops, std::vector<uint8_t> *applied = nullptr);
 
+    // With the device locked: whether it has a tag that's written to the database
+    bool has_saved_tag(kis_tracked_device_base *dev);
+
+    // Forget the devices pred picks.  pred runs with the device list lock held and each
+    // device write-locked, so it must lock neither.  Returns how many were forgotten.
+    size_t expire_devices(const std::function<bool(kis_tracked_device_base&)>& pred);
+
     // Limits on tags set through the API
     static constexpr size_t max_tag_name = 256;
     static constexpr size_t max_tag_value = 65536;
@@ -362,6 +369,9 @@ protected:
     std::shared_ptr<stream_tracker> streamtracker;
 
     void timetracker_event(int eventid);
+
+    // Drop a device marked removed from the maps and views; needs the device list lock
+    void forget_device(const std::shared_ptr<kis_tracked_device_base>& d);
 
 	// Common classifier for keeping phy counts
 	int common_tracker(const std::shared_ptr<kis_packet>&);
@@ -486,10 +496,9 @@ protected:
     // same MAC so it's not a simple 1:1 map
     std::multimap<mac_addr, std::shared_ptr<kis_tracked_device_base> > tracked_mac_multimap;
 
-    // Immutable vector, one entry per device; may never be sorted.  Devices
-    // which are removed are set to 'null'.  Each position corresponds to the
-    // device ID.
-    std::shared_ptr<tracker_element_vector> immutable_tracked_vec;
+    // Source of kis_internal_id: unique, never reused, and increasing, so it orders
+    // devices by creation and pair locks; under the device list lock
+    uint64_t next_device_id = 0;
 
     // List of views using new API as we transition the rest to the new API; modified
     // under the device list lock

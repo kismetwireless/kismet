@@ -83,9 +83,6 @@ device_tracker::device_tracker() :
 
     next_phy_id = 0;
 
-    // create a vector
-    immutable_tracked_vec = std::make_shared<tracker_element_vector>();
-
     entrytracker =
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
@@ -266,7 +263,7 @@ device_tracker::device_tracker() :
     device_presize =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
-    immutable_tracked_vec->reserve(device_presize);
+    tracked_map.reserve(device_presize);
 
     // Set up the device timeout
     device_idle_expiration =
@@ -356,14 +353,10 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/all_devices", {"GET", "POST"}, httpd->RO_ROLE, {"ekjson", "itjson"},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
-                    // Copy under the list lock; devices are locked individually as they're serialized
-                    auto device_ro = std::make_shared<tracker_element_vector>();
-                    {
-                        KIS_CHECK_NO_DEVICE_LOCKS("device_tracker all_devices endpoint");
-                        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "all_devices endpoint");
-                        device_ro->set(immutable_tracked_vec->begin(), immutable_tracked_vec->end());
-                    }
-                    return device_ro;
+                    // A copy in creation order; devices are locked individually as they're serialized
+                    if (all_view == nullptr)
+                        return std::make_shared<tracker_element_vector>();
+                    return all_view->copy_devices();
                 }));
 
     httpd->register_route("/devices/by-key/:key/device", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -1057,7 +1050,6 @@ device_tracker::~device_tracker() {
 
     phy_handler_map.clear();
 
-    immutable_tracked_vec->clear();
     tracked_mac_multimap.clear();
 }
 
@@ -1471,9 +1463,7 @@ std::shared_ptr<kis_tracked_device_base>
 
                 device = std::make_shared<kis_tracked_device_base>(device_builder.get());
 
-                // Device ID is the size of the vector so a new device always gets put
-                // in it's numbered slot
-                device->set_kis_internal_id(immutable_tracked_vec->size());
+                device->set_kis_internal_id(next_device_id++);
 
                 device->set_key(key);
 
@@ -1513,7 +1503,6 @@ std::shared_ptr<kis_tracked_device_base>
 
                 // Add it before releasing the list so other threads find this device
                 tracked_map[key] = device;
-                immutable_tracked_vec->push_back(device);
                 tracked_mac_multimap.insert(std::make_pair(in_mac, device));
 
                 new_device = true;
@@ -1766,61 +1755,12 @@ std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(
 // seen devices
 void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
-        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
+        const time_t ts_now = Globalreg::globalreg->last_tv_sec;
 
-        time_t ts_now = Globalreg::globalreg->last_tv_sec;
-        bool purged = false;
-
-        // Reset the smart pointer of any devices we're dropping from the device list
-        for (size_t pi = 0; pi < immutable_tracked_vec->size(); pi++) {
-            auto d = std::static_pointer_cast<kis_tracked_device_base>(*(immutable_tracked_vec->begin() + pi));
-
-            if (d == nullptr)
-                continue;
-
-            {
-                kis_device_lock dlk(d, false);
-
-                if (ts_now - d->get_last_time() <= device_idle_expiration ||
-                        (d->get_packets() >= device_idle_min_packets && device_idle_min_packets > 0))
-                    continue;
-
-                // Mark it under its own lock so anything holding a stale reference looks
-                // it up again instead of updating a device we no longer track
-                d->set_removed();
-
-                if (d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
-                    count_baseline(d->get_macaddr(), false);
-            }
-
-            {
-                device_itr mi = tracked_map.find(d->get_key());
-                if (mi != tracked_map.end())
-                    tracked_map.erase(mi);
-
-                // Erase it from the multimap
-                auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
-
-                for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                    if (mmpi->second->get_key() == d->get_key()) {
-                        tracked_mac_multimap.erase(mmpi);
-                        break;
-                    }
-                }
-
-                // Forget it from any views
-                remove_view_device(d);
-
-                // Forget the immutable vec pointer to it
-                (immutable_tracked_vec->begin() + pi)->reset();
-
-                purged = true;
-
-            }
-        }
-
-        if (purged)
-            update_full_refresh();
+        expire_devices([this, ts_now](kis_tracked_device_base& d) {
+                return ts_now - d.get_last_time() > device_idle_expiration &&
+                    (device_idle_min_packets == 0 || d.get_packets() < device_idle_min_packets);
+            });
 
     } else if (eventid == max_devices_timer) {
         kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event max_devices_timer");
@@ -1838,12 +1778,7 @@ void device_tracker::timetracker_event(int eventid) {
         std::vector<std::pair<time_t, std::shared_ptr<kis_tracked_device_base>>> by_time;
         by_time.reserve(tracked_map.size());
 
-        for (const auto& i : *immutable_tracked_vec) {
-            auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
-
-            if (d == nullptr)
-                continue;
-
+        for (const auto& [k, d] : tracked_map) {
             kis_device_lock dlk(d, true);
             by_time.emplace_back(d->get_last_time(), d);
         }
@@ -1869,36 +1804,76 @@ void device_tracker::timetracker_event(int eventid) {
                 kis_device_lock dlk(d, false);
                 d->set_removed();
 
-                if (d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
+                if (d->has_tag_map() && d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
                     count_baseline(d->get_macaddr(), false);
             }
 
-            device_itr mi = tracked_map.find(d->get_key());
-            if (mi != tracked_map.end())
-                tracked_map.erase(mi);
-
-            // Erase it from the multimap
-            auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
-
-            for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                if (mmpi->second->get_key() == d->get_key()) {
-                    tracked_mac_multimap.erase(mmpi);
-                    break;
-                }
-            }
-
-            // Forget it from any views
-            remove_view_device(d);
-
-            // Forget it from the immutable vec, but keep its
-            // position; we need to have vecpos = devid
-            (immutable_tracked_vec->begin() + d->get_kis_internal_id())->reset();
+            forget_device(d);
         }
 
         // Do an update since we're trimming something
         update_full_refresh();
 
 	}
+}
+
+void device_tracker::forget_device(const std::shared_ptr<kis_tracked_device_base>& d) {
+    device_itr mi = tracked_map.find(d->get_key());
+    if (mi != tracked_map.end())
+        tracked_map.erase(mi);
+
+    auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
+
+    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+        if (mmpi->second->get_key() == d->get_key()) {
+            tracked_mac_multimap.erase(mmpi);
+            break;
+        }
+    }
+
+    remove_view_device(d);
+}
+
+size_t device_tracker::expire_devices(const std::function<bool(kis_tracked_device_base&)>& pred) {
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker expire_devices");
+
+    // Pick under each device's lock, then forget them; the map can't change mid-walk
+    std::vector<std::shared_ptr<kis_tracked_device_base>> drop;
+
+    for (const auto& [k, d] : tracked_map) {
+        kis_device_lock dlk(d, false);
+
+        if (d->get_removed() || !pred(*d))
+            continue;
+
+        // Marked under its own lock so anything holding a stale reference looks it up
+        // again instead of updating a device we no longer track
+        d->set_removed();
+
+        if (d->has_tag_map() && d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
+            count_baseline(d->get_macaddr(), false);
+
+        drop.push_back(d);
+    }
+
+    for (const auto& d : drop)
+        forget_device(d);
+
+    if (!drop.empty())
+        update_full_refresh();
+
+    return drop.size();
+}
+
+bool device_tracker::has_saved_tag(kis_tracked_device_base *dev) {
+    if (!dev->has_tag_map())
+        return false;
+
+    for (const auto& t : *dev->get_tag_map())
+        if (!tag_is_ephemeral(dev, t.first))
+            return true;
+
+    return false;
 }
 
 void device_tracker::usage(const char *name __attribute__((unused))) {
@@ -2004,12 +1979,9 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
         return;
     }
 
-    // Device ID is the size of the vector so a new device always gets put
-    // in it's numbered slot
-    device->set_kis_internal_id(immutable_tracked_vec->size());
+    device->set_kis_internal_id(next_device_id++);
 
     tracked_map[device->get_key()] = device;
-    immutable_tracked_vec->push_back(device);
 
     auto mm_pair = std::make_pair(device->get_macaddr(), device);
     tracked_mac_multimap.emplace(mm_pair);
@@ -2033,10 +2005,16 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
     view_vec->push_back(in_view);
     rebuild_view_snapshot();
 
-    for (const auto& i : *immutable_tracked_vec) {
-        auto di = std::static_pointer_cast<kis_tracked_device_base>(i);
-        in_view->new_device(di);
-    }
+    // In creation order, as views list devices
+    std::vector<std::shared_ptr<kis_tracked_device_base>> devs;
+    devs.reserve(tracked_map.size());
+    for (const auto& [k, d] : tracked_map)
+        devs.push_back(d);
+
+    std::sort(devs.begin(), devs.end(), devicetracker_sort_internal_id);
+
+    for (const auto& d : devs)
+        in_view->new_device(d);
 
     return true;
 }
