@@ -2259,6 +2259,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
+    } else if (strcmp(driver, "rtl8821cu") == 0) {
+        /* The out-of-tree rtl8821cu driver registers the new netdev while nl80211 holds the
+         * wiphy lock; creating a VIF deadlocks it on current kernels and hangs every process
+         * which needs the lock, until a reboot.  Setting monitor mode and channels over
+         * nl80211 works. */
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl8821cu driver, "
+                "which can not create a mac80211 VIF.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 mode and channel controls.",
+                local_wifi->name, local_wifi->interface);
+        cf_send_warning(caph, errstr);
+        local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_mode = 1;
     } else if (strcmp(driver, "rtl88x2bu") == 0) {
 #ifdef HAVE_LINUX_WIRELESS
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88x2bu driver, "
