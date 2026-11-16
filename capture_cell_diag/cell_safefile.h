@@ -54,13 +54,14 @@ static inline const char *cell_getenv(const char *name) {
     return cell_is_elevated() ? NULL : getenv(name);
 }
 
-/* The caller's home: $HOME normally, the password database under suid. */
+/* The caller's home: $HOME normally, the password database under suid or when
+ * $HOME is unset or empty. A service started without User= has no $HOME, and
+ * the server still finds its own ~/.kismet through the password database. */
 static inline int cell_home_dir(char *out, size_t outsz) {
     if (!cell_is_elevated()) {
         const char *home = getenv("HOME");
-        if (home == NULL || home[0] == '\0')
-            return -1;
-        return snprintf(out, outsz, "%s", home) < (int) outsz ? 0 : -1;
+        if (home != NULL && home[0] != '\0')
+            return snprintf(out, outsz, "%s", home) < (int) outsz ? 0 : -1;
     }
     struct passwd pw, *res = NULL;
     char buf[4096];
