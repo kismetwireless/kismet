@@ -759,32 +759,51 @@ bool kis_cellular_phy::json_to_cell(nlohmann::json& json,
     // the field 0?", decides whether a reading is the first: 0 is a real
     // SINR, SNR, RSRQ or CQI. A 0 RSRP is the not-reported sentinel, so RSRP
     // folds only when it is usable, as for the L1 signal above.
-    uint32_t seen = celldev->get_cell_signal_seen();
-    auto fold = [&](const std::optional<int64_t>& v, uint32_t bit,
-                    auto set_last, auto get_min, auto get_max, auto set_min, auto set_max) {
-        if (!v)
-            return;
-        set_last(static_cast<int16_t>(*v));
-        const auto r = cell_decisions::fold_signal((seen & bit) != 0, get_min(), get_max(), *v);
-        set_min(static_cast<int16_t>(r.min));
-        set_max(static_cast<int16_t>(r.max));
-        seen |= bit;
+    using cell_t = kis_cellular_tracked_cell;
+    struct signal_metric {
+        const std::optional<int64_t>& value;
+        uint32_t bit;
+        void (cell_t::*set_last)(const int16_t&);
+        int16_t (cell_t::*get_min)() const;
+        int16_t (cell_t::*get_max)() const;
+        void (cell_t::*set_min)(const int16_t&);
+        void (cell_t::*set_max)(const int16_t&);
     };
-#define CELL_SIGNAL_FOLD(value, bit, name) \
-    fold(value, cell_decisions::bit, \
-         [&](int16_t x) { celldev->set_cell_##name(x); }, \
-         [&] { return celldev->get_cell_min_##name(); }, \
-         [&] { return celldev->get_cell_max_##name(); }, \
-         [&](int16_t x) { celldev->set_cell_min_##name(x); }, \
-         [&](int16_t x) { celldev->set_cell_max_##name(x); })
-    CELL_SIGNAL_FOLD(have_rsrp ? fields.rsrp : std::nullopt, SIGNAL_RSRP, rsrp);
-    CELL_SIGNAL_FOLD(fields.rsrq, SIGNAL_RSRQ, rsrq);
-    CELL_SIGNAL_FOLD(fields.sinr, SIGNAL_SINR, sinr);
+    const std::optional<int64_t> usable_rsrp = have_rsrp ? fields.rsrp : std::nullopt;
     // SNR is its own quantity, never folded into SINR
-    CELL_SIGNAL_FOLD(fields.snr, SIGNAL_SNR, snr);
-    CELL_SIGNAL_FOLD(fields.rssi, SIGNAL_RSSI, rssi);
-    CELL_SIGNAL_FOLD(fields.cqi, SIGNAL_CQI, cqi);
-#undef CELL_SIGNAL_FOLD
+    const signal_metric metrics[] = {
+        {usable_rsrp, cell_decisions::kSignalRsrp, &cell_t::set_cell_rsrp,
+            &cell_t::get_cell_min_rsrp, &cell_t::get_cell_max_rsrp,
+            &cell_t::set_cell_min_rsrp, &cell_t::set_cell_max_rsrp},
+        {fields.rsrq, cell_decisions::kSignalRsrq, &cell_t::set_cell_rsrq,
+            &cell_t::get_cell_min_rsrq, &cell_t::get_cell_max_rsrq,
+            &cell_t::set_cell_min_rsrq, &cell_t::set_cell_max_rsrq},
+        {fields.sinr, cell_decisions::kSignalSinr, &cell_t::set_cell_sinr,
+            &cell_t::get_cell_min_sinr, &cell_t::get_cell_max_sinr,
+            &cell_t::set_cell_min_sinr, &cell_t::set_cell_max_sinr},
+        {fields.snr, cell_decisions::kSignalSnr, &cell_t::set_cell_snr,
+            &cell_t::get_cell_min_snr, &cell_t::get_cell_max_snr,
+            &cell_t::set_cell_min_snr, &cell_t::set_cell_max_snr},
+        {fields.rssi, cell_decisions::kSignalRssi, &cell_t::set_cell_rssi,
+            &cell_t::get_cell_min_rssi, &cell_t::get_cell_max_rssi,
+            &cell_t::set_cell_min_rssi, &cell_t::set_cell_max_rssi},
+        {fields.cqi, cell_decisions::kSignalCqi, &cell_t::set_cell_cqi,
+            &cell_t::get_cell_min_cqi, &cell_t::get_cell_max_cqi,
+            &cell_t::set_cell_min_cqi, &cell_t::set_cell_max_cqi},
+    };
+
+    uint32_t seen = celldev->get_cell_signal_seen();
+    for (const auto& m : metrics) {
+        if (!m.value)
+            continue;
+        cell_t& c = *celldev;
+        (c.*m.set_last)(static_cast<int16_t>(*m.value));
+        const auto r = cell_decisions::fold_signal((seen & m.bit) != 0, (c.*m.get_min)(),
+                (c.*m.get_max)(), *m.value);
+        (c.*m.set_min)(static_cast<int16_t>(r.min));
+        (c.*m.set_max)(static_cast<int16_t>(r.max));
+        seen |= m.bit;
+    }
     celldev->set_cell_signal_seen(seen);
 
     // Update observation count

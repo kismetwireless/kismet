@@ -430,8 +430,8 @@ static void test_fold_signal() {
     CHECK(r.min == -3 && r.max == 9);
 
     // One bit per metric, none shared
-    const uint32_t bits[] = {SIGNAL_RSRP, SIGNAL_RSRQ, SIGNAL_SINR, SIGNAL_SNR,
-                             SIGNAL_RSSI, SIGNAL_CQI};
+    const uint32_t bits[] = {kSignalRsrp, kSignalRsrq, kSignalSinr, kSignalSnr,
+                             kSignalRssi, kSignalCqi};
     uint32_t all = 0;
     for (auto b : bits) {
         CHECK(b != 0 && (b & (b - 1)) == 0);
@@ -439,8 +439,8 @@ static void test_fold_signal() {
         all |= b;
     }
     // The values the field's help text and the web UI name
-    CHECK(SIGNAL_RSRP == 1 && SIGNAL_RSRQ == 2 && SIGNAL_SINR == 4 &&
-          SIGNAL_SNR == 8 && SIGNAL_RSSI == 16 && SIGNAL_CQI == 32);
+    CHECK(kSignalRsrp == 1 && kSignalRsrq == 2 && kSignalSinr == 4 &&
+          kSignalSnr == 8 && kSignalRssi == 16 && kSignalCqi == 32);
 }
 
 int main() {
