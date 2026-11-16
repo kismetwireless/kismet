@@ -277,14 +277,12 @@ bool have_usable_rsrp(bool rsrp_is_number, int rsrp);
  * and "reported 0" read the same, and a min/max seeded on "is it 0?" treats a
  * real 0 as unset. RSRP is the exception: 0 is its not-reported sentinel
  * (have_usable_rsrp), so a 0 RSRP sets no bit. */
-enum signal_bit : uint32_t {
-    SIGNAL_RSRP = 1u << 0,
-    SIGNAL_RSRQ = 1u << 1,
-    SIGNAL_SINR = 1u << 2,
-    SIGNAL_SNR  = 1u << 3,
-    SIGNAL_RSSI = 1u << 4,
-    SIGNAL_CQI  = 1u << 5,
-};
+inline constexpr uint32_t kSignalRsrp = 1u << 0;
+inline constexpr uint32_t kSignalRsrq = 1u << 1;
+inline constexpr uint32_t kSignalSinr = 1u << 2;
+inline constexpr uint32_t kSignalSnr  = 1u << 3;
+inline constexpr uint32_t kSignalRssi = 1u << 4;
+inline constexpr uint32_t kSignalCqi  = 1u << 5;
 
 struct signal_range {
     int64_t min;
