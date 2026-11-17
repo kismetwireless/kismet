@@ -164,7 +164,14 @@ void device_tracker_view::register_urls(const std::string& in_id) {
                                 if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
-                                unsigned int rate = json["rate"];
+                                auto rate = json["rate"].get<int>();
+                                if (rate < device_monitor_rate_min || rate > device_monitor_rate_max)
+                                    throw std::runtime_error("invalid monitor rate");
+
+                                // Each request is a timer for the life of the socket
+                                if (key_timer_map.find(req_id) == key_timer_map.end() &&
+                                        key_timer_map.size() >= device_monitor_max_requests)
+                                    throw std::runtime_error("too many monitor requests on one connection");
 
                                 // Remove any existing request under this ID
                                 auto kt_v = key_timer_map.find(req_id);

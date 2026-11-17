@@ -216,6 +216,15 @@ public:
         gps_id = 0;
     }
 
+    // A position from a web client or capture tool, which may send anything; NaN fails
+    // every comparison
+    static constexpr bool values_valid(double in_lat, double in_lon, double in_alt, double in_speed) {
+        return in_lat >= -90 && in_lat <= 90 &&
+            in_lon >= -180 && in_lon <= 180 &&
+            in_alt >= -100000 && in_alt <= 1000000 &&
+            in_speed >= 0 && in_speed <= 1000000;
+    }
+
     // A position reported by the device itself (ADS-B, AIS, Remote ID...),
     // starting clean so nothing from an earlier fix is left over.  A fix of
     // 0 means 3d if there's an altitude, else 2d.

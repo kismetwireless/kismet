@@ -2585,6 +2585,11 @@ bool kis_datasource::handle_sub_gps(mpack_node_t& root, mpack_tree_t *tree,
         return false;
     }
 
+    if (!kis_gps_packinfo::values_valid(gpsinfo.lat, gpsinfo.lon, gpsinfo.alt, gpsinfo.speed)) {
+        gpsinfo.reset();
+        return false;
+    }
+
     gpsinfo.gps_info_ok = true;
 
     return true;
@@ -3875,6 +3880,11 @@ bool kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig,
 
 bool kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps, kis_gps_packinfo& gpsinfo) {
     // Extract a GPS record from a packet and turn it into a packinfo gps log
+
+    if (!kis_gps_packinfo::values_valid(in_gps.lat(), in_gps.lon(), in_gps.alt(), in_gps.speed())) {
+        gpsinfo.reset();
+        return false;
+    }
 
     gpsinfo.gps_info_ok = true;
     gpsinfo.lat = in_gps.lat();

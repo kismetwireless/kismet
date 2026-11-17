@@ -33,8 +33,6 @@ callgrind*
 # Autogen'd protobuf
 *.pb.cc
 *.pb.h
-protobuf_c/*.pb-c.c
-protobuf_c/*.pb-c.h
 *-E
 
 # Autogen'd version
