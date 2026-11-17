@@ -21,6 +21,7 @@ test/btle_related/related_test
 test/btle_expire/expire_test
 test/device_rules/baseline_test
 test/linuxwifi_channels/freq_to_chan_test
+test/datasource_probed/probed_test
 callgrind*
 *.pcap
 *.pcapng
