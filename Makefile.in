@@ -1216,7 +1216,7 @@ firmware_file.c.o firmware_file.c.d: CFLAGS += $(FIRMWARECFLAGS)
 %.cc.d: %.cc $(PROTOBUF_CPP_H_TARGET)
 	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) -MT $*.cc.o $*.cc -MF $*.cc.d
 
-.PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c
+.PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_CELL_DECISIONS_O)))
