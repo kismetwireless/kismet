@@ -86,8 +86,19 @@ typedef struct {
     size_t close_len;
 } qmi_session_t;
 
+/* How long a cold open's client id request may wait while the node keeps
+ * delivering other messages ahead of the reply.  Indications queued for
+ * clients nobody released arrive first, one per 32 ms interrupt poll on
+ * qmi_wwan: about 400 of them, 13 s, were measured on one modem.  A quiet
+ * node still fails after the caller's timeout. */
+#ifndef QMI_OPEN_BACKLOG_MAX_MS
+#define QMI_OPEN_BACKLOG_MAX_MS 20000
+#endif
+
 /* Open `dev` (through its proxy when `via_proxy`) and allocate a NAS client
- * id.  1 on success; 0 with a reason in `err`. */
+ * id.  1 on success; 0 with a reason in `err`.  `timeout_ms` is how long the
+ * node may stay silent; a backlog ahead of the reply can stretch the open to
+ * QMI_OPEN_BACKLOG_MAX_MS (QMUX framing). */
 int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
                      int via_proxy, int timeout_ms, char *err, size_t errsz);
 

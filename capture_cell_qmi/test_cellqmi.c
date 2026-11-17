@@ -23,16 +23,23 @@
 
 #define _GNU_SOURCE
 
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "../capture_cell_diag/cell_discover.h"
 #include "qmi_node.h"
 #include "qmi_obs.h"
+#include "qmi_transport.h"
 #include "qmi_wire.h"
 
 static int failures = 0;
@@ -849,6 +856,186 @@ static void test_node_sysfs(void) {
     qmi_node_set_root("");
 }
 
+/* ------------------------------------------------------ cold-open backlog */
+
+/* A fake QMI node on a raw pty.  While the backlog lasts it sends a NAS
+ * indication every PACE_MS for clients nobody released, as a cdc-wdm node
+ * does on a cold open: one message per interrupt poll.  The reply to a CTL
+ * Get Client ID queues behind the backlog, the way the real one does.  Each
+ * client id request it sees is reported as one byte on `count_fd`, so a test
+ * can tell an open that asked once from one that asked again (and so
+ * allocated, and leaked, a second client).  `backlog_ms` < 0 never stops;
+ * `answer` 0 never replies. */
+#define FAKE_PACE_MS 30
+
+static long fake_now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
+
+static void fake_node(int master, int count_fd, long backlog_ms, int answer) {
+    const long t0 = fake_now_ms();
+    long next_ind = t0;
+    uint8_t in[4096], f[128];
+    size_t inlen = 0;
+    uint8_t pending[16];
+    size_t npending = 0;
+
+    for (;;) {
+        const long now = fake_now_ms();
+        const int in_backlog = backlog_ms < 0 || now - t0 < backlog_ms;
+
+        if (in_backlog && now >= next_ind) {
+            tlvbuf_t t = { .n = 0 };
+            size_t s = tlv_begin(&t, 0x01);
+            put8(&t, 1);
+            tlv_end(&t, s);
+            size_t n = qmux_build(f, sizeof(f), QMI_SVC_NAS, (uint8_t) (3 + (now / FAKE_PACE_MS) % 5),
+                                  0, 0x0024, t.b, t.n);
+            f[3] = 0x80;
+            f[6] = 0x04;
+            if (write(master, f, n) < 0)
+                _exit(0);
+            next_ind += FAKE_PACE_MS;
+        }
+
+        if (!in_backlog && answer && npending > 0) {
+            for (size_t i = 0; i < npending; i++) {
+                tlvbuf_t t = { .n = 0 };
+                tlv_result(&t, 0, 0);
+                size_t s = tlv_begin(&t, 0x01);
+                put8(&t, QMI_SVC_NAS);
+                put8(&t, 8);
+                tlv_end(&t, s);
+                size_t n = qmux_build(f, sizeof(f), QMI_SVC_CTL, 0, pending[i],
+                                      QMI_CTL_GET_CLIENT_ID, t.b, t.n);
+                f[3] = 0x80;
+                f[6] = 0x01;
+                if (write(master, f, n) < 0)
+                    _exit(0);
+            }
+            npending = 0;
+        }
+
+        struct pollfd p = { .fd = master, .events = POLLIN };
+        if (poll(&p, 1, 5) > 0) {
+            ssize_t r = read(master, in + inlen, sizeof(in) - inlen);
+            if (r <= 0)
+                _exit(0);
+            inlen += (size_t) r;
+        }
+
+        for (;;) {
+            int bad = 0;
+            size_t fl = qmux_frame_len(in, inlen, &bad);
+            if (bad) {
+                inlen = 0;
+                break;
+            }
+            if (fl == 0 || fl > inlen)
+                break;
+            qmux_msg_t m;
+            if (qmux_parse(in, fl, &m) && m.service == QMI_SVC_CTL &&
+                m.msg_id == QMI_CTL_GET_CLIENT_ID) {
+                if (write(count_fd, "a", 1) < 0)
+                    _exit(0);
+                if (npending < sizeof(pending))
+                    pending[npending++] = (uint8_t) m.tid;
+            }
+            memmove(in, in + fl, inlen - fl);
+            inlen -= fl;
+        }
+    }
+}
+
+typedef struct {
+    int opened;
+    uint8_t cid;
+    long elapsed_ms;
+    int alloc_requests;
+} cold_open_t;
+
+static cold_open_t cold_open(long backlog_ms, int answer, int timeout_ms) {
+    cold_open_t res = { 0, 0, 0, -1 };
+    int counts[2];
+
+    int master = posix_openpt(O_RDWR | O_NOCTTY);
+    if (master < 0 || grantpt(master) < 0 || unlockpt(master) < 0 || pipe(counts) < 0) {
+        printf("FAIL: cannot make a pty for the fake node\n");
+        failures++;
+        return res;
+    }
+    const char *slave_name = ptsname(master);
+    int slave = open(slave_name, O_RDWR | O_NOCTTY);
+    struct termios tio;
+    if (slave < 0 || tcgetattr(slave, &tio) < 0) {
+        printf("FAIL: cannot open the pty slave\n");
+        failures++;
+        return res;
+    }
+    cfmakeraw(&tio);
+    tcsetattr(slave, TCSANOW, &tio);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(counts[0]);
+        close(slave);
+        fake_node(master, counts[1], backlog_ms, answer);
+        _exit(0);
+    }
+    close(counts[1]);
+
+    qmi_session_t s;
+    char err[256] = "";
+    const long t0 = fake_now_ms();
+    res.opened = qmi_session_open(&s, slave_name, QMI_FRAMING_QMUX, 0, timeout_ms,
+                                  err, sizeof(err));
+    res.elapsed_ms = fake_now_ms() - t0;
+    if (res.opened) {
+        res.cid = s.nas_cid;
+        qmi_session_close(&s);
+    }
+
+    kill(pid, SIGKILL);
+    waitpid(pid, NULL, 0);
+
+    char buf[64];
+    ssize_t n = read(counts[0], buf, sizeof(buf));
+    res.alloc_requests = n < 0 ? 0 : (int) n;
+    close(counts[0]);
+    close(slave);
+    close(master);
+    return res;
+}
+
+static void test_cold_open_backlog(void) {
+    /* The measured shape (#7363), scaled down: the reply sits behind a
+     * backlog that never goes 150 ms quiet and outlasts the open's 2 s drain
+     * plus two 400 ms deadlines.  The open must read through it and ask for a
+     * client id exactly once: a second request allocates a second client,
+     * whose late reply nobody reads, so it leaks and lengthens the backlog
+     * on the next cold open. */
+    cold_open_t r = cold_open(4000, 1, 400);
+    CHECK(r.opened && r.cid == 8, "backlog: open reads through 4 s of indications "
+          "(opened=%d cid=%u after %ld ms)", r.opened, r.cid, r.elapsed_ms);
+    CHECK(r.alloc_requests == 1, "backlog: one client id request, not %d",
+          r.alloc_requests);
+
+    /* A node that never answers still fails on the caller's deadline: the
+     * backlog allowance must not make a silent node cost the backlog cap */
+    r = cold_open(0, 0, 400);
+    CHECK(!r.opened, "silent: open fails");
+    CHECK(r.elapsed_ms < 2000, "silent: fails in %ld ms, not the backlog cap",
+          r.elapsed_ms);
+
+    /* Indications that never stop and no reply: bounded by the cap */
+    r = cold_open(-1, 0, 400);
+    CHECK(!r.opened, "endless backlog: open fails");
+    CHECK(r.elapsed_ms < 2 * QMI_OPEN_BACKLOG_MAX_MS + 3000,
+          "endless backlog: gives up in %ld ms", r.elapsed_ms);
+}
+
 int main(void) {
     snprintf(g_tmp, sizeof(g_tmp), "/tmp/test_cellqmi.XXXXXX");
     if (mkdtemp(g_tmp) == NULL) {
@@ -870,6 +1057,7 @@ int main(void) {
     test_open_order();
     test_node_names();
     test_node_sysfs();
+    test_cold_open_backlog();
 
     char cmd[300];
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", g_tmp);

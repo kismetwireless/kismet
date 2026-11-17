@@ -28,17 +28,21 @@ cell_discover.c.d:	../capture_cell_diag/cell_discover.c
 		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_discover.c | \
 		    sed -e "s/\.o/\.c.o/" > $@
 
-# The selftest links the framing, decoders, observation builder and open
-# order, but not the capture framework: it needs no modem and no server.
-# Built only by ./configure --enable-cell-selftest; run it directly, it exits
-# non-zero on a failure.
+# The selftest links the framing, decoders, observation builder, open order
+# and transport, but not the capture framework: it needs no modem and no
+# server (a pty stands in for the control node).  The backlog cap is lowered
+# so the never-ending-backlog case gives up in seconds.  Built only by
+# ./configure --enable-cell-selftest; run it directly, it exits non-zero on a
+# failure.
 ifeq ($(CELL_SELFTEST),1)
 all: $(TEST_BIN)
 
 $(TEST_BIN):	test_cellqmi.c qmi_wire.c qmi_wire.h qmi_obs.c qmi_obs.h qmi_node.c \
-		qmi_node.h ../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
-		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_BIN) test_cellqmi.c qmi_wire.c \
-		    qmi_obs.c qmi_node.c ../capture_cell_diag/cell_discover.c
+		qmi_node.h qmi_transport.c qmi_transport.h \
+		../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -DQMI_OPEN_BACKLOG_MAX_MS=5000 -o $(TEST_BIN) \
+		    test_cellqmi.c qmi_wire.c qmi_obs.c qmi_node.c qmi_transport.c \
+		    ../capture_cell_diag/cell_discover.c
 endif
 
 clean:

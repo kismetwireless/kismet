@@ -54,6 +54,14 @@ Rules that follow from sharing a modem:
 - It releases its NAS client ID when it closes, and on SIGTERM, SIGINT and
   SIGHUP. Neither the modem nor the proxies reclaim a dead client's IDs, and
   each service has only a few.
+- On a direct QMUX node it asks for a client ID once and waits for the answer
+  through whatever the node delivers first. While a node is closed, the modem
+  queues indications for every client nobody released, and `cdc-wdm` hands
+  them over one per interrupt poll (32 ms on `qmi_wwan`), so a cold open can
+  read hundreds of them before the reply. The wait ends after the open timeout
+  of silence, or 20 s in all. Giving up early and asking again would allocate
+  a second client whose reply is never read, and that client would add to the
+  next open's backlog.
 - On a direct MBIM node it sends `MBIM_OPEN` only if the function answers that
   it is not open: opening an open function resets it, which ends any data
   session another program set up. It closes the function afterwards only if it

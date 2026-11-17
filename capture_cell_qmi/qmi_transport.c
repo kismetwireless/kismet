@@ -350,10 +350,19 @@ static int xfer_mbim_once(qmi_transport_t *t, const qmux_msg_t *q,
     return 1;
 }
 
-/* Send one QMUX request, wait for its response: 1, 0 timeout, -1 failure */
+/* Send one QMUX request, wait for its response: 1, 0 timeout, -1 failure.
+ *
+ * With `backlog_max_ms` 0 the wait ends `timeout_ms` after the request.
+ * Otherwise `timeout_ms` is how long the node may stay quiet: each message
+ * that is not the reply moves the deadline to `timeout_ms` after it, up to
+ * `backlog_max_ms` after the request.  A cold cdc-wdm node delivers what it
+ * queued for unreleased clients first, one message per interrupt poll
+ * (32 ms on qmi_wwan), so the reply can arrive many seconds late on a node
+ * that is busy the whole time, while a node that says nothing still fails
+ * after `timeout_ms`. */
 static int xfer(qmi_transport_t *t, const uint8_t *req, size_t reqlen,
                 uint8_t *rsp, size_t cap, size_t *rsplen, int timeout_ms,
-                char *err, size_t errsz) {
+                int backlog_max_ms, char *err, size_t errsz) {
     qmux_msg_t q;
 
     if (!qmux_parse(req, reqlen, &q)) {
@@ -391,7 +400,9 @@ static int xfer(qmi_transport_t *t, const uint8_t *req, size_t reqlen,
     if (!write_all(t, req, reqlen, timeout_ms, err, errsz))
         return -1;
 
-    const long deadline = now_ms() + timeout_ms;
+    const long start = now_ms();
+    const long hard = start + (backlog_max_ms > timeout_ms ? backlog_max_ms : timeout_ms);
+    long deadline = start + timeout_ms;
     for (;;) {
         size_t n;
         const int r = rx_next(t, rsp, cap, &n, deadline, err, errsz);
@@ -399,8 +410,13 @@ static int xfer(qmi_transport_t *t, const uint8_t *req, size_t reqlen,
             return r;
 
         qmux_msg_t m;
-        if (!qmux_parse(rsp, n, &m) || !qmux_answers(&q, &m))
+        if (!qmux_parse(rsp, n, &m) || !qmux_answers(&q, &m)) {
+            if (backlog_max_ms > 0) {
+                const long quiet = now_ms() + timeout_ms;
+                deadline = quiet < hard ? quiet : hard;
+            }
             continue;
+        }
 
         *rsplen = n;
         return 1;
@@ -585,8 +601,10 @@ static int alloc_nas(qmi_session_t *s, int timeout_ms, char *err, size_t errsz) 
     qmux_msg_t m;
     uint16_t code = 0;
 
+    /* The first request on a cold node: its reply can sit behind a backlog */
     const size_t len = qmi_ctl_alloc_build(req, sizeof(req), next_ctl_tid(s), QMI_SVC_NAS);
-    const int r = xfer(&s->t, req, len, rsp, sizeof(rsp), &rl, timeout_ms, err, errsz);
+    const int r = xfer(&s->t, req, len, rsp, sizeof(rsp), &rl, timeout_ms,
+                       QMI_OPEN_BACKLOG_MAX_MS, err, errsz);
     if (r == 0) {
         seterr(err, errsz, "no answer to the NAS client id request");
         return 0;
@@ -676,7 +694,7 @@ int qmi_session_nas(qmi_session_t *s, uint16_t msg_id, uint8_t *buf, size_t cap,
 
     const size_t len = qmux_build(req, sizeof(req), QMI_SVC_NAS, s->nas_cid,
                                   next_nas_tid(s), msg_id, NULL, 0);
-    const int r = xfer(&s->t, req, len, buf, cap, &rl, timeout_ms, err, errsz);
+    const int r = xfer(&s->t, req, len, buf, cap, &rl, timeout_ms, 0, err, errsz);
     if (r != 1)
         return r;
 
@@ -698,7 +716,7 @@ void qmi_session_close(qmi_session_t *s) {
         size_t rl = 0;
         const size_t len = qmi_ctl_release_build(req, sizeof(req), next_ctl_tid(s),
                                                  QMI_SVC_NAS, s->nas_cid);
-        (void) xfer(&s->t, req, len, rsp, sizeof(rsp), &rl, 1000, err, sizeof(err));
+        (void) xfer(&s->t, req, len, rsp, sizeof(rsp), &rl, 1000, 0, err, sizeof(err));
         s->have_cid = 0;
     }
 
