@@ -181,6 +181,13 @@ public:
     // Find a websocket endpoint in the route table
     std::shared_ptr<kis_net_beast_route> find_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
+    // Open websockets have their own caps, in all and per client address, inside the
+    // connection caps, so long-lived sockets can't take every connection; false when over
+    bool claim_websocket(const std::string& addr);
+    void release_websocket(const std::string& addr);
+
+    // Bytes a websocket may have waiting to send before it's closed as too slow; 0 is no limit
+    size_t websocket_max_queue() const { return ws_max_queue_; }
 
     const bool& allow_cors() { return allow_cors_; }
     const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
@@ -246,6 +253,13 @@ protected:
     unsigned int conn_count_;
     std::unordered_map<std::string, unsigned int> conn_by_addr_;
     time_t conn_limit_warned_;
+
+    unsigned int max_websockets_;
+    unsigned int max_websockets_per_addr_;
+    unsigned int ws_count_;
+    std::unordered_map<std::string, unsigned int> ws_by_addr_;
+    time_t ws_limit_warned_;
+    size_t ws_max_queue_;
 
     // Sockets of running connections, so stopping can wake them and wait for them to finish
     // before the globals their handlers use are torn down
@@ -743,6 +757,7 @@ public:
     kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
         kis_net_web_endpoint{},
 		strand_{Globalreg::globalreg->io},
+        ws_max_queue_{Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>()->websocket_max_queue()},
         handler_cb{handler_func} {
             if (con->tls() != nullptr)
                 ws_tls_ = std::make_unique<ws_tls_t>(con->release_tls_stream());
@@ -803,6 +818,12 @@ protected:
 	boost::asio::io_context::strand strand_;
 
 	std::queue<std::string, std::deque<std::string>> ws_write_queue_;
+    size_t ws_write_queue_bytes_{0};
+    size_t ws_max_queue_{0};
+
+    // Largest message a client may send; remote capture frames are under MAX_EXTERNAL_FRAME_LEN
+    // and every other websocket takes small JSON requests
+    static constexpr size_t ws_read_message_max = 1024 * 1024;
 
     std::promise<void> handle_pr;
 

@@ -62,6 +62,12 @@
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
 
+// Device monitor websockets (all devices and per view): update rate in seconds,
+// and monitor requests per connection
+inline constexpr int device_monitor_rate_min = 1;
+inline constexpr int device_monitor_rate_max = 3600;
+inline constexpr size_t device_monitor_max_requests = 64;
+
 class kis_phy_handler;
 class kis_packet;
 class range_tracker;
