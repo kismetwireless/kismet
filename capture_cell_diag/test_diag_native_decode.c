@@ -159,12 +159,12 @@ static const expect_t kExp_b97f_rm520ngl_v9[] = {
  * only version with a grounded serving flag (bit15 of the PCI word)
  * Source fixture: lte_ml1_serving_b193_rm520ngl_sdx62_164B_v59.bin (164 B) */
 static const char *kHex_b193_rm520ngl_sdx62_v59 =
-        "01018df8193ba000ba13000001000000030000000001ffff0a800000fa2600000a0900008504d817fbde1200b7344700"
+        "01018df8193ba0006400000001000000030000000001ffff01800000fa2600000a0900008504d817fbde1200b7344700"
         "730400006009960000702300b7744b0079e4a1033a00000079e49107cd4a160000000000cd020000fbfff9ff00000000"
         "350036000000000000000000ef3e0000a01300000000000000000000a4c5050000000000280000000c00000000000000"
         "00000000b0c44700000000000000000079000000";
 static const expect_t kExp_b193_rm520ngl_sdx62_v59[] = {
-        {"LTE", 0xB193, 10, 5050, true, true, -104.56, true, -22.44, false, "", "", 0, 0},
+        {"LTE", 0xB193, 1, 100, true, true, -104.56, true, -22.44, false, "", "", 0, 0},
 };
 /* v48 SDX55, THREE cells -- the ONLY 12-byte carrier header, so the array both
  * starts and is STRIDED 4 B later. Signal absent on every cell: the x16 scale
@@ -174,31 +174,31 @@ static const expect_t kExp_b193_rm520ngl_sdx62_v59[] = {
  * identical at num_cells == 1
  * Source fixture: lte_ml1_serving_b193_m2000_sdx55_440B_v48_3cell.bin (440 B) */
 static const char *kHex_b193_m2000_sdx55_v48_3cell =
-        "01015f201930b4018c04010003000f0000010203021000009e120000489a010024cdf0149eb21300e6745000fb844e00"
+        "01015f201930b4016400000003000f0000010203011000009e120000489a010024cdf0149eb21300e6745000fb844e00"
         "e3d44f000675280007d54f00d34c430ee43cd30de490030eda221700da4a1700e4020000f8fff7fff8fff7ff23002400"
         "290029000000ff7f8d3d0200c2f30100eccc0100c1d6010076010000b2010000d9be0100c3ba010035000000e4000000"
-        "a2010000710200007affffff09020000040000009e160000489a010024cdf0149e0a1100e6944300fbb44400e3d44f00"
+        "a2010000710200007affffff09020000020000009e160000489a010024cdf0149e0a1100e6944300fbb44400e3d44f00"
         "21241c0042a443002bac900009c400002bac0002d7821700da921700f0020000f8fff7fff8fff7ff2300240029002900"
         "0000ff7f5c2100005c21000070e000006bc6000007000000050000002c3c000032000000350000002b000000a2010000"
-        "6202000075ffffff09020000050000009e1a0000489a010024cdf0149e6e1100e6244b00fb344600e3d44f0077242300"
+        "6202000075ffffff09020000030000009e1a0000489a010024cdf0149e6e1100e6244b00fb344600e3d44f0077242300"
         "b2b4490046185108853c210485145207d66a1700d4aa1700ed020000f8fff7fff8fff7ff23002400290029000000ff7f"
         "ab350000bc990000856401008210010027000000780000007750010065f800003500000085000000a50100004b020000"
         "75ffffff0c020000";
 static const expect_t kExp_b193_m2000_sdx55_v48_3cell[] = {
-        {"LTE", 0xB193, 2, 66700, true, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB193, 4, 66700, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
-        {"LTE", 0xB193, 5, 66700, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 1, 100, true, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 2, 100, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 3, 100, false, false, 0.0, false, 0.0, false, "", "", 0, 0},
 };
 /* v18 MDM9207 (EG25-G) -- NO cell array at all; the serving cell is packed inline
  * in the carrier header. Its signal is v6's x16 block at +8: expected values
  * pinned from a reference decode of the same bytes.
  * Source fixture: lte_ml1_serving_b193_eg25g_mdm9207_100B_v18.bin (100 B) */
 static const char *kHex_b193_eg25g_mdm9207_v18 =
-        "0101ff0019126000d00700000f100000410600004aad0600a5560b1241ba11006ed43c00cde346006ea48b2e9e78a20b"
+        "0101ff00191260006400000001100000410600004aad0600a5560b1241ba11006ed43c00cde346006ea48b2e9e78a20b"
         "bacce93d73020000000008002500300000000000ea2b0000973100007c020100190000001100000063a600003a000000"
         "ba000000";
 static const expect_t kExp_b193_eg25g_mdm9207_v18[] = {
-        {"LTE", 0xB193, 15, 2000, true, true, -109.12, true, -18.38, false, "", "", 0, 0},
+        {"LTE", 0xB193, 1, 100, true, true, -109.12, true, -18.38, false, "", "", 0, 0},
 };
 /* v3 MDM9200 -- v6's 84 B small-header layout one chipset generation earlier: u16 EARFCN, inline serving cell, v6's x16 signal block
  * 84 B. Synthetic identity (PCI 1, EARFCN 100) over a real
