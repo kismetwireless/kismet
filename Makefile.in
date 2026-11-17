@@ -289,6 +289,12 @@ TEST_DATASOURCE_PROBED_O = \
 	devicerules/dr_sljit.c.o kis_datasource.cc.o kis_external.cc.o mpack/mpack.c.o \
 	version.c.o ipctracker_v2.cc.o
 
+# Saving and reading back the web login config; built on request, with the same objects
+TEST_HTTPD_LOGIN_CONF = test/httpd_login_conf/login_conf_test
+TEST_HTTPD_LOGIN_CONF_O = \
+	test/httpd_login_conf/login_conf_test.cc.o \
+	$(filter-out test/datasource_probed/probed_test.cc.o,$(TEST_DATASOURCE_PROBED_O))
+
 LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
@@ -488,6 +494,9 @@ $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 
 $(TEST_DATASOURCE_PROBED):	$(TEST_DATASOURCE_PROBED_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DATASOURCE_PROBED) $(TEST_DATASOURCE_PROBED_O) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
+
+$(TEST_HTTPD_LOGIN_CONF):	$(TEST_HTTPD_LOGIN_CONF_O)
+	$(LD) $(LDFLAGS) -o $(TEST_HTTPD_LOGIN_CONF) $(TEST_HTTPD_LOGIN_CONF_O) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
 
 diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
@@ -1104,6 +1113,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/btle_expire/*.o $(TEST_BTLE_EXPIRE)
 	@-rm -f test/device_rules/*.o $(TEST_DEVICE_RULES)
 	@-rm -f test/datasource_probed/*.o $(TEST_DATASOURCE_PROBED)
+	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1226,6 +1236,7 @@ include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_RELATED_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_EXPIRE_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DEVICE_RULES_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DATASOURCE_PROBED_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_HTTPD_LOGIN_CONF_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))

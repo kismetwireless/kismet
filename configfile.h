@@ -62,6 +62,16 @@ public:
         return save_config(in_fname.c_str());
     }
 
+    // Longest line the parser reads, newline included
+    static constexpr size_t max_line_len = 8192;
+
+    // Whether key=value can be saved as one line that reads back as the same key and value
+    static bool line_safe(const std::string& key, const std::string& value);
+
+    // Files Kismet writes back (such as the web login) hold only key=value lines; read one
+    // as plain to ignore include and override lines in it
+    void set_plain(bool in_plain) { plain = in_plain; }
+
     // Set a final override file that takes place after all other loading
     void set_final_override(const std::string& in_fname) {
         final_override = in_fname;
@@ -225,6 +235,8 @@ protected:
     std::vector<override_entry> config_override_file_list;
 
     std::string final_override;
+
+    bool plain = false;
 
     kis_mutex config_locker;
 };

@@ -166,6 +166,11 @@ public:
     std::shared_ptr<kis_net_beast_auth> check_jwt_token(const boost::beast::string_view& token);
     bool check_admin_login(const std::string& username, const std::string& password);
 
+    // Why a web login username or password can't be stored and read back unchanged, or
+    // empty when it can
+    static constexpr size_t admin_login_max = 256;
+    static std::string admin_login_problem(const std::string& value);
+
 
     // Map a content directory into the virtual paths.  This is NOT THREAD SAFE and must not be
     // called concurrently or while the webserver is serving content.
@@ -321,7 +326,8 @@ protected:
     std::string jwt_auth_key;
     std::string jwt_auth_issuer;
 
-    void set_admin_login(const std::string& username, const std::string& password);
+    // Saves the login, and uses it only once it's saved; false if it couldn't be
+    bool set_admin_login(const std::string& username, const std::string& password);
 
     // Internal non-locked implementation of auth creation
     std::string create_auth_impl(const std::string& name, const std::string& role, time_t expiry);
