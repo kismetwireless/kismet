@@ -1303,6 +1303,49 @@ static bool check_b17f_decode(void) {
     return true;
 }
 
+/* 0xB193 wideband rssi: present on the single-cell v18 record, at the value
+ * the same-tick 0xB17F record reports for that cell (-70.8125 dBm) rounded to
+ * 2 dp as the leg rounds it, and absent on v59 and on the v48 multi-cell
+ * record, whose rssi slots are ungrounded.
+ * check() does not compare rssi, so without this an rssi on those rows -- or a
+ * v18 rssi read from the wrong slot -- would pass. */
+static bool check_b193_rssi(void) {
+    const struct {
+        const char *name;
+        const char *hex;
+        bool has_rssi;
+        double rssi;
+    } cases[] = {
+        {"v18", kHex_b193_eg25g_mdm9207_v18, true, -70.81},
+        {"v59", kHex_b193_rm520ngl_sdx62_v59, false, 0.0},
+        {"v48_3cell", kHex_b193_m2000_sdx55_v48_3cell, false, 0.0},
+    };
+    bool ok = true;
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        uint8_t payload[1024];
+        size_t len = unhex(cases[i].hex, payload, sizeof(payload));
+        diag_native_obs_t got[8];
+        int n = diag_native_decode(0xB193, payload, len, got, 8);
+        if (n < 1) {
+            printf("FAIL[b193_rssi]: %s decoded %d obs\n", cases[i].name, n);
+            ok = false;
+            continue;
+        }
+        for (int k = 0; k < n; k++) {
+            if (got[k].has_rssi != cases[i].has_rssi ||
+                (cases[i].has_rssi && got[k].rssi != cases[i].rssi)) {
+                printf("FAIL[b193_rssi]: %s cell %d has_rssi=%d rssi=%g, want %d %g\n",
+                       cases[i].name, k, got[k].has_rssi, got[k].rssi,
+                       cases[i].has_rssi, cases[i].rssi);
+                ok = false;
+            }
+        }
+    }
+    if (ok)
+        printf("  ok b193 rssi (v18 -70.81; v59 and v48 multi-cell absent)\n");
+    return ok;
+}
+
 /* ---- Serializer parity -------------------------------------------------------
  *
  * diag_native_obs_to_json must reproduce, byte-for-byte, the pinned
@@ -1350,6 +1393,17 @@ static bool check_serialize(void) {
         "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"rsrp\":-105.5625,\"rsrq\":-11.25,"
         "\"observation_type\":\"serving\",\"is_serving\":true,\"band\":13,\"duplex\":\"FDD\"}");
+
+    /* Same cell with wideband rssi: it follows rsrq and precedes
+     * observation_type. */
+    diag_native_obs_t b193r = b193s;
+    b193r.has_rssi = true; b193r.rssi = -70.81;
+    b193r.earfcn = 100;  // synthetic channel, not b193s's
+    ok &= check_serialize_one("b193_serving_rssi", &b193r,
+        "{\"rat\":\"LTE\",\"pci\":1,\"earfcn\":100,\"prov\":{\"src\":\"diag\","
+        "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
+        "\"log_tick\":60345938315396},\"rsrp\":-105.5625,\"rsrq\":-11.25,\"rssi\":-70.81,"
+        "\"observation_type\":\"serving\",\"is_serving\":true,\"band\":1,\"duplex\":\"FDD\"}");
 
     /* 0xB193 neighbour, rsrp/rsrq ABSENT (version without a grounded scale),
      * enriched with SIB1 identity appended last. */
@@ -2198,6 +2252,7 @@ int main(void) {
     ok &= check_b0c0_gated();
     ok &= check_b0c0_census();
     ok &= check_b17f_decode();
+    ok &= check_b193_rssi();
     ok &= check_serialize();
     ok &= check_cell_config_and_beams();
     ok &= check_nr_cell_config();

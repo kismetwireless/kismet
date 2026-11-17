@@ -56,6 +56,8 @@ int main(int argc, char** argv) {
             std::cout << ",\"rsrp\":" << o.rsrp;
         if (o.has_rsrq)
             std::cout << ",\"rsrq\":" << o.rsrq;
+        if (o.has_rssi)
+            std::cout << ",\"rssi\":" << o.rssi;
         std::cout << ",\"origin\":\"0xB193\"" << "}" << std::endl;
     }
     return 0;
