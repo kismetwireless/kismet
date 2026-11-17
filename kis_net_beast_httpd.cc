@@ -221,19 +221,23 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
     load_auth();
 
+    // HMAC-SHA256 keys shorter than its 32 byte output can be guessed offline from one token
+    constexpr size_t jwt_key_min = 32;
+
     jwt_auth_key = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_jwt_key", "");
     if (jwt_auth_key.length() == 0) {
         std::random_device rnd;
         // uint8_t isn't a valid uniform_int_distribution type
         auto dist = std::uniform_int_distribution<unsigned int>(0, 0xFF);
-        char rdata[16];
+        char rdata[jwt_key_min];
 
-        for (auto i = 0; i < 16; i++)
+        for (size_t i = 0; i < jwt_key_min; i++)
             rdata[i] = static_cast<char>(dist(rnd));
 
-        jwt_auth_key = std::string(rdata, 16);
-    } else if (jwt_auth_key.length() < 8) {
-        _MSG_FATAL("Invalid httpd_jwt_key value, expected at least 8 characters");
+        jwt_auth_key = std::string(rdata, jwt_key_min);
+    } else if (jwt_auth_key.length() < jwt_key_min) {
+        _MSG_FATAL("Invalid httpd_jwt_key value, expected at least {} characters; remove it to "
+                "use a random key for each run", jwt_key_min);
         Globalreg::globalreg->fatal_condition = 1;
         return;
     }
@@ -603,6 +607,16 @@ void kis_net_beast_httpd::configure_ssl() {
                 boost::asio::ssl::context::no_tlsv1_1 |
                 boost::asio::ssl::context::single_dh_use);
         SSL_CTX_set_min_proto_version(ctx->native_handle(), TLS1_2_VERSION);
+
+        // TLS 1.2 limited to forward-secret AEAD suites whatever the system default is;
+        // TLS 1.3 suites are all AEAD already
+        auto ciphers = config->fetch_opt_dfl("httpd_ssl_ciphers",
+                "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"
+                "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"
+                "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256");
+        if (SSL_CTX_set_cipher_list(ctx->native_handle(), ciphers.c_str()) != 1)
+            throw std::runtime_error(fmt::format("no usable cipher in httpd_ssl_ciphers '{}'", ciphers));
+
         ctx->use_certificate_chain_file(cert);
         ctx->use_private_key_file(key, boost::asio::ssl::context::pem);
 
@@ -1084,7 +1098,10 @@ void kis_net_beast_httpd::set_admin_login(const std::string& username, const std
 bool kis_net_beast_httpd::check_admin_login(const std::string& username, const std::string& password) {
     constant_time_string_compare_ne compare;
     kis_lock_guard<kis_mutex> lk(admin_login_mutex, "httpd check_admin_login");
-    return !compare(username, admin_username) && !compare(password, admin_password);
+    // Both are always compared, so the time taken doesn't show whether the username matched
+    const bool user_ok = !compare(username, admin_username);
+    const bool pass_ok = !compare(password, admin_password);
+    return user_ok & pass_ok;
 }
 
 // Split on the raw text and decode each name and value after, so an encoded & or = stays
@@ -1387,6 +1404,7 @@ std::string kis_net_beast_httpd::create_jwt_auth(const std::string& name,
         .set_payload_claim("role", jwt::claim(role))
         .set_payload_claim("created", picojson::value(static_cast<double>(Globalreg::globalreg->last_tv_sec)))
         .set_payload_claim("expires", picojson::value(static_cast<double>(expiry)))
+        .set_expires_at(std::chrono::system_clock::from_time_t(expiry))
         .sign(jwt::algorithm::hs256{jwt_auth_key});
 
     return token;
