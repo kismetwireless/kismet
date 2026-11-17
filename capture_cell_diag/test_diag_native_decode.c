@@ -1416,7 +1416,7 @@ static bool check_serialize(void) {
      * observation_type. */
     diag_native_obs_t b193r = b193s;
     b193r.has_rssi = true; b193r.rssi = -70.81;
-    b193r.earfcn = 100;  // synthetic channel, not b193s's
+    b193r.earfcn = 100;  /* synthetic channel, not b193s's */
     ok &= check_serialize_one("b193_serving_rssi", &b193r,
         "{\"rat\":\"LTE\",\"pci\":1,\"earfcn\":100,\"prov\":{\"src\":\"diag\","
         "\"origin\":\"0xB193\",\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
