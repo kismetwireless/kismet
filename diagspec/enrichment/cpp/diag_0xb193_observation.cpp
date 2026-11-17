@@ -29,6 +29,7 @@
 
 #include "diag_0xb193_observation.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -212,9 +213,13 @@ bool read_u32le(const std::string& s, size_t off, uint32_t* out) {
 }
 
 // The reference parser's _rssi_at: wideband RSSI from the x16 slot at payload
-// offset `off`, read as a u32 or a u16. Absent when the slot runs past the end
-// of the payload, is unpopulated (raw == 0), or lands outside -110..-20 dBm.
-bool rssi_at(const std::string& s, size_t off, bool u32, double* out) {
+// offset `off`, read as a u32 or a u16. Absent when the slot runs past `end`
+// (the end of the block it belongs to, so a short block never reads the bytes
+// that follow it), is unpopulated (raw == 0), or lands outside -110..-20 dBm.
+bool rssi_at(const std::string& s, size_t off, size_t end, bool u32, double* out) {
+    if (off > end || end - off < (u32 ? 4u : 2u))
+        return false;
+
     uint32_t raw = 0;
     if (u32) {
         if (!read_u32le(s, off, &raw))
@@ -318,6 +323,9 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
         // relative to it, matching the parser.
         const size_t sp_off = kSubpacketDataOffset;
         const size_t sp_len = payload.size() - sp_off;
+        // The declared end of the subpacket (its size counts its own header);
+        // the record may carry more after it
+        const size_t sp_end = kSubpacketHeaderOffset + subpacket_size;
 
         // Minimum body sizes, checked in the reference parser's order: the
         // v3/v6 small-header branch is tested BEFORE the general 8-byte gate.
@@ -367,12 +375,12 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                 e.has_rsrq = false;
                 e.rsrq = 0.0;
                 // RSSI is read whether or not the body reaches the signal block
-                // (the parser's v18 branch reads it outside that guard); the
-                // helper's own bounds check is the only gate.
+                // (the parser's v18 branch reads it outside that guard), but
+                // only from inside the subpacket.
                 e.rssi = 0.0;
                 e.has_rssi = rssi_at(payload,
                                      sp_off + (v3_family ? kV6RssiOff : kV18RssiOff),
-                                     v3_family, &e.rssi);
+                                     sp_end, v3_family, &e.rssi);
                 uint32_t rsrp_word = 0, rsrq_word = 0;
                 if (sp_len >= min_body &&
                     read_u32le(payload, sp_off + rsrp_off, &rsrp_word) &&
@@ -462,6 +470,8 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
             const size_t cell_offset = cell_base + static_cast<size_t>(i) * stride;
             if (cell_offset + min_cell_record > sp_len)
                 break;
+            // RSSI sits past min_cell_record, so it's bounded by this cell's slot
+            const size_t cell_end = std::min(sp_end, sp_off + cell_offset + stride);
 
             uint32_t pci_raw = 0;
             if (!read_u32le(payload, sp_off + cell_offset + pci_off, &pci_raw))
@@ -567,7 +577,7 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                         has_rsrq = true;
                     }
                     has_rssi = rssi_at(payload, sp_off + cell_offset + kV35RssiOff,
-                                       false, &rssi);
+                                       cell_end, false, &rssi);
                 }
             } else if (sp_ver == kV40 || sp_ver == kV41) {
                 // v40 (SDX24) / v41 (SDX50M): RSRP @cell+36 bits0..11 on both;
@@ -596,7 +606,7 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                     }
                     has_rssi = rssi_at(payload,
                                        sp_off + cell_offset + kV40RssiWordOff,
-                                       true, &rssi);
+                                       cell_end, true, &rssi);
                 }
             } else {
                 // v22 / v35 -- x16 RSRP @cell+32 bits0..11 and RSRQ @cell+44
@@ -623,7 +633,7 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                     // v22 has its own RSSI slot; v35 shares v36's.
                     has_rssi = rssi_at(payload, sp_off + cell_offset +
                                        (sp_ver == kV22 ? kV22RssiOff : kV35RssiOff),
-                                       false, &rssi);
+                                       cell_end, false, &rssi);
                 }
             }
 

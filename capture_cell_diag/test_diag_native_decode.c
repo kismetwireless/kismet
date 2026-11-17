@@ -1343,6 +1343,24 @@ static bool check_b193_rssi(void) {
     }
     if (ok)
         printf("  ok b193 rssi (v18 -70.81; v59 and v48 multi-cell absent)\n");
+
+    /* The same v18 record with its subpacket declared to end at sp+44, just
+     * before the rssi slot: the bytes after it aren't the subpacket's, so rssi
+     * is absent while the cell and its rsrp still decode. */
+    uint8_t shortsp[1024];
+    size_t slen = unhex(kHex_b193_eg25g_mdm9207_v18, shortsp, sizeof(shortsp));
+    shortsp[6] = 48;
+    shortsp[7] = 0;
+    diag_native_obs_t sgot[8];
+    int sn = diag_native_decode(0xB193, shortsp, slen, sgot, 8);
+    if (sn != 1 || sgot[0].has_rssi || !sgot[0].has_rsrp) {
+        printf("FAIL[b193_rssi]: v18 short subpacket decoded %d obs, has_rssi=%d has_rsrp=%d, "
+               "want 1 0 1\n", sn, sn > 0 ? sgot[0].has_rssi : -1, sn > 0 ? sgot[0].has_rsrp : -1);
+        ok = false;
+    } else {
+        printf("  ok b193 rssi absent past the declared subpacket end\n");
+    }
+
     return ok;
 }
 
