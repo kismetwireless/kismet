@@ -58,6 +58,7 @@ class kis_net_beast_conn_slot;
 class kis_net_beast_route;
 class kis_net_beast_auth;
 class kis_net_web_endpoint;
+class kis_net_web_websocket_endpoint;
 
 class kis_net_beast_httpd : public lifetime_global, public deferred_startup,
     public std::enable_shared_from_this<kis_net_beast_httpd> {
@@ -194,6 +195,9 @@ public:
     // Bytes a websocket may have waiting to send before it's closed as too slow; 0 is no limit
     size_t websocket_max_queue() const { return ws_max_queue_; }
 
+    // Websockets told when an API key is revoked, so ones using it close at once
+    void watch_websocket_auth(const std::shared_ptr<kis_net_web_websocket_endpoint>& ws);
+
     const bool& allow_cors() { return allow_cors_; }
     const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
 
@@ -265,6 +269,9 @@ protected:
     std::unordered_map<std::string, unsigned int> ws_by_addr_;
     time_t ws_limit_warned_;
     size_t ws_max_queue_;
+
+    kis_mutex ws_auth_mutex;
+    std::vector<std::weak_ptr<kis_net_web_websocket_endpoint>> ws_auth_watch_;
 
     // Sockets of running connections, so stopping can wake them and wait for them to finish
     // before the globals their handlers use are torn down
@@ -792,6 +799,9 @@ public:
 
     virtual void close();
 
+    // An API key was revoked; closes this socket if its login used it
+    void auth_revoked(const std::string& token);
+
     virtual std::string remote_address() {
         return with_ws([](auto& ws) -> std::string {
                 boost::system::error_code ec;
@@ -834,13 +844,13 @@ protected:
     // and every other websocket takes small JSON requests
     static constexpr size_t ws_read_message_max = 1024 * 1024;
 
-    // The login is checked again on this interval, so a socket closes once its token
-    // expires or is revoked
-    static constexpr std::chrono::seconds ws_auth_recheck{60};
+    // The login is checked again when it expires, and at least this often: expiry is wall
+    // clock time, which can step after the timer is set on a board with no clock of its own
+    static constexpr std::chrono::seconds ws_auth_recheck_max{60 * 60};
     boost::asio::steady_timer auth_timer_;
     std::string auth_token_;
 
-    void start_auth_recheck();
+    void check_auth();
 
     std::promise<void> handle_pr;
 

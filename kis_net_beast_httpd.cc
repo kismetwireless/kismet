@@ -876,6 +876,16 @@ void kis_net_beast_httpd::release_websocket(const std::string& addr) {
     }
 }
 
+void kis_net_beast_httpd::watch_websocket_auth(const std::shared_ptr<kis_net_web_websocket_endpoint>& ws) {
+    kis_lock_guard<kis_mutex> lk(ws_auth_mutex, "beast_httpd watch_websocket_auth");
+
+    // Closed sockets are dropped here, so the list only holds open ones
+    ws_auth_watch_.erase(std::remove_if(ws_auth_watch_.begin(), ws_auth_watch_.end(),
+                [](const auto& w) { return w.expired(); }), ws_auth_watch_.end());
+
+    ws_auth_watch_.emplace_back(ws);
+}
+
 // Request bodies on routes without their own limit
 constexpr size_t default_body_limit = 100000;
 
@@ -1449,17 +1459,31 @@ std::string kis_net_beast_httpd::create_jwt_auth(const std::string& name,
 
 
 bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
-    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd remove_auth");
+    std::string token;
 
-    for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
-        if ((*a)->name() == auth_name) {
-            auth_vec.erase(a);
-            store_auth();
-            return true;
+    {
+        kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd remove_auth");
+
+        for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
+            if ((*a)->name() == auth_name) {
+                token = (*a)->token();
+                auth_vec.erase(a);
+                store_auth();
+                break;
+            }
         }
     }
 
-    return false;
+    if (token.empty())
+        return false;
+
+    // Each socket compares the token on its own strand, which owns it
+    kis_lock_guard<kis_mutex> lk(ws_auth_mutex, "beast_httpd remove_auth websockets");
+    for (const auto& w : ws_auth_watch_)
+        if (auto ws = w.lock())
+            ws->auth_revoked(token);
+
+    return true;
 }
 
 std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const boost::beast::string_view& token) {
@@ -2937,25 +2961,46 @@ void kis_net_web_websocket_endpoint::close_impl() {
     }
 }
 
-void kis_net_web_websocket_endpoint::start_auth_recheck() {
-    auth_timer_.expires_after(ws_auth_recheck);
+void kis_net_web_websocket_endpoint::check_auth() {
+    if (!running)
+        return;
+
+    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
+    auto auth = httpd == nullptr ? nullptr : httpd->check_auth_token(auth_token_);
+
+    if (auth == nullptr) {
+        _MSG_INFO("Closing websocket to {}: its login has expired or was revoked", remote_address());
+        return close_impl();
+    }
+
+    // Wake when the login expires; an API key's expiry can be extended, so this checks again
+    // then rather than closing
+    auto wait = ws_auth_recheck_max;
+    if (auth->expires() != 0)
+        wait = std::min(wait, std::chrono::seconds(auth->expires() - time(0)));
+
+    auth_timer_.expires_after(wait);
     auth_timer_.async_wait(boost::asio::bind_executor(strand_,
                 [weak = weak_from_this()](const boost::system::error_code& ec) {
                     auto self = weak.lock();
 
-                    if (ec || self == nullptr || !self->running)
+                    if (ec || self == nullptr)
                         return;
 
-                    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
-
-                    if (httpd == nullptr || httpd->check_auth_token(self->auth_token_) == nullptr) {
-                        _MSG_INFO("Closing websocket to {}: its login has expired or was revoked",
-                                self->remote_address());
-                        return self->close_impl();
-                    }
-
-                    self->start_auth_recheck();
+                    self->check_auth();
                 }));
+}
+
+void kis_net_web_websocket_endpoint::auth_revoked(const std::string& token) {
+    boost::asio::post(strand_, [weak = weak_from_this(), token]() {
+            auto self = weak.lock();
+
+            if (self == nullptr || !self->running || self->auth_token_ != token)
+                return;
+
+            _MSG_INFO("Closing websocket to {}: its API key was revoked", self->remote_address());
+            self->close_impl();
+        });
 }
 
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
@@ -3084,8 +3129,13 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
     start_read(shared_from_this());
 
     auth_token_ = con->auth_token();
-    if (!auth_token_.empty())
-        boost::asio::post(strand_, [self = shared_from_this()]() { self->start_auth_recheck(); });
+    if (!auth_token_.empty()) {
+        // Watched before the first check, so a key revoked in between is still caught
+        if (auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>())
+            httpd->watch_websocket_auth(shared_from_this());
+
+        boost::asio::post(strand_, [self = shared_from_this()]() { self->check_auth(); });
+    }
 
     // That will eventually complete this future
     running_future.wait();
