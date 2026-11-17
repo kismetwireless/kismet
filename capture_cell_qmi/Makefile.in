@@ -1,0 +1,58 @@
+include ../Makefile.inc
+
+CELL_SELFTEST = @CELL_SELFTEST@
+
+# cell_discover.c.o is built from ../capture_cell_diag/ rather than copied:
+# one rule for which nodes another program is using, shared with the AT and
+# DIAG sources.
+MONITOR_OBJS = \
+	capture_cell_qmi.c.o \
+	qmi_wire.c.o \
+	qmi_obs.c.o \
+	qmi_node.c.o \
+	qmi_transport.c.o \
+	cell_discover.c.o
+MONITOR_BIN = kismet_cap_cell_qmi
+
+TEST_BIN = test_cellqmi
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS)
+
+cell_discover.c.o:	../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_discover.c -o $@ -MMD -MP -MF $(@:.o=.d)
+
+cell_discover.c.d:	../capture_cell_diag/cell_discover.c
+		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_discover.c | \
+		    sed -e "s/\.o/\.c.o/" > $@
+
+# The selftest links the framing, decoders, observation builder and open
+# order, but not the capture framework: it needs no modem and no server.
+# Built only by ./configure --enable-cell-selftest; run it directly, it exits
+# non-zero on a failure.
+ifeq ($(CELL_SELFTEST),1)
+all: $(TEST_BIN)
+
+$(TEST_BIN):	test_cellqmi.c qmi_wire.c qmi_wire.h qmi_obs.c qmi_obs.h qmi_node.c \
+		qmi_node.h ../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_BIN) test_cellqmi.c qmi_wire.c \
+		    qmi_obs.c qmi_node.c ../capture_cell_diag/cell_discover.c
+endif
+
+clean:
+	@-rm -f $(MONITOR_BIN) $(TEST_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))

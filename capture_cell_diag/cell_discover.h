@@ -142,6 +142,18 @@ typedef struct {
  * is never busy here. check_mm = 0 for a port the operator named. */
 int cell_port_busy(const char *dev_path, int check_mm, cell_busy_t *out);
 
+/* 1 if a process other than one named `except_comm` (NULL: any process) has
+ * `dev_path` open, from /proc/<pid>/fd and the baseline.  For a control node
+ * a proxy daemon holds on its clients' behalf: the proxy is not contention,
+ * anything else is.  The Kismet cell binaries are left out here as in
+ * cell_port_busy, and are kept apart by flock(). */
+int cell_node_held(const char *dev_path, const char *except_comm, cell_busy_t *out);
+
+/* As cell_node_held, for a node whose resolved path is already known. For
+ * the selftest, which cannot mknod. */
+int cell_node_held_path(const char *resolved, const char *except_comm,
+                        cell_busy_t *out);
+
 /* "minicom (pid 1234) has a lock file /run/lock/LCK..ttyUSB2" and so on,
  * with the remedy for ModemManager. */
 void cell_busy_label(const cell_busy_t *b, char *buf, size_t bufsz);

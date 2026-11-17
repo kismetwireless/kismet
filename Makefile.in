@@ -213,6 +213,9 @@ BUILD_CAPTURE_CELL_AT = @BUILD_CAPTURE_CELL_AT@
 CAPTURE_CELL_DIAG = capture_cell_diag/kismet_cap_cell_diag
 BUILD_CAPTURE_CELL_DIAG = @BUILD_CAPTURE_CELL_DIAG@
 
+CAPTURE_CELL_QMI = capture_cell_qmi/kismet_cap_cell_qmi
+BUILD_CAPTURE_CELL_QMI = @BUILD_CAPTURE_CELL_QMI@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -781,6 +784,9 @@ $(CAPTURE_CELL_AT): $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_CELL_DIAG): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_cell_diag && $(MAKE))
 
+$(CAPTURE_CELL_QMI): $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_cell_qmi && $(MAKE))
+
 $(TOOL_USBSERIAL): FORCE
 	(cd usbserial && $(MAKE))
 
@@ -1095,6 +1101,10 @@ commoninstall: $(INSTBINS)
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_DIAG) $(BIN)/`basename $(CAPTURE_CELL_DIAG)`; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_CELL_QMI)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_CELL_QMI) $(BIN)/`basename $(CAPTURE_CELL_QMI)`; \
+	fi;
+
 	mkdir -p $(LIB)/pkgconfig
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 packaging/kismet.pc $(LIB)/pkgconfig/kismet.pc
 
@@ -1320,6 +1330,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_bladerf_wiphy && make clean)
 	@(cd capture_cell_at && make clean)
 	@(cd capture_cell_diag && make clean)
+	@(cd capture_cell_qmi && make clean)
 	@(cd capture_lorapipe && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)

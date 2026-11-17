@@ -59,6 +59,7 @@ BUILD_CAPTURE_CELL_AT=0
 CELL_SELFTEST=0
 CELL_USBSERIAL=0
 BUILD_CAPTURE_CELL_DIAG=0
+BUILD_CAPTURE_CELL_QMI=0
 CELL_LOGTOOL_BINS=""
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
@@ -2092,7 +2093,7 @@ BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WCH_BLE_ANALYZER_PRO)"
 
 AC_ARG_ENABLE([cell],
-    AS_HELP_STRING([--disable-cell], [Disable the cellular modem AT and DIAG capture tools and their log converters]),
+    AS_HELP_STRING([--disable-cell], [Disable the cellular modem AT, DIAG and QMI capture tools and their log converters]),
 	[case "${enableval}" in
           no) want_cell=no ;;
            *) want_cell=yes ;;
@@ -2105,6 +2106,8 @@ if test x"$want_cell" = x"yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_AT)"
     BUILD_CAPTURE_CELL_DIAG=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_DIAG)"
+    BUILD_CAPTURE_CELL_QMI=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_CELL_QMI)"
     CELL_LOGTOOL_BINS="\$(LOGTOOL_KISMETDB_CELLNDJSON) \$(LOGTOOL_KISMETDB_ATLOG) \$(LOGTOOL_KISMETDB_CELLLOG) \$(LOGTOOL_KISMETDB_HDLC)"
     if test "$BUILD_USBSERIAL" = 1; then
         CELL_USBSERIAL=1
@@ -2298,6 +2301,7 @@ AC_SUBST(BUILD_CAPTURE_ANTSDR_DRONEID)
 AC_SUBST(BUILD_CAPTURE_WCH_BLE_ANALYZER_PRO)
 AC_SUBST(BUILD_CAPTURE_CELL_AT)
 AC_SUBST(BUILD_CAPTURE_CELL_DIAG)
+AC_SUBST(BUILD_CAPTURE_CELL_QMI)
 AC_SUBST(CELL_LOGTOOL_BINS)
 AC_SUBST(CELL_SELFTEST)
 AC_SUBST(CELL_USBSERIAL)
@@ -2344,6 +2348,7 @@ AC_CONFIG_FILES([
     capture_wired/Makefile
     capture_cell_at/Makefile
     capture_cell_diag/Makefile
+    capture_cell_qmi/Makefile
     capture_lorapipe/Makefile
     ])
 AC_OUTPUT
@@ -2669,7 +2674,7 @@ if test "$BUILD_CAPTURE_LORAPIPE" = 1; then
 else
 	echo "no";
 fi
-printf " Cell modem (AT, DIAG): "
+printf " Cell modem (AT, DIAG, QMI): "
 if test "$BUILD_CAPTURE_CELL_AT" = 1 -a "$CELL_USBSERIAL" = 1; then
 	echo "yes (and over libusb)";
 elif test "$BUILD_CAPTURE_CELL_AT" = 1; then
