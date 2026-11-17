@@ -20,6 +20,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <unordered_set>
 #include <ctype.h>
@@ -95,7 +96,7 @@ int config_file::parse_config(const char *in_fname,
     kis_lock_guard<kis_mutex> lk(config_locker, "configfile parse_config");
 
     FILE *configf;
-    char confline[8192];
+    char confline[max_line_len];
 
     std::stringstream sstream;
 
@@ -113,7 +114,7 @@ int config_file::parse_config(const char *in_fname,
 
     int lineno = 0;
     while (!feof(configf)) {
-        if (fgets(confline, 8192, configf) == NULL || feof(configf)) 
+        if (fgets(confline, sizeof(confline), configf) == NULL || feof(configf))
             break;
 
         lineno++;
@@ -169,7 +170,11 @@ int config_file::parse_config(const char *in_fname,
                 continue;
             }
 
-            if (directive == "include") {
+            if (plain && (directive == "include" || directive == "opt_include" ||
+                        directive == "opt_override" || directive == "opt_override_dir")) {
+                _MSG_ERROR("Config file '{}' line {}: ignoring '{}', which isn't allowed in this file",
+                        in_fname, lineno, directive);
+            } else if (directive == "include") {
                 value = expand_log_path(value, "", "", 0, 1);
 
                 sstream << "Including sub-config file: " << value;
@@ -348,13 +353,56 @@ int config_file::parse_opt_override(const std::string path, bool glob_path) {
 }
 
 
+bool config_file::line_safe(const std::string& key, const std::string& value) {
+    constexpr auto line_break = [](char c) { return c == '\n' || c == '\r' || c == '\0'; };
+    constexpr auto edge_space = [](char c) { return c == ' ' || c == '\t'; };
+
+    if (key.empty() || value.empty())
+        return false;
+
+    // The parser splits on the first '=', so one in the key would move the split; a '#' starts
+    // a comment line, and a trailing '+' makes the line an append
+    if (key.find('=') != std::string::npos || key[0] == '#' || key.back() == '+')
+        return false;
+
+    for (const auto& s : {std::cref(key), std::cref(value)}) {
+        const std::string& v = s.get();
+
+        // A line break would end the line early and start another one
+        if (std::any_of(v.begin(), v.end(), line_break))
+            return false;
+
+        // The parser strips spaces and tabs at either end
+        if (edge_space(v.front()) || edge_space(v.back()))
+            return false;
+    }
+
+    // Overlong lines are dropped when read; key, '=', value and the newline must fit, with
+    // fgets keeping a byte for its terminator
+    return key.length() + value.length() + 2 < max_line_len;
+}
+
 int config_file::save_config(const char *in_fname) {
     kis_lock_guard<kis_mutex> lk(config_locker, "config_file save_config");
 
     std::string text;
     for (auto x = config_map.begin(); x != config_map.end(); ++x) {
         for (unsigned int y = 0; y < x->second.size(); y++) {
-            text += fmt::format("{}={}\n", x->first, x->second[y].value);
+            const auto& value = x->second[y].value;
+
+            // An empty value reads back as no value at all, so it isn't written
+            if (value.empty())
+                continue;
+
+            // Never write a line that would read back as something else; the value
+            // may be a password, so it isn't logged
+            if (!line_safe(x->first, value)) {
+                _MSG_ERROR("Could not write config file {} - the value of '{}' can't be saved "
+                        "in a config file", in_fname, x->first);
+                return -1;
+            }
+
+            text += fmt::format("{}={}\n", x->first, value);
         }
     }
 

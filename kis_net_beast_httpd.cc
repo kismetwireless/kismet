@@ -194,6 +194,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         global_login_config = false;
 
         config_file user_httpd_config;
+        user_httpd_config.set_plain(true);
         user_httpd_config.parse_config(user_config_path);
 
         admin_username = user_httpd_config.fetch_opt("httpd_username");
@@ -387,14 +388,23 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     return;
                 }
 
-                // An empty password would leave the server open to the next first-run request
-                if (u_k->second.empty() || p_k->second.empty()) {
-                    con->set_status(boost::beast::http::status::bad_request);
-                    os << "Username and password can not be empty\n";
-                    return;
+                // The login is saved as config lines, so it must read back unchanged; an
+                // empty one would also leave the server open to the next first-run request
+                for (const auto& [what, value] : {std::pair<const char *, const std::string&>{"Username", u_k->second},
+                        std::pair<const char *, const std::string&>{"Password", p_k->second}}) {
+                    auto problem = admin_login_problem(value);
+                    if (!problem.empty()) {
+                        con->set_status(boost::beast::http::status::bad_request);
+                        os << what << " " << problem << "\n";
+                        return;
+                    }
                 }
 
-                set_admin_login(u_k->second, p_k->second);
+                if (!set_admin_login(u_k->second, p_k->second)) {
+                    con->set_status(boost::beast::http::status::internal_server_error);
+                    os << "Could not save the login; check the Kismet log\n";
+                    return;
+                }
 
                 _MSG_INFO("A new administrator login and password have been set.");
 
@@ -1007,23 +1017,50 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool q
     return ret;
 }
 
-void kis_net_beast_httpd::set_admin_login(const std::string& username, const std::string& password) {
+std::string kis_net_beast_httpd::admin_login_problem(const std::string& value) {
+    if (value.empty())
+        return "can not be empty";
+
+    if (value.length() > admin_login_max)
+        return fmt::format("can be at most {} characters", admin_login_max);
+
+    // Control characters include line breaks, which would split the saved line
+    for (const auto c : value) {
+        const auto u = static_cast<unsigned char>(c);
+        if (u < 0x20 || u == 0x7f)
+            return "can not contain control characters";
+    }
+
+    // The config file reader strips spaces at either end
+    if (value.front() == ' ' || value.back() == ' ')
+        return "can not start or end with a space";
+
+    return "";
+}
+
+bool kis_net_beast_httpd::set_admin_login(const std::string& username, const std::string& password) {
     auto user_config_path =
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_auth_file",
                 "%h/.kismet/kismet_httpd.conf");
 
     config_file user_httpd_config;
+    user_httpd_config.set_plain(true);
     user_httpd_config.parse_config(user_config_path);
 
     kis_lock_guard<kis_mutex> lk(admin_login_mutex, "httpd set_admin_login");
 
+    user_httpd_config.set_opt("httpd_username", username, true);
+    user_httpd_config.set_opt("httpd_password", password, true);
+
+    // A login that isn't saved would be gone after a restart, leaving the server open to
+    // the next first-run request, so the old one stays until the new one is saved
+    if (user_httpd_config.save_config(user_config_path) < 0)
+        return false;
+
     admin_username = username;
     admin_password = password;
 
-    user_httpd_config.set_opt("httpd_username", admin_username, true);
-    user_httpd_config.set_opt("httpd_password", admin_password, true);
-
-    user_httpd_config.save_config(user_config_path);
+    return true;
 }
 
 bool kis_net_beast_httpd::check_admin_login(const std::string& username, const std::string& password) {
