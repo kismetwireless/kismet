@@ -115,7 +115,13 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                                         alt = json.value("alt", (double) 0);
                                         spd = json.value("spd", (double) 0);
 
-                                        auto new_location = 
+                                        if (!kis_gps_packinfo::values_valid(lat, lon, alt, spd)) {
+                                            stream << "{\"update\": \"error\"}";
+                                            ws->write(stream.str());
+                                            return;
+                                        }
+
+                                        auto new_location =
                                             packetchain->new_packet_component<kis_gps_packinfo>();
                                         new_location->gps_info_ok = true;
                                         new_location->lat = lat;

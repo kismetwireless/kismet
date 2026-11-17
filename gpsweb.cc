@@ -98,8 +98,13 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder, uint64_t in_id) :
                                         alt = json.value("alt", (double) 0);
                                         spd = json.value("spd", (double) 0);
 
+                                        if (!kis_gps_packinfo::values_valid(lat, lon, alt, spd)) {
+                                            stream << "{\"update\": \"error\"}";
+                                            ws->write(stream.str());
+                                            return;
+                                        }
 
-                                        auto new_location = 
+                                        auto new_location =
                                             packetchain->new_packet_component<kis_gps_packinfo>();
 										new_location->gps_info_ok = true;
                                         new_location->lat = lat;
