@@ -147,6 +147,17 @@ const size_t kV41RsrqWordOff = 48;
 const uint32_t kX16RsrpMask = 0xFFFu;   // bits0..11
 const uint32_t kX16RsrqMask = 0x3FFu;   // bits0..9
 
+// Wideband RSSI (reference parser v39): bits0..11 of an x16 slot, raw/16 - 110
+// dBm, on the versions whose slot sits within 1 LSB of same-tick 0xB17F rssi.
+// v48 and the v59 family carry no RSSI here (their slot has no counted oracle).
+const size_t kV6RssiOff = 36;         // u32 @sp+36 (v3 shares it)
+const size_t kV18RssiOff = 44;        // u16 @sp+44
+const size_t kV22RssiOff = 52;        // u16 @cell+52
+const size_t kV35RssiOff = 56;        // u16 @cell+56 (v36 uses the same slot)
+const size_t kV40RssiWordOff = 60;    // u32 @cell+60 (v41 uses the same slot)
+const double kRssiBase = -110.0;
+const double kRssiLo = -110.0, kRssiHi = -20.0;
+
 // Plausibility bands. RSRP failing its band DROPS the whole entry (the parser
 // `continue`s); RSRQ failing its band only clears the RSRQ, keeping the identity.
 // That asymmetry is deliberate and load-bearing — keeping it is the point.
@@ -200,6 +211,30 @@ bool read_u32le(const std::string& s, size_t off, uint32_t* out) {
     return true;
 }
 
+// The reference parser's _rssi_at: wideband RSSI from the x16 slot at payload
+// offset `off`, read as a u32 or a u16. Absent when the slot runs past the end
+// of the payload, is unpopulated (raw == 0), or lands outside -110..-20 dBm.
+bool rssi_at(const std::string& s, size_t off, bool u32, double* out) {
+    uint32_t raw = 0;
+    if (u32) {
+        if (!read_u32le(s, off, &raw))
+            return false;
+    } else {
+        uint16_t raw16 = 0;
+        if (!read_u16le(s, off, &raw16))
+            return false;
+        raw = raw16;
+    }
+    raw &= kX16RsrpMask;
+    if (!raw)
+        return false;
+    const double v = round2(raw / 16.0 + kRssiBase);
+    if (!(kRssiLo <= v && v <= kRssiHi))
+        return false;
+    *out = v;
+    return true;
+}
+
 // A decoded cell before the index-based is_serving fallback is applied.
 // serving_flag is TRI-state: grounded-1, grounded-0, or not grounded at all. The
 // third is not "0" — a cell with no grounded flag falls back to its index, and
@@ -213,6 +248,8 @@ struct Entry {
     double rsrp;
     bool has_rsrq;
     double rsrq;
+    bool has_rssi;
+    double rssi;
 };
 
 // The 0xB193 emit rule: emit every entry, attach the signal only where the
@@ -231,6 +268,8 @@ std::vector<CellObservation> to_observations(const std::vector<Entry>& entries) 
         obs.rsrp = e.has_rsrp ? e.rsrp : 0.0;
         obs.has_rsrq = e.has_rsrq;
         obs.rsrq = e.has_rsrq ? e.rsrq : 0.0;
+        obs.has_rssi = e.has_rssi;
+        obs.rssi = e.has_rssi ? e.rssi : 0.0;
         out.push_back(obs);
     }
     return out;
@@ -327,6 +366,13 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                 e.rsrp = 0.0;
                 e.has_rsrq = false;
                 e.rsrq = 0.0;
+                // RSSI is read whether or not the body reaches the signal block
+                // (the parser's v18 branch reads it outside that guard); the
+                // helper's own bounds check is the only gate.
+                e.rssi = 0.0;
+                e.has_rssi = rssi_at(payload,
+                                     sp_off + (v3_family ? kV6RssiOff : kV18RssiOff),
+                                     v3_family, &e.rssi);
                 uint32_t rsrp_word = 0, rsrq_word = 0;
                 if (sp_len >= min_body &&
                     read_u32le(payload, sp_off + rsrp_off, &rsrp_word) &&
@@ -426,8 +472,8 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
 
             bool has_serving_flag = false;
             int serving_flag = 0;
-            bool has_rsrp = false, has_rsrq = false;
-            double rsrp = 0.0, rsrq = 0.0;
+            bool has_rsrp = false, has_rsrq = false, has_rssi = false;
+            double rsrp = 0.0, rsrq = 0.0, rssi = 0.0;
 
             if (is_v59_family(sp_ver)) {
                 uint32_t rsrp_word = 0, rsrq_word = 0;
@@ -520,6 +566,8 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                         rsrq = round2(rsrq_raw / 16.0 + kV36RsrqBase);
                         has_rsrq = true;
                     }
+                    has_rssi = rssi_at(payload, sp_off + cell_offset + kV35RssiOff,
+                                       false, &rssi);
                 }
             } else if (sp_ver == kV40 || sp_ver == kV41) {
                 // v40 (SDX24) / v41 (SDX50M): RSRP @cell+36 bits0..11 on both;
@@ -546,6 +594,9 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                         rsrq = round2(rsrq_raw / 16.0 - 30.0);
                         has_rsrq = true;
                     }
+                    has_rssi = rssi_at(payload,
+                                       sp_off + cell_offset + kV40RssiWordOff,
+                                       true, &rssi);
                 }
             } else {
                 // v22 / v35 -- x16 RSRP @cell+32 bits0..11 and RSRQ @cell+44
@@ -569,6 +620,10 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
                         rsrq = round2(rsrq_raw / 16.0 - 30.0);
                         has_rsrq = true;
                     }
+                    // v22 has its own RSSI slot; v35 shares v36's.
+                    has_rssi = rssi_at(payload, sp_off + cell_offset +
+                                       (sp_ver == kV22 ? kV22RssiOff : kV35RssiOff),
+                                       false, &rssi);
                 }
             }
 
@@ -589,6 +644,8 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
             e.rsrp = has_rsrp ? round2(rsrp) : 0.0;
             e.has_rsrq = has_rsrq;
             e.rsrq = has_rsrq ? round2(rsrq) : 0.0;
+            e.has_rssi = has_rssi;
+            e.rssi = has_rssi ? rssi : 0.0;
             entries.push_back(e);
         }
     } catch (const std::exception&) {

@@ -54,7 +54,7 @@
 // The VERIFIED pci/earfcn identity still ships in every one of those cases -- the
 // row is emitted with the signal absent, never dropped.
 //
-// EQUIVALENCE CONTRACT: the (pci, earfcn, is_serving, rsrp, rsrq) tuples this leg
+// EQUIVALENCE CONTRACT: the (pci, earfcn, is_serving, rsrp, rsrq, rssi) tuples this leg
 // emits must equal the reference decoder's 0xB193 observations over every
 // committed lte_ml1_serving_b193_*.bin fixture,
 // which between them walk v3 / v6 / v18 / v22 / v35 / v36 / v40 / v41 / v48 /
@@ -97,6 +97,10 @@ struct CellObservation {
     double rsrp;         // dBm, only meaningful when has_rsrp
     bool has_rsrq;
     double rsrq;         // dB,  only meaningful when has_rsrq
+    // Wideband RSSI (reference parser v39): single-cell v3/v6/v18/v22/v35/v36/
+    // v40/v41 only. Absent on multi-cell records, v48 and the v59 family.
+    bool has_rssi;
+    double rssi;         // dBm, only meaningful when has_rssi
 };
 
 // Decode a raw 0xB193 LOG_F payload (log-code-stripped) into zero or more LTE

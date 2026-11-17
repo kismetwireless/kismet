@@ -329,6 +329,8 @@ extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
                     out_obs[n].rsrp = c.rsrp;
                     out_obs[n].has_rsrq = c.has_rsrq;
                     out_obs[n].rsrq = c.rsrq;
+                    out_obs[n].has_rssi = c.has_rssi;
+                    out_obs[n].rssi = c.rssi;
                     n++;
                 }
                 break;
@@ -952,12 +954,15 @@ extern "C" int diag_native_obs_to_json(const diag_native_obs_t *obs,
 
     switch (obs->log_code) {
     case 0xB193:
-        // rat,pci,earfcn, prov, [rsrp],[rsrq], observation_type, is_serving, [id]
+        // rat,pci,earfcn, prov, [rsrp],[rsrq],[rssi], observation_type, is_serving, [id]
         japp_prov(&j, obs->log_code, imei, captured_at, log_tick);
         if (obs->has_rsrp) { fmt_json_double(rsrp_s, sizeof(rsrp_s), obs->rsrp);
             japp(&j, ",\"rsrp\":%s", rsrp_s); }
         if (obs->has_rsrq) { fmt_json_double(rsrq_s, sizeof(rsrq_s), obs->rsrq);
             japp(&j, ",\"rsrq\":%s", rsrq_s); }
+        if (obs->has_rssi) { char rssi_s[64];
+            fmt_json_double(rssi_s, sizeof(rssi_s), obs->rssi);
+            japp(&j, ",\"rssi\":%s", rssi_s); }
         japp(&j, ",\"observation_type\":\"%s\",\"is_serving\":%s",
              obs_type, obs->is_serving ? "true" : "false");
         if (obs->has_identity) japp_identity(&j, obs);
