@@ -29,6 +29,12 @@
 #include <exception>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
+#include <vector>
+
+#ifdef HAVE_OPENSSL
+#include <openssl/crypto.h>
+#endif
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -206,6 +212,9 @@ int packnum = 0, localdropnum = 0;
 // Ultimate registry of global components
 global_registry *globalregistry = NULL;
 
+// Threads running the shared io context; joined at shutdown before the globals go
+std::vector<std::thread> io_threads;
+
 void SpindownKismet() {
     // Give the terminal back before the shutdown messages
     console_tui::stop();
@@ -241,6 +250,13 @@ void SpindownKismet() {
         fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 
     Globalreg::globalreg->io.stop();
+
+    // A handler still running, or a thread still exiting, would race the globals being
+    // deleted and the process's exit handlers (such as OpenSSL freeing per-thread state)
+    for (auto& t : io_threads) {
+        if (t.joinable() && t.get_id() != std::this_thread::get_id())
+            t.join();
+    }
 
     // Be noisy
     if (globalregistry->fatal_condition) {
@@ -454,6 +470,12 @@ void signal_thread_handler() {
 
 int main(int argc, char *argv[], char *envp[]) {
     exec_name = argv[0];
+
+#if defined(HAVE_OPENSSL) && defined(OPENSSL_INIT_NO_ATEXIT)
+    // OpenSSL's exit handler frees state other threads may still be using, so the
+    // process leaves that to the OS; this has to come before any other OpenSSL call
+    OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, nullptr);
+#endif
     std::string configfilename;
     bool confdir_set = false;
     config_file *conf;
@@ -1115,10 +1137,9 @@ int main(int argc, char *argv[], char *envp[]) {
     packetchain->start_processing();
 
     // Initiate the IO threads
-    std::vector<std::thread> iov;
-    iov.reserve(Globalreg::globalreg->n_io_threads);
+    io_threads.reserve(Globalreg::globalreg->n_io_threads);
     for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([i] () {
+        io_threads.emplace_back([i] () {
                 thread_set_process_name(fmt::format("IO {}", i));
                 Globalreg::globalreg->io.run();
                 });
@@ -1158,7 +1179,7 @@ int main(int argc, char *argv[], char *envp[]) {
         usleep(500000);
     }
 
-    for (auto& t : iov) {
+    for (auto& t : io_threads) {
         if (t.joinable())
             t.join();
     }
