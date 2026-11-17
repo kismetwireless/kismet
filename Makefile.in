@@ -269,6 +269,26 @@ TEST_DEVICE_RULES_O = \
 	devicerules/dr_parse.cc.o devicerules/dr_compile.cc.o devicerules/dr_tree.cc.o \
 	devicerules/dr_vm.cc.o devicerules/dr_jit.cc.o devicerules/dr_sort.cc.o devicerules/dr_sljit.c.o
 
+# The probed-interface (list_interfaces) tests; built on request. The
+# objects are what a tracked component needs: the entry tracker and its deps
+TEST_DATASOURCE_PROBED = test/datasource_probed/probed_test
+TEST_DATASOURCE_PROBED_O = \
+	test/datasource_probed/probed_test.cc.o \
+	entrytracker.cc.o globalregistry.cc.o trackedelement.cc.o trackedcomponent.cc.o \
+	censor.cc.o eventbus.cc.o json_adapter.cc.o kis_net_beast_httpd.cc.o \
+	util.cc.o alertracker.cc.o configfile.cc.o json_adapter_v2.cc.o kis_httpd_ssl.cc.o \
+	devicetracker.cc.o gpstracker.cc.o packet.cc.o packetchain.cc.o trackedelement_workers.cc.o \
+	trackedlocation.cc.o crc32.cc.o device_rules.cc.o devicetracker_component.cc.o \
+	devicetracker_httpd.cc.o devicetracker_view.cc.o devicetracker_view_workers.cc.o \
+	gpscellmodem.cc.o gpsfake.cc.o gpsgpsd_v3.cc.o gpsmeta.cc.o gpsserial_v3.cc.o \
+	gpstcp_v2.cc.o gpsweb.cc.o kis_database.cc.o kis_gps.cc.o macaddr.cc.o \
+	manuf.cc.o range_tracker.cc.o streamtracker.cc.o timetracker.cc.o \
+	uuid.cc.o datasourcetracker.cc.o devicerules/dr_compile.cc.o devicerules/dr_jit.cc.o \
+	devicerules/dr_parse.cc.o devicerules/dr_sort.cc.o devicerules/dr_vm.cc.o \
+	gpsframer_v1.cc.o gpsnmea_v3.cc.o gpssirf_v1.cc.o gpsubx_v1.cc.o webhooks.cc.o \
+	devicerules/dr_sljit.c.o kis_datasource.cc.o kis_external.cc.o mpack/mpack.c.o \
+	version.c.o ipctracker_v2.cc.o
+
 LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
@@ -465,6 +485,9 @@ $(TEST_BTLE_EXPIRE):	$(TEST_BTLE_EXPIRE_O)
 
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
+
+$(TEST_DATASOURCE_PROBED):	$(TEST_DATASOURCE_PROBED_O)
+	$(LD) $(LDFLAGS) -o $(TEST_DATASOURCE_PROBED) $(TEST_DATASOURCE_PROBED_O) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
 
 diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
@@ -1080,6 +1103,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/btle_related/*.o $(TEST_BTLE_RELATED)
 	@-rm -f test/btle_expire/*.o $(TEST_BTLE_EXPIRE)
 	@-rm -f test/device_rules/*.o $(TEST_DEVICE_RULES)
+	@-rm -f test/datasource_probed/*.o $(TEST_DATASOURCE_PROBED)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1201,6 +1225,7 @@ include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_COROTATION_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_RELATED_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_EXPIRE_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DEVICE_RULES_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_DATASOURCE_PROBED_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))
