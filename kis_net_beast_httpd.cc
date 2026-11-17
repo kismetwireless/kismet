@@ -2882,6 +2882,27 @@ void kis_net_web_websocket_endpoint::close_impl() {
     }
 }
 
+void kis_net_web_websocket_endpoint::start_auth_recheck() {
+    auth_timer_.expires_after(ws_auth_recheck);
+    auth_timer_.async_wait(boost::asio::bind_executor(strand_,
+                [weak = weak_from_this()](const boost::system::error_code& ec) {
+                    auto self = weak.lock();
+
+                    if (ec || self == nullptr || !self->running)
+                        return;
+
+                    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
+
+                    if (httpd == nullptr || httpd->check_auth_token(self->auth_token_) == nullptr) {
+                        _MSG_INFO("Closing websocket to {}: its login has expired or was revoked",
+                                self->remote_address());
+                        return self->close_impl();
+                    }
+
+                    self->start_auth_recheck();
+                }));
+}
+
 void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
 
     buffer_ = Globalreg::globalreg->streambuf_pool.acquire();
@@ -3006,6 +3027,10 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
 
     // Launch an async read loop
     start_read(shared_from_this());
+
+    auth_token_ = con->auth_token();
+    if (!auth_token_.empty())
+        boost::asio::post(strand_, [self = shared_from_this()]() { self->start_auth_recheck(); });
 
     // That will eventually complete this future
     running_future.wait();

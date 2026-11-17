@@ -383,6 +383,8 @@ public:
     // Login validity
     bool login_valid() const { return login_valid_; }
     const std::string& login_role() const { return login_role_; }
+    // The session or API token the login used; a password login is issued one
+    const std::string& auth_token() const { return auth_token_; }
 
     // These may be set by the endpoint handler prior to the first writing of data; once the
     // first block of the response has been sent, it is too late to include these and they will
@@ -758,6 +760,7 @@ public:
         kis_net_web_endpoint{},
 		strand_{Globalreg::globalreg->io},
         ws_max_queue_{Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>()->websocket_max_queue()},
+        auth_timer_{Globalreg::globalreg->io},
         handler_cb{handler_func} {
             if (con->tls() != nullptr)
                 ws_tls_ = std::make_unique<ws_tls_t>(con->release_tls_stream());
@@ -824,6 +827,14 @@ protected:
     // Largest message a client may send; remote capture frames are under MAX_EXTERNAL_FRAME_LEN
     // and every other websocket takes small JSON requests
     static constexpr size_t ws_read_message_max = 1024 * 1024;
+
+    // The login is checked again on this interval, so a socket closes once its token
+    // expires or is revoked
+    static constexpr std::chrono::seconds ws_auth_recheck{60};
+    boost::asio::steady_timer auth_timer_;
+    std::string auth_token_;
+
+    void start_auth_recheck();
 
     std::promise<void> handle_pr;
 
