@@ -1293,12 +1293,11 @@ public:
     void populate(std::string in_interface, std::vector<std::string> in_options) {
         set_interface(in_interface);
 
-        if (in_options.size() != 0) {
-            for (auto i : *options_vec) {
-                auto o = std::make_shared<tracker_element_string>(options_entry_id,
-                        get_tracker_value<std::string>(i));
-                options_vec->push_back(o);
-            }
+        for (const auto& i : in_options) {
+            if (i.empty())
+                continue;
+            auto o = std::make_shared<tracker_element_string>(options_entry_id, i);
+            options_vec->push_back(o);
         }
     }
 
