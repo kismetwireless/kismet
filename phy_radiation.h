@@ -63,6 +63,13 @@ public:
             __ImportField(cps_rrd, p);
             __ImportField(usv_rrd, p);
             __ImportField(src_alias, p);
+            __ImportField(cps_err, p);
+            __ImportField(usv_err, p);
+            __ImportField(dose_total, p);
+            __ImportField(dose_total_duration, p);
+            __ImportField(temperature, p);
+            __ImportField(battery, p);
+            __ImportField(last_status_time, p);
 
             cps_rrd->update_before_serialize(false);
             usv_rrd->update_before_serialize(false);
@@ -71,6 +78,20 @@ public:
     void insert_cps_usv(time_t ts, double cps, double usv) {
         cps_rrd->add_sample(cps, ts);
         usv_rrd->add_sample(usv, ts);
+    }
+
+    void set_errors(double cps_err_pct, double usv_err_pct) {
+        cps_err->set(cps_err_pct);
+        usv_err->set(usv_err_pct);
+    }
+
+    void set_status(time_t ts, double dose_usv, uint64_t dose_duration,
+            double temperature_c, double battery_pct) {
+        dose_total->set(dose_usv);
+        dose_total_duration->set(dose_duration);
+        temperature->set(temperature_c);
+        battery->set(battery_pct);
+        last_status_time->set(ts);
     }
 
     void insert_cps_record(time_t ts, double cps, const std::vector<double>& spectrum) {
@@ -148,7 +169,16 @@ protected:
         register_field("radiation.sensor.aggregate_spectrum_end", "Last timestamp in aggregate spectrum", &aggregate_spectrum_end);
 
         register_field("radiation.sensor.cps_rrd", "Counts-per-second RRD", &cps_rrd);
-        register_field("radiation.sensor.usv_rrd", "uSV dosage RRD (if available)", &usv_rrd);
+        register_field("radiation.sensor.usv_rrd", "Dose rate RRD, uSv/h (if available)", &usv_rrd);
+        register_field("radiation.sensor.cps_err", "Counts-per-second error, percent (if available)", &cps_err);
+        register_field("radiation.sensor.usv_err", "Dose rate error, percent (if available)", &usv_err);
+        register_field("radiation.sensor.dose_total", "Accumulated dose reported by the sensor, uSv", &dose_total);
+        register_field("radiation.sensor.dose_total_duration",
+                "Time the accumulated dose covers, seconds", &dose_total_duration);
+        register_field("radiation.sensor.temperature", "Sensor temperature, C", &temperature);
+        register_field("radiation.sensor.battery", "Sensor battery charge, percent", &battery);
+        register_field("radiation.sensor.last_status_time",
+                "Last sensor status report (dose, temperature, battery), 0 if none", &last_status_time);
         register_field("radiation.sensor.type", "Detector type/brand", &detector_type);
 
         register_field("radiation.sensor.datasource", "Datasource", &src_alias);
@@ -170,6 +200,14 @@ protected:
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> usv_rrd;
 
     std::shared_ptr<tracker_element_alias> src_alias;
+
+    std::shared_ptr<tracker_element_double> cps_err;
+    std::shared_ptr<tracker_element_double> usv_err;
+    std::shared_ptr<tracker_element_double> dose_total;
+    std::shared_ptr<tracker_element_uint64> dose_total_duration;
+    std::shared_ptr<tracker_element_double> temperature;
+    std::shared_ptr<tracker_element_double> battery;
+    std::shared_ptr<tracker_element_uint64> last_status_time;
 
     std::list<std::vector<double>> spectrum_rolling_log;
     std::list<time_t> spectrum_rolling_log_time;
@@ -195,6 +233,8 @@ public:
     kis_radiation_phy(int in_phyid);
 
     static int packet_handler(CHAINCALL_PARMS);
+
+    std::shared_ptr<geiger_device> find_or_create_sensor(const uuid& src_uuid, const std::string& type);
 
     static std::string event_radiation() { return "RADIATION"; }
 protected:

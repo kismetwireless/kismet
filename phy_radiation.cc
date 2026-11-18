@@ -103,6 +103,24 @@ kis_radiation_phy::~kis_radiation_phy() {
     packetchain->remove_handler(&packet_handler, CHAINPOS_CLASSIFIER);
 }
 
+// Caller holds rad_mutex
+std::shared_ptr<geiger_device> kis_radiation_phy::find_or_create_sensor(const uuid& src_uuid,
+        const std::string& type) {
+    auto gk = geiger_counters->find(src_uuid);
+
+    if (gk != geiger_counters->end())
+        return std::static_pointer_cast<geiger_device>(gk->second);
+
+    auto rv = std::make_shared<geiger_device>(geiger_device_id);
+
+    // The packet source ref is a raw pointer, the alias needs the shared one from the DST
+    rv->set_src_alias(datasourcetracker->find_datasource(src_uuid));
+    rv->set_detector_type(type);
+    geiger_counters->insert(src_uuid, rv);
+
+    return rv;
+}
+
 int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
     kis_radiation_phy *radphy = (kis_radiation_phy *) auxdata;
 
@@ -141,83 +159,71 @@ int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
             return 0;
         }
 
-        // _MSG_DEBUG("Radview JSON: {}", json->json_string);
-
         auto lk = kis_lock_guard<kis_mutex>(radphy->rad_mutex, "radphy update");
-        std::shared_ptr<geiger_device> rv;
-        auto gk = radphy->geiger_counters->find(datasrc->ref_source->get_source_uuid());
-        if (gk == radphy->geiger_counters->end()) {
-            rv = std::make_shared<geiger_device>(radphy->geiger_device_id);
-
-            // Minor hoops to jump through; the packet source ref is a raw pointer not a shared
-            // pointer, so we need to get the shared from the DST.
-            rv->set_src_alias(radphy->datasourcetracker->find_datasource(datasrc->ref_source->get_source_uuid()));
-
-            rv->set_detector_type("Radview");
-            radphy->geiger_counters->insert(datasrc->ref_source->get_source_uuid(), rv);
-        } else {
-            rv = std::static_pointer_cast<geiger_device>(gk->second);
-        }
+        auto rv = radphy->find_or_create_sensor(datasrc->ref_source->get_source_uuid(), "Radview");
 
         rv->insert_cps_record(in_pack->ts.tv_sec, cps, spectrum);
 
         return 1;
     }
 
-    // Radiacode gives dosage information as well as cps.  Once written it 
-    // should also provide spectrum.
+    // Radiacode sends real-time count and dose rate records, and less often a
+    // status record with accumulated dose, temperature, and battery
     if (json->type == "radiacode") {
-
         nlohmann::json json_;
-        std::vector<double> spectrum;
-        double cps;
-        double sv;
 
         try {
             std::stringstream ss(json->json_string);
             ss >> json_;
-
-            cps = json_["cps"].get<double>();
-            sv = json_["sv"].get<double>();
-
         } catch (const std::exception& e) {
             _MSG_DEBUG("JSON parsing error: {}", e.what());
             return 0;
         }
 
-        // _MSG_DEBUG("Radiacode JSON: {}", json->json_string);
+        if (!json_.is_object())
+            return 0;
+
+        auto num = [&json_](const char *key, double& out) -> bool {
+            auto i = json_.find(key);
+
+            if (i == json_.end() || !i->is_number())
+                return false;
+
+            out = i->get<double>();
+            return std::isfinite(out);
+        };
+
+        double cps, sv, cps_err, sv_err;
+        double dose, dose_duration, temp, charge;
+
+        bool have_rt = num("cps", cps) && num("sv", sv);
+        bool have_err = have_rt && num("cps_err", cps_err) && num("sv_err", sv_err);
+        bool have_status = num("dose_total", dose) && num("dose_duration", dose_duration) &&
+            num("temperature", temp) && num("charge", charge) &&
+            dose_duration >= 0 && dose_duration <= 4294967295.0;
+
+        if (!have_rt && !have_status)
+            return 0;
 
         auto lk = kis_lock_guard<kis_mutex>(radphy->rad_mutex, "radphy update");
+        auto rv = radphy->find_or_create_sensor(datasrc->ref_source->get_source_uuid(), "Radiacode");
 
-        std::shared_ptr<geiger_device> rv;
-        auto gk = radphy->geiger_counters->find(datasrc->ref_source->get_source_uuid());
-        if (gk == radphy->geiger_counters->end()) {
-            rv = std::make_shared<geiger_device>(radphy->geiger_device_id);
+        // Radiacode rates are in units of 10 mSv/h; x10000 gives uSv/h.  Errors
+        // are percent x10.
+        if (have_rt)
+            rv->insert_cps_usv(in_pack->ts.tv_sec, cps, sv * 10000);
 
-            rv->set_src_alias(radphy->datasourcetracker->find_datasource(datasrc->ref_source->get_source_uuid()));
+        if (have_err)
+            rv->set_errors(cps_err / 10, sv_err / 10);
 
-            rv->set_detector_type("Radiacode");
-            radphy->geiger_counters->insert(datasrc->ref_source->get_source_uuid(), rv);
-        } else {
-            rv = std::static_pointer_cast<geiger_device>(gk->second);
-        }
-
-        // Radiacode reports sv in 1/10000ths
-        rv->insert_cps_usv(in_pack->ts.tv_sec, cps, sv * 10000);
+        // Accumulated dose uses the same x10000 scale, giving uSv.  Temperature
+        // is C x100 offset by 2000, charge is percent x100.
+        if (have_status)
+            rv->set_status(in_pack->ts.tv_sec, dose * 10000, (uint64_t) dose_duration,
+                    (temp - 2000) / 100, charge / 100);
 
         return 1;
     }
 
-    /*
-    if (json->type != "radiation")
-        return 0;
-
-    auto rdata = in_pack->fetch_or_add<packet_metablob>(radphy->pack_comp_meta);
-    rdata->set_data("radiation", json->json_string);
-    */
-
-
-
     return 1;
 }
-
