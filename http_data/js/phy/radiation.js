@@ -5,9 +5,12 @@
 // The sensors are at /radiation/sensors/all_sensors and arrive every few
 // seconds on the RADIATION eventbus topic, as a map of sensor UUID to sensor.
 // A sensor with a spectrum has its windows (device, session, past hour, and
-// per-minute) at /radiation/sensors/by-uuid/<uuid>/spectrum.
+// per-minute) at /radiation/sensors/by-uuid/<uuid>/spectrum, and readings at
+// GPS locations at /radiation/sensors/by-uuid/<uuid>/track, drawn on the map.
 
 import { spectrumChart, waterfall, energyAxis, gammaLines } from '../widgets/spectrum.js';
+import { findPeaks, isotopeHints } from './gammapeaks.js';
+import { spectrumCsv, spectrumN42, n42Ready } from './spectrumexport.js';
 
 const rs = 'radiation.sensor';
 const sp = 'radiation.spectrum';
@@ -24,19 +27,57 @@ const windowHelp = {
 const spectrumRefresh = 10;
 
 // A spectrum window from the server as chart options: counts on the keV axis,
-// with the count rate per channel in the readout
-function gammaSpectrum(win, { scale = 'log', markers = false } = {}) {
+// with the count rate per channel in the readout.  peaks marks the peaks found
+// in it (from findPeaks).
+function gammaSpectrum(win, { scale = 'log', markers = false, peaks = null } = {}) {
     const dur = win?.[`${sp}.duration`] ?? 0;
     return {
         values: win?.[`${sp}.counts`] ?? [],
         axis: energyAxis(win?.[`${sp}.calibration`]) ?? undefined,
         scale,
-        markers: markers ? gammaLines : [],
+        markers: [...(markers ? gammaLines : []),
+            ...(peaks ?? []).map((p) => ({ at: p.energy, label: `${Math.round(p.energy)}`, color: 'var(--accent)' }))],
         rows: dur > 0 ? (ch, v) => [['Rate', `${((v || 0) / dur).toFixed(3)} CPS`]] : null,
     };
 }
 
-// Common gamma lines, as hints to what a peak might be, never an identification
+const peaksOf = (win) => findPeaks(win?.[`${sp}.counts`], win?.[`${sp}.calibration`]);
+
+// The isotopes peaks hint at, as text
+function hintText(peaks) {
+    const hints = isotopeHints(peaks);
+    if (!hints.length)
+        return peaks.length ? 'No common gamma line near the peaks found' : 'No clear peaks yet';
+    return hints.map((h) => `${h.isotope} (${h.lines.map((e) => Math.round(e)).join(', ')} keV` +
+        (h.natural ? `, natural${h.series ? `, ${h.series} series` : ''}` : '') +
+        (h.note ? `; ${h.note}` : '') + ')').join(', ');
+}
+
+// Each peak with the lines near it, for the hint's tooltip
+const peakDetail = (peaks) => peaks.map((p) => `${Math.round(p.energy)} keV, ${p.significance.toFixed(0)}σ: ` +
+    (p.lines.length ? p.lines.map((l) => `${l.isotope} ${l.at}`).join(', ') : 'no common line')).join('\n');
+
+const hintNote = 'Hints from the energies of the peaks found, never an identification: peaks from a pocket ' +
+    'detector are wide, and different isotopes have lines close together.';
+
+// Dose rates on the map, green at background to red at 1 uSv/h and above, on a
+// log scale; count rates (sensors without a dose rate) against their median
+const doseColor = (usv) => `hsl(${Math.round(120 * (1 - Math.min(Math.max(Math.log10(Math.max(usv, 1e-6) / 0.05) /
+    Math.log10(20), 0), 1)))} 85% 45%)`;
+const ratioColor = (r) => `hsl(${Math.round(120 * (1 - Math.min(Math.max(Math.log2(Math.max(r, 1e-6)) / 2, 0), 1)))} 85% 45%)`;
+
+function download(name, type, text) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+const fileStamp = (t) => new Date(t * 1000).toISOString().replace(/\.\d{3}Z$/, '').replace(/[-:]/g, '').replace('T', '-');
 
 const safetyNote = 'Readings depend on the detector, its calibration, and how it is held.  ' +
     'Never use them to decide whether an area is safe.';
@@ -120,6 +161,8 @@ export function register(kismet) {
         if (sensorsKnown === true || sensorsKnown === known)
             return;
         sensorsKnown = known;
+        if (known)
+            startTracks();
 
         ui.ribbonStats.add({
             id: 'radiation-cps', title: 'Radiation counts', priority: 60, defaultVisible: known,
@@ -193,6 +236,7 @@ export function register(kismet) {
                     options: Object.entries(windows).map(([id, title]) => ({ id, title })) },
                 { id: 'linear', title: 'Linear scale', type: 'bool', default: false },
                 { id: 'markers', title: 'Mark common gamma lines', type: 'bool', default: false },
+                { id: 'peaks', title: 'Mark peaks', type: 'bool', default: false },
             ],
             create(body, { settings: cs }) {
                 if (!known) {
@@ -241,7 +285,7 @@ export function register(kismet) {
                                 (dur > 0 ? `, ${((w[`${sp}.total`] ?? 0) / dur).toFixed(2)} CPS` : '') :
                                 `${windows[win]}: nothing counted yet`;
                             chart.draw(gammaSpectrum(w, { scale: cs.get('linear') ? 'linear' : 'log',
-                                markers: cs.get('markers') }));
+                                markers: cs.get('markers'), peaks: cs.get('peaks') ? peaksOf(w) : null }));
                         }
                     } catch (err) {
                         caption.textContent = err.message;
@@ -270,6 +314,131 @@ export function register(kismet) {
     }
 
     addSensorViews(false);
+
+    // Readings at GPS locations on the map, polled from each sensor's track
+    // every 15 seconds; points are kept by their first time and
+    // updated as the server adds readings to them
+    const trackPoll = 15;
+    const trackMax = 4000;
+    const trackGap = 120;
+    const tracks = new Map();
+    let trackSensors = [];
+
+    async function readTracks() {
+        const sensors = await api.post('radiation/sensors/all_sensors.json', { fields: [`${rs}.type`] });
+        let changed = false;
+        trackSensors = Object.keys(sensors ?? {}).filter((id) => uuidRe.test(id));
+        for (const id of trackSensors) {
+            const t = tracks.get(id) ?? { points: new Map(), since: 0, dose: sensors[id][`${rs}.type`] !== 'Radview' };
+            tracks.set(id, t);
+            const pts = await api.get(`radiation/sensors/by-uuid/${id}/track.json${t.since ? `?since=${t.since}` : ''}`);
+            for (const p of Array.isArray(pts) ? pts : []) {
+                if (!Array.isArray(p) || p.length < 8 || !p.every(Number.isFinite))
+                    continue;
+                const [first, last, lon, lat, cps, usv, usvMax, n] = p;
+                t.points.set(first, { first, last, lon, lat, cps, usv, usvMax, n });
+                t.since = Math.max(t.since, last);
+                changed = true;
+            }
+            if (t.points.size > trackMax) {
+                const keys = [...t.points.keys()].sort((a, b) => a - b);
+                keys.slice(0, keys.length - trackMax).forEach((k) => t.points.delete(k));
+            }
+        }
+        return changed;
+    }
+
+    const doseRange = (lo, hi) => (doseText(lo) === doseText(hi) ? doseText(lo) : `${doseText(lo)} to ${doseText(hi)}`);
+
+    // Runs of points of about the same color as lines; a point on its own as a dot
+    function trackShapes() {
+        const shapes = [];
+        for (const id of trackSensors) {
+            const t = tracks.get(id);
+            if (!t?.points.size)
+                continue;
+            const pts = [...t.points.values()].sort((a, b) => a.first - b.first);
+            const med = t.dose ? 0 : pts.map((p) => p.cps).sort((a, b) => a - b)[Math.floor(pts.length / 2)] || 1;
+            const color = (p) => (t.dose && p.usv >= 0 ? doseColor(p.usv) : ratioColor(p.cps / med));
+            const runs = [];
+            let run = null;
+            for (const p of pts) {
+                const c = color(p);
+                const joined = run && p.first - run.pts[run.pts.length - 1].last <= trackGap;
+                if (joined && c === run.color && run.pts.length < 60) {
+                    run.pts.push(p);
+                    continue;
+                }
+                // A new color carries on from the last point, so the line has no break
+                run = { color: c, pts: joined ? [run.pts[run.pts.length - 1], p] : [p], joined };
+                runs.push(run);
+            }
+            for (const r of runs) {
+                const own = r.joined ? r.pts.slice(1) : r.pts;
+                const lo = Math.min(...own.map((p) => (t.dose ? p.usv : p.cps)));
+                const hi = Math.max(...own.map((p) => (t.dose ? p.usvMax : p.cps)));
+                const label = `${t.dose ? `${doseRange(lo, hi)} µSv/h` : `${cpsText(lo)} to ${cpsText(hi)} CPS`}, ` +
+                    `${format.clock(own[0].first)}` + (own[own.length - 1].last > own[0].first + 60 ?
+                    ` to ${format.clock(own[own.length - 1].last)}` : '');
+                if (r.pts.length > 1)
+                    shapes.push({ type: 'line', points: r.pts.map((p) => [p.lon, p.lat]), color: r.color, weight: 5, label });
+                else
+                    shapes.push({ type: 'circle', center: [r.pts[0].lon, r.pts[0].lat], radius: 6, color: r.color,
+                        fillColor: r.color, fillOpacity: 0.8, weight: 2, label });
+            }
+        }
+        return shapes.slice(-1000);
+    }
+
+    // The overlay is only on the map while a sensor has readings at GPS
+    // locations; the tracks are polled from when the server first has a sensor
+    const redraws = new Set();
+    let overlayAdded = false;
+    let tracksPolling = false;
+
+    function syncDoseOverlay() {
+        const any = trackSensors.some((id) => tracks.get(id)?.points.size > 0);
+        if (any === overlayAdded)
+            return;
+        overlayAdded = any;
+        if (!any) {
+            ui.mapOverlays.remove('radiation-dose');
+            return;
+        }
+        ui.mapOverlays.add({
+            id: 'radiation-dose', title: 'Radiation dose', priority: 50, icon: 'radiation', defaultVisible: true,
+            shapes: trackShapes,
+            watch(redraw) {
+                redraws.add(redraw);
+                return () => redraws.delete(redraw);
+            },
+            legend: () => el('div', { class: 'map-legend', title: safetyNote }, el('span', {}, 'Dose rate'),
+                el('span', { class: 'map-legend-bar', style: { background:
+                    `linear-gradient(to right, ${[0.05, 0.1, 0.2, 0.5, 1].map(doseColor).join(', ')})` } }),
+                el('span', { class: 'map-legend-scale' }, el('span', {}, '0.05'), el('span', {}, '1+ µSv/h'))),
+        });
+    }
+
+    async function pollTracks() {
+        if (document.visibilityState !== 'hidden') {
+            try {
+                const changed = await readTracks();
+                syncDoseOverlay();
+                if (changed)
+                    redraws.forEach((r) => r());
+            } catch {
+                // Tried again next time
+            }
+        }
+        setTimeout(pollTracks, trackPoll * 1000);
+    }
+
+    function startTracks() {
+        if (tracksPolling)
+            return;
+        tracksPolling = true;
+        pollTracks();
+    }
 
     // Known now, or once the server first sends the sensor list (it only does
     // when it has sensors)
@@ -370,6 +539,29 @@ export function register(kismet) {
                 fit();
                 readSpectrum();
             } });
+        const peakCheck = el('input', { type: 'checkbox', checked: settings.get('radiation.peaks', true),
+            onchange: (e) => {
+                settings.set('radiation.peaks', e.target.checked);
+                drawSpectrum();
+                fit();
+            } });
+        const hints = el('p', { class: 'muted', hidden: true });
+        const exportButton = (label, title, make) => el('button', { type: 'button', title, onclick: () => {
+            const win = report?.[`${sp}.${specWindow}`];
+            if (!win)
+                return;
+            const f = make(win);
+            if (!f.text)
+                return;
+            download(`${(shownSensor.type || 'radiation').replace(/[^A-Za-z0-9_-]/g, '')}-${specWindow}-` +
+                `${fileStamp(win[`${sp}.end_time`] || Date.now() / 1000)}.${f.ext}`, f.type, f.text);
+        } }, label);
+        const exports = el('span', {},
+            exportButton('CSV', 'Save the spectrum shown as CSV: channel, energy in keV, counts',
+                (win) => ({ ext: 'csv', type: 'text/csv', text: spectrumCsv(win) })),
+            exportButton('N42', 'Save the spectrum shown as ANSI N42.42 XML, for spectrum tools such as InterSpec',
+                (win) => ({ ext: 'n42', type: 'application/xml',
+                    text: spectrumN42(win, { name: shownSensor.name, type: shownSensor.type, window: windows[specWindow] }) })));
         const fallBox = el('div', { hidden: !fallCheck.checked },
             el('h3', { title: 'Each row is one minute, newest at the top; brighter is more counts' }, 'Past hour, by minute'),
             fall.node);
@@ -388,8 +580,11 @@ export function register(kismet) {
                 }),
                 el('label', { title: 'Mark where common gamma lines fall; a peak near one is only a hint' },
                     markers, ' Gamma lines'),
-                el('label', {}, fallCheck, ' Waterfall')),
-            specSummary, spectrum.node, fallBox);
+                el('label', { title: 'Find the peaks in the spectrum and the common gamma lines near them' },
+                    peakCheck, ' Peaks'),
+                el('label', {}, fallCheck, ' Waterfall'),
+                exports),
+            specSummary, spectrum.node, hints, fallBox);
         const specSection = el('details', { class: 'detail-section', hidden: true,
             open: settings.get('radiation.spectrum_open', true) },
             el('summary', {}, 'Spectrum'), specNone, specBody);
@@ -452,6 +647,7 @@ export function register(kismet) {
         let current = null;
         let report = null;
         let reportFor = null;
+        let shownSensor = { name: '', type: '' };
 
         // Fit the window to everything in it, as far as the screen allows,
         // until the user sizes it themselves
@@ -500,6 +696,7 @@ export function register(kismet) {
                     empty.hidden = current !== null;
 
                     const s = current ? sensors[current] : null;
+                    shownSensor = { name: s?.name ?? '', type: s?.[`${rs}.type`] ?? '' };
                     stats.replaceChildren();
                     graph.node.hidden = !s;
                     if (s) {
@@ -609,7 +806,16 @@ export function register(kismet) {
                     'Nothing counted in this window yet';
                 specSummary.title = '';
             }
-            spectrum.draw(gammaSpectrum(win, { scale, markers: markers.checked }));
+            const peaks = win && peakCheck.checked ? peaksOf(win) : null;
+            spectrum.draw(gammaSpectrum(win, { scale, markers: markers.checked, peaks }));
+            const [csvButton, n42Button] = exports.children;
+            csvButton.disabled = !win;
+            n42Button.disabled = !n42Ready(win);
+            hints.hidden = !peaks || !energyAxis(win?.[`${sp}.calibration`]);
+            if (!hints.hidden) {
+                hints.textContent = `Peaks hint at: ${hintText(peaks)}`;
+                hints.title = `${hintNote}\n\n${peakDetail(peaks)}`;
+            }
 
             if (fallCheck.checked) {
                 const rows = (report?.[`${sp}.minutes`] ?? []).map((m) => ({

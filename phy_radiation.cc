@@ -21,6 +21,7 @@
 
 #include <cmath>
 
+#include "alertracker.h"
 #include "datasourcetracker.h"
 #include "devicetracker.h"
 #include "gpstracker.h"
@@ -259,6 +260,75 @@ bool radiation_spectrum_history::fill_minute(const std::shared_ptr<radiation_spe
     return true;
 }
 
+void radiation_reading_history::add(time_t ts, double cps, double usv, bool has_usv) {
+    if (ts <= 0 || !std::isfinite(cps) || cps < 0 || (has_usv && (!std::isfinite(usv) || usv < 0)))
+        return;
+
+    readings[next_reading] = reading{ts, cps, usv, has_usv};
+    next_reading = (next_reading + 1) % recent_slots;
+
+    int64_t minute = ts / 60;
+    auto& m = minutes[minute % minute_slots];
+
+    if (m.minute != minute) {
+        m.minute = minute;
+        m.sum = 0;
+        m.n = 0;
+    }
+
+    m.sum += cps;
+    m.n++;
+}
+
+size_t radiation_reading_history::recent(time_t now, time_t window, double& cps, double& usv,
+        bool& has_usv) const {
+    size_t n = 0, n_usv = 0;
+    double cps_sum = 0, usv_sum = 0;
+
+    for (const auto& r : readings) {
+        if (r.ts <= 0 || r.ts > now || r.ts <= now - window)
+            continue;
+
+        n++;
+        cps_sum += r.cps;
+
+        if (r.has_usv) {
+            n_usv++;
+            usv_sum += r.usv;
+        }
+    }
+
+    if (n == 0)
+        return 0;
+
+    cps = cps_sum / n;
+    has_usv = n_usv > 0;
+    usv = has_usv ? usv_sum / n_usv : 0;
+
+    return n;
+}
+
+bool radiation_reading_history::baseline(time_t now, double& cps, size_t& n_minutes) const {
+    int64_t now_minute = now / 60;
+    double sum = 0;
+
+    n_minutes = 0;
+
+    for (const auto& m : minutes) {
+        if (m.n == 0 || m.minute >= now_minute - 1 || m.minute <= now_minute - (int64_t) minute_slots)
+            continue;
+
+        sum += m.sum / m.n;
+        n_minutes++;
+    }
+
+    if (n_minutes == 0)
+        return false;
+
+    cps = sum / n_minutes;
+    return true;
+}
+
 kis_radiation_phy::kis_radiation_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
@@ -330,9 +400,64 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
                             with_minutes, time(nullptr));
                 }, rad_mutex));
 
+    // Readings at GPS locations; since=<time> leaves out points last updated before it
+    httpd->register_route("/radiation/sensors/by-uuid/:uuid/track", {"GET", "POST"},
+            httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto s_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+
+                    if (s_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto gk = geiger_counters->find(s_uuid);
+
+                    if (gk == geiger_counters->end())
+                        throw std::runtime_error("no such radiation sensor");
+
+                    time_t since = 0;
+                    auto sk = con->http_variables().find("since");
+                    if (sk != con->http_variables().end()) {
+                        int64_t sv = -1;
+                        try {
+                            sv = string_to_n<int64_t>(sk->second);
+                        } catch (const std::exception&) { }
+                        if (sv < 0)
+                            throw std::runtime_error("invalid since");
+                        since = (time_t) sv;
+                    }
+
+                    return build_track(std::static_pointer_cast<geiger_device>(gk->second), since);
+                }, rad_mutex));
+
+    auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
+
+    alert_dose_ref =
+        alertracker->activate_configured_alert("RADIATIONDOSE",
+                "SYSTEM", kis_alert_severity::medium,
+                "A radiation sensor's dose rate, averaged over 10 seconds, reached the level "
+                "set by radiation_alert_dose.  Readings depend on the detector, its calibration, "
+                "and how it is held; never rely on Kismet to decide whether an area is safe.", phyid);
+    alert_rise_ref =
+        alertracker->activate_configured_alert("RADIATIONRISE",
+                "SYSTEM", kis_alert_severity::low,
+                "A radiation sensor's count rate, averaged over 10 seconds, rose well above its "
+                "own average over the past hour.  This may be a source nearby, or a change in "
+                "the natural background such as rain washing radon daughters down.", phyid);
+
+    auto conf = Globalreg::globalreg->kismet_config;
+
+    alert_dose_level = conf->fetch_opt_as<double>("radiation_alert_dose", 1.0);
+    if (!std::isfinite(alert_dose_level) || alert_dose_level < 0)
+        alert_dose_level = 0;
+
+    alert_rise_sigma = conf->fetch_opt_as<double>("radiation_alert_rise_sigma", 6.0);
+    if (!std::isfinite(alert_rise_sigma) || alert_rise_sigma < 0)
+        alert_rise_sigma = 0;
+
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     event_timer =
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 3, nullptr, 1, 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 3, nullptr, 1,
                 [this](int) -> int {
                     auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
                     auto lg = kis_lock_guard<kis_mutex>(rad_mutex);
@@ -341,15 +466,18 @@ kis_radiation_phy::kis_radiation_phy(int in_phyid) :
                     if (geiger_counters->size() == 0)
                         return 1;
 
+                    struct timeval tv;
+                    gettimeofday(&tv, nullptr);
+
+                    auto gpstracker = Globalreg::fetch_global_as<gps_tracker>();
+                    std::shared_ptr<kis_gps_packinfo> loc;
+                    if (gpstracker != nullptr)
+                        loc = gpstracker->get_best_location();
+
+                    check_alerts(tv.tv_sec);
+                    update_track(tv.tv_sec, loc);
+
                     if (kismetdb != nullptr) {
-                        struct timeval tv;
-                        gettimeofday(&tv, nullptr);
-
-                        auto gpstracker = Globalreg::fetch_global_as<gps_tracker>();
-                        std::shared_ptr<kis_gps_packinfo> loc;
-                        if (gpstracker != nullptr)
-                            loc = gpstracker->get_best_location();
-
                         std::stringstream js;
 
                         Globalreg::globalreg->entrytracker->serialize("json", js, geiger_counters, NULL);
@@ -482,6 +610,153 @@ void kis_radiation_phy::log_spectrum_minutes(time_t now, const std::shared_ptr<k
 
         kismetdb->log_snapshot(loc, tv, "RADIATION_SPECTRUM", js.str());
     }
+}
+
+// Alerts are raised once as a reading crosses the level, and again only after it has
+// fallen back well below it; caller holds rad_mutex
+void kis_radiation_phy::check_alerts(time_t now) {
+    if (alert_dose_level <= 0 && alert_rise_sigma <= 0)
+        return;
+
+    auto alertracker = Globalreg::fetch_global_as<alert_tracker>();
+
+    if (alertracker == nullptr)
+        return;
+
+    for (const auto& gi : *geiger_counters) {
+        auto sensor = std::static_pointer_cast<geiger_device>(gi.second);
+        auto& r = sensor->get_readings();
+
+        double cps, usv;
+        bool has_usv;
+
+        // Half the window filled, so a single reading doesn't raise it
+        if (r.recent(now, alert_window, cps, usv, has_usv) < (size_t) alert_window / 2)
+            continue;
+
+        if (alert_dose_level > 0 && has_usv) {
+            if (!r.dose_alerted && usv >= alert_dose_level) {
+                r.dose_alerted = true;
+                alertracker->raise_alert(alert_dose_ref, nullptr,
+                        mac_addr{}, mac_addr{}, mac_addr{}, mac_addr{}, "",
+                        censor::format("Radiation sensor {} reports a dose rate of {:.3f} uSv/h "
+                            "over the last {} seconds, at or above the alert level of {:.3f} uSv/h.  "
+                            "Never rely on Kismet to decide whether an area is safe.",
+                            sensor->get_name(), usv, alert_window, alert_dose_level));
+            } else if (r.dose_alerted && usv < alert_dose_level * 0.8) {
+                r.dose_alerted = false;
+            }
+        }
+
+        double base;
+        size_t base_minutes;
+
+        if (alert_rise_sigma > 0 && r.baseline(now, base, base_minutes) &&
+                base_minutes >= alert_min_baseline && base > 0) {
+            // Counts expected over the window from the background, and how many standard
+            // deviations (Poisson, the square root of the counts) above it the window is
+            double expect = base * alert_window;
+            double sigma = (cps * alert_window - expect) / std::sqrt(expect);
+
+            if (!r.rise_alerted && sigma >= alert_rise_sigma && cps >= base * alert_min_rise_ratio) {
+                r.rise_alerted = true;
+                alertracker->raise_alert(alert_rise_ref, nullptr,
+                        mac_addr{}, mac_addr{}, mac_addr{}, mac_addr{}, "",
+                        censor::format("Radiation sensor {} reports {:.2f} counts per second over the "
+                            "last {} seconds, {:.1f} times its average of {:.2f} over the past {} minutes.",
+                            sensor->get_name(), cps, alert_window, cps / base, base, base_minutes));
+            } else if (r.rise_alerted && (sigma < alert_rise_sigma / 2 ||
+                        cps < base * (1 + (alert_min_rise_ratio - 1) / 2))) {
+                r.rise_alerted = false;
+            }
+        }
+    }
+}
+
+// Add the latest readings at the current location to each sensor's track; caller holds
+// rad_mutex
+void kis_radiation_phy::update_track(time_t now, const std::shared_ptr<kis_gps_packinfo>& loc) {
+    if (loc == nullptr || loc->fix < 2 || !std::isfinite(loc->lat) || !std::isfinite(loc->lon) ||
+            std::fabs(loc->lat) > 90 || std::fabs(loc->lon) > 180 || (loc->lat == 0 && loc->lon == 0))
+        return;
+
+    // Meters per degree, close enough over a few meters
+    constexpr double m_per_deg = 111320.0;
+    constexpr double deg_to_rad = M_PI / 180.0;
+
+    for (const auto& gi : *geiger_counters) {
+        auto sensor = std::static_pointer_cast<geiger_device>(gi.second);
+
+        double cps, usv;
+        bool has_usv;
+
+        // Readings from since the previous timer tick
+        if (sensor->get_readings().recent(now, 3, cps, usv, has_usv) == 0)
+            continue;
+
+        auto& track = sensor->get_track();
+
+        if (!track.empty()) {
+            auto& b = track.back();
+            double dy = (loc->lat - b.lat) * m_per_deg;
+            double dx = (loc->lon - b.lon) * m_per_deg * std::cos(b.lat * deg_to_rad);
+
+            if (now >= b.last && now - b.last <= track_merge_seconds &&
+                    dx * dx + dy * dy <= track_merge_meters * track_merge_meters &&
+                    b.has_usv == has_usv && b.n < UINT32_MAX) {
+                b.last = now;
+                b.cps_sum += cps;
+                b.usv_sum += usv;
+                if (usv > b.usv_max)
+                    b.usv_max = usv;
+                b.n++;
+                continue;
+            }
+        }
+
+        radiation_track_point p;
+        p.first = now;
+        p.last = now;
+        p.lat = loc->lat;
+        p.lon = loc->lon;
+        p.cps_sum = cps;
+        p.usv_sum = usv;
+        p.usv_max = usv;
+        p.n = 1;
+        p.has_usv = has_usv;
+
+        track.push_back(p);
+
+        while (track.size() > track_max_points)
+            track.pop_front();
+    }
+}
+
+// Track points as [first, last, lon, lat, cps, usv, usv max, readings], oldest first;
+// usv and usv max are -1 for sensors without a dose rate.  Caller holds rad_mutex.
+std::shared_ptr<tracker_element> kis_radiation_phy::build_track(const std::shared_ptr<geiger_device>& sensor,
+        time_t since) {
+    auto ret = std::make_shared<tracker_element_vector>();
+
+    for (const auto& p : sensor->get_track()) {
+        if (p.last < since || p.n == 0)
+            continue;
+
+        auto v = std::make_shared<tracker_element_vector_double>();
+        v->reserve(8);
+        v->push_back((double) p.first);
+        v->push_back((double) p.last);
+        v->push_back(p.lon);
+        v->push_back(p.lat);
+        v->push_back(p.cps_sum / p.n);
+        v->push_back(p.has_usv ? p.usv_sum / p.n : -1);
+        v->push_back(p.has_usv ? p.usv_max : -1);
+        v->push_back((double) p.n);
+
+        ret->push_back(v);
+    }
+
+    return ret;
 }
 
 int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {

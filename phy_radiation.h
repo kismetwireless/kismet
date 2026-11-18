@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <array>
+#include <deque>
 
 #include "configfile.h"
 #include "globalregistry.h"
@@ -264,6 +265,57 @@ protected:
     std::array<minute_slot, minute_slots> minutes;
 };
 
+// Recent readings and per-minute count rate means, for the alerts and the dose track
+class radiation_reading_history {
+public:
+    static constexpr size_t recent_slots = 16;
+    static constexpr size_t minute_slots = 60;
+
+    void add(time_t ts, double cps, double usv, bool has_usv);
+
+    // Mean of the readings in the window of seconds before now; the number of readings
+    size_t recent(time_t now, time_t window, double& cps, double& usv, bool& has_usv) const;
+
+    // Mean count rate over the past hour, leaving out the current and previous minute
+    // so a rise isn't counted as background straight away
+    bool baseline(time_t now, double& cps, size_t& minutes) const;
+
+    bool dose_alerted = false;
+    bool rise_alerted = false;
+
+protected:
+    struct reading {
+        time_t ts = 0;
+        double cps = 0;
+        double usv = 0;
+        bool has_usv = false;
+    };
+
+    struct minute_mean {
+        int64_t minute = -1;
+        double sum = 0;
+        uint32_t n = 0;
+    };
+
+    std::array<reading, recent_slots> readings;
+    size_t next_reading = 0;
+    std::array<minute_mean, minute_slots> minutes;
+};
+
+// Readings at a GPS location; readings within a few meters of the previous point are
+// added to it
+struct radiation_track_point {
+    time_t first = 0;
+    time_t last = 0;
+    double lat = 0;
+    double lon = 0;
+    double cps_sum = 0;
+    double usv_sum = 0;
+    double usv_max = 0;
+    uint32_t n = 0;
+    bool has_usv = false;
+};
+
 class geiger_device : public tracker_component {
 public:
     geiger_device() :
@@ -287,6 +339,8 @@ public:
     geiger_device(const geiger_device *p):
         tracker_component(p) {
             spectrum = p->spectrum;
+            readings = p->readings;
+            track = p->track;
 
             __ImportField(cps_rrd, p);
             __ImportField(usv_rrd, p);
@@ -310,6 +364,7 @@ public:
     void insert_cps_usv(time_t ts, double cps, double usv) {
         cps_rrd->add_sample(cps, ts);
         usv_rrd->add_sample(usv, ts);
+        readings.add(ts, cps, usv, true);
     }
 
     void set_errors(double cps_err_pct, double usv_err_pct) {
@@ -329,6 +384,7 @@ public:
     // CPS with the counts from that interval (Radview)
     void insert_cps_record(time_t ts, double cps, const std::vector<uint64_t>& interval_counts) {
         cps_rrd->add_sample(cps, ts);
+        readings.add(ts, cps, 0, false);
 
         if (spectrum.add_interval(ts, interval_counts))
             update_spectrum_summary();
@@ -342,6 +398,18 @@ public:
     }
 
     radiation_spectrum_history& get_spectrum() { return spectrum; }
+    radiation_reading_history& get_readings() { return readings; }
+    std::deque<radiation_track_point>& get_track() { return track; }
+
+    std::string get_name() {
+        auto ds = std::static_pointer_cast<kis_datasource>(src_alias->get());
+        if (ds != nullptr) {
+            auto n = ds->get_source_name();
+            if (n.length())
+                return n;
+        }
+        return get_detector_type();
+    }
 
     __Proxy(detector_type, std::string, std::string, std::string, detector_type);
 
@@ -411,6 +479,8 @@ protected:
     std::shared_ptr<tracker_element_uint64> spectrum_session_total;
 
     radiation_spectrum_history spectrum;
+    radiation_reading_history readings;
+    std::deque<radiation_track_point> track;
 };
 
 class kis_radiation_phy : public kis_phy_handler {
@@ -437,7 +507,19 @@ public:
 
     void log_spectrum_minutes(time_t now, const std::shared_ptr<kis_gps_packinfo>& loc);
 
+    void check_alerts(time_t now);
+    void update_track(time_t now, const std::shared_ptr<kis_gps_packinfo>& loc);
+    std::shared_ptr<tracker_element> build_track(const std::shared_ptr<geiger_device>& sensor, time_t since);
+
     static std::string event_radiation() { return "RADIATION"; }
+
+    // Readings are averaged over this many seconds for the alerts and the track
+    static constexpr time_t alert_window = 10;
+    static constexpr size_t alert_min_baseline = 10;
+    static constexpr double alert_min_rise_ratio = 1.5;
+    static constexpr double track_merge_meters = 10;
+    static constexpr time_t track_merge_seconds = 60;
+    static constexpr size_t track_max_points = 4000;
 protected:
     kis_mutex rad_mutex;
 
@@ -454,6 +536,10 @@ protected:
     uint16_t spectrum_report_id;
 
     int event_timer;
+
+    int alert_dose_ref, alert_rise_ref;
+    double alert_dose_level;
+    double alert_rise_sigma;
 };
 
 
