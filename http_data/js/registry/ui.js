@@ -113,12 +113,13 @@ export const mapOverlays = createRegistry('mapOverlays', {
 //     for a choice, group: optional heading they're listed under }.
 //     Arranging the cards gives the card a settings button; the card is
 //     made again when one changes.
-//   create(body, { actions, settings }) -> { update(data), show(), hide(), destroy() }
+//   create(body, { actions, settings, dashboard }) -> { update(data), show(), hide(), destroy() }
 //     update() is first called once all of `needs` has arrived; show() and
 //     hide() (optional) as the card comes on and off screen
 //     actions.showTab(id) (a pane id, or the id given to kismet.ui.addTable),
 //     actions.showDevices(viewId)
 //     settings.get(id): the card's value of one of its settings
+//     dashboard: the id of the dashboard the card is on, for state of its own
 //   onClick(actions): optional; clicking anywhere on the card (except its
 //     own buttons and links, and while arranging) calls it
 export const dashboardCards = createRegistry('dashboardCards', {

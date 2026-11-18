@@ -427,7 +427,7 @@ export function createOverview(container, area = null) {
             title, main, resizer);
         let handle = null;
         try {
-            handle = entry.create(body, { actions, settings: cardValues(entry, dash) }) ?? null;
+            handle = entry.create(body, { actions, settings: cardValues(entry, dash), dashboard: dash.id }) ?? null;
         } catch (err) {
             console.error(`dashboard card ${entry.id} failed:`, err);
         }
