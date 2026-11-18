@@ -23,7 +23,8 @@ export function unitName(unit) {
 // The name in parts for tight spaces: { short, maker, named }
 export function unitParts(unit) {
     const named = unit.members.find((n) => n.rec?.['kismet.device.base.username']);
-    const first = [...unit.members].sort((a, b) => (a.mac ?? '').localeCompare(b.mac ?? ''))[0];
+    // a set's lead (the address sending a multiple BSSID set) stands for the box
+    const first = unit.sets?.[0]?.lead ?? [...unit.members].sort((a, b) => (a.mac ?? '').localeCompare(b.mac ?? ''))[0];
     const maker = shortManuf(first.rec?.['kismet.device.base.manuf']);
     return {
         short: named ? named.rec['kismet.device.base.username'] : (first.mac ?? '').slice(-5),
@@ -56,13 +57,14 @@ export function gather(graph, findings = []) {
         if (!hubs.has(unit)) {
             hubs.set(unit, { id: `hub:${unit.id}`, unit, label: unitName(unit), parts: unitParts(unit), members: unit.members,
                 channels: [...new Set(unit.members.map((m) => m.rec?.['kismet.device.base.channel']).filter(Boolean))],
-                names: new Set(), flags: unit.members.flatMap((m) => flagged.get(m.key) ?? []) });
+                sets: unit.sets ?? [], names: new Set(), nameTitles: new Map(), flags: unit.members.flatMap((m) => flagged.get(m.key) ?? []) });
         }
         return hubs.get(unit);
     };
     const nameItem = (t) => {
         if (!names.has(t))
-            names.set(t, { id: t.id, thing: t, label: t.label, sought: t.thingKind === 'ssid-sought', members: [] });
+            names.set(t, { id: t.id, thing: t, label: t.label, title: t.title, sought: t.thingKind === 'ssid-sought',
+                kind: t.thingKind, members: [] });
         return names.get(t);
     };
 
@@ -77,6 +79,8 @@ export function gather(graph, findings = []) {
             if (hub) {
                 const h = hubItem(hub);
                 h.names.add(name.label);
+                if (name.title)
+                    h.nameTitles.set(name.label, name.title);
                 edge(name, h, l.kind).members.add(dev);
             } else {
                 const id = `seek:${l.kind}`;

@@ -1859,6 +1859,8 @@ button.primary.danger { background: var(--error); border-color: var(--error); co
 .fl-name rect { fill: var(--surface-2); stroke: var(--border); }
 .fl-name.sought rect { fill: none; stroke-dasharray: 4 3; }
 .fl-name.sought text { fill: var(--muted); }
+.fl-name.kind-mesh rect { stroke: var(--warn); stroke-width: 1.5; }
+.fl-set-key { font-size: 0.75em; padding: 0 0.3em; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent); }
 .fl-hub circle:not(.fl-flag) { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
 .fl-hub, .fl-group { cursor: pointer; }
 .fl-hub:hover text, .fl-group:hover text { fill: var(--accent); }

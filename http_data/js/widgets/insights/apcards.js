@@ -50,6 +50,13 @@ export function apCards({ onPick = null, linkKinds }) {
                 (onHub.get(a.id)?.reduce((s, e) => s + e.count, 0) ?? 0));
             for (const h of hubs) {
                 const rows = [];
+                // the networks a radio sends in its multiple BSSID set, by the one sending them
+                for (const s of h.sets) {
+                    const k = kindOf(s.kind);
+                    rows.push(el('div', { class: 'ac-row' }, el('span', { class: 'muted ac-set' },
+                        `${format.count(s.members.length - 1)} ${k.groupTitle ?? 'more addresses'}, sent by ${s.lead.label}:`),
+                    ...chips(s.members.slice(1), s.kind, r.flagged)));
+                }
                 for (const e of onHub.get(h.id) ?? []) {
                     const k = kindOf(e.kind);
                     const devs = e.to.members.filter((d) => e.members.has(d));
@@ -61,8 +68,13 @@ export function apCards({ onPick = null, linkKinds }) {
                 }
                 out.push(card(el('button', { type: 'button', class: 'link-button', title: h.members.map((m) => m.mac).join('\n'),
                     onclick: () => onPick?.(h.members[0].key) }, h.label),
-                `${h.members.length > 1 ? `${h.members.length} addresses · ` : ''}${h.channels.length ? `ch ${h.channels.join(', ')}` : ''}`,
-                h.names.size ? el('div', { class: 'ac-names' }, ...[...h.names].sort().map((n) => el('span', { class: 'ac-name' }, n))) : null,
+                [h.members.length > 1 ? `${h.members.length} addresses` : '',
+                    ...h.sets.map((s) => `${kindOf(s.kind).short ?? kindOf(s.kind).title} ×${s.members.length}`),
+                    h.channels.length ? `ch ${h.channels.join(', ')}` : ''].filter(Boolean).join(' · '),
+                h.names.size ? el('div', { class: 'ac-names' }, ...[...h.names].sort().map((n) => {
+                    const title = h.nameTitles.get(n);
+                    return el('span', { class: 'ac-name', title }, title ? `${title} ${n}` : n);
+                })) : null,
                 ...rows));
             }
             for (const g of r.attached.filter((x) => x.shared)) {

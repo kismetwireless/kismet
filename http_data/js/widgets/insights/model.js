@@ -35,6 +35,7 @@ export function buildGraph(records, relations, prev = null) {
     const linkIds = new Map();
     const byMac = new Map();
     const sameAs = new Map();
+    const sameWhy = [];
     const root = (n) => {
         let r = n;
         while (sameAs.get(r) && sameAs.get(r) !== r)
@@ -97,12 +98,14 @@ export function buildGraph(records, relations, prev = null) {
             if (node)
                 node.role = role;
         },
-        same(a, b) {
+        same(a, b, kind = null) {
             if (!a || !b || a === b)
                 return;
             const ra = root(a), rb = root(b);
             if (ra !== rb)
                 sameAs.set(rb, ra);
+            if (kind)
+                sameWhy.push({ a, b, kind });
         },
         drop(node) {
             if (!node || !nodes.delete(node.id))
@@ -147,6 +150,22 @@ export function buildGraph(records, relations, prev = null) {
             units.set(r, { id: r.id, members: [] });
         units.get(r).members.push(n);
         n.unit = units.get(r);
+    }
+    // The sets within a unit given with a reason (g.same(lead, member, kind)):
+    // unit.sets = [{ kind, lead, members }], the lead first
+    const sets = new Map();
+    for (const { a, b, kind } of sameWhy) {
+        if (!nodes.has(a.id) || !nodes.has(b.id))
+            continue;
+        const id = `${kind}|${a.id}`;
+        if (!sets.has(id)) {
+            const s = { kind, lead: a, members: [a] };
+            sets.set(id, s);
+            (a.unit.sets ??= []).push(s);
+        }
+        const s = sets.get(id);
+        if (!s.members.includes(b))
+            s.members.push(b);
     }
     return { nodes, links, byMac, units: [...units.values()] };
 }

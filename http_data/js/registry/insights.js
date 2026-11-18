@@ -19,8 +19,10 @@ import { createRegistry } from './registry.js';
 //                                    linkKinds id
 //     g.flag(node, text)             mark a node as unusual (drawn with a ring)
 //     g.role(node, role)             'ap', 'client', 'probe', 'bridge', or 'other'
-//     g.same(a, b)                   two device nodes are one device (an access point's
-//                                    addresses for each network and band)
+//     g.same(a, b, kind)             two device nodes are one device (an access point's
+//                                    addresses for each network and band); with a
+//                                    linkKinds id, b is in a set led by a (the networks
+//                                    of a multiple BSSID set, led by the one sending it)
 //     g.drop(node)                   take a node and its links out again
 //   after(g)       called once after every record, for links that need them all
 export const insightRelations = createRegistry('insightRelations', {
@@ -35,6 +37,9 @@ export const insightRelations = createRegistry('insightRelations', {
 //   its far end names the device (so the device needs no label of its own)
 //   groupTitle: what several devices at one end are called ('clients'), for
 //   the Flow and Access points views
+//   A kind given to g.same names a set of an access point's addresses instead
+//   of a line: title, groupTitle ('networks in its multiple BSSID set'), and
+//   short, its tag on the access point ('MBSSID')
 export const linkKinds = createRegistry('linkKinds', {
     required: ['title'],
     defaults: { style: 'solid', color: '--muted', length: 60, live: false },

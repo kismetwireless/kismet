@@ -13,6 +13,7 @@ const fields = [
     [`${ssidRec}/dot11.advertisedssid.crypt_string`, 'd11_crypt'],
     [`${ssidRec}/dot11.advertisedssid.channel`, 'd11_channel'],
     [`${ssidRec}/dot11.advertisedssid.first_time`, 'd11_ssid_first'],
+    [`${ssidRec}/dot11.advertisedssid.dot11s.meshid`, 'd11_meshid'],
     [`dot11.device/dot11.device.probed_ssid_map`, 'd11_probed'],
     [`dot11.device/dot11.device.responded_ssid_map`, 'd11_responded'],
     [`dot11.device/dot11.device.mbssid_transmitter`, 'd11_mbssid_tx'],
@@ -20,6 +21,7 @@ const fields = [
 
 const list = (v) => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
 const ssidId = (ssid) => `dot11-ssid:${ssid}`;
+const meshId = (id) => `dot11-mesh:${id}`;
 
 // A locally administered address, as phones use when they randomize
 const randomized = (mac) => /^.[26AE]/i.test(mac ?? '');
@@ -41,6 +43,10 @@ export function registerInsights(kismet) {
     linkKinds.add({ id: 'dot11-advert', title: 'Advertises', color: '--accent', length: 34, names: true });
     linkKinds.add({ id: 'dot11-probe', title: 'Looks for', groupTitle: 'looking for networks', color: '--muted', style: 'dashed', length: 90 });
     linkKinds.add({ id: 'dot11-respond', title: 'Answers for', groupTitle: 'answering for networks', color: '--error', style: 'dashed', length: 70 });
+    linkKinds.add({ id: 'dot11-mesh', title: 'Mesh point of', groupTitle: 'mesh points', color: '--warn', length: 40, names: true });
+    // not a line: the networks one radio sends in its multiple BSSID element
+    linkKinds.add({ id: 'dot11-mbssid', title: 'Multiple BSSID set', groupTitle: 'networks in its multiple BSSID set',
+        short: 'MBSSID', color: '--accent' });
 
     insightRelations.add({
         id: 'dot11', fields,
@@ -55,7 +61,12 @@ export function registerInsights(kismet) {
 
             // A network listed in another access point's multiple BSSID
             // element is served by that access point's radio
-            g.same(g.mac(rec.d11_mbssid_tx), n);
+            g.same(g.mac(rec.d11_mbssid_tx), n, 'dot11-mbssid');
+
+            // The points of an 802.11s mesh beacon its mesh ID, with no network name
+            const mesh = typeof rec.d11_meshid === 'string' ? rec.d11_meshid : '';
+            if (mesh)
+                g.link(n, g.thing(meshId(mesh), { label: mesh, kind: 'mesh', title: 'Mesh ID' }), { kind: 'dot11-mesh' });
 
             const ssid = rec.d11_ssid;
             if (typeof ssid === 'string') {
@@ -65,7 +76,7 @@ export function registerInsights(kismet) {
                     const t = g.thing(ssidId(ssid), { label: ssid, kind: 'ssid' });
                     t.advertisers = [...(t.advertisers ?? []), n];
                     g.link(n, t, { kind: 'dot11-advert' });
-                } else {
+                } else if (!mesh) {
                     n.label = 'Hidden network';
                 }
             }
