@@ -164,8 +164,8 @@ export function register(kismet) {
                     return {};
                 }
                 const dose = stat('µSv/h');
-                const spark = kismet.widgets.sparkline();
-                body.append(dose.node, el('div', { class: 'stat-graph' }, spark.canvas));
+                const graph = historyGraph({ type: 'line', unit: 'CPS', height: null, joinGaps: true });
+                body.append(dose.node, graph.node);
                 const stop = eventbus.subscribe('RADIATION', null, (e) => {
                     const d = highest(e, `${rs}.usv_rrd`);
                     const c = highest(e, `${rs}.cps_rrd`);
@@ -176,9 +176,10 @@ export function register(kismet) {
                     // The first sensor's last minute of counts
                     const first = Object.values(e ?? {}).find((s) => s?.[`${rs}.cps_rrd`]);
                     if (first)
-                        spark.draw(rrd.history(first[`${rs}.cps_rrd`], serverNow()).slice(0, -1));
+                        graph.draw(rrd.history(first[`${rs}.cps_rrd`], serverNow(), 'minute', { blank: NaN }).slice(0, -1),
+                            [spans.minute[1], 'now']);
                 });
-                return { destroy: () => { stop(); spark.destroy(); } };
+                return { destroy: () => { stop(); graph.destroy(); } };
             },
         });
 
