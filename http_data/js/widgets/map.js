@@ -510,10 +510,16 @@ export function createMap(container, area = null, { sidebar = true, prefs = {} }
         root.classList.toggle('dark-tiles', theme.current() === 'dark' && settings.get('map.darkTiles', true) !== false);
     }
 
+    // Each map starts once, whether or not another map loaded Leaflet already
+    let started = false;
+
     async function init() {
+        started = true;
         try {
             L = await loadLeaflet();
         } catch (err) {
+            // A later show tries again
+            started = false;
             status.textContent = err.message;
             status.hidden = false;
             return;
@@ -1606,7 +1612,7 @@ export function createMap(container, area = null, { sidebar = true, prefs = {} }
         tools: [expand.button],
         show() {
             visible = true;
-            if (!L && !leafletLoad)
+            if (!started)
                 init();
             else {
                 map?.invalidateSize();

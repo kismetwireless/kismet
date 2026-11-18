@@ -120,6 +120,8 @@ export const mapOverlays = createRegistry('mapOverlays', {
 //     actions.showDevices(viewId)
 //     settings.get(id): the card's value of one of its settings
 //     dashboard: the id of the dashboard the card is on, for state of its own
+//   forget(dashboard): optional; a dashboard was deleted, so drop what the
+//     card kept for it
 //   onClick(actions): optional; clicking anywhere on the card (except its
 //     own buttons and links, and while arranging) calls it
 export const dashboardCards = createRegistry('dashboardCards', {

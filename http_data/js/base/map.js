@@ -52,7 +52,10 @@ export function register(kismet) {
             } });
             return { show: () => m.show(), hide: () => m.hide(), destroy: () => m.destroy() };
         },
+        forget: (dashboard) => settings.remove(`overview.map.view.${dashboard}`),
     });
+    // The one view every map card shared before each dashboard kept its own
+    settings.remove('overview.map.view');
 
     ui.settingsPanes.add({
         id: 'map', title: 'Map', priority: 20,
