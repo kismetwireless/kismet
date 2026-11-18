@@ -20,8 +20,15 @@
 /* The protocol sends little-endian IEEE 754 32 bit floats; this code assumes
  * the host float is the same 32 bit format. */
 
+/* Real-time records grew a byte in firmware 4.15 */
+#define RADIA_RT_LEN_OLD	15
+#define RADIA_RT_LEN_NEW	16
+
 typedef struct {
 	uint8_t sequence;
+
+	/* real-time record length in use, 0 until known */
+	unsigned int rt_len;
 
 	void *auxdata;
 } radiacode_comms_t;

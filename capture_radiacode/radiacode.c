@@ -232,10 +232,14 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 }
 
 /* Size of a data buffer record body, or -1 if the record type is unknown */
-static ssize_t radiacode_record_len(uint8_t eid, uint8_t gid, const char *body, size_t avail) {
+static ssize_t radiacode_record_len(uint8_t eid, uint8_t gid, const char *body, size_t avail,
+		unsigned int rt_len) {
 	/* RealTimeData, RawData, DoseRateDB, RareData, UserData, ScheduleData,
 	 * AccelData, Event, RawCountRate, RawDoseRate */
 	static const uint8_t eid0_len[] = { 15, 8, 16, 14, 16, 16, 6, 4, 6, 6 };
+
+	if (eid == 0 && gid == 0)
+		return rt_len;
 
 	if (eid == 0 && gid < sizeof(eid0_len))
 		return eid0_len[gid];
@@ -253,30 +257,24 @@ static ssize_t radiacode_record_len(uint8_t eid, uint8_t gid, const char *body, 
 	return -1;
 }
 
-int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data) {
-	char *data = NULL;
-	ssize_t data_len;
+/* Parse a data buffer; returns 1 if every record parsed to the end of the
+ * buffer, 0 if it stopped at an unknown or truncated record */
+static int radiacode_parse_databuf(const char *data, size_t data_len, unsigned int rt_len,
+		radiacode_data_report_t *ret_data) {
 	size_t offt = 0;
 
 	memset(ret_data, 0, sizeof(radiacode_data_report_t));
 
-	data = radiacode_read_request(comms, RADIA_VS_DATA_BUF, &data_len);
-
-	if (data == NULL) {
-		return -ENOMEM;
-	}
-
-	while (offt + RADIA_DATA_HDR_LEN <= (size_t) data_len) {
+	while (offt + RADIA_DATA_HDR_LEN <= data_len) {
 		uint8_t eid = (uint8_t) data[offt + 1];
 		uint8_t gid = (uint8_t) data[offt + 2];
 		int32_t ts_offset = (int32_t) rd_u32(data + offt + 3);
 		const char *body = data + offt + RADIA_DATA_HDR_LEN;
-		size_t avail = (size_t) data_len - offt - RADIA_DATA_HDR_LEN;
-		ssize_t rec_len = radiacode_record_len(eid, gid, body, avail);
+		size_t avail = data_len - offt - RADIA_DATA_HDR_LEN;
+		ssize_t rec_len = radiacode_record_len(eid, gid, body, avail, rt_len);
 
-		/* Unknown or truncated records end the parse; keep what we have */
 		if (rec_len < 0 || (size_t) rec_len > avail)
-			break;
+			return 0;
 
 		if (eid == 0 && gid == 0) {
 			radiacode_realtime_t *rt;
@@ -307,6 +305,32 @@ int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_da
 		}
 
 		offt += RADIA_DATA_HDR_LEN + rec_len;
+	}
+
+	return offt == data_len ? 1 : 0;
+}
+
+int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data) {
+	char *data = NULL;
+	ssize_t data_len;
+	unsigned int rt_len = comms->rt_len != 0 ? comms->rt_len : RADIA_RT_LEN_OLD;
+	unsigned int alt_len = rt_len == RADIA_RT_LEN_OLD ? RADIA_RT_LEN_NEW : RADIA_RT_LEN_OLD;
+	radiacode_data_report_t alt_report;
+
+	data = radiacode_read_request(comms, RADIA_VS_DATA_BUF, &data_len);
+
+	if (data == NULL) {
+		memset(ret_data, 0, sizeof(radiacode_data_report_t));
+		return -ENOMEM;
+	}
+
+	/* If the buffer doesn't parse cleanly with the expected real-time record
+	 * size but does with the other, firmware changed it; switch.  Otherwise
+	 * keep the records parsed before the problem. */
+	if (radiacode_parse_databuf(data, (size_t) data_len, rt_len, ret_data) == 0 &&
+			radiacode_parse_databuf(data, (size_t) data_len, alt_len, &alt_report) == 1) {
+		comms->rt_len = alt_len;
+		memcpy(ret_data, &alt_report, sizeof(radiacode_data_report_t));
 	}
 
 	free(data);

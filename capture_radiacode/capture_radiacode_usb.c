@@ -656,6 +656,11 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 		return -1;
 	}
 
+	if (version.target_major > 4 || (version.target_major == 4 && version.target_minor >= 15))
+		localrad->comms.rt_len = RADIA_RT_LEN_NEW;
+	else
+		localrad->comms.rt_len = RADIA_RT_LEN_OLD;
+
 	if (version.target_major < 4 || (version.target_major == 4 && version.target_minor < 8)) {
 		snprintf(errstr, STATUS_MAX, "Old firmware version (%u.%u) found; please update the Radiacode device to at "
                 "least 4.8 using the phone app.", version.target_major, version.target_minor);
