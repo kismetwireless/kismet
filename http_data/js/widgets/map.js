@@ -351,7 +351,9 @@ export function createMap(container, area = null, { sidebar = true, prefs = {} }
         summary,
         list);
 
-    const view = el('div', { class: 'map-view' }, mapEl, tools, legends, status, overlay);
+    // Without the side list, its notes on what isn't drawn go over the map
+    const bareNote = el('div', { class: 'map-bare-note', hidden: true });
+    const view = el('div', { class: 'map-view' }, mapEl, tools, legends, status, overlay, sidebar ? null : bareNote);
     const root = el('div', { class: ['map-pane', sidebar ? null : 'map-bare'] }, view, sidebar ? side : null);
     container.append(root);
 
@@ -1399,8 +1401,18 @@ export function createMap(container, area = null, { sidebar = true, prefs = {} }
 
     // The side list, newest first, with the devices inside the view marked
     function render() {
-        if (!map || !sidebar)
+        if (!map)
             return;
+        if (!sidebar) {
+            const notes = [];
+            if (skipped)
+                notes.push(`${skipped.toLocaleString()} more not drawn, over the limit of ${maxMarkers.toLocaleString()}`);
+            if (legacy)
+                notes.push('This Kismet server is older than 2026-10, so it keeps one position for each device');
+            bareNote.textContent = notes.join('.  ');
+            bareNote.hidden = !notes.length;
+            return;
+        }
         const bounds = map.getBounds();
         const q = search.value.trim().toLowerCase();
         const onlyInView = inViewOnly.checked;

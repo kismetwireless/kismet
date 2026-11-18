@@ -1093,6 +1093,10 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-overlay { inset: 0; display: grid; place-items: center; padding: 1rem;
     background: color-mix(in srgb, var(--bg) 70%, transparent); }
 .map-overlay[hidden], .map-status[hidden] { display: none; }
+.map-bare-note { position: absolute; z-index: 1000; left: 0.6rem; right: 0.6rem; bottom: 1.8rem; width: fit-content;
+    margin: 0 auto; padding: 0.3em 0.7em; font-size: 0.8rem; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+.map-bare-note[hidden] { display: none; }
 .map-consent {
     max-width: 34rem; padding: 1rem 1.2rem;
     background: var(--surface); color: var(--text);

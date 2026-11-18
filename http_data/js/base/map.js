@@ -36,7 +36,7 @@ export function register(kismet) {
             ...ui.mapOverlays.list().map((ov) => ({ id: `overlay.${ov.id}`, title: ov.title, type: 'bool',
                 default: ov.defaultVisible !== false, group: 'Overlays' })),
         ],
-        create(body, { settings: s }) {
+        create(body, { settings: s, dashboard }) {
             if (censored(body))
                 return null;
             const m = map.createMap(body, null, { sidebar: false, prefs: {
@@ -47,7 +47,8 @@ export function register(kismet) {
                 maxAge: Number(s.get('age')) || 0,
                 follow: s.get('follow'),
                 collect: false,
-                viewKey: 'overview.map.view',
+                // Each dashboard's map keeps its own view
+                viewKey: `overview.map.view.${dashboard}`,
             } });
             return { show: () => m.show(), hide: () => m.hide(), destroy: () => m.destroy() };
         },
