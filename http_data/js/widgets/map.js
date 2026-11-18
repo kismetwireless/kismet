@@ -266,7 +266,14 @@ function loadLeaflet() {
     return leafletLoad;
 }
 
-export function createMap(container, area = null) {
+// With { sidebar: false }, just the map, as on an Overview card.  prefs
+// replace the map tab's settings for this map only:
+//   layer(src), overlay(ov) -> whether each kind and overlay is drawn,
+//   paths: 'all' | 'selected' | 'off', range: 'off' | 'auto' | a kind's id,
+//   maxAge: seconds (0 for each kind's own), collect: false to keep no paths
+//   while hidden, follow: keep Kismet's location in view, viewKey: the
+//   setting the view is kept in (null for none)
+export function createMap(container, area = null, { sidebar = true, prefs = {} } = {}) {
     const mapEl = el('div', { class: 'map-canvas' });
     const overlay = el('div', { class: 'map-overlay', hidden: true });
     const legends = el('div', { class: 'map-legends' });
@@ -345,8 +352,17 @@ export function createMap(container, area = null) {
         list);
 
     const view = el('div', { class: 'map-view' }, mapEl, tools, legends, status, overlay);
-    const root = el('div', { class: 'map-pane' }, view, side);
+    const root = el('div', { class: ['map-pane', sidebar ? null : 'map-bare'] }, view, sidebar ? side : null);
     container.append(root);
+
+    const paths = () => prefs.paths ?? pathMode();
+    const rangePick = () => prefs.range ?? rangeChoice();
+    const collects = () => prefs.collect !== false && collecting();
+    const viewKey = prefs.viewKey === undefined ? 'map.view' : prefs.viewKey;
+    // Following pauses for a while after the user moves the map
+    const followPause = 30000;
+    let heldUntil = 0;
+    let followed = false;
 
     let L = null;
     let map = null;
@@ -387,11 +403,13 @@ export function createMap(container, area = null) {
     let skipped = 0;
 
     function enabled(src) {
+        if (prefs.layer)
+            return prefs.layer(src) !== false;
         return settings.get(`map.layers.${src.id}`, src.defaultVisible) !== false;
     }
 
     function maxAge(src) {
-        return Number(settings.get('map.maxAge', 0)) || src.maxAge;
+        return Number(prefs.maxAge ?? settings.get('map.maxAge', 0)) || src.maxAge;
     }
 
     function call(src, name, dev, fallback = null) {
@@ -417,6 +435,9 @@ export function createMap(container, area = null) {
     });
     const flushRange = () => range.flush();
     window.addEventListener('pagehide', flushRange);
+    // A card can be resized under the map
+    const sizer = new ResizeObserver(() => map?.invalidateSize());
+    sizer.observe(mapEl);
 
     // The question about the public map server, shown over the map
     function askTiles(force = false) {
@@ -503,16 +524,21 @@ export function createMap(container, area = null) {
         linkLayer = L.layerGroup().addTo(map);
         markerLayer = L.layerGroup().addTo(map);
 
-        const saved = settings.get('map.view', null);
+        const saved = viewKey ? settings.get(viewKey, null) : null;
         if (saved && Array.isArray(saved.center) && Number.isFinite(saved.zoom)) {
             map.setView(saved.center, saved.zoom);
             fitted = true;
         } else {
             map.setView([20, 0], 2);
         }
+        // A map following Kismet goes to it, not out to every device
+        if (prefs.follow)
+            fitted = true;
+        map.on('dragstart', () => { heldUntil = Date.now() + followPause; });
         map.on('moveend', () => {
             const c = map.getCenter();
-            settings.set('map.view', { center: [c.lat, c.lng], zoom: map.getZoom() });
+            if (viewKey)
+                settings.set(viewKey, { center: [c.lat, c.lng], zoom: map.getZoom() });
             render();
         });
 
@@ -546,6 +572,13 @@ export function createMap(container, area = null) {
         } else {
             selfMarker.setLatLng(ll);
         }
+        if (prefs.follow && Date.now() >= heldUntil) {
+            if (!followed)
+                map.setView(ll, Math.max(map.getZoom(), 15));
+            else if (!map.getBounds().pad(-0.2).contains(ll))
+                map.panTo(ll);
+            followed = true;
+        }
         drawRange();
     }
 
@@ -567,7 +600,7 @@ export function createMap(container, area = null) {
     }
 
     function startCollecting() {
-        if (collectTimer || visible || !collecting())
+        if (collectTimer || visible || !collects())
             return;
         collectTimer = setInterval(refresh, collectMs);
     }
@@ -613,7 +646,7 @@ export function createMap(container, area = null) {
     }
 
     async function refresh() {
-        if (busy || (visible ? !map : !collecting()))
+        if (busy || (visible ? !map : !collects()))
             return;
         busy = true;
         if (visible && Date.now() - viewsAt > 30000)
@@ -768,7 +801,7 @@ export function createMap(container, area = null) {
 
     // The kind picked for the range, or with 'auto', the one with the most positions
     function rangeSource() {
-        const choice = rangeChoice();
+        const choice = rangePick();
         const sources = mapSources.list().filter(ranged);
         if (choice === 'off')
             return null;
@@ -794,7 +827,7 @@ export function createMap(container, area = null) {
                 el('option', { value: 'auto', title: 'The kind of device with the most positions' }, 'Automatic'),
                 ...sources.map((s) => el('option', { value: s.id }, s.title)));
         }
-        rangeSelect.value = [...rangeSelect.options].some((o) => o.value === rangeChoice()) ? rangeChoice() : 'auto';
+        rangeSelect.value = [...rangeSelect.options].some((o) => o.value === rangePick()) ? rangePick() : 'auto';
     }
 
     function clearShapes() {
@@ -874,7 +907,7 @@ export function createMap(container, area = null) {
         if (!pic?.center || !pic.outlines.length) {
             clearShapes();
             clearRings();
-            rangeInfo.textContent = rangeChoice() === 'off' ? '' : pic?.samples ?
+            rangeInfo.textContent = rangePick() === 'off' ? '' : pic?.samples ?
                 `${pic.samples.toLocaleString()} positions so far; the outline is drawn once there are more directions.` :
                 'No positions yet from devices that say where they are, heard with a GPS or a fixed source location.';
             return;
@@ -1058,7 +1091,7 @@ export function createMap(container, area = null) {
     }
 
     function showPathNote() {
-        pathNote.hidden = !showPaths() || serverHistory !== false;
+        pathNote.hidden = paths() === 'off' || serverHistory !== false;
         pathNoteText.textContent = (legacy ? 'This Kismet server is too old to keep the history of where devices say they were, ' :
             'This Kismet server isn\'t keeping the history of where devices say they were, ') +
             'so the paths are collected by this browser.  They only cover the time since the web UI was loaded' +
@@ -1070,7 +1103,7 @@ export function createMap(container, area = null) {
 
     // The faint path every device leaves, from the browser's own collection
     function drawPath(e) {
-        const runs = pathMode() === 'all' && e.tracked && tracks.has(e.key) ?
+        const runs = paths() === 'all' && e.tracked && tracks.has(e.key) ?
             tracks.segments(tracks.get(e.key)) : [];
         if (!runs.length) {
             e.path?.remove();
@@ -1158,6 +1191,8 @@ export function createMap(container, area = null) {
     const overlays = new Map();
 
     function overlayOn(ov) {
+        if (prefs.overlay)
+            return prefs.overlay(ov) !== false;
         return settings.get(`map.overlays.${ov.id}`, ov.defaultVisible) !== false;
     }
 
@@ -1331,8 +1366,10 @@ export function createMap(container, area = null) {
             map.fitBounds(b, { padding: [32, 32], maxZoom: 16 });
         });
     }
+    // Only the map tab zooms to an overlay asked for elsewhere
     const liveMap = { zoomOverlay };
-    liveMaps.add(liveMap);
+    if (sidebar)
+        liveMaps.add(liveMap);
 
     let overlayIds = '';
 
@@ -1362,7 +1399,7 @@ export function createMap(container, area = null) {
 
     // The side list, newest first, with the devices inside the view marked
     function render() {
-        if (!map)
+        if (!map || !sidebar)
             return;
         const bounds = map.getBounds();
         const q = search.value.trim().toLowerCase();
@@ -1457,7 +1494,7 @@ export function createMap(container, area = null) {
     // Where the selected device has said it was: the server's location
     // history, when it keeps one, joined with the browser's own path
     async function loadTrail(key) {
-        if (pathMode() === 'off') {
+        if (paths() === 'off') {
             trail?.remove();
             trail = null;
             return;
@@ -1539,7 +1576,7 @@ export function createMap(container, area = null) {
         }),
         settings.watch('map.pathsCollect', () => {
             showPathNote();
-            return collecting() ? startCollecting() : stopCollecting();
+            return collects() ? startCollecting() : stopCollecting();
         }),
         settings.watch('map.pathsAge', () => tracks.prune(clock.now() - pathAge())),
         mapSources.watch(() => refresh()),
@@ -1550,6 +1587,7 @@ export function createMap(container, area = null) {
         settings.watch('map.rangeWindow', () => { windowSelect.value = rangeWindow(); drawRange(); }),
         () => { window.removeEventListener('pagehide', flushRange); range.flush(); },
         () => expand.destroy(),
+        () => sizer.disconnect(),
     ];
 
     return {
