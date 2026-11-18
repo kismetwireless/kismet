@@ -1,20 +1,55 @@
-// The map tab, and its section in Settings: whether to load the map
-// background from a tile server, which server, and how long to keep paths.
+// The map tab, the map card for the Overview, and the map's section in
+// Settings: whether to load the map background from a tile server, which
+// server, and how long to keep paths.
 
 export function register(kismet) {
     const { ui, settings, dom } = kismet;
     const { el } = dom;
     const map = kismet.widgets.map;
 
+    // A map shows where its devices are, so censoring locations hides it
+    function censored(body) {
+        if (!kismet.censor.hidesMaps())
+            return false;
+        body.append(el('p', { class: 'muted map-censored' }, 'The map is hidden while censor mode hides locations.'));
+        return true;
+    }
+
     ui.panes.add({
         id: 'map', title: 'Map', area: 'main', priority: 40,
         create(body, area) {
-            // A map shows where its devices are, so censoring locations hides it
-            if (kismet.censor.hidesMaps()) {
-                body.append(el('p', { class: 'muted map-censored' }, 'The map is hidden while censor mode hides locations.'));
+            return censored(body) ? null : map.createMap(body, area);
+        },
+    });
+
+    // The map without its list: where Kismet is and the devices around it.
+    // What it draws is set per card, not from the map tab's choices.
+    ui.dashboardCards.add({
+        id: 'map', title: 'Map', priority: 140, w: 12, h: 14, defaultHidden: true, fill: true,
+        settings: () => [
+            { id: 'follow', title: 'Keep Kismet\'s location in view', type: 'bool', default: true },
+            { id: 'age', title: 'Devices heard in the last', type: 'choice', default: 0, options: map.ages },
+            { id: 'paths', title: 'Show paths', type: 'bool', default: false },
+            { id: 'range', title: 'Show the receiver range', type: 'bool', default: false },
+            ...ui.mapSources.list().map((src) => ({ id: `layer.${src.id}`, title: src.title, type: 'bool',
+                default: src.defaultVisible !== false, group: 'Kinds of device' })),
+            ...ui.mapOverlays.list().map((ov) => ({ id: `overlay.${ov.id}`, title: ov.title, type: 'bool',
+                default: ov.defaultVisible !== false, group: 'Overlays' })),
+        ],
+        create(body, { settings: s }) {
+            if (censored(body))
                 return null;
-            }
-            return map.createMap(body, area);
+            const m = map.createMap(body, null, { sidebar: false, prefs: {
+                layer: (src) => s.get(`layer.${src.id}`),
+                overlay: (ov) => s.get(`overlay.${ov.id}`),
+                paths: s.get('paths') ? 'all' : 'off',
+                range: s.get('range') ? 'auto' : 'off',
+                maxAge: Number(s.get('age')) || 0,
+                follow: s.get('follow'),
+                collect: false,
+                viewKey: 'overview.map.view',
+            } });
+            return { show: () => m.show(), hide: () => m.hide(), destroy: () => m.destroy() };
         },
     });
 

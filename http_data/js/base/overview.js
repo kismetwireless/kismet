@@ -36,6 +36,9 @@ export function register(kismet) {
         return { node: el('div', { class: 'graph-tabs' }, buttons), get span() { return span; } };
     }
 
+    // The device count cards can be just the count
+    const graphSetting = [{ id: 'graph', title: 'Show the graph', type: 'bool', default: true }];
+
     // A count against the window the devices were counted over
     const windowNote = (data) => `heard in ${widgets.overview.windows.find((w) => w.id === data.window)?.title ?? 'the chosen time'}`;
 
@@ -77,14 +80,16 @@ export function register(kismet) {
 
     ui.dashboardCards.add({
         id: 'devices', title: 'Devices', loading: ['stat', 'tabs', 'graph'], priority: 0, w: 3, h: 6, needs: ['status'],
-        create(body) {
+        settings: graphSetting,
+        create(body, { settings }) {
             const total = stat('devices tracked');
-            const tabs = spanTabs('devices', () => draw());
-            const graph = historyGraph({ type: 'line', unit: 'devices', height: null });
-            body.append(total.node, tabs.node, graph.node);
+            const graphed = settings.get('graph');
+            const tabs = graphed ? spanTabs('devices', () => draw()) : null;
+            const graph = graphed ? historyGraph({ type: 'line', unit: 'devices', height: null }) : null;
+            body.append(...[total.node, tabs?.node, graph?.node].filter(Boolean));
             let last = null;
             function draw() {
-                if (!last?.status)
+                if (!graph || !last?.status)
                     return;
                 const r = last.status['kismet.system.devices.rrd'];
                 graph.draw(rrd.history(r, last.now, tabs.span), spanLabels[tabs.span]);
@@ -101,11 +106,13 @@ export function register(kismet) {
 
     ui.dashboardCards.add({
         id: 'active', title: 'Active devices', loading: ['stat', 'tabs', 'graph'], priority: 10, w: 3, h: 6, needs: ['channels'],
-        create(body) {
+        settings: graphSetting,
+        create(body, { settings }) {
             const now = stat('heard in the last 30 seconds');
-            const tabs = spanTabs('active', () => draw());
-            const graph = historyGraph({ type: 'line', unit: 'devices', height: null });
-            body.append(now.node, tabs.node, graph.node);
+            const graphed = settings.get('graph');
+            const tabs = graphed ? spanTabs('active', () => draw()) : null;
+            const graph = graphed ? historyGraph({ type: 'line', unit: 'devices', height: null }) : null;
+            body.append(...[now.node, tabs?.node, graph?.node].filter(Boolean));
             let last = null;
             // Devices are counted on their main frequency, so adding up the
             // frequencies counts each device once
@@ -125,7 +132,7 @@ export function register(kismet) {
                 return out ?? [];
             }
             function draw() {
-                if (!last)
+                if (!graph || !last)
                     return;
                 graph.draw(sum(tabs.span), spanLabels[tabs.span]);
             }
@@ -294,12 +301,13 @@ export function register(kismet) {
 
     ui.dashboardCards.add({
         id: 'new', title: 'New devices', loading: ['stat', 'histogram'], priority: 70, w: 3, h: 5, needs: ['devices'],
-        create(body) {
+        settings: graphSetting,
+        create(body, { settings }) {
             const recent = stat('first seen in the last 5 minutes');
             // No unit on the axis: its label would take a third of a narrow card
-            const graph = historyGraph({ type: 'bar', unit: '', height: null, minBar: true });
-            const note = el('div', { class: 'muted ov-note' }, 'New devices per minute, over the last hour');
-            body.append(recent.node, graph.node, note);
+            const graph = settings.get('graph') ? historyGraph({ type: 'bar', unit: '', height: null, minBar: true }) : null;
+            const note = graph ? el('div', { class: 'muted ov-note' }, 'New devices per minute, over the last hour') : null;
+            body.append(...[recent.node, graph?.node, note].filter(Boolean));
             return {
                 update(data) {
                     if (!data.devices)
@@ -316,7 +324,7 @@ export function register(kismet) {
                             five++;
                     }
                     recent.update(format.count(five));
-                    graph.draw(bins, ['-60m', 'now']);
+                    graph?.draw(bins, ['-60m', 'now']);
                 },
             };
         },

@@ -1102,6 +1102,10 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .map-consent p { margin: 0 0 0.7rem; line-height: 1.45; }
 .map-consent-remember { display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.8rem; }
 .map-consent-remember:has(+ .map-consent-remember) { margin-bottom: 0.3rem; }
+/* A map smaller than the question, such as an Overview card, scrolls it */
+.map-overlay { overflow-y: auto; }
+.map-overlay:has(.map-consent) { place-items: start center; }
+.map-overlay .map-consent { margin: auto 0; }
 
 /* Device markers: an icon in a disc of the device's color */
 .map-marker-box { background: none; border: none; }
@@ -1234,8 +1238,18 @@ tr.highlighted .bar-graph { fill: currentColor; }
     display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; margin-bottom: 0.75rem;
     padding: 0.5rem 0.75rem; border: 1px dashed var(--accent); border-radius: 8px; background: var(--accent-soft);
 }
-.overview-editbar > .muted { flex: 1; min-width: 12rem; }
+.ov-edit-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; width: 100%; }
+.ov-edit-row > label { display: flex; align-items: center; gap: 0.4em; }
+.ov-edit-row > .muted { flex: 1; min-width: 12rem; }
+.ov-dash-name { width: 14rem; max-width: 60vw; }
 .overview-editbar[hidden] { display: none; }
+
+/* A dashboard can hide the stats ribbon and the messages while it shows */
+body.ov-no-ribbon #ribbon { display: none; }
+body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
+
+.ov-settings-dialog .ov-card-settings { display: flex; flex-direction: column; gap: 0.4rem; min-width: 16rem; }
+.ov-card-settings h4 { margin: 0.6rem 0 0; }
 
 /* 12 columns, rows of 30px with 10px gaps; cards are placed by the script */
 .overview-grid {
@@ -1289,7 +1303,11 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .overview.editing .ov-card { border-style: dashed; border-color: var(--accent); user-select: none; }
 .overview.editing .ov-card-title { cursor: grab; color: var(--text); }
 .overview.editing .ov-card-body { pointer-events: none; }
-.overview.editing .ov-hide { display: inline-flex; flex: none; }
+.overview.editing .ov-hide, .overview.editing .ov-settings { display: inline-flex; flex: none; }
+.ov-settings { display: none; }
+/* A card filled by its content, such as the map */
+.ov-card.ov-fill .ov-card-body { overflow: hidden; }
+.ov-card .map-pane { border-radius: 6px; overflow: hidden; }
 .ov-move { display: none; }
 /* Stacked (phones): arrows move cards instead of dragging; no resizing */
 .overview.editing.stacked .ov-move { display: inline-flex; flex: none; }
@@ -1316,6 +1334,8 @@ tr.highlighted .bar-graph { fill: currentColor; }
 .overview.stacked .ov-card { break-inside: avoid; margin-bottom: 10px; overflow: visible; }
 .overview.stacked .ov-card-body { overflow: visible; }
 .overview.stacked .ov-card .history-graph { flex: none; height: 5rem; }
+.overview.stacked .ov-card.ov-fill { height: max(18rem, 65vh); }
+.overview.stacked .ov-card.ov-fill .ov-card-body { overflow: hidden; }
 @media (max-width: 640px) {
     .overview { padding: 0.5rem; }
     .overview.stacked .ov-card { padding: 0.6rem 0.65rem; margin-bottom: 10px; }

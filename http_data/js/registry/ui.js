@@ -97,16 +97,28 @@ export const mapOverlays = createRegistry('mapOverlays', {
 //   place: 'top' puts the card at the top left when it's first shown, even
 //     in a layout the user has already arranged; otherwise it takes the
 //     first free spot,
+//   defaultHidden: true leaves the card out of a dashboard until the user
+//     adds it,
+//   fill: true for a card whose content fills whatever height it has (a
+//     map); stacked on a phone, it gets a height of its own,
 //   needs: the shared data it reads ('status', 'packets', 'phys', 'channels',
 //     'alerts', 'sources', 'talkers', 'devices'; see js/widgets/overview.js),
 //   loading: the outline shown until that data arrives, as shapes from
 //     kismet.widgets.loading ('stat', 'tabs', 'graph', 'histogram', 'bars',
 //     'list', 'table', 'donut', 'text'), one or a list stacked top to
 //     bottom, each a name or { kind, rows }; 'text' if not given,
-//   create(body, { actions }) -> { update(data), destroy() }
-//     update() is first called once all of `needs` has arrived
+//   settings: optional; the card's own settings, kept for each dashboard, as
+//     a list or a function returning one (for choices that come and go):
+//     { id, title, type: 'bool' | 'choice', default, options: [{ id, title }]
+//     for a choice, group: optional heading they're listed under }.
+//     Arranging the cards gives the card a settings button; the card is
+//     made again when one changes.
+//   create(body, { actions, settings }) -> { update(data), show(), hide(), destroy() }
+//     update() is first called once all of `needs` has arrived; show() and
+//     hide() (optional) as the card comes on and off screen
 //     actions.showTab(id) (a pane id, or the id given to kismet.ui.addTable),
 //     actions.showDevices(viewId)
+//     settings.get(id): the card's value of one of its settings
 //   onClick(actions): optional; clicking anywhere on the card (except its
 //     own buttons and links, and while arranging) calls it
 export const dashboardCards = createRegistry('dashboardCards', {

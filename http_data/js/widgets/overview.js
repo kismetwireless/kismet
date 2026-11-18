@@ -31,6 +31,11 @@
 // way.  The layout is kept per browser.  Narrower screens stack the cards in
 // the same order, in two columns or one, at their natural height, and are
 // arranged with arrow buttons instead.
+//
+// Dashboards: the user can keep several layouts and pick one at the top of
+// the tab.  Each has its own card positions, hidden cards, card settings,
+// and whether the stats ribbon and the messages are hidden while it shows.
+// The presets (Overview, Wardriving) can be reset but not deleted.
 
 import { el } from '../core/dom.js';
 import * as api from '../core/api.js';
@@ -39,6 +44,7 @@ import * as settings from '../core/settings.js';
 import { icon } from '../core/icons.js';
 import { dashboardCards } from '../registry/ui.js';
 import { showPane, expandTool } from './panes.js';
+import { dialog, confirm } from './dialog.js';
 import * as loading from './loading.js';
 
 const base = 'kismet.device.base';
@@ -156,6 +162,81 @@ function defaultSize(entry) {
     };
 }
 
+// A card's own settings, the well-formed ones
+function cardSettingList(entry) {
+    let list = [];
+    try {
+        list = typeof entry.settings === 'function' ? entry.settings() : entry.settings;
+    } catch (err) {
+        console.error(`dashboard card ${entry.id}: settings failed:`, err);
+    }
+    return Array.isArray(list) ? list.filter((s) => s && typeof s.id === 'string' && typeof s.title === 'string' &&
+        (s.type === 'bool' || (s.type === 'choice' && Array.isArray(s.options) && s.options.length))) : [];
+}
+
+// A stored value, if it's still one the setting allows, else its default
+function settingValue(s, stored) {
+    if (s.type === 'bool')
+        return typeof stored === 'boolean' ? stored : !!s.default;
+    return s.options.some((o) => o.id === stored) ? stored :
+        s.options.some((o) => o.id === s.default) ? s.default : s.options[0].id;
+}
+
+const presets = [
+    { id: 'overview', title: 'Overview' },
+    // For a phone in a car: where Kismet is, the devices around it, and two counts
+    { id: 'wardriving', title: 'Wardriving', hideRibbon: true, hideMessages: true, only: true,
+        cards: { active: { x: 0, y: 0, w: 6, h: 4 }, new: { x: 6, y: 0, w: 6, h: 4 }, map: { x: 0, y: 4, w: 12, h: 16 } },
+        cardSettings: { active: { graph: false }, new: { graph: false } } },
+];
+const maxDashboards = 20;
+const maxTitle = 60;
+
+const plain = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+// only: cards the dashboard has no place for stay hidden, so cards added
+// later (by plugins) don't turn up on it
+function fromPreset(p) {
+    return { id: p.id, title: p.title, preset: p.id, hideRibbon: !!p.hideRibbon, hideMessages: !!p.hideMessages,
+        only: !!p.only, cards: structuredClone(p.cards ?? {}), hidden: [], cardSettings: structuredClone(p.cardSettings ?? {}) };
+}
+
+// The saved dashboards, checked over, with any preset not seen before.  The
+// first time, the one layout kept before there were dashboards becomes the
+// Overview.  -> { list, active, changed }
+function loadDashboards() {
+    const saved = settings.get('overview.dashboards', null);
+    const list = [];
+    for (const d of Array.isArray(saved?.list) ? saved.list : []) {
+        if (!plain(d) || typeof d.id !== 'string' || !d.id || d.id.length > 40 || list.some((o) => o.id === d.id) ||
+            list.length >= maxDashboards)
+            continue;
+        const preset = presets.some((p) => p.id === d.preset) && !list.some((o) => o.preset === d.preset) ? d.preset : null;
+        list.push({ id: d.id, title: String(d.title ?? '').trim().slice(0, maxTitle) || 'Dashboard', preset,
+            hideRibbon: d.hideRibbon === true, hideMessages: d.hideMessages === true, only: d.only === true,
+            cards: plain(d.cards) ? d.cards : {},
+            hidden: Array.isArray(d.hidden) ? d.hidden.filter((h) => typeof h === 'string') : [],
+            cardSettings: plain(d.cardSettings) ? d.cardSettings : {} });
+    }
+    let changed = false;
+    presets.forEach((p, i) => {
+        if (list.some((d) => d.preset === p.id))
+            return;
+        const d = fromPreset(p);
+        if (list.some((o) => o.id === d.id))
+            d.id = `${d.id}-${Date.now().toString(36)}`;
+        const old = p.id === 'overview' && !saved ? settings.get('overview.layout', null) : null;
+        if (plain(old)) {
+            d.cards = plain(old.cards) ? old.cards : {};
+            d.hidden = Array.isArray(old.hidden) ? old.hidden.filter((h) => typeof h === 'string') : [];
+        }
+        list.splice(Math.min(i, list.length), 0, d);
+        changed = true;
+    });
+    const active = list.some((d) => d.id === saved?.active) ? saved.active : list[0].id;
+    return { list, active, changed };
+}
+
 export function createOverview(container, area = null) {
     const windowSelect = el('select', { 'aria-label': 'Which devices to count',
         onchange: () => {
@@ -164,12 +245,14 @@ export function createOverview(container, area = null) {
             refresh();
         } },
     windows.map((w) => el('option', { value: w.id, selected: w.id === settings.get('overview.window', 3600) }, w.title)));
+    const dashSelect = el('select', { 'aria-label': 'Dashboard', onchange: () => useDashboard(dashSelect.value) });
     const status = el('span', { class: 'muted overview-status' });
     const grid = el('div', { class: 'overview-grid' });
     const placeholder = el('div', { class: 'ov-placeholder', hidden: true });
     const editBar = el('div', { class: 'overview-editbar', hidden: true });
     const root = el('div', { class: 'overview' },
-        el('div', { class: 'overview-bar' }, el('label', {}, 'Count devices heard in ', windowSelect), status),
+        el('div', { class: 'overview-bar' }, el('label', {}, 'Dashboard ', dashSelect),
+            el('label', {}, 'Count devices heard in ', windowSelect), status),
         editBar, grid);
     container.append(root);
 
@@ -188,7 +271,7 @@ export function createOverview(container, area = null) {
     });
     const toolNode = el('span', { class: 'ov-tools' }, editButton, area ? expand.button : null);
 
-    const cards = new Map();   // id -> { entry, node, handle, ready, round, loader, busy }
+    const cards = new Map();   // id -> { entry, node, handle, ready, round, loader, busy, showing }
     const data = {};
     let visible = false;
     let timer = null;
@@ -197,17 +280,125 @@ export function createOverview(container, area = null) {
     let editing = false;
     let wide = true;
 
-    // The saved layout: positions by card id, and the cards the user hid
-    const saved = settings.get('overview.layout', null);
-    let positions = new Map(Object.entries(saved?.cards ?? {}));
-    let hidden = new Set(saved?.hidden ?? []);
+    // The dashboard shown: its card positions by id, and the cards the user hid
+    const boards = loadDashboards();
+    let dash = boards.list.find((d) => d.id === boards.active);
+    let positions = new Map(Object.entries(dash.cards));
+    let hidden = new Set(dash.hidden);
     let items = [];
 
+    function storeDashboards() {
+        settings.set('overview.dashboards', { active: dash.id, list: boards.list });
+    }
+    if (boards.changed) {
+        storeDashboards();
+        settings.remove('overview.layout');
+    }
+
     function save() {
-        settings.set('overview.layout', {
-            cards: Object.fromEntries(items.map((i) => [i.id, { x: i.x, y: i.y, w: i.w, h: i.h }])),
-            hidden: [...hidden],
-        });
+        dash.cards = Object.fromEntries(items.map((i) => [i.id, { x: i.x, y: i.y, w: i.w, h: i.h }]));
+        dash.hidden = [...hidden];
+        storeDashboards();
+    }
+
+    // The ribbon and the messages, hidden while a dashboard that hides them shows
+    function chrome() {
+        document.body.classList.toggle('ov-no-ribbon', visible && dash.hideRibbon);
+        document.body.classList.toggle('ov-no-messages', visible && dash.hideMessages);
+    }
+
+    function showDashboards() {
+        dashSelect.replaceChildren(...boards.list.map((d) => el('option', { value: d.id, selected: d === dash }, d.title)));
+        chrome();
+    }
+
+    // Cards are made again for another dashboard, with its card settings
+    function useDashboard(id) {
+        const next = boards.list.find((d) => d.id === id);
+        if (!next || next === dash)
+            return;
+        dash = next;
+        positions = new Map(Object.entries(dash.cards));
+        hidden = new Set(dash.hidden);
+        for (const c of cards.values())
+            destroyCard(c);
+        cards.clear();
+        storeDashboards();
+        showDashboards();
+        build();
+    }
+
+    function newDashboard() {
+        if (boards.list.length >= maxDashboards)
+            return;
+        let title = '';
+        for (let n = boards.list.length + 1; !title || boards.list.some((d) => d.title === title); n++)
+            title = `Dashboard ${n}`;
+        const d = { id: `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, title, preset: null,
+            hideRibbon: false, hideMessages: false, only: false, cards: {}, hidden: [], cardSettings: {} };
+        boards.list.push(d);
+        useDashboard(d.id);
+    }
+
+    async function deleteDashboard() {
+        const gone = dash;
+        if (gone.preset || !await confirm({ title: 'Delete this dashboard?', ok: 'Delete', danger: true,
+            text: `The ${gone.title} dashboard and its layout are deleted.` }))
+            return;
+        const i = boards.list.indexOf(gone);
+        if (i < 0)
+            return;
+        boards.list.splice(i, 1);
+        useDashboard(boards.list[Math.max(0, i - 1)].id);
+    }
+
+    // The card's settings on this dashboard
+    function cardValues(entry, board) {
+        return {
+            get(id) {
+                const stored = board.cardSettings[entry.id]?.[id];
+                const s = cardSettingList(entry).find((x) => x.id === id);
+                return s ? settingValue(s, stored) : stored;
+            },
+        };
+    }
+
+    function setCardSetting(board, id, key, value) {
+        board.cardSettings[id] = { ...(plain(board.cardSettings[id]) ? board.cardSettings[id] : {}), [key]: value };
+        storeDashboards();
+        const c = cards.get(id);
+        if (board !== dash || !c)
+            return;
+        destroyCard(c);
+        cards.set(id, makeCard(c.entry));
+        apply();
+    }
+
+    function openCardSettings(id) {
+        const entry = cards.get(id)?.entry;
+        if (!entry)
+            return;
+        const board = dash;
+        const body = el('div', { class: 'ov-card-settings' });
+        let group = null;
+        for (const s of cardSettingList(entry)) {
+            if (s.group && s.group !== group) {
+                group = s.group;
+                body.append(el('h4', {}, s.group));
+            }
+            const current = settingValue(s, board.cardSettings[id]?.[s.id]);
+            if (s.type === 'bool') {
+                const box = el('input', { type: 'checkbox', checked: current,
+                    onchange: () => setCardSetting(board, id, s.id, box.checked) });
+                body.append(el('label', { class: 'choice-item' }, box, s.title));
+            } else {
+                const pick = el('select', {
+                    onchange: () => setCardSetting(board, id, s.id, s.options.find((o) => String(o.id) === pick.value)?.id) },
+                s.options.map((o) => el('option', { value: String(o.id), selected: o.id === current }, String(o.title))));
+                body.append(el('label', { class: 'field' }, s.title, pick));
+            }
+        }
+        dialog({ title: `${entry.title} on ${board.title}`, body, className: 'ov-settings-dialog' });
     }
 
     // What cards can do beyond drawing
@@ -228,12 +419,15 @@ export function createOverview(container, area = null) {
             el('button', { class: 'icon-button ov-move', title: 'Move up', onclick: () => moveCard(entry.id, -1) }, icon('up')),
             el('button', { class: 'icon-button ov-move', title: 'Move down', onclick: () => moveCard(entry.id, 1) }, icon('down')),
         ];
-        const title = el('h3', { class: 'ov-card-title' }, el('span', {}, entry.title), ...moveButtons, hideButton);
+        const gear = cardSettingList(entry).length ? el('button', { class: 'icon-button ov-settings',
+            title: 'Settings for this card', onclick: () => openCardSettings(entry.id) }, icon('gear')) : null;
+        const title = el('h3', { class: 'ov-card-title' }, el('span', {}, entry.title), ...moveButtons, gear, hideButton);
         const resizer = el('span', { class: 'ov-resize', title: 'Drag to resize', 'aria-hidden': 'true' });
-        const node = el('section', { class: 'ov-card', dataset: { card: entry.id } }, title, main, resizer);
+        const node = el('section', { class: ['ov-card', entry.fill ? 'ov-fill' : null], dataset: { card: entry.id } },
+            title, main, resizer);
         let handle = null;
         try {
-            handle = entry.create(body, { actions }) ?? null;
+            handle = entry.create(body, { actions, settings: cardValues(entry, dash) }) ?? null;
         } catch (err) {
             console.error(`dashboard card ${entry.id} failed:`, err);
         }
@@ -259,7 +453,7 @@ export function createOverview(container, area = null) {
                     run(e);
             });
         }
-        const c = { entry, node, handle, ready: false, round: 0,
+        const c = { entry, node, handle, ready: false, round: 0, showing: false,
             loader: loading.overlay(main, entry.loading ?? 'text', { label: `Loading ${entry.title.toLowerCase()}` }),
             busy: loading.busyBar(node) };
         // Data other cards already loaded draws it straight away
@@ -268,9 +462,32 @@ export function createOverview(container, area = null) {
     }
 
     function destroyCard(c) {
-        c.handle?.destroy?.();
+        try {
+            c.handle?.destroy?.();
+        } catch (err) {
+            console.error(`dashboard card ${c.entry.id}: destroy failed:`, err);
+        }
         c.busy.destroy();
         c.node.remove();
+    }
+
+    // Cards on screen are told so, and the rest that they're not
+    function syncShown() {
+        const on = new Set(visible ? items.map((i) => i.id) : []);
+        for (const c of cards.values()) {
+            const want = on.has(c.entry.id);
+            if (want === c.showing)
+                continue;
+            c.showing = want;
+            try {
+                if (want)
+                    c.handle?.show?.();
+                else
+                    c.handle?.hide?.();
+            } catch (err) {
+                console.error(`dashboard card ${c.entry.id}: ${want ? 'show' : 'hide'} failed:`, err);
+            }
+        }
     }
 
     // Draw a card once everything it needs is in
@@ -314,6 +531,10 @@ export function createOverview(container, area = null) {
             if (hidden.has(entry.id))
                 continue;
             const p = positions.get(entry.id);
+            if (!p && (dash.only || entry.defaultHidden)) {
+                hidden.add(entry.id);
+                continue;
+            }
             const size = defaultSize(entry);
             if (p && [p.x, p.y, p.w, p.h].every(Number.isFinite)) {
                 const w = Math.max(minW, Math.min(columns, p.w));
@@ -370,6 +591,7 @@ export function createOverview(container, area = null) {
         });
         if (placeholder.parentNode !== grid)
             grid.append(placeholder);
+        syncShown();
     }
 
     function hideCard(id) {
@@ -423,19 +645,47 @@ export function createOverview(container, area = null) {
         el('option', { value: '' }, hidden.size ? 'Add a card…' : 'All cards are showing'),
         [...hidden].filter((id) => cards.has(id)).map((id) => el('option', { value: id }, cards.get(id).entry.title)));
         add.disabled = !hidden.size;
+        const name = el('input', { type: 'text', class: 'ov-dash-name', maxlength: maxTitle, value: dash.title,
+            'aria-label': 'Dashboard name',
+            onchange: () => {
+                dash.title = name.value.trim().slice(0, maxTitle) || dash.title;
+                name.value = dash.title;
+                storeDashboards();
+                showDashboards();
+            } });
+        const ribbon = el('input', { type: 'checkbox', checked: dash.hideRibbon,
+            onchange: () => { dash.hideRibbon = ribbon.checked; storeDashboards(); chrome(); } });
+        const messages = el('input', { type: 'checkbox', checked: dash.hideMessages,
+            onchange: () => { dash.hideMessages = messages.checked; storeDashboards(); chrome(); } });
         editBar.replaceChildren(
-            el('span', { class: 'muted' }, wide ? 'Drag a card by its title to move it, or by its corner to resize it.' :
-                'Move cards with the arrows, or hide them with ×.'),
-            add,
-            el('button', { onclick: resetLayout }, 'Reset layout'),
-            el('button', { class: 'primary', onclick: () => setEditing(false) }, 'Done'));
+            el('div', { class: 'ov-edit-row' },
+                el('label', {}, 'Name ', name),
+                el('label', { class: 'choice-item' }, ribbon, 'Hide the stats ribbon'),
+                el('label', { class: 'choice-item' }, messages, 'Hide the messages'),
+                el('button', { onclick: newDashboard, disabled: boards.list.length >= maxDashboards }, 'New dashboard'),
+                dash.preset ? null : el('button', { class: 'danger', onclick: deleteDashboard }, 'Delete dashboard')),
+            el('div', { class: 'ov-edit-row' },
+                el('span', { class: 'muted' }, wide ? 'Drag a card by its title to move it, or by its corner to resize it.' :
+                    'Move cards with the arrows, or hide them with ×.'),
+                add,
+                el('button', { onclick: resetLayout }, 'Reset layout'),
+                el('button', { class: 'primary', onclick: () => setEditing(false) }, 'Done')));
     }
 
+    // Back to the preset's layout and card settings, or to every card for
+    // the user's own dashboards
     function resetLayout() {
-        positions = new Map();
+        const p = presets.find((x) => x.id === dash.preset);
+        const fresh = p ? fromPreset(p) : { cards: {}, cardSettings: {} };
+        dash.cards = fresh.cards;
+        dash.cardSettings = fresh.cardSettings;
+        positions = new Map(Object.entries(dash.cards));
         hidden = new Set();
-        settings.remove('overview.layout');
+        for (const c of cards.values())
+            destroyCard(c);
+        cards.clear();
         build();
+        save();
     }
 
     function setEditing(on) {
@@ -632,13 +882,17 @@ export function createOverview(container, area = null) {
     }
 
     const stopWatch = dashboardCards.watch(build);
+    showDashboards();
     build();
 
     return {
         tools: [toolNode],
         show() {
             visible = true;
+            chrome();
+            syncShown();
             refresh();
+            clearInterval(timer);
             timer = setInterval(refresh, fastSeconds * 1000);
         },
         hide() {
@@ -646,9 +900,13 @@ export function createOverview(container, area = null) {
             setEditing(false);
             clearInterval(timer);
             timer = null;
+            chrome();
+            syncShown();
         },
         destroy() {
             clearInterval(timer);
+            visible = false;
+            chrome();
             stopWatch();
             resize.disconnect();
             expand.destroy();
