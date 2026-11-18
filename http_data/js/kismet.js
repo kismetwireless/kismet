@@ -45,6 +45,7 @@ import * as settingsdialog from './widgets/settingsdialog.js';
 import * as serversdialog from './widgets/serversdialog.js';
 import * as apikeys from './widgets/apikeys.js';
 import { sparkline } from './widgets/sparkline.js';
+import * as spectrum from './widgets/spectrum.js';
 import { dayClock } from './widgets/dayclock.js';
 import * as cellgraphs from './widgets/cellgraphs.js';
 import * as map from './widgets/map.js';
@@ -90,6 +91,7 @@ export const kismet = {
         dayClock,
         cellgraphs,
         historyGraph,
+        spectrum,
         listTable,
         coverage,
         datatable,
