@@ -38,6 +38,7 @@ const builtin = {
     kismet_ui_meshcore: './phy/meshcore.js',
     kismet_ui_zwave: './phy/zwave.js',
     kismet_ui_cell: './phy/cell.js',
+    kismet_ui_radiation: './phy/radiation.js',
 };
 
 export const loaded = [];

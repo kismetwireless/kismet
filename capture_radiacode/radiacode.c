@@ -36,6 +36,25 @@
 	 __typeof__ (b) _b = (b); \
 	 _a < _b ? _a : _b; })
 
+static uint16_t rd_u16(const char *p) {
+	uint16_t v;
+	memcpy(&v, p, sizeof(v));
+	return le16toh(v);
+}
+
+static uint32_t rd_u32(const char *p) {
+	uint32_t v;
+	memcpy(&v, p, sizeof(v));
+	return le32toh(v);
+}
+
+static float rd_float(const char *p) {
+	uint32_t v = rd_u32(p);
+	float f;
+	memcpy(&f, &v, sizeof(f));
+	return f;
+}
+
 
 char *radiacode_execute(radiacode_comms_t *comms, 
 		char req[2], char *args, size_t args_len,
@@ -49,6 +68,11 @@ char *radiacode_execute(radiacode_comms_t *comms,
 	comms->sequence = (comms->sequence + 1) % 32;
 
 	tx_req = (radiacode_request_t *) malloc(sizeof(radiacode_request_t) + args_len);
+	if (tx_req == NULL) {
+		*ret_len = -1;
+		return NULL;
+	}
+
 	memset(tx_req, 0, sizeof(radiacode_request_t) + args_len);
 
 	tx_req->req_type[0] = req[0];
@@ -56,7 +80,8 @@ char *radiacode_execute(radiacode_comms_t *comms,
 	tx_req->sequence = req_seq_no;
 	/* The length in the header does not include the length field */
 	tx_req->le_req_len = htole32(sizeof(radiacode_request_t) + args_len - 4);
-	memcpy(tx_req->request, args, args_len);
+	if (args_len > 0)
+		memcpy(tx_req->request, args, args_len);
 
 	/*
 	for (unsigned int x = 0; x < sizeof(radiacode_request_t) + args_len; x++) {
@@ -69,6 +94,8 @@ char *radiacode_execute(radiacode_comms_t *comms,
 		radiacode_transport_execute(comms, tx_req, 
 				sizeof(radiacode_request_t) + args_len,
 				&resp_sz);
+
+	free(tx_req);
 
 	*ret_len = resp_sz;
 	return resp;
@@ -100,7 +127,7 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 		return NULL;
 	}
 
-	retcode = le32toh(*((uint32_t *) ((uint8_t *) data + offt)));
+	retcode = rd_u32(data + offt);
 	offt += 4;
 
 	if (retcode != 1) {
@@ -109,7 +136,7 @@ char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *re
 		return NULL;
 	}
 
-	retlen = le32toh(*((uint32_t *) ((uint8_t *) data + offt)));
+	retlen = rd_u32(data + offt);
 	offt += 4;
 
 	/* Hack to apparently work around a newer firmware bug */
@@ -162,8 +189,8 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 	memset(ret_ver, 0, sizeof(radiacode_version_t));
 
 	resp_offt = 4;
-	ret_ver->boot_minor = le16toh(*((uint16_t *) ((uint8_t *) resp + resp_offt)));
-	ret_ver->boot_major = le16toh(*((uint16_t *) ((uint8_t *) resp + resp_offt + 2)));
+	ret_ver->boot_minor = rd_u16(resp + resp_offt);
+	ret_ver->boot_major = rd_u16(resp + resp_offt + 2);
 
 	resp_offt += 4;
 	str_len = resp[resp_offt] & 0xFF;
@@ -178,8 +205,8 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 
 	resp_offt += str_len + 1;
 
-	ret_ver->target_minor = le16toh(*((uint16_t *) &resp[resp_offt]));
-	ret_ver->target_major = le16toh(*((uint16_t *) &resp[resp_offt + 2]));
+	ret_ver->target_minor = rd_u16(resp + resp_offt);
+	ret_ver->target_major = rd_u16(resp + resp_offt + 2);
 
 	resp_offt += 4;
 	str_len = resp[resp_offt] & 0xFF;
@@ -204,52 +231,111 @@ int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver)
 
 }
 
+/* Size of a data buffer record body, or -1 if the record type is unknown */
+static ssize_t radiacode_record_len(uint8_t eid, uint8_t gid, const char *body, size_t avail,
+		unsigned int rt_len) {
+	/* RealTimeData, RawData, DoseRateDB, RareData, UserData, ScheduleData,
+	 * AccelData, Event, RawCountRate, RawDoseRate */
+	static const uint8_t eid0_len[] = { 15, 8, 16, 14, 16, 16, 6, 4, 6, 6 };
+
+	if (eid == 0 && gid == 0)
+		return rt_len;
+
+	if (eid == 0 && gid < sizeof(eid0_len))
+		return eid0_len[gid];
+
+	/* Sample blocks, '<HI' count and interval then fixed size samples */
+	if (eid == 1 && gid >= 1 && gid <= 3) {
+		static const uint8_t sample_len[] = { 0, 8, 16, 14 };
+
+		if (avail < 6)
+			return -1;
+
+		return 6 + (ssize_t) rd_u16(body) * sample_len[gid];
+	}
+
+	return -1;
+}
+
+/* Parse a data buffer; returns 1 if every record parsed to the end of the
+ * buffer, 0 if it stopped at an unknown or truncated record */
+static int radiacode_parse_databuf(const char *data, size_t data_len, unsigned int rt_len,
+		radiacode_data_report_t *ret_data) {
+	size_t offt = 0;
+
+	memset(ret_data, 0, sizeof(radiacode_data_report_t));
+
+	while (offt + RADIA_DATA_HDR_LEN <= data_len) {
+		uint8_t eid = (uint8_t) data[offt + 1];
+		uint8_t gid = (uint8_t) data[offt + 2];
+		int32_t ts_offset = (int32_t) rd_u32(data + offt + 3);
+		const char *body = data + offt + RADIA_DATA_HDR_LEN;
+		size_t avail = data_len - offt - RADIA_DATA_HDR_LEN;
+		ssize_t rec_len = radiacode_record_len(eid, gid, body, avail, rt_len);
+
+		if (rec_len < 0 || (size_t) rec_len > avail)
+			return 0;
+
+		if (eid == 0 && gid == 0) {
+			radiacode_realtime_t *rt;
+
+			/* Keep the newest records if a backlog overflows the report */
+			if (ret_data->num_rt == RADIA_MAX_RT) {
+				memmove(&ret_data->rt[0], &ret_data->rt[1],
+						sizeof(radiacode_realtime_t) * (RADIA_MAX_RT - 1));
+				ret_data->num_rt--;
+			}
+
+			rt = &ret_data->rt[ret_data->num_rt++];
+
+			rt->ts_offset = ts_offset;
+			rt->count_rate = rd_float(body);
+			rt->dose_rate = rd_float(body + 4);
+			rt->count_rate_err = rd_u16(body + 8);
+			rt->dose_rate_err = rd_u16(body + 10);
+			rt->flags = rd_u16(body + 12);
+			rt->rt_flags = (uint8_t) body[14];
+		} else if (eid == 0 && gid == 3) {
+			ret_data->have_rare = 1;
+			ret_data->rare.duration = rd_u32(body);
+			ret_data->rare.dose = rd_float(body + 4);
+			ret_data->rare.temperature = rd_u16(body + 8);
+			ret_data->rare.charge_level = rd_u16(body + 10);
+			ret_data->rare.flags = rd_u16(body + 12);
+		}
+
+		offt += RADIA_DATA_HDR_LEN + rec_len;
+	}
+
+	return offt == data_len ? 1 : 0;
+}
+
 int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data) {
 	char *data = NULL;
 	ssize_t data_len;
-	size_t offt = 0;
-	radiacode_data_header_t *data_hdr = NULL;
-	radiacode_realtimedata_t *rt_data = NULL;
-
-	memset(ret_data, 0, sizeof(radiacode_data_report_t));
+	unsigned int rt_len = comms->rt_len != 0 ? comms->rt_len : RADIA_RT_LEN_OLD;
+	unsigned int alt_len = rt_len == RADIA_RT_LEN_OLD ? RADIA_RT_LEN_NEW : RADIA_RT_LEN_OLD;
+	radiacode_data_report_t alt_report;
 
 	data = radiacode_read_request(comms, RADIA_VS_DATA_BUF, &data_len);
 
 	if (data == NULL) {
+		memset(ret_data, 0, sizeof(radiacode_data_report_t));
 		return -ENOMEM;
 	}
 
-	while (offt + sizeof(radiacode_data_header_t) < data_len) {
-		data_hdr = (radiacode_data_header_t *) (data + offt);
-		offt += sizeof(radiacode_data_header_t);
-
-		if (data_hdr->eid == 0 && data_hdr->gid == 0) {
-			if (offt + sizeof(radiacode_realtimedata_t) > data_len) {
-				free(data);
-				return -1;
-			}
-
-			rt_data = (radiacode_realtimedata_t *) (data + offt);
-
-			/* TODO fix on BE systems */
-			ret_data->count_rate = rt_data->count_rate_le;
-			ret_data->dose_rate = rt_data->dose_rate_le;
-			ret_data->count_rate_err = le16toh(rt_data->count_rate_err_le);
-			ret_data->dose_rate_err = le16toh(rt_data->dose_rate_err_le);
-			ret_data->rt_flags = rt_data->rt_flags;
-
-			free(data);
-			return 1;
-		}
-
-		/* TODO - process other reports like raw data */
-
-		break;
+	/* If the buffer doesn't parse cleanly with the expected real-time record
+	 * size but does with the other, firmware changed it; switch.  Otherwise
+	 * keep the records parsed before the problem. */
+	if (radiacode_parse_databuf(data, (size_t) data_len, rt_len, ret_data) == 0 &&
+			radiacode_parse_databuf(data, (size_t) data_len, alt_len, &alt_report) == 1) {
+		comms->rt_len = alt_len;
+		memcpy(ret_data, &alt_report, sizeof(radiacode_data_report_t));
 	}
 
-	/* no real-time record */
 	free(data);
-	return 0;
+
+	return (ret_data->num_rt > 0 || ret_data->have_rare) ? 1 : 0;
 }
 
 int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config_len) {
@@ -268,3 +354,114 @@ int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config
 	return 1;
 }
 
+/* Format 0 is a plain uint32 per channel.  Format 1 is runs of a uint16
+ * header (count << 4 | width) where each value in the run is either zero,
+ * an absolute uint8, or a signed delta from the previous value. */
+static int radiacode_decode_counts(int format_version, const char *data, size_t len,
+		radiacode_spectrum_t *spec) {
+	size_t offt = 0;
+	int64_t last = 0;
+	int64_t v;
+
+	spec->num_channels = 0;
+
+	if (format_version == 0) {
+		if (len % 4 != 0 || len / 4 > RADIA_MAX_CHANNELS)
+			return -1;
+
+		for (offt = 0; offt < len; offt += 4)
+			spec->counts[spec->num_channels++] = rd_u32(data + offt);
+
+		return 1;
+	}
+
+	if (format_version != 1)
+		return -1;
+
+	while (offt + 2 <= len) {
+		uint16_t hdr = rd_u16(data + offt);
+		unsigned int cnt = (hdr >> 4) & 0x0FFF;
+		unsigned int width = hdr & 0x0F;
+		unsigned int i;
+		/* bytes per value for widths 0-5 */
+		static const uint8_t width_len[] = { 0, 1, 1, 2, 3, 4 };
+
+		offt += 2;
+
+		if (width >= sizeof(width_len))
+			return -1;
+
+		if (spec->num_channels + cnt > RADIA_MAX_CHANNELS)
+			return -1;
+
+		if ((size_t) cnt * width_len[width] > len - offt)
+			return -1;
+
+		for (i = 0; i < cnt; i++) {
+			switch (width) {
+				case 0:
+					v = 0;
+					break;
+				case 1:
+					v = (uint8_t) data[offt];
+					break;
+				case 2:
+					v = last + (int8_t) data[offt];
+					break;
+				case 3:
+					v = last + (int16_t) rd_u16(data + offt);
+					break;
+				case 4:
+					/* signed 24 bit */
+					v = (int32_t) ((uint32_t) (uint8_t) data[offt] |
+							((uint32_t) (uint8_t) data[offt + 1] << 8) |
+							((uint32_t) (uint8_t) data[offt + 2] << 16) |
+							((data[offt + 2] & 0x80) ? 0xFF000000U : 0));
+					v += last;
+					break;
+				default:
+					v = last + (int32_t) rd_u32(data + offt);
+					break;
+			}
+
+			offt += width_len[width];
+
+			if (v < 0 || v > UINT32_MAX)
+				return -1;
+
+			last = v;
+			spec->counts[spec->num_channels++] = (uint32_t) v;
+		}
+	}
+
+	return offt == len ? 1 : -1;
+}
+
+int radiacode_get_spectrum(radiacode_comms_t *comms, int format_version,
+		radiacode_spectrum_t *ret_spec) {
+	char *data;
+	ssize_t data_len;
+	int r;
+
+	data = radiacode_read_request(comms, RADIA_VS_SPECTRUM, &data_len);
+
+	if (data == NULL)
+		return -ENOMEM;
+
+	if (data_len < RADIA_SPECTRUM_HDR_LEN) {
+		free(data);
+		return -1;
+	}
+
+	ret_spec->duration = rd_u32(data);
+	ret_spec->a0 = rd_float(data + 4);
+	ret_spec->a1 = rd_float(data + 8);
+	ret_spec->a2 = rd_float(data + 12);
+
+	r = radiacode_decode_counts(format_version, data + RADIA_SPECTRUM_HDR_LEN,
+			(size_t) data_len - RADIA_SPECTRUM_HDR_LEN, ret_spec);
+
+	free(data);
+
+	return r;
+}

@@ -92,6 +92,7 @@ export const mapOverlays = createRegistry('mapOverlays', {
 
 // Cards on the Overview tab.
 //   id, title, priority,
+//   description: optional; shown on the card's entry in the add-a-card list,
 //   w, h: the card's starting size on the 12-column grid, in columns and
 //     rows of 40 px (3 × 5 if not given; size: 'wide' starts it 6 wide),
 //   place: 'top' puts the card at the top left when it's first shown, even

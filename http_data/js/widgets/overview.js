@@ -651,7 +651,8 @@ export function createOverview(container, area = null) {
                     showCard(add.value);
             } },
         el('option', { value: '' }, hidden.size ? 'Add a card…' : 'All cards are showing'),
-        [...hidden].filter((id) => cards.has(id)).map((id) => el('option', { value: id }, cards.get(id).entry.title)));
+        [...hidden].filter((id) => cards.has(id)).map((id) =>
+            el('option', { value: id, title: cards.get(id).entry.description || null }, cards.get(id).entry.title)));
         add.disabled = !hidden.size;
         const name = el('input', { type: 'text', class: 'ov-dash-name', maxlength: maxTitle, value: dash.title,
             'aria-label': 'Dashboard name',
