@@ -350,6 +350,14 @@ export function createOverview(container, area = null) {
             return;
         boards.list.splice(i, 1);
         useDashboard(boards.list[Math.max(0, i - 1)].id);
+        // Cards drop what they kept for it
+        for (const entry of dashboardCards.list()) {
+            try {
+                entry.forget?.(gone.id);
+            } catch (err) {
+                console.error(`dashboard card ${entry.id}: forget failed:`, err);
+            }
+        }
     }
 
     // The card's settings on this dashboard
