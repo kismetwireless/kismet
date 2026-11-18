@@ -107,6 +107,21 @@ int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config
 /* Spectrum header, '<Ifff': duration in seconds then the a0/a1/a2 energy
  * calibration, followed by the channel counts */
 #define RADIA_SPECTRUM_HDR_LEN	16
+#define RADIA_MAX_CHANNELS		4096
+
+/* Spectrum counts accumulated by the device over 'duration' seconds; energy
+ * in keV of channel n is a0 + a1*n + a2*n^2 */
+typedef struct {
+	uint32_t duration;
+	float a0, a1, a2;
+	unsigned int num_channels;
+	uint32_t counts[RADIA_MAX_CHANNELS];
+} radiacode_spectrum_t;
+
+/* Fetch and decode the current spectrum; format_version is SpecFormatVersion
+ * from the device config */
+int radiacode_get_spectrum(radiacode_comms_t *comms, int format_version,
+		radiacode_spectrum_t *ret_spec);
 
 #endif
 

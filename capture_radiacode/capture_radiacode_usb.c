@@ -65,7 +65,16 @@ typedef struct {
 	size_t config_len;
 
 	int spectrum_version;
+
+	/* seconds between spectrum reads, 0 for none */
+	unsigned int spectrum_interval;
+	radiacode_spectrum_t *spectrum;
+	char *spectrum_json;
+	size_t spectrum_json_sz;
 } local_radiacode_t;
+
+#define RADIA_DEFAULT_SPECTRUM_INTERVAL		10
+#define RADIA_MAX_SPECTRUM_INTERVAL			3600
 
 /* Search for a value in a block of newline-delimited text */
 int find_config_val(const char *val, const char *data, size_t data_len, 
@@ -687,7 +696,14 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 			&resp, &resp_len);
 	if (r >= 0 && resp_len > 0) {
 		localrad->spectrum_version = resp[0] - '0';
-		// fprintf(stderr, "DEBUG - specformatversion %d\n", localrad->spectrum_version);
+	}
+
+	if (localrad->spectrum_interval > 0 && localrad->spectrum_version != 0 &&
+			localrad->spectrum_version != 1) {
+		snprintf(errstr, STATUS_MAX, "%s Radiacode reports an unknown spectrum format (%d), "
+				"spectrum data disabled", localrad->name, localrad->spectrum_version);
+		cf_send_message(localrad->caph, errstr, MSGFLAG_INFO);
+		localrad->spectrum_interval = 0;
 	}
 
     return 1;
@@ -780,6 +796,43 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    localrad->spectrum_interval = RADIA_DEFAULT_SPECTRUM_INTERVAL;
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "spectrum_interval", definition)) > 0) {
+        char ibuf[16];
+        char *end = NULL;
+        unsigned long v;
+
+        if ((size_t) placeholder_len >= sizeof(ibuf)) {
+            snprintf(msg, STATUS_MAX, "Invalid spectrum_interval, expected seconds (0 to disable)");
+            return -1;
+        }
+
+        memcpy(ibuf, placeholder, placeholder_len);
+        ibuf[placeholder_len] = 0;
+        v = strtoul(ibuf, &end, 10);
+
+        if (end == ibuf || *end != 0 || v > RADIA_MAX_SPECTRUM_INTERVAL) {
+            snprintf(msg, STATUS_MAX, "Invalid spectrum_interval, expected 0 to %u seconds "
+                    "(0 to disable)", RADIA_MAX_SPECTRUM_INTERVAL);
+            return -1;
+        }
+
+        localrad->spectrum_interval = (unsigned int) v;
+    }
+
+    if (localrad->spectrum_interval > 0) {
+        /* up to 10 digits and a comma per channel, plus the header */
+        localrad->spectrum_json_sz = RADIA_MAX_CHANNELS * 11 + 256;
+        localrad->spectrum = (radiacode_spectrum_t *) malloc(sizeof(radiacode_spectrum_t));
+        localrad->spectrum_json = (char *) malloc(localrad->spectrum_json_sz);
+
+        if (localrad->spectrum == NULL || localrad->spectrum_json == NULL) {
+            snprintf(msg, STATUS_MAX, "Unable to allocate Radiacode spectrum buffers");
+            return -1;
+        }
+    }
+
     (*ret_interface)->capif = strdup(localrad->capif);
     (*ret_interface)->hardware = strdup("radiacode-usb");
 
@@ -835,6 +888,48 @@ static struct timeval radia_tv_add_ms(struct timeval base, int64_t ms) {
     return tv;
 }
 
+/* Read the device spectrum and send it as JSON */
+static int send_radia_spectrum(kis_capture_handler_t *caph, struct timeval tv) {
+    local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
+    radiacode_spectrum_t *spec = localrad->spectrum;
+    char errstr[STATUS_MAX];
+    size_t pos;
+    unsigned int i;
+    int r;
+
+    r = radiacode_get_spectrum(&localrad->comms, localrad->spectrum_version, spec);
+
+    /* A bad spectrum read is skipped; the next one may be fine */
+    if (r < 0) {
+        snprintf(errstr, STATUS_MAX, "%s unable to read or decode the Radiacode spectrum",
+                localrad->name);
+        cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        return 0;
+    }
+
+    if (spec->num_channels == 0 || !isfinite(spec->a0) || !isfinite(spec->a1) ||
+            !isfinite(spec->a2))
+        return 0;
+
+    pos = (size_t) snprintf(localrad->spectrum_json, localrad->spectrum_json_sz,
+            "{\"spectrum\": {\"duration\": %u, \"calibration\": [%.9g, %.9g, %.9g], \"counts\": [",
+            spec->duration, spec->a0, spec->a1, spec->a2);
+
+    for (i = 0; i < spec->num_channels && pos < localrad->spectrum_json_sz; i++) {
+        pos += (size_t) snprintf(localrad->spectrum_json + pos, localrad->spectrum_json_sz - pos,
+                i == 0 ? "%u" : ",%u", spec->counts[i]);
+    }
+
+    if (pos < localrad->spectrum_json_sz)
+        pos += (size_t) snprintf(localrad->spectrum_json + pos, localrad->spectrum_json_sz - pos,
+                "]}}");
+
+    if (pos >= localrad->spectrum_json_sz)
+        return 0;
+
+    return send_radia_json(caph, tv, localrad->spectrum_json);
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
     char errstr[STATUS_MAX];
@@ -852,6 +947,8 @@ void capture_thread(kis_capture_handler_t *caph) {
     int32_t anchor_ts = 0;
     int have_anchor = 0;
     int64_t drift_ms;
+
+    struct timeval last_spectrum = { 0, 0 };
 
     while (1) {
         if (caph->spindown) {
@@ -924,6 +1021,15 @@ void capture_thread(kis_capture_handler_t *caph) {
                 goto spindown;
         }
 
+        if (localrad->spectrum_interval > 0 &&
+                (now.tv_sec - last_spectrum.tv_sec >= (time_t) localrad->spectrum_interval ||
+                 now.tv_sec < last_spectrum.tv_sec)) {
+            last_spectrum = now;
+
+            if (send_radia_spectrum(caph, now) < 0)
+                goto spindown;
+        }
+
         usleep(500000);
     }
 
@@ -943,6 +1049,10 @@ int main(int argc, char *argv[]) {
 		.config = NULL,
 		.config_len = 0,
 		.spectrum_version = 0,
+		.spectrum_interval = 0,
+		.spectrum = NULL,
+		.spectrum_json = NULL,
+		.spectrum_json_sz = 0,
     };
 
 	memset(&localrad.comms, 0, sizeof(radiacode_comms_t));
@@ -991,6 +1101,9 @@ int main(int argc, char *argv[]) {
     if (localrad.usb_ctx != NULL) {
         libusb_exit(localrad.usb_ctx);
     }
+
+    free(localrad.spectrum);
+    free(localrad.spectrum_json);
 
     return 0;
 }

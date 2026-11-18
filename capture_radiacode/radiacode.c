@@ -354,3 +354,114 @@ int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config
 	return 1;
 }
 
+/* Format 0 is a plain uint32 per channel.  Format 1 is runs of a uint16
+ * header (count << 4 | width) where each value in the run is either zero,
+ * an absolute uint8, or a signed delta from the previous value. */
+static int radiacode_decode_counts(int format_version, const char *data, size_t len,
+		radiacode_spectrum_t *spec) {
+	size_t offt = 0;
+	int64_t last = 0;
+	int64_t v;
+
+	spec->num_channels = 0;
+
+	if (format_version == 0) {
+		if (len % 4 != 0 || len / 4 > RADIA_MAX_CHANNELS)
+			return -1;
+
+		for (offt = 0; offt < len; offt += 4)
+			spec->counts[spec->num_channels++] = rd_u32(data + offt);
+
+		return 1;
+	}
+
+	if (format_version != 1)
+		return -1;
+
+	while (offt + 2 <= len) {
+		uint16_t hdr = rd_u16(data + offt);
+		unsigned int cnt = (hdr >> 4) & 0x0FFF;
+		unsigned int width = hdr & 0x0F;
+		unsigned int i;
+		/* bytes per value for widths 0-5 */
+		static const uint8_t width_len[] = { 0, 1, 1, 2, 3, 4 };
+
+		offt += 2;
+
+		if (width >= sizeof(width_len))
+			return -1;
+
+		if (spec->num_channels + cnt > RADIA_MAX_CHANNELS)
+			return -1;
+
+		if ((size_t) cnt * width_len[width] > len - offt)
+			return -1;
+
+		for (i = 0; i < cnt; i++) {
+			switch (width) {
+				case 0:
+					v = 0;
+					break;
+				case 1:
+					v = (uint8_t) data[offt];
+					break;
+				case 2:
+					v = last + (int8_t) data[offt];
+					break;
+				case 3:
+					v = last + (int16_t) rd_u16(data + offt);
+					break;
+				case 4:
+					/* signed 24 bit */
+					v = (int32_t) ((uint32_t) (uint8_t) data[offt] |
+							((uint32_t) (uint8_t) data[offt + 1] << 8) |
+							((uint32_t) (uint8_t) data[offt + 2] << 16) |
+							((data[offt + 2] & 0x80) ? 0xFF000000U : 0));
+					v += last;
+					break;
+				default:
+					v = last + (int32_t) rd_u32(data + offt);
+					break;
+			}
+
+			offt += width_len[width];
+
+			if (v < 0 || v > UINT32_MAX)
+				return -1;
+
+			last = v;
+			spec->counts[spec->num_channels++] = (uint32_t) v;
+		}
+	}
+
+	return offt == len ? 1 : -1;
+}
+
+int radiacode_get_spectrum(radiacode_comms_t *comms, int format_version,
+		radiacode_spectrum_t *ret_spec) {
+	char *data;
+	ssize_t data_len;
+	int r;
+
+	data = radiacode_read_request(comms, RADIA_VS_SPECTRUM, &data_len);
+
+	if (data == NULL)
+		return -ENOMEM;
+
+	if (data_len < RADIA_SPECTRUM_HDR_LEN) {
+		free(data);
+		return -1;
+	}
+
+	ret_spec->duration = rd_u32(data);
+	ret_spec->a0 = rd_float(data + 4);
+	ret_spec->a1 = rd_float(data + 8);
+	ret_spec->a2 = rd_float(data + 12);
+
+	r = radiacode_decode_counts(format_version, data + RADIA_SPECTRUM_HDR_LEN,
+			(size_t) data_len - RADIA_SPECTRUM_HDR_LEN, ret_spec);
+
+	free(data);
+
+	return r;
+}
