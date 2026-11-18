@@ -1340,6 +1340,7 @@ body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
 .overview.stacked .ov-card .history-graph { flex: none; height: 5rem; }
 .overview.stacked .ov-card.ov-fill { height: max(18rem, 65vh); }
 .overview.stacked .ov-card.ov-fill .ov-card-body { overflow: hidden; }
+.overview.stacked .ov-card.ov-fill .history-graph { flex: 1 1 auto; height: auto; min-height: 0; }
 @media (max-width: 640px) {
     .overview { padding: 0.5rem; }
     .overview.stacked .ov-card { padding: 0.6rem 0.65rem; margin-bottom: 10px; }

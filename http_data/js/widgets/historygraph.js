@@ -19,8 +19,8 @@
 // [{ label, color, values }, ...] instead of values.  Colors are CSS values,
 // such as charts.series(i).  A line with axis: 'right' is scaled on its own,
 // against an axis on the right (labelled with its unit), for two measures
-// with different units on one graph; fmt on a line formats its readout, and
-// fill on a line overrides the graph's.
+// with different units on one graph; fmt on a line formats its readout (and
+// a right line's axis labels), and fill on a line overrides the graph's.
 //
 // type: 'mirror' draws two bar series back to back, the first above the
 // axis and the second below it, such as packets sent and received:
@@ -148,7 +148,9 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         // A mirror's lower half counts down from the axis; label it as a count
         const axisText = (v) => `${Math.round(type === 'mirror' ? Math.abs(v) : v)}${unit ? ' ' + unit : ''}`;
         const rightUnit = rightLines.find((l) => l.unit)?.unit ?? '';
-        const rightText = (v) => `${Math.round(v)}${rightUnit ? ' ' + rightUnit : ''}`;
+        // A right line's own fmt keeps small values (doses) from rounding to 0
+        const rightFmt = rightLines.find((l) => l.fmt)?.fmt;
+        const rightText = (v) => (rightFmt ? rightFmt(v) : `${Math.round(v)}${rightUnit ? ' ' + rightUnit : ''}`);
         const left = Math.max(ctx.measureText(axisText(top)).width, ctx.measureText(axisText(bottom)).width) + 8 * ratio;
         const right = rightLines.length ?
             Math.max(ctx.measureText(rightText(rTop)).width, ctx.measureText(rightText(rBottom)).width) + 8 * ratio : 4 * ratio;
