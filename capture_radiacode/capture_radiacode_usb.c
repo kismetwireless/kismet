@@ -27,8 +27,10 @@
 
 #define _GNU_SOURCE
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,6 +53,7 @@ typedef struct {
 
     char *name;
     char *interface;
+    char *capif;
 
 	unsigned int devno, busno;
 
@@ -62,7 +65,16 @@ typedef struct {
 	size_t config_len;
 
 	int spectrum_version;
+
+	/* seconds between spectrum reads, 0 for none */
+	unsigned int spectrum_interval;
+	radiacode_spectrum_t *spectrum;
+	char *spectrum_json;
+	size_t spectrum_json_sz;
 } local_radiacode_t;
+
+#define RADIA_DEFAULT_SPECTRUM_INTERVAL		10
+#define RADIA_MAX_SPECTRUM_INTERVAL			3600
 
 /* Search for a value in a block of newline-delimited text */
 int find_config_val(const char *val, const char *data, size_t data_len, 
@@ -150,7 +162,8 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 		return NULL;
 	}
 
-	resp_len = le32toh(*((uint32_t *) rbuf));
+	memcpy(&resp_len, rbuf, sizeof(resp_len));
+	resp_len = le32toh(resp_len);
 
 	/* responses are spectra and config text, a few KB */
 	if (resp_len > 1024 * 1024) {
@@ -208,6 +221,244 @@ char *radiacode_transport_execute(radiacode_comms_t *comms,
 
 }
 
+/* One Radiacode found on the bus */
+typedef struct {
+    libusb_device *dev;
+    unsigned int busno, devno;
+    char serial[64];
+} radia_usb_dev_t;
+
+typedef enum {
+    RADIA_SPEC_ANY,
+    RADIA_SPEC_INDEX,
+    RADIA_SPEC_BUSDEV,
+    RADIA_SPEC_SERIAL,
+} radia_spec_type_t;
+
+typedef struct {
+    radia_spec_type_t type;
+    unsigned int index, busno, devno;
+    char serial[64];
+} radia_spec_t;
+
+static int radia_serial_char(char c) {
+    return isalnum((unsigned char) c) || c == '-' || c == '_' || c == '.';
+}
+
+/* Parse 'radiacode', 'radiacode-N', 'radiacode-BUS-DEV', or 'radiacode-SERIAL',
+ * with an optional '-usb' after 'radiacode' */
+static int parse_radia_interface(const char *iface, radia_spec_t *spec) {
+    const char *p;
+    size_t len, i;
+    int all_digits = 1, dashes = 0;
+    unsigned long v;
+
+    memset(spec, 0, sizeof(radia_spec_t));
+
+    if (strncmp(iface, "radiacode", 9) != 0)
+        return -1;
+
+    p = iface + 9;
+
+    if (strncmp(p, "-usb", 4) == 0 && (p[4] == 0 || p[4] == '-'))
+        p += 4;
+
+    if (*p == 0) {
+        spec->type = RADIA_SPEC_ANY;
+        return 1;
+    }
+
+    if (*p != '-')
+        return -1;
+
+    p++;
+    len = strlen(p);
+
+    if (len == 0 || len >= sizeof(spec->serial))
+        return -1;
+
+    for (i = 0; i < len; i++) {
+        if (!radia_serial_char(p[i]))
+            return -1;
+
+        if (p[i] == '-')
+            dashes++;
+        else if (!isdigit((unsigned char) p[i]))
+            all_digits = 0;
+    }
+
+    if (all_digits && dashes == 0 && len <= 3) {
+        spec->type = RADIA_SPEC_INDEX;
+        spec->index = (unsigned int) strtoul(p, NULL, 10);
+        return 1;
+    }
+
+    if (all_digits && dashes == 1 && p[0] != '-' && p[len - 1] != '-' && len <= 7) {
+        v = strtoul(p, NULL, 10);
+        spec->busno = (unsigned int) v;
+        v = strtoul(strchr(p, '-') + 1, NULL, 10);
+        spec->devno = (unsigned int) v;
+        spec->type = RADIA_SPEC_BUSDEV;
+        return 1;
+    }
+
+    spec->type = RADIA_SPEC_SERIAL;
+    memcpy(spec->serial, p, len);
+    spec->serial[len] = 0;
+    return 1;
+}
+
+/* Read the USB serial number; left empty if it can't be read or holds
+ * anything unsafe for an interface name */
+static void read_radia_serial(libusb_device *dev, uint8_t idx, char *out, size_t out_sz) {
+    libusb_device_handle *h;
+    unsigned char buf[64];
+    int r, i;
+
+    out[0] = 0;
+
+    if (idx == 0 || libusb_open(dev, &h) != 0)
+        return;
+
+    r = libusb_get_string_descriptor_ascii(h, idx, buf, sizeof(buf));
+    libusb_close(h);
+
+    if (r <= 0 || (size_t) r >= out_sz)
+        return;
+
+    for (i = 0; i < r; i++) {
+        if (!radia_serial_char((char) buf[i]))
+            return;
+    }
+
+    memcpy(out, buf, r);
+    out[r] = 0;
+}
+
+/* List attached Radiacodes; each holds a device reference, release with
+ * free_radia_devs */
+static ssize_t find_radia_devs(libusb_context *ctx, radia_usb_dev_t **ret_devs) {
+    libusb_device **list = NULL;
+    radia_usb_dev_t *devs;
+    ssize_t cnt, i, n = 0;
+
+    *ret_devs = NULL;
+
+    cnt = libusb_get_device_list(ctx, &list);
+    if (cnt < 0)
+        return -1;
+
+    devs = (radia_usb_dev_t *) calloc(cnt > 0 ? cnt : 1, sizeof(radia_usb_dev_t));
+    if (devs == NULL) {
+        libusb_free_device_list(list, 1);
+        return -1;
+    }
+
+    for (i = 0; i < cnt; i++) {
+        struct libusb_device_descriptor desc;
+
+        if (libusb_get_device_descriptor(list[i], &desc) < 0)
+            continue;
+
+        if (desc.idVendor != RADIA_VID || desc.idProduct != RADIA_PID)
+            continue;
+
+        devs[n].dev = libusb_ref_device(list[i]);
+        devs[n].busno = libusb_get_bus_number(list[i]);
+        devs[n].devno = libusb_get_device_address(list[i]);
+        read_radia_serial(list[i], desc.iSerialNumber, devs[n].serial, sizeof(devs[n].serial));
+        n++;
+    }
+
+    libusb_free_device_list(list, 1);
+
+    *ret_devs = devs;
+    return n;
+}
+
+static void free_radia_devs(radia_usb_dev_t *devs, ssize_t n) {
+    ssize_t i;
+
+    if (devs == NULL)
+        return;
+
+    for (i = 0; i < n; i++)
+        libusb_unref_device(devs[i].dev);
+
+    free(devs);
+}
+
+/* Index of the device a spec names, -1 for none, -2 if 'radiacode' alone
+ * matches more than one */
+static ssize_t match_radia_dev(const radia_spec_t *spec, const radia_usb_dev_t *devs, ssize_t n) {
+    ssize_t i;
+
+    switch (spec->type) {
+        case RADIA_SPEC_ANY:
+            if (n == 1)
+                return 0;
+            return n == 0 ? -1 : -2;
+        case RADIA_SPEC_INDEX:
+            return (ssize_t) spec->index < n ? (ssize_t) spec->index : -1;
+        case RADIA_SPEC_BUSDEV:
+            for (i = 0; i < n; i++) {
+                if (devs[i].busno == spec->busno && devs[i].devno == spec->devno)
+                    return i;
+            }
+            return -1;
+        case RADIA_SPEC_SERIAL:
+            for (i = 0; i < n; i++) {
+                if (strcmp(devs[i].serial, spec->serial) == 0)
+                    return i;
+            }
+            return -1;
+    }
+
+    return -1;
+}
+
+/* Interface names use the serial, which survives the device moving to a new
+ * USB address on reset or replug */
+static void radia_dev_name(const radia_usb_dev_t *dev, char *buf, size_t buf_sz) {
+    if (dev->serial[0] != 0)
+        snprintf(buf, buf_sz, "radiacode-usb-%s", dev->serial);
+    else
+        snprintf(buf, buf_sz, "radiacode-usb-%u-%u", dev->busno, dev->devno);
+}
+
+static char *radia_dev_uuid(const radia_usb_dev_t *dev, char *definition) {
+    char *placeholder;
+    int placeholder_len;
+    char buf[64];
+    uint32_t base = adler32_csum((unsigned char *) "kismet_cap_radiacode_usb",
+            strlen("kismet_cap_radiacode_usb")) & 0xFFFFFFFF;
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0)
+        return strndup(placeholder, placeholder_len);
+
+    if (dev->serial[0] != 0)
+        snprintf(buf, sizeof(buf), "%08X-0000-0000-0000-0000%08X", base,
+                adler32_csum((unsigned char *) dev->serial, strlen(dev->serial)) & 0xFFFFFFFF);
+    else
+        snprintf(buf, sizeof(buf), "%08X-0000-0000-0000-%06X%06X", base,
+                dev->busno, dev->devno);
+
+    return strdup(buf);
+}
+
+static int radia_init_usb(local_radiacode_t *localrad, char *msg) {
+    if (localrad->usb_ctx != NULL)
+        return 1;
+
+    if (libusb_init(&localrad->usb_ctx) < 0) {
+        localrad->usb_ctx = NULL;
+        snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
+        return -1;
+    }
+
+    return 1;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     char *definition, char *msg, char **uuid,
     cf_params_interface_t **ret_interface,
@@ -215,23 +466,16 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
-    char errstr[STATUS_MAX];
-    char *device = NULL;
+    char cap_if[96];
+    radia_spec_t spec;
+    radia_usb_dev_t *devs = NULL;
+    ssize_t num_devs, m;
+    int r;
+
+    local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
-
-    int x;
-    int busno = -1, devno = -1;
-
-    libusb_device **libusb_devs = NULL;
-    ssize_t libusb_devices_cnt = 0;
-    int r;
-
-    int matched_device = 0;
-    int num_device = 0;
-
-	local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
@@ -239,176 +483,92 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL)
+        return 0;
 
-    if (strstr(interface, "radiacode-usb") != interface) {
-        snprintf(msg, STATUS_MAX, "Expected a radiacode-usb interface, skipping");
-        free(interface);
+    r = parse_radia_interface(interface, &spec);
+    free(interface);
+
+    if (r < 0) {
+        snprintf(msg, STATUS_MAX, "Expected a radiacode interface, skipping");
         return 0;
     }
 
-	x = sscanf(interface, "radiacode-usb-%d-%d", &busno, &devno);
-	if (x != 2) {
-		busno = -1;
-		x = sscanf(interface, "radiacode-usb-%d", &devno);
+    if (radia_init_usb(localrad, msg) < 0)
+        return 0;
 
-		if (x != 1)
-			devno = -1;
-	}
-	free(interface);
-
-	if (busno == -1 && devno == -1) {
-		return 0;
-	}
-
-    if (localrad->usb_ctx == NULL) {
-        r = libusb_init(&localrad->usb_ctx);
-        if (r < 0) {
-            snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
-            return 0;
-        }
-    }
-
-    libusb_devices_cnt = libusb_get_device_list(localrad->usb_ctx, &libusb_devs);
-
-    if (libusb_devices_cnt < 0) {
-        snprintf(msg, STATUS_MAX, "Found no USB devices, skipping");
+    num_devs = find_radia_devs(localrad->usb_ctx, &devs);
+    if (num_devs < 0) {
+        snprintf(msg, STATUS_MAX, "Unable to iterate USB devices");
         return 0;
     }
 
-    for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
-        struct libusb_device_descriptor dev;
+    m = match_radia_dev(&spec, devs, num_devs);
 
-        r = libusb_get_device_descriptor(libusb_devs[i], &dev);
-
-        if (r < 0) {
-            continue;
-        }
-
-        if (dev.idVendor == RADIA_VID && dev.idProduct == RADIA_PID) {
-            if (busno >= 0) {
-                if (busno == libusb_get_bus_number(libusb_devs[i]) &&
-                        devno == libusb_get_device_address(libusb_devs[i])) {
-                    matched_device = 1;
-                    break;
-                }
-            } else {
-                if (num_device == devno) {
-                    busno = libusb_get_bus_number(libusb_devs[i]);
-                    devno = libusb_get_device_address(libusb_devs[i]);
-                    matched_device = 1;
-                    break;
-                }
-                num_device++;
-            }
-        }
-    }
-
-    libusb_free_device_list(libusb_devs, 1);
-
-    if (!matched_device) {
+    if (m == -1) {
+        snprintf(msg, STATUS_MAX, "No matching Radiacode USB device found");
+        free_radia_devs(devs, num_devs);
         return 0;
     }
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the
-     * interface name and the serial device */
-    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strndup(placeholder, placeholder_len);
-    } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-                adler32_csum((unsigned char *) "kismet_cap_radiacode_usb", 
-                    strlen("kismet_cap_radiacode_usb")) & 0xFFFFFFFF,
-                busno, devno);
-        *uuid = strdup(errstr);
+    /* More than one for a plain 'radiacode'; claim it so opening can say
+     * which names to use */
+    if (m >= 0) {
+        radia_dev_name(&devs[m], cap_if, sizeof(cap_if));
+        (*ret_interface)->capif = strdup(cap_if);
+        (*ret_interface)->hardware = strdup("radiacode-usb");
+        *uuid = radia_dev_uuid(&devs[m], definition);
     }
 
-    free(device);
+    free_radia_devs(devs, num_devs);
 
     return 1;
 }
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
                   cf_params_list_interface_t ***interfaces) {
-    /* Basic list of devices */
-    typedef struct radia_list {
-        char *device;
-        struct radia_list *next;
-    } radia_list_t;
-
-    radia_list_t *devs = NULL;
-    size_t num_devs = 0;
-    libusb_device **libusb_devs = NULL;
-    ssize_t libusb_devices_cnt = 0;
-    int r;
-    char devname[32];
-    unsigned int i;
+    radia_usb_dev_t *devs = NULL;
+    ssize_t num_devs, i;
+    char devname[96];
 
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
 
-    if (localrad->usb_ctx == NULL) {
-        r = libusb_init(&localrad->usb_ctx);
-        if (r < 0) {
-            snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
-            return 0;
-        }
-    }
+    *interfaces = NULL;
 
-    libusb_devices_cnt = libusb_get_device_list(localrad->usb_ctx, &libusb_devs);
-
-    if (libusb_devices_cnt < 0) {
+    if (radia_init_usb(localrad, msg) < 0)
         return 0;
-    }
 
-    for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
-        struct libusb_device_descriptor dev;
+    num_devs = find_radia_devs(localrad->usb_ctx, &devs);
 
-        r = libusb_get_device_descriptor(libusb_devs[i], &dev);
-
-        if (r < 0) {
-            continue;
-        }
-
-        if (dev.idVendor == RADIA_VID && dev.idProduct == RADIA_PID) {
-            snprintf(devname, 32, "radiacode-usb-%u-%u", 
-					libusb_get_bus_number(libusb_devs[i]),
-					libusb_get_device_address(libusb_devs[i]));
-
-            radia_list_t *d = (radia_list_t *) malloc(sizeof(radia_list_t));
-            num_devs++;
-            d->device = strdup(devname);
-            d->next = devs;
-            devs = d;
-        }
-    }
-
-    libusb_free_device_list(libusb_devs, 1);
-
-    if (num_devs == 0) {
-        *interfaces = NULL;
+    if (num_devs <= 0) {
+        free_radia_devs(devs, num_devs < 0 ? 0 : num_devs);
         return 0;
     }
 
     *interfaces =
-        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
+        (cf_params_list_interface_t **) calloc(num_devs, sizeof(cf_params_list_interface_t *));
 
-    i = 0;
-
-    while (devs != NULL) {
-        radia_list_t *td = devs->next;
-        (*interfaces)[i] =
-            (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
-        memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
-
-        (*interfaces)[i]->interface = devs->device;
-        (*interfaces)[i]->flags = NULL;
-        (*interfaces)[i]->hardware = strdup("radiacode-usb");
-
-        free(devs);
-        devs = td;
-
-        i++;
+    if (*interfaces == NULL) {
+        free_radia_devs(devs, num_devs);
+        return 0;
     }
 
-    return num_devs;
+    for (i = 0; i < num_devs; i++) {
+        (*interfaces)[i] =
+            (cf_params_list_interface_t *) calloc(1, sizeof(cf_params_list_interface_t));
+
+        if ((*interfaces)[i] == NULL)
+            break;
+
+        radia_dev_name(&devs[i], devname, sizeof(devname));
+        (*interfaces)[i]->interface = strdup(devname);
+        (*interfaces)[i]->flags = NULL;
+        (*interfaces)[i]->hardware = strdup("radiacode-usb");
+    }
+
+    free_radia_devs(devs, num_devs);
+
+    return (int) i;
 }
 
 int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
@@ -430,8 +590,8 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
     }
 
     if (libusb_kernel_driver_active(localrad->usb_handle, 0)) {
-		snprintf(errstr, STATUS_MAX, "Radiacode %s %u/%u appears to be claimed by a kernel driver, "
-				"attempting to detatch.", localrad->name, localrad->busno, localrad->devno);
+		snprintf(errstr, STATUS_MAX, "Radiacode %s appears to be claimed by a kernel driver, "
+				"attempting to detach.", localrad->name);
 		cf_send_message(caph, errstr, MSGFLAG_INFO);
 
         r = libusb_detach_kernel_driver(localrad->usb_handle, 0); 
@@ -505,22 +665,30 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 		return -1;
 	}
 
+	if (version.target_major > 4 || (version.target_major == 4 && version.target_minor >= 15))
+		localrad->comms.rt_len = RADIA_RT_LEN_NEW;
+	else
+		localrad->comms.rt_len = RADIA_RT_LEN_OLD;
+
 	if (version.target_major < 4 || (version.target_major == 4 && version.target_minor < 8)) {
 		snprintf(errstr, STATUS_MAX, "Old firmware version (%u.%u) found; please update the Radiacode device to at "
                 "least 4.8 using the phone app.", version.target_major, version.target_minor);
 		return -1;
 	} else {
-		snprintf(errstr, STATUS_MAX, "%s %03d/%03d Radiacode running firmware %u.%u", 
-				localrad->name, localrad->busno, localrad->devno,
-				version.target_major, version.target_minor);
+		if (strcmp(localrad->name, localrad->capif) == 0)
+			snprintf(errstr, STATUS_MAX, "%s Radiacode running firmware %u.%u",
+					localrad->name, version.target_major, version.target_minor);
+		else
+			snprintf(errstr, STATUS_MAX, "%s Radiacode %s running firmware %u.%u",
+					localrad->name, localrad->capif,
+					version.target_major, version.target_minor);
 		cf_send_message(localrad->caph, errstr, MSGFLAG_INFO);
 	}
 
 	r = radiacode_get_config(&localrad->comms, &localrad->config, &localrad->config_len);
 	if (r < 0) {
-		snprintf(errstr, STATUS_MAX, "%s %03d/%03d Radiacode failed to fetch "
-				"device configuration block\n", 
-				localrad->name, localrad->busno, localrad->devno);
+		snprintf(errstr, STATUS_MAX, "%s Radiacode failed to fetch "
+				"device configuration block", localrad->name);
 		return -1;
 	}
 
@@ -528,7 +696,14 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
 			&resp, &resp_len);
 	if (r >= 0 && resp_len > 0) {
 		localrad->spectrum_version = resp[0] - '0';
-		// fprintf(stderr, "DEBUG - specformatversion %d\n", localrad->spectrum_version);
+	}
+
+	if (localrad->spectrum_interval > 0 && localrad->spectrum_version != 0 &&
+			localrad->spectrum_version != 1) {
+		snprintf(errstr, STATUS_MAX, "%s Radiacode reports an unknown spectrum format (%d), "
+				"spectrum data disabled", localrad->name, localrad->spectrum_version);
+		cf_send_message(localrad->caph, errstr, MSGFLAG_INFO);
+		localrad->spectrum_interval = 0;
 	}
 
     return 1;
@@ -540,20 +715,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     cf_params_spectrum_t **ret_spectrum) {
     char *placeholder;
     int placeholder_len;
-    char errstr[STATUS_MAX];
-
-    int x;
-    int busno = -1, devno = -1;
-
-    libusb_device **libusb_devs = NULL;
-    ssize_t libusb_devices_cnt = 0;
+    char cap_if[96];
+    radia_spec_t spec;
+    radia_usb_dev_t *devs = NULL;
+    ssize_t num_devs, m, i;
+    size_t msg_len;
     int r;
-
-    int matched_device = 0;
-    int num_device = 0;
-    char cap_if[32];
-    
-    ssize_t i;
 
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
 
@@ -566,117 +733,203 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     localrad->interface = strndup(placeholder, placeholder_len);
-
-    /* Look for the interface type */
-    if (strstr(localrad->interface, "radiacode-usb") != localrad->interface) {
-        snprintf(msg, STATUS_MAX, "Unable to find radiacode interface"); 
+    if (localrad->interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Unable to allocate interface");
         return -1;
     }
 
-    /* Look for interface-bus-dev */
-    x = sscanf(localrad->interface, "radiacode-usb-%d-%d", &busno, &devno);
-
-    /* Look for interface-# */
-    if (x != 2) {
-        busno = -1;
-        x = sscanf(localrad->interface, "radiacode-usb-%d", &devno);
-
-        if (x != 1)
-            devno = -1;
-    }
-
-    if (devno == -1 && busno == -1) {
-        snprintf(msg, STATUS_MAX, "Malformed radiacode interface, expected 'radiacode-#' or "
-                "'radiacode-bus#-dev#'"); 
+    if (parse_radia_interface(localrad->interface, &spec) < 0) {
+        snprintf(msg, STATUS_MAX, "Malformed radiacode interface, expected 'radiacode', "
+                "'radiacode-usb-SERIAL', 'radiacode-usb-#', or 'radiacode-usb-BUS-DEV'");
         return -1;
     }
 
-    if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
-        localrad->name = strndup(placeholder, placeholder_len);
-    } else {
-        localrad->name = strdup(localrad->interface);
-    }
+    if (radia_init_usb(localrad, msg) < 0)
+        return -1;
 
-    if (localrad->usb_ctx == NULL) {
-        r = libusb_init(&localrad->usb_ctx);
-        if (r < 0) {
-            snprintf(msg, STATUS_MAX, "radiacode: could not initialize libusb");
-            return -1;
-        }
-    }
-
-    libusb_devices_cnt = libusb_get_device_list(localrad->usb_ctx, &libusb_devs);
-    if (libusb_devices_cnt < 0) {
+    num_devs = find_radia_devs(localrad->usb_ctx, &devs);
+    if (num_devs < 0) {
         snprintf(msg, STATUS_MAX, "Unable to iterate USB devices"); 
         return -1;
     }
 
-    for (i = 0; i < libusb_devices_cnt; i++) {
-        struct libusb_device_descriptor dev;
+    m = match_radia_dev(&spec, devs, num_devs);
 
-        r = libusb_get_device_descriptor(libusb_devs[i], &dev);
+    if (m == -2) {
+        msg_len = (size_t) snprintf(msg, STATUS_MAX, "Found %zd Radiacode devices, pick one "
+                "by serial number:", num_devs);
 
-        if (r < 0) {
-            continue;
+        for (i = 0; i < num_devs && msg_len < STATUS_MAX; i++) {
+            radia_dev_name(&devs[i], cap_if, sizeof(cap_if));
+            msg_len += (size_t) snprintf(msg + msg_len, STATUS_MAX - msg_len, " %s", cap_if);
         }
 
-        if (dev.idVendor == RADIA_VID && dev.idProduct == RADIA_PID) {
-            if (busno >= 0) {
-                if (busno == libusb_get_bus_number(libusb_devs[i]) &&
-                        devno == libusb_get_device_address(libusb_devs[i])) {
-                    matched_device = 1;
-                    localrad->matched_dev = libusb_devs[i];
-                    break;
-                }
-            } else {
-                if (num_device == devno) {
-                    matched_device = 1;
-                    busno = libusb_get_bus_number(libusb_devs[i]);
-                    devno = libusb_get_device_address(libusb_devs[i]);
-                    localrad->matched_dev = libusb_devs[i];
-                    break;
-                }
-
-                num_device++;
-            }
-        }
-    }
-
-    libusb_free_device_list(libusb_devs, 1);
-
-    if (!matched_device) {
-        snprintf(msg, STATUS_MAX, "Unable to find Radiacode USB device");
+        free_radia_devs(devs, num_devs);
         return -1;
     }
 
-    snprintf(cap_if, 32, "radiacode-usb-%u-%u", busno, devno);
-
-    localrad->devno = devno;
-    localrad->busno = busno;
-
-    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strndup(placeholder, placeholder_len);
-    } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-                adler32_csum((unsigned char *) "kismet_cap_radiacode_usb", 
-                    strlen("kismet_cap_radiacode_usb")) & 0xFFFFFFFF,
-                busno, devno);
-        *uuid = strdup(errstr);
+    if (m < 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find Radiacode USB device");
+        free_radia_devs(devs, num_devs);
+        return -1;
     }
 
-    (*ret_interface)->capif = strdup(cap_if);
+    localrad->matched_dev = libusb_ref_device(devs[m].dev);
+    localrad->busno = devs[m].busno;
+    localrad->devno = devs[m].devno;
+
+    radia_dev_name(&devs[m], cap_if, sizeof(cap_if));
+    *uuid = radia_dev_uuid(&devs[m], definition);
+
+    free_radia_devs(devs, num_devs);
+
+    localrad->capif = strdup(cap_if);
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
+        localrad->name = strndup(placeholder, placeholder_len);
+    } else {
+        localrad->name = strdup(cap_if);
+    }
+
+    if (localrad->capif == NULL || localrad->name == NULL || *uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Unable to allocate Radiacode interface");
+        return -1;
+    }
+
+    localrad->spectrum_interval = RADIA_DEFAULT_SPECTRUM_INTERVAL;
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "spectrum_interval", definition)) > 0) {
+        char ibuf[16];
+        char *end = NULL;
+        unsigned long v;
+
+        if ((size_t) placeholder_len >= sizeof(ibuf)) {
+            snprintf(msg, STATUS_MAX, "Invalid spectrum_interval, expected seconds (0 to disable)");
+            return -1;
+        }
+
+        memcpy(ibuf, placeholder, placeholder_len);
+        ibuf[placeholder_len] = 0;
+        v = strtoul(ibuf, &end, 10);
+
+        if (end == ibuf || *end != 0 || v > RADIA_MAX_SPECTRUM_INTERVAL) {
+            snprintf(msg, STATUS_MAX, "Invalid spectrum_interval, expected 0 to %u seconds "
+                    "(0 to disable)", RADIA_MAX_SPECTRUM_INTERVAL);
+            return -1;
+        }
+
+        localrad->spectrum_interval = (unsigned int) v;
+    }
+
+    if (localrad->spectrum_interval > 0) {
+        /* up to 10 digits and a comma per channel, plus the header */
+        localrad->spectrum_json_sz = RADIA_MAX_CHANNELS * 11 + 256;
+        localrad->spectrum = (radiacode_spectrum_t *) malloc(sizeof(radiacode_spectrum_t));
+        localrad->spectrum_json = (char *) malloc(localrad->spectrum_json_sz);
+
+        if (localrad->spectrum == NULL || localrad->spectrum_json == NULL) {
+            snprintf(msg, STATUS_MAX, "Unable to allocate Radiacode spectrum buffers");
+            return -1;
+        }
+    }
+
+    (*ret_interface)->capif = strdup(localrad->capif);
     (*ret_interface)->hardware = strdup("radiacode-usb");
 
     r = open_usb_device(caph, msg);
+
+    /* the open handle holds its own reference */
+    libusb_unref_device(localrad->matched_dev);
+    localrad->matched_dev = NULL;
 
     if (r < 0) {
         return -1;
 	}
 
+    if (spec.type == RADIA_SPEC_BUSDEV && strcmp(localrad->capif, localrad->interface) != 0) {
+        snprintf(msg, STATUS_MAX, "%s Radiacode USB addresses change when the device resets or "
+                "is plugged in again; use '%s' to find this device reliably",
+                localrad->name, localrad->capif);
+        cf_send_message(caph, msg, MSGFLAG_INFO);
+        msg[0] = 0;
+    }
+
     return 1;
 }
 
-/* Run a standard glib mainloop inside the capture thread */
+static int send_radia_json(kis_capture_handler_t *caph, struct timeval tv, const char *json) {
+    local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
+    char errstr[STATUS_MAX];
+    int r;
+
+    while (1) {
+        r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "radiacode", (char *) json);
+
+        if (r < 0) {
+            snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localrad->name);
+            cf_send_error(caph, 0, errstr);
+            return -1;
+        } else if (r == 0) {
+            cf_handler_wait_ringbuffer(caph);
+            continue;
+        }
+
+        return 1;
+    }
+}
+
+static struct timeval radia_tv_add_ms(struct timeval base, int64_t ms) {
+    int64_t usec = (int64_t) base.tv_sec * 1000000 + base.tv_usec + ms * 1000;
+    struct timeval tv;
+
+    tv.tv_sec = usec / 1000000;
+    tv.tv_usec = usec % 1000000;
+
+    return tv;
+}
+
+/* Read the device spectrum and send it as JSON */
+static int send_radia_spectrum(kis_capture_handler_t *caph, struct timeval tv) {
+    local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
+    radiacode_spectrum_t *spec = localrad->spectrum;
+    char errstr[STATUS_MAX];
+    size_t pos;
+    unsigned int i;
+    int r;
+
+    r = radiacode_get_spectrum(&localrad->comms, localrad->spectrum_version, spec);
+
+    /* A bad spectrum read is skipped; the next one may be fine */
+    if (r < 0) {
+        snprintf(errstr, STATUS_MAX, "%s unable to read or decode the Radiacode spectrum",
+                localrad->name);
+        cf_send_message(caph, errstr, MSGFLAG_ERROR);
+        return 0;
+    }
+
+    if (spec->num_channels == 0 || !isfinite(spec->a0) || !isfinite(spec->a1) ||
+            !isfinite(spec->a2))
+        return 0;
+
+    pos = (size_t) snprintf(localrad->spectrum_json, localrad->spectrum_json_sz,
+            "{\"spectrum\": {\"duration\": %u, \"calibration\": [%.9g, %.9g, %.9g], \"counts\": [",
+            spec->duration, spec->a0, spec->a1, spec->a2);
+
+    for (i = 0; i < spec->num_channels && pos < localrad->spectrum_json_sz; i++) {
+        pos += (size_t) snprintf(localrad->spectrum_json + pos, localrad->spectrum_json_sz - pos,
+                i == 0 ? "%u" : ",%u", spec->counts[i]);
+    }
+
+    if (pos < localrad->spectrum_json_sz)
+        pos += (size_t) snprintf(localrad->spectrum_json + pos, localrad->spectrum_json_sz - pos,
+                "]}}");
+
+    if (pos >= localrad->spectrum_json_sz)
+        return 0;
+
+    return send_radia_json(caph, tv, localrad->spectrum_json);
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
     char errstr[STATUS_MAX];
@@ -685,9 +938,17 @@ void capture_thread(kis_capture_handler_t *caph) {
     char json[1024];
 
     int r;
-    struct timeval tv;
+    unsigned int i;
+    struct timeval now, tv;
 
-    int fail = 0;
+    /* Real-time records count in device time; tie it to the host clock so
+     * one-per-second records land one per second, not bunched on poll times */
+    struct timeval anchor_tv;
+    int32_t anchor_ts = 0;
+    int have_anchor = 0;
+    int64_t drift_ms;
+
+    struct timeval last_spectrum = { 0, 0 };
 
     while (1) {
         if (caph->spindown) {
@@ -702,51 +963,77 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        /* nothing real-time in this report */
-        if (r == 0) {
-            usleep(750000);
-            continue;
-        }
+        gettimeofday(&now, NULL);
 
-        // fprintf(stderr, "DEBUG - got CPS %f SV %f\n", data_report.count_rate, data_report.dose_rate);
+        if (data_report.num_rt > 0) {
+            int32_t newest = data_report.rt[data_report.num_rt - 1].ts_offset;
 
-        snprintf(json, 1024, "{"
-                "\"cps\": %f, "
-                "\"sv\": %f, "
-                "\"cps_err\": %u,"
-                "\"sv_err\": %u"
-                "}",
-                data_report.count_rate,
-                data_report.dose_rate,
-                data_report.count_rate_err,
-                data_report.dose_rate_err);
+            if (have_anchor) {
+                tv = radia_tv_add_ms(anchor_tv,
+                        ((int64_t) newest - anchor_ts) * RADIA_DATA_TS_UNIT_MS);
+                drift_ms = ((int64_t) tv.tv_sec - now.tv_sec) * 1000 +
+                    ((int64_t) tv.tv_usec - now.tv_usec) / 1000;
 
-        gettimeofday(&tv, NULL);
+                if (drift_ms > 2000 || drift_ms < -2000)
+                    have_anchor = 0;
+            }
 
-        while (1) {
-            r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "radiacode", (char *) json);
-
-            if (r < 0) {
-                snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame.", localrad->name);
-                fprintf(stderr, "%s", errstr);
-                cf_send_error(caph, 0, errstr);
-                fail = 1;
-                break;
-            } else if (r == 0) {
-                cf_handler_wait_ringbuffer(caph);
-                continue;
-            } else {
-                break;
+            if (!have_anchor) {
+                anchor_tv = now;
+                anchor_ts = newest;
+                have_anchor = 1;
             }
         }
 
-        if (fail) {
-            break;
+        for (i = 0; i < data_report.num_rt; i++) {
+            radiacode_realtime_t *rt = &data_report.rt[i];
+
+            if (!isfinite(rt->count_rate) || !isfinite(rt->dose_rate))
+                continue;
+
+            snprintf(json, sizeof(json), "{"
+                    "\"cps\": %.9g, "
+                    "\"sv\": %.9g, "
+                    "\"cps_err\": %u, "
+                    "\"sv_err\": %u"
+                    "}",
+                    rt->count_rate, rt->dose_rate,
+                    rt->count_rate_err, rt->dose_rate_err);
+
+            tv = radia_tv_add_ms(anchor_tv,
+                    ((int64_t) rt->ts_offset - anchor_ts) * RADIA_DATA_TS_UNIT_MS);
+
+            if (send_radia_json(caph, tv, json) < 0)
+                goto spindown;
         }
 
-        usleep(750000);
+        if (data_report.have_rare && isfinite(data_report.rare.dose)) {
+            snprintf(json, sizeof(json), "{"
+                    "\"dose_total\": %.9g, "
+                    "\"dose_duration\": %u, "
+                    "\"temperature\": %u, "
+                    "\"charge\": %u"
+                    "}",
+                    data_report.rare.dose, data_report.rare.duration,
+                    data_report.rare.temperature, data_report.rare.charge_level);
+
+            if (send_radia_json(caph, now, json) < 0)
+                goto spindown;
+        }
+
+        if (localrad->spectrum_interval > 0 &&
+                (now.tv_sec - last_spectrum.tv_sec >= (time_t) localrad->spectrum_interval ||
+                 now.tv_sec < last_spectrum.tv_sec)) {
+            last_spectrum = now;
+
+            if (send_radia_spectrum(caph, now) < 0)
+                goto spindown;
+        }
+
+        usleep(500000);
     }
 
+spindown:
     cf_handler_spindown(caph);
 }
 
@@ -755,11 +1042,17 @@ int main(int argc, char *argv[]) {
         .caph = NULL,
         .name = NULL,
         .interface = NULL,
+        .capif = NULL,
+        .matched_dev = NULL,
 		.usb_ctx = NULL,
 		.usb_handle = NULL,
 		.config = NULL,
 		.config_len = 0,
 		.spectrum_version = 0,
+		.spectrum_interval = 0,
+		.spectrum = NULL,
+		.spectrum_json = NULL,
+		.spectrum_json_sz = 0,
     };
 
 	memset(&localrad.comms, 0, sizeof(radiacode_comms_t));
@@ -808,6 +1101,9 @@ int main(int argc, char *argv[]) {
     if (localrad.usb_ctx != NULL) {
         libusb_exit(localrad.usb_ctx);
     }
+
+    free(localrad.spectrum);
+    free(localrad.spectrum_json);
 
     return 0;
 }

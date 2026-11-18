@@ -17,19 +17,18 @@
 #define RADIA_VS_ENERGY_CALIB	514
 #define RADIA_VS_SPEC_ACCUM		517
 
-/* WARNING
- *
- * In general this code makes some bad assumptions.  It has to assume that it is 
- * on a little-endian system.  It has to assume that floats are 32bits.  
- * 
- * The radiacode devices makes some bad decisions in the binary protocol which
- * are difficult to solve in pure C.  With the assumption that the number of 
- * users for the radiacode is pretty small, for now the code will just roll
- * with those requirements, but it may present a problem in the future.
- */
+/* The protocol sends little-endian IEEE 754 32 bit floats; this code assumes
+ * the host float is the same 32 bit format. */
+
+/* Real-time records grew a byte in firmware 4.15 */
+#define RADIA_RT_LEN_OLD	15
+#define RADIA_RT_LEN_NEW	16
 
 typedef struct {
 	uint8_t sequence;
+
+	/* real-time record length in use, 0 until known */
+	unsigned int rt_len;
 
 	void *auxdata;
 } radiacode_comms_t;
@@ -61,50 +60,68 @@ typedef struct {
 /* Fetch version; caller must free result */
 int radiacode_fw_version(radiacode_comms_t *comms, radiacode_version_t *ret_ver);
 
-typedef struct {
-	/* 
-        seq, eid, gid, ts_offset = br.unpack('<BBBi')
-        dt = base_time + datetime.timedelta(milliseconds=ts_offset)
-	*/
-	uint8_t seq;
-	uint8_t eid;
-	uint8_t gid;
-	uint32_t ts_offset_le;
+/* Read a VS block; caller must free result */
+char *radiacode_read_request(radiacode_comms_t *comms, uint32_t cmd, ssize_t *ret_len);
 
-} __attribute__ ((packed)) radiacode_data_header_t;
+/* Data buffer records are a 7 byte header (seq, eid, gid, int32 ts_offset)
+ * followed by a record sized by eid/gid.  ts_offset counts in 10ms units. */
+#define RADIA_DATA_HDR_LEN		7
+#define RADIA_DATA_TS_UNIT_MS	10
 
+/* eid 0 gid 0, '<ffHHHB' */
 typedef struct {
-	/*
-        if eid == 0 and gid == 0:  # GRP_RealTimeData
-            count_rate, dose_rate, count_rate_err, dose_rate_err, flags, rt_flags = br.unpack('<ffHHHB')
-	 */
-	float count_rate_le;
-	float dose_rate_le;
-	uint16_t count_rate_err_le;
-	uint16_t dose_rate_err_le;
-	uint16_t flags_le;
-	uint8_t rt_flags;
-} __attribute__ ((packed)) radiacode_realtimedata_t;
-
-/* Combined report of multiple data report objects */
-typedef struct {
+	int32_t ts_offset;
 	float count_rate;
 	float dose_rate;
+	/* errors are percent * 10 */
 	uint16_t count_rate_err;
 	uint16_t dose_rate_err;
 	uint16_t flags;
 	uint8_t rt_flags;
+} radiacode_realtime_t;
+
+/* eid 0 gid 3, '<IfHHH' */
+typedef struct {
+	uint32_t duration;
+	float dose;
+	/* temperature is (C * 100) + 2000, charge level is percent * 100 */
+	uint16_t temperature;
+	uint16_t charge_level;
+	uint16_t flags;
+} radiacode_raredata_t;
+
+#define RADIA_MAX_RT	32
+
+/* Records from one data buffer read, oldest real-time record first */
+typedef struct {
+	radiacode_realtime_t rt[RADIA_MAX_RT];
+	unsigned int num_rt;
+
+	int have_rare;
+	radiacode_raredata_t rare;
 } radiacode_data_report_t;
 
-int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data); 
+int radiacode_get_data(radiacode_comms_t *comms, radiacode_data_report_t *ret_data);
 int radiacode_get_config(radiacode_comms_t *comms, char **config, size_t *config_len);
 
+/* Spectrum header, '<Ifff': duration in seconds then the a0/a1/a2 energy
+ * calibration, followed by the channel counts */
+#define RADIA_SPECTRUM_HDR_LEN	16
+#define RADIA_MAX_CHANNELS		4096
+
+/* Spectrum counts accumulated by the device over 'duration' seconds; energy
+ * in keV of channel n is a0 + a1*n + a2*n^2 */
 typedef struct {
-	uint16_t ts_le;
-	float a0_le;
-	float a1_le;
-	float a2_le;
-} __attribute__ ((packed)) radiacode_spectrum_header;
+	uint32_t duration;
+	float a0, a1, a2;
+	unsigned int num_channels;
+	uint32_t counts[RADIA_MAX_CHANNELS];
+} radiacode_spectrum_t;
+
+/* Fetch and decode the current spectrum; format_version is SpecFormatVersion
+ * from the device config */
+int radiacode_get_spectrum(radiacode_comms_t *comms, int format_version,
+		radiacode_spectrum_t *ret_spec);
 
 #endif
 
