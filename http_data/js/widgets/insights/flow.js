@@ -27,8 +27,11 @@ const aboutGraph = [
         'arranged in columns: devices probing for networks, the networks (SSIDs) being advertised or ' +
         'probed for, the access points, and the devices connected to those access points.',
     'The graph combines the addresses of a single access point (such as multiple radios, or multiple ' +
-        'networks served by the same device, including the networks an access point lists in its multiple ' +
-        'BSSID element) into one entry.',
+        'networks served by the same device) into one entry.  An access point which lists further networks in ' +
+        'its multiple BSSID element is tagged MBSSID, with the number of networks in the set, and named for the ' +
+        'address sending the set.',
+    'The points of an 802.11s mesh advertise a mesh ID instead of a network name; each mesh ID is listed ' +
+        'with the networks, outlined in the mesh color, and linked to every mesh point heard.',
     'Each line represents all of the links between two entries; the more links, the thicker the line.  ' +
         'The color and style of a line show the type of link, as listed in the legend.  Clicking an access ' +
         'point or a group of devices lists the devices in it.  A yellow ring marks an entry which has a ' +
@@ -359,6 +362,12 @@ export function flow({ onPick = null, linkKinds }) {
         showHelp(false);
     });
 
+    // An access point's sets of addresses (a multiple BSSID set): a tag for its
+    // label, and a line each for its tooltip
+    const setTags = (h) => (h.sets ?? []).map((s) => `${kindOf(s.kind).short ?? kindOf(s.kind).title} ×${s.members.length}`).join(' · ');
+    const setLines = (h) => (h.sets ?? []).map((s) => `${kindOf(s.kind).title} of ${plural(s.members.length, 'address', 'addresses')}, ` +
+        `sent by ${s.lead.mac}`);
+
     function groupLabel(g) {
         const k = kindOf(g.kind);
         if (g.members.length === 1 && !g.more)
@@ -399,8 +408,9 @@ export function flow({ onPick = null, linkKinds }) {
         const hubRad = (h) => Math.min(5 + h.members.length, 12) * shrink;
         const grpRad = (g) => Math.min(4 + Math.sqrt(g.members.length) * 1.6, 11) * shrink;
         const hubText = (h) => (narrow ?
-            [h.parts.short, [h.channels.length ? `ch ${h.channels.join(',')}` : '', h.parts.named ? '' : h.parts.maker].filter(Boolean).join(' · ')] :
-            [h.label, `${plural(h.members.length, 'address', 'addresses')}${h.channels.length ? ` · ch ${h.channels.join(', ')}` : ''}`]);
+            [h.parts.short, [setTags(h), h.channels.length ? `ch ${h.channels.join(',')}` : '', h.parts.named ? '' : h.parts.maker].filter(Boolean).join(' · ')] :
+            [h.label, [plural(h.members.length, 'address', 'addresses'), setTags(h), h.channels.length ? `ch ${h.channels.join(', ')}` : '']
+                .filter(Boolean).join(' · ')]);
         const grpText = (g) => {
             if (g.id.startsWith('seek:'))
                 return narrow ? [] : [groupLabel(g)];
@@ -524,10 +534,11 @@ export function flow({ onPick = null, linkKinds }) {
 
         for (const n of names) {
             const p = at.get(n.id);
-            const g = svgEl('g', { class: ['fl-node', 'fl-name', n.sought && 'sought', n.more && 'more'].filter(Boolean).join(' ') });
+            const g = svgEl('g', { class: ['fl-node', 'fl-name', n.sought && 'sought', n.more && 'more', n.kind && `kind-${n.kind}`].filter(Boolean).join(' ') });
             const rr = narrow ? 8.5 : 11;
             const tip = n.more ? `${n.label}: click to page through them` :
-                `${n.sought ? `${n.label}: looked for, not advertised here` : n.label}${r.focused ? '' : '\nClick to show only what links through it'}`;
+                `${n.sought ? `${n.label}: looked for, not advertised here` : n.title ? `${n.title} ${n.label}` : n.label}` +
+                `${r.focused ? '' : '\nClick to show only what links through it'}`;
             g.append(svgEl('rect', { x: colX.name, y: p.y - rr, width: colW.name, height: rr * 2, rx: rr }),
                 label(colX.name + textX.name, p.y + fs.main / 3, n.label, null, colW.name - textX.name * 2 + 2),
                 svgEl('title', {}, tip));
@@ -552,7 +563,8 @@ export function flow({ onPick = null, linkKinds }) {
             g.append(svgEl('circle', { cx, cy: p.y, r: rad }),
                 label(colX.hub + textX.hub, p.y, t1, null, room),
                 label(colX.hub + textX.hub, p.y + fs.main, t2, 'fl-sub', room),
-                svgEl('title', {}, h.more ? `${h.label}: click to page through them` : `${h.label}\n${h.members.map((m) => m.mac).join('\n')}`));
+                svgEl('title', {}, h.more ? `${h.label}: click to page through them` :
+                    [h.label, ...setLines(h), ...h.members.map((m) => m.mac)].join('\n')));
             g.addEventListener('click', (e) => pick({ ...h, title: h.label }, e));
             nodesG.append(g);
         }
@@ -676,9 +688,14 @@ export function flow({ onPick = null, linkKinds }) {
         quiet.textContent = r.quietHubs.length ?
             `${plural(r.quietHubs.length, 'more access point', 'more access points')} with nothing else related in this time window.` : '';
         const kinds = [...new Set(r.edges.map((e) => e.kind))];
+        const setKinds = [...new Set(r.hubs.flatMap((h) => (h.sets ?? []).map((s) => s.kind)))];
         legend.replaceChildren(...kinds.map((id) => {
             const k = kindOf(id);
             return el('span', {}, el('span', { class: ['cg-line', k.style].join(' '), style: { borderColor: `var(${k.color})` } }), k.title);
+        }), ...setKinds.map((id) => {
+            const k = kindOf(id);
+            return el('span', { title: `An access point tagged ${k.short ?? k.title} sends ${k.groupTitle ?? 'a set of addresses'}` },
+                el('span', { class: 'fl-set-key' }, k.short ?? ''), k.title);
         }));
     }
 
