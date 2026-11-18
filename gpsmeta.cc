@@ -60,6 +60,13 @@ bool kis_gps_meta::open_gps(std::string in_opts) {
                     alt = con->json().value("alt", (double) 0);
                     spd = con->json().value("spd", (double) 0);
 
+                    // Same range check as the websocket update
+                    if (!kis_gps_packinfo::values_valid(lat, lon, alt, spd)) {
+                        con->set_status(400);
+                        stream << "Invalid position\n";
+                        return;
+                    }
+
                     auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
                     new_location->gps_info_ok = true;
                     new_location->lat = lat;
