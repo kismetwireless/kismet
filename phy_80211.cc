@@ -2547,7 +2547,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         if (!ssid_j.is_null())
             ssid_str = munge_to_printable(ssid_j);
 
-        auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
+        auto ssid_csum = ssid_hash(ssid_str, ssid_str.length());
 
         in_pack->common_info.common_info_ok = true;
         in_pack->common_info.type = packet_basic_mgmt;

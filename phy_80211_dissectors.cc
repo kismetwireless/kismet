@@ -2098,7 +2098,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
         switch (ie_tag.tag_num()) {
             case 0:
                 packinfo->ssid_len = ie_tag.tag_data().length();
-                packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag.tag_data().data(),
+                packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag.tag_data(),
                         ie_tag.tag_data().length());
 
                 if (packinfo->ssid_len == 0) {
@@ -2110,7 +2110,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
                     if (ie_tag.tag_data().find_first_not_of('\0') == std::string::npos) {
                         packinfo->ssid_blank = true;
                     } else {
-                        packinfo->ssid = munge_to_printable(ie_tag.tag_data().data());
+                        packinfo->ssid = munge_to_printable(ie_tag.tag_data());
                     }
                 } else {
                     _ALERT(alert_longssid_ref, in_pack, packinfo,
@@ -2515,7 +2515,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet* in_pack, dot11_packinfo
 
             case 114:
                 if (packinfo->ssid_len == 0) {
-                    packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag.tag_data().data(),
+                    packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag.tag_data(),
                             ie_tag.tag_data().length());
                 }
                 break;

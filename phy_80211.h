@@ -33,6 +33,8 @@
 #include <algorithm>
 #include <atomic>
 #include <string>
+#include <string_view>
+#include <cstring>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -47,6 +49,7 @@
 #endif
 
 #include "boost_like_hash.h"
+#include "xxhash_cpp.h"
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -619,14 +622,29 @@ public:
     const std::string dot11_new_probed_ssid = "DOT11_PROBED_SSID";
     const std::string dot11_new_response_ssid = "DOT11_RESPONSE_SSID";
 
-    static size_t ssid_hash(const std::string& ssid, unsigned int ssid_len) {
-        auto hash = xx_hash_cpp{};
+    // xxhash32 of every raw SSID byte, embedded NULs included, then the little-endian length;
+    // the same value as streaming them through xx_hash_cpp, without allocating
+    static size_t ssid_hash(std::string_view ssid, unsigned int ssid_len) {
+        constexpr size_t max_inline = 256;
 
-        boost_like::hash_combine(hash, ssid);
-        boost_like::hash_combine(hash, ssid_len);
+        if (ssid.length() > max_inline) {
+            auto hash = xx_hash_cpp{};
+            const uint32_t le_len = htole32(ssid_len);
+            hash.update(ssid.data(), ssid.length());
+            hash.update(&le_len, sizeof(le_len));
+            return hash.hash();
+        }
 
-        return hash.hash();
+        uint8_t buf[max_inline + sizeof(uint32_t)];
+        const uint32_t le_len = htole32(ssid_len);
+        memcpy(buf, ssid.data(), ssid.length());
+        memcpy(buf + ssid.length(), &le_len, sizeof(le_len));
+
+        return htole32(XXH32(buf, ssid.length() + sizeof(le_len), 0));
     }
+
+    // A C string stops at the first NUL; pass the whole tag
+    static size_t ssid_hash(const char *ssid, unsigned int ssid_len) = delete;
 
     virtual bool device_is_a(const std::shared_ptr<kis_tracked_device_base>& dev) override;
 
