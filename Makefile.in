@@ -262,6 +262,11 @@ TEST_BTLE_EXPIRE = test/btle_expire/expire_test
 TEST_BTLE_EXPIRE_O = \
 	test/btle_expire/expire_test.cc.o
 
+# The 802.11 karma / mana detection tests; built on request
+TEST_DOT11_KARMA = test/dot11_karma/karma_test
+TEST_DOT11_KARMA_O = \
+	test/dot11_karma/karma_test.cc.o
+
 # The device rules baseline grammar tests; built on request
 TEST_DEVICE_RULES = test/device_rules/baseline_test
 TEST_DEVICE_RULES_O = \
@@ -495,6 +500,9 @@ $(TEST_BTLE_RELATED):	$(TEST_BTLE_RELATED_O)
 
 $(TEST_BTLE_EXPIRE):	$(TEST_BTLE_EXPIRE_O)
 	$(LD) $(LDFLAGS) -o $(TEST_BTLE_EXPIRE) $(TEST_BTLE_EXPIRE_O) $(CXXLIBS)
+
+$(TEST_DOT11_KARMA):	$(TEST_DOT11_KARMA_O)
+	$(LD) $(LDFLAGS) -o $(TEST_DOT11_KARMA) $(TEST_DOT11_KARMA_O) $(CXXLIBS)
 
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
@@ -1106,6 +1114,7 @@ depclean:
 	@-rm -f test/cell_decisions/*.d diagspec/enrichment/cpp/lte_band.cpp.d
 	@-rm -f test/randomized_alias/*.d test/btle_corotation/*.d test/btle_related/*.d
 	@-rm -f test/btle_expire/*.d
+	@-rm -f test/dot11_karma/*.d
 	@-rm -f test/environment/*.d
 	@-rm -f protobuf_cpp/*.d
 
@@ -1122,6 +1131,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/btle_corotation/*.o $(TEST_BTLE_COROTATION)
 	@-rm -f test/btle_related/*.o $(TEST_BTLE_RELATED)
 	@-rm -f test/btle_expire/*.o $(TEST_BTLE_EXPIRE)
+	@-rm -f test/dot11_karma/*.o $(TEST_DOT11_KARMA)
 	@-rm -f test/device_rules/*.o $(TEST_DEVICE_RULES)
 	@-rm -f test/datasource_probed/*.o $(TEST_DATASOURCE_PROBED)
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
@@ -1246,6 +1256,7 @@ include $(wildcard $(patsubst %.o,%.d,$(TEST_RANDOMIZED_ALIAS_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_COROTATION_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_RELATED_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_EXPIRE_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_DOT11_KARMA_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DEVICE_RULES_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DATASOURCE_PROBED_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_HTTPD_LOGIN_CONF_O)))

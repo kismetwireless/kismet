@@ -17,7 +17,13 @@ const fields = [
     [`dot11.device/dot11.device.probed_ssid_map`, 'd11_probed'],
     [`dot11.device/dot11.device.responded_ssid_map`, 'd11_responded'],
     [`dot11.device/dot11.device.mbssid_transmitter`, 'd11_mbssid_tx'],
+    [`dot11.device/dot11.device.karma`, 'd11_karma'],
 ];
+
+// The server's karma thresholds (dot11_karma_min_matched, _min_unbeaconed),
+// for the guess made when an older server has no karma detection
+const karmaMinMatched = 3;
+const karmaMinAnswered = 10;
 
 const list = (v) => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
 const ssidId = (ssid) => `dot11-ssid:${ssid}`;
@@ -58,6 +64,7 @@ export function registerInsights(kismet) {
                 return;
             const type = rec[`${base}.type`] ?? '';
             g.role(n, /AP/.test(type) ? 'ap' : /Bridged|Wired/.test(type) ? 'bridge' : /Client/.test(type) ? 'client' : 'other');
+            n.karma = rec.d11_karma && typeof rec.d11_karma === 'object' && !Array.isArray(rec.d11_karma) ? rec.d11_karma : null;
 
             // A network listed in another access point's multiple BSSID
             // element is served by that access point's radio
@@ -180,23 +187,85 @@ export function registerInsights(kismet) {
         },
     });
 
+    // Servers with karma detection define its alert and give the verdict on
+    // each access point; older ones get a guess from the names answered for.
+    // Undefined until the server has said which it is.
+    let serverKarma;
+    let askedKarma = false;
+    const askServerKarma = () => {
+        if (askedKarma)
+            return;
+        askedKarma = true;
+        kismet.api.post('alerts/definitions.json', { fields: ['kismet.alert.definition.header'] })
+            .then((defs) => {
+                serverKarma ??= Array.isArray(defs) && defs.some((x) => x?.['kismet.alert.definition.header'] === 'DOT11KARMA');
+            })
+            .catch(() => {
+                askedKarma = false;
+            });
+    };
+    const karmaCount = (k, f) => (Number.isFinite(k[`dot11.karma.${f}`]) ? k[`dot11.karma.${f}`] : 0);
+    const plural = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+    const karmaAdvice = 'An access point normally answers only for its own networks.  One that answers for the names ' +
+        'devices look for may be a "karma" or "mana" attack (as a Wi-Fi Pineapple can run), trying to get them to join it.  ' +
+        'An old access point serving several hidden networks from one address can look the same.';
+
     insightFindings.add({
         id: 'dot11-karma',
+        alerts: ['DOT11KARMA'],
         find({ graph }) {
+            const nodes = [...graph.nodes.values()];
+            if (nodes.some((n) => n.karma))
+                serverKarma = true;
+            else if (serverKarma === undefined)
+                askServerKarma();
+            if (serverKarma === undefined)
+                return [];
+
+            // How many devices looked for each name, for the guess
+            const probers = new Map();
+            if (!serverKarma)
+                for (const n of nodes)
+                    for (const s of n.probes ?? [])
+                        probers.set(s, (probers.get(s) ?? 0) + 1);
+
             const out = [];
-            for (const n of graph.nodes.values()) {
-                const other = [...(n.answers ?? [])].filter((s) => s !== n.ssid);
-                if (other.length < 2)
-                    continue;
+            for (const n of nodes) {
+                const other = [...(n.answers ?? [])].filter((s) => typeof s === 'string' && s !== n.ssid && !s.startsWith('DIRECT-'));
+                const answered = other.length ? `  It answered as ${short(other.map((s) => `"${s}"`))}.` : '';
+                let title;
+                let text;
+                if (serverKarma) {
+                    if (!n.karma?.['dot11.karma.suspect'])
+                        continue;
+                    const unbeaconed = karmaCount(n.karma, 'unbeaconed_ssids');
+                    const matched = karmaCount(n.karma, 'probe_matched_ssids');
+                    const directed = karmaCount(n.karma, 'directed_beacons');
+                    // The flag stays once set; the counts are of the recent names only
+                    title = unbeaconed ? `${n.mac} answered for ${plural(unbeaconed, 'network', 'networks')} it doesn't advertise` :
+                        `${n.mac} answered for networks it didn't advertise`;
+                    text = unbeaconed ?
+                        `Kismet saw it answer probe requests for ${plural(unbeaconed, 'network name', 'network names')} ` +
+                        'it never sent in broadcast beacons' +
+                        (matched ? `; devices nearby had just probed for ${matched === unbeaconed ? 'each' : matched} of them` : '') +
+                        (directed ? `; ${directed} of them only in beacons addressed to one device` : '') + '.' :
+                        'Kismet saw it answer probe requests for enough network names it didn\'t send in broadcast beacons ' +
+                        'to flag it.  It has since advertised them, or answered for them too long ago to count now.';
+                    text += `${answered}  ${karmaAdvice}`;
+                } else {
+                    // The guess: names other than the one it beacons, less one
+                    // for a hidden network (an old hidden name, after a rename)
+                    const allowance = n.ssid === '' ? 1 : 0;
+                    const matched = other.filter((s) => (probers.get(s) ?? 0) > (n.probes?.has(s) ? 1 : 0)).length;
+                    if (matched - allowance < karmaMinMatched && other.length - allowance < karmaMinAnswered)
+                        continue;
+                    title = `${n.mac} answers for ${other.length} different networks`;
+                    text = `It sent probe responses for networks other than its own` +
+                        (matched ? `, ${matched} of them names other devices looked for` : '') + `.${answered}  ${karmaAdvice}  ` +
+                        'This server doesn\'t check for karma itself, so this is a guess from the names it answered for.';
+                }
                 n.flags.push('karma');
-                out.push({
-                    id: `karma:${n.key}`, severity: 'high',
-                    title: `${n.mac} answers for ${other.length} different networks`,
-                    text: `It sent probe responses as ${short(other.map((s) => `"${s}"`))}.  An access point answers for its own ` +
-                        'networks; one that answers whatever name a phone asks for (a "karma" attack, as a WiFi Pineapple does) ' +
-                        'is trying to get devices to join it.',
-                    devices: [n.key], things: other.map(ssidId),
-                });
+                out.push({ id: `karma:${n.key}`, severity: 'high', title, text, devices: [n.key], things: other.map(ssidId) });
             }
             return out;
         },

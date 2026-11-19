@@ -43,6 +43,7 @@
 #endif
 
 #include "devicetracker_component.h"
+#include "phy_80211_karma.h"
 #include "entrytracker.h"
 #include "globalregistry.h"
 #include "trackedcomponent.h"
@@ -1406,6 +1407,114 @@ struct dot11_csa_state {
     size_t recent_pos = 0;
 };
 
+// SSIDs recently left out of a full advertised or responded list, so a device cycling through
+// more names than the list holds doesn't have each frame handled as a new SSID again.  Fixed
+// size, the oldest is replaced; allocated with the first SSID left out.
+struct dot11_dropped_ssids {
+    static constexpr size_t max_hashes = 1024;
+
+    std::array<uint32_t, max_hashes> hashes{};
+    size_t num = 0;
+    size_t pos = 0;
+
+    bool contains(uint32_t h) const {
+        for (size_t i = 0; i < num; i++)
+            if (hashes[i] == h)
+                return true;
+        return false;
+    }
+
+    void add(uint32_t h) {
+        hashes[pos] = h;
+        pos = (pos + 1) % max_hashes;
+        if (num < max_hashes)
+            num++;
+    }
+};
+
+// Karma / mana detection for a BSSID; added with the first SSID it answers probes for, or
+// sends only unicast beacons for, without broadcast-beaconing it.  The counts are as of the
+// last such SSID, within dot11_karma_window of it.
+class dot11_tracked_karma : public tracker_component {
+public:
+    dot11_tracked_karma() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    dot11_tracked_karma(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(nullptr);
+    }
+
+    dot11_tracked_karma(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    dot11_tracked_karma(const dot11_tracked_karma *p) :
+        tracker_component{p} {
+        __ImportField(unbeaconed_ssids, p);
+        __ImportField(probe_matched_ssids, p);
+        __ImportField(directed_beacons, p);
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+        __ImportField(suspect, p);
+
+        reserve_fields(nullptr);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("dot11_tracked_karma");
+    }
+
+    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>(this);
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    __Proxy(unbeaconed_ssids, uint32_t, unsigned int, unsigned int, unbeaconed_ssids);
+    __Proxy(probe_matched_ssids, uint32_t, unsigned int, unsigned int, probe_matched_ssids);
+    __Proxy(directed_beacons, uint32_t, unsigned int, unsigned int, directed_beacons);
+    __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __Proxy(suspect, uint8_t, bool, bool, suspect);
+
+    // Not serialized
+    dot11_karma::state state;
+
+protected:
+    virtual void register_fields() override {
+        register_field("dot11.karma.unbeaconed_ssids",
+                "SSIDs this BSSID answered probes for, or sent only unicast beacons for, without "
+                "broadcast-beaconing them", &unbeaconed_ssids);
+        register_field("dot11.karma.probe_matched_ssids",
+                "unbeaconed SSIDs a client probed for near the time of the response",
+                &probe_matched_ssids);
+        register_field("dot11.karma.directed_beacons",
+                "unbeaconed SSIDs seen in unicast beacons", &directed_beacons);
+        register_field("dot11.karma.first_time",
+                "capture time of the first unbeaconed SSID", &first_time);
+        register_field("dot11.karma.last_time",
+                "capture time of the last unbeaconed SSID", &last_time);
+        register_field("dot11.karma.suspect",
+                "the BSSID answered for enough networks it doesn't advertise to suggest a karma "
+                "or mana impersonation attack", &suspect);
+    }
+
+    std::shared_ptr<tracker_element_uint32> unbeaconed_ssids;
+    std::shared_ptr<tracker_element_uint32> probe_matched_ssids;
+    std::shared_ptr<tracker_element_uint32> directed_beacons;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint8> suspect;
+};
+
 // Dot11 device
 //
 // Device-level data, additional data stored in the client and ssid arrays
@@ -1544,6 +1653,8 @@ public:
             __ImportId(ctrl_only_stations_id, p);
             __ImportId(ctrl_only_stations_last_id, p);
 
+            __ImportId(karma_id, p);
+
             reserve_fields(nullptr);
         }
 
@@ -1680,6 +1791,16 @@ public:
         return mbssid_cache_;
     }
     uint32_t mbssid_alerted_key = 0;
+
+    // SSIDs left out of a full list; caller holds the device lock
+    bool ssid_recently_dropped(uint32_t hash) const {
+        return dropped_ssids_ != nullptr && dropped_ssids_->contains(hash);
+    }
+    void ssid_dropped(uint32_t hash) {
+        if (dropped_ssids_ == nullptr)
+            dropped_ssids_ = std::make_unique<dot11_dropped_ssids>();
+        dropped_ssids_->add(hash);
+    }
     // Alert headers raised for this AP by its last full IE parse, which its hosted BSSs
     // inherit and don't raise again
     std::vector<std::string> mbssid_tx_alerts;
@@ -1706,6 +1827,10 @@ public:
             ctrl_only_stations_id);
     __ProxyDynamic(ctrl_only_stations_last, uint64_t, time_t, time_t, ctrl_only_stations_last,
             ctrl_only_stations_last_id);
+
+    // Karma detection state, allocated with the first unbeaconed SSID; caller holds the
+    // device lock
+    __ProxyDynamicTrackable(karma, dot11_tracked_karma, karma, karma_id);
 
     std::shared_ptr<dot11_advertised_ssid> get_last_adv_ssid() {
         return last_adv_ssid;
@@ -1957,6 +2082,10 @@ protected:
             register_dynamic_field("dot11.device.ctrl_only_stations_last",
                     "capture time of the newest station seen only in control frames with the AP",
                     &ctrl_only_stations_last);
+
+        karma_id =
+            register_dynamic_field("dot11.device.karma",
+                    "karma / mana access point detection", &karma);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -2060,10 +2189,15 @@ protected:
     std::shared_ptr<tracker_element_uint64> client_disconnects_last;
 
 	uint16_t csa_count;
+    // The advertised or responded SSID list reached dot11_max_device_ssids and dropped an
+    // SSID; new SSIDs are no longer announced, since a device cycling through more names
+    // than the list holds would announce every one again
+    bool ssids_trimmed = false;
 	time_t last_csa_time;
 
     dot11_beacon_ref beacon_ref_;
     std::unique_ptr<dot11_csa_state> csa_state_;
+    std::unique_ptr<dot11_dropped_ssids> dropped_ssids_;
 
     std::vector<std::pair<uint32_t, std::vector<dot11_mbssid_hosted>>> mbssid_cache_;
 
@@ -2149,6 +2283,9 @@ protected:
     uint16_t ctrl_only_stations_id;
     std::shared_ptr<tracker_element_uint64> ctrl_only_stations_last;
     uint16_t ctrl_only_stations_last_id;
+    uint16_t karma_id;
+
+    std::shared_ptr<dot11_tracked_karma> karma;
 };
 
 #endif
