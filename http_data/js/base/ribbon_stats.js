@@ -205,7 +205,7 @@ export function register(kismet) {
     });
 
     ui.ribbonStats.add({
-        id: 'thermal', title: 'Thermal', priority: 45,
+        id: 'thermal', title: 'Sensors', priority: 45,
         description: 'Temperatures of the Kismet server and its data sources: the hottest sensor, or the ones ' +
             'chosen below; click for the environment window',
         create(body) {
