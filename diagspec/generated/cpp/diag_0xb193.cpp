@@ -110,7 +110,7 @@ uint16_t diag_0xb193_t::serving_body_t::earfcn_u16() {
 bool diag_0xb193_t::serving_body_t::is_fixed_slots() {
     if (f_is_fixed_slots)
         return m_is_fixed_slots;
-    m_is_fixed_slots = _parent()->subpacket_version() == 40;
+    m_is_fixed_slots =  ((_parent()->subpacket_version() == 22) || (_parent()->subpacket_version() == 35) || (_parent()->subpacket_version() == 36) || (_parent()->subpacket_version() == 40) || (_parent()->subpacket_version() == 41)) ;
     f_is_fixed_slots = true;
     return m_is_fixed_slots;
 }
@@ -248,7 +248,7 @@ int32_t diag_0xb193_t::serving_body_t::cell_stride() {
     n_cell_stride = true;
     if ( ((!(is_inline_serving())) && (cell_count() > 0) && (_io()->size() > cell_base())) ) {
         n_cell_stride = false;
-        m_cell_stride = ((is_fixed_slots()) ? (132) : (((_io()->size() - cell_base()) / cell_count())));
+        m_cell_stride = ((is_fixed_slots()) ? (((_parent()->subpacket_version() == 22) ? (120) : (((_parent()->subpacket_version() == 35) ? (124) : (((_parent()->subpacket_version() == 36) ? (128) : (((_parent()->subpacket_version() == 41) ? (140) : (132))))))))) : (((_io()->size() - cell_base()) / cell_count())));
     }
     f_cell_stride = true;
     return m_cell_stride;
