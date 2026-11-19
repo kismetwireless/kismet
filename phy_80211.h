@@ -675,6 +675,22 @@ protected:
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
+    // Karma / mana detection for a beacon or probe response handle_ssid fully parsed; called
+    // under the BSSID's lock.  probe_ts is the newest directed probe for the SSID, or 0.
+    void handle_karma(const std::shared_ptr<kis_tracked_device_base>& basedev,
+            const std::shared_ptr<dot11_tracked_device>& dot11dev,
+            const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<dot11_packinfo>& dot11info,
+            bool new_adv_ssid, time_t probe_ts);
+    void raise_karma_alert(const std::shared_ptr<kis_tracked_device_base>& basedev,
+            const std::shared_ptr<dot11_tracked_karma>& karma,
+            const std::shared_ptr<kis_packet>& in_pack,
+            const std::shared_ptr<dot11_packinfo>& dot11info,
+            const dot11_karma::counts& c);
+
+    // A broadcast beacon for the SSID: the BSSID does advertise it
+    void karma_beaconed(const std::shared_ptr<dot11_tracked_device>& dot11dev, uint32_t ssid_hash);
+
     // Create and update the BSSs a transmitting AP advertises in its multiple BSSID
     // elements; called with no device locks held
     void handle_mbssid(const std::shared_ptr<kis_packet>& in_pack,
@@ -792,7 +808,16 @@ protected:
         alert_bad_fixlen_ie, alert_formatstring_ref, alert_dot11_csa_flood_ref,
         alert_dot11_csa_spoof_ref,
         alert_bcmwps_ref, alert_wpsfraglen_ref, alert_wpsfragprobe_ref, alert_mbssid_ref,
-        alert_mbssid_excess_ref;
+        alert_mbssid_excess_ref, alert_karma_ref;
+
+    // Karma / mana detection; settings are fixed at startup
+    bool karma_detect;
+    dot11_karma::params karma_params;
+    // BSSIDs (or masks) which answer for several SSIDs they don't beacon, such as old
+    // multi-SSID access points
+    std::vector<mac_addr> karma_ignore_bssids;
+    static constexpr size_t karma_max_ignore_bssids = 256;
+    std::shared_ptr<device_tracker_view> karma_view;
 
     // Most hosted BSSs taken from one frame; real APs host far fewer
     static constexpr size_t mbssid_max_hosted = 64;
@@ -823,6 +848,22 @@ protected:
     device_display_type devtype_inferred_client;
 
     int signal_too_loud_threshold;
+
+    // Most advertised, responded and probed SSIDs kept per device, each; the one seen longest
+    // ago makes room for a new one.  0 keeps them all.
+    size_t max_device_ssids;
+
+    // An SSID seen this recently (capture time) isn't dropped for a new one; a device cycling
+    // through more names than the list holds would otherwise replace one with every frame
+    static constexpr time_t device_ssid_min_idle = 60;
+
+    // Makes room in a full SSID map of a device for a new SSID seen at ts, dropping the one
+    // seen longest ago if it's been idle at least min_idle; false if there's no room.  Probed
+    // maps hold probed SSID records, the others advertised SSID records.  Caller holds the
+    // device lock.
+    bool trim_device_ssids(const std::shared_ptr<dot11_tracked_device>& dot11dev,
+            const std::shared_ptr<tracker_element_hashkey_map>& ssid_map, time_t ts,
+            bool probed = false, time_t min_idle = device_ssid_min_idle);
 
     // Do we time out components of devices?
     int device_idle_expiration;

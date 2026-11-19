@@ -444,6 +444,16 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "indicate an Karma AP impersonation attack, such as that performed by a "
                 "Wi-Fi Pineapple device",
                 phyid);
+    alert_karma_ref =
+        alertracker->activate_configured_alert("DOT11KARMA",
+                "SPOOF", kis_alert_severity::high,
+                "An access point answered probe requests for several networks it never "
+                "advertises in its beacons, often the networks nearby clients probed for.  "
+                "This is how karma and mana attacks (such as the Wi-Fi Pineapple) lure clients "
+                "into connecting to an impersonated network.  Hidden networks, Wi-Fi Direct "
+                "and multiple BSSID sets are allowed for; old access points serving several "
+                "hidden SSIDs from one BSSID can be listed in dot11_karma_ignore_bssids.",
+                phyid);
     alert_tooloud_ref =
         alertracker->activate_configured_alert("OVERPOWERED",
                 "OTHER", kis_alert_severity::high,
@@ -923,6 +933,69 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     process_11d_country_list =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_11d_country_full", false);
 
+    max_device_ssids =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("dot11_max_device_ssids", 128);
+
+    karma_detect =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_karma_detect", true);
+
+    if (karma_detect) {
+        auto cfg = Globalreg::globalreg->kismet_config;
+
+        // Large enough to hold either threshold, small enough to stay cheap per BSSID
+        constexpr unsigned int max_karma_ssids = 1024;
+
+        karma_params.min_matched =
+            std::clamp(cfg->fetch_opt_uint("dot11_karma_min_matched", karma_params.min_matched),
+                    1U, max_karma_ssids);
+        karma_params.min_unbeaconed =
+            std::clamp(cfg->fetch_opt_uint("dot11_karma_min_unbeaconed", karma_params.min_unbeaconed),
+                    1U, max_karma_ssids);
+        karma_params.window = std::max(1U, cfg->fetch_opt_uint("dot11_karma_window", 600));
+        karma_params.probe_window = cfg->fetch_opt_uint("dot11_karma_probe_window", 60);
+
+        const size_t min_karma_ssids = std::max(karma_params.min_matched, karma_params.min_unbeaconed);
+        karma_params.max_ssids =
+            std::clamp<size_t>(cfg->fetch_opt_uint("dot11_karma_max_ssids", 64),
+                    min_karma_ssids, max_karma_ssids);
+
+        bool ignore_full = false;
+
+        for (const auto& l : cfg->fetch_opt_vec("dot11_karma_ignore_bssids")) {
+            if (ignore_full)
+                break;
+
+            for (const auto& m : str_tokenize(l, ",")) {
+                const auto ms = str_strip(m);
+
+                if (ms.empty())
+                    continue;
+
+                mac_addr ma(ms);
+
+                if (ma.state.error) {
+                    _MSG_ERROR("Skipping invalid MAC address '{}' in dot11_karma_ignore_bssids", ms);
+                    continue;
+                }
+
+                if (karma_ignore_bssids.size() >= karma_max_ignore_bssids) {
+                    _MSG_ERROR("Too many dot11_karma_ignore_bssids entries, only the first {} are used",
+                            karma_max_ignore_bssids);
+                    ignore_full = true;
+                    break;
+                }
+
+                karma_ignore_bssids.push_back(ma);
+            }
+        }
+
+        if (!ssidtracker->get_tracking_enabled())
+            _MSG_INFO("Wi-Fi SSID tracking (dot11_view_ssids) is off, so karma detection can't match "
+                    "probe responses with the probes clients sent; only access points answering for "
+                    "{} or more networks they don't advertise will raise DOT11KARMA.",
+                    karma_params.min_unbeaconed);
+    }
+
     // access-point view
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
         ap_view =
@@ -960,6 +1033,25 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
     } else {
         _MSG_INFO("Phy80211 access point views are turned off; this will prevent matching related devices by timestamp "
                 "and other features.");
+    }
+
+    // Suspected karma / mana access points; a null check per device unless one is flagged
+    if (karma_detect && Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_karma", true)) {
+        auto karma_filter = [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+            if (dot11 == nullptr)
+                return false;
+
+            auto karma = dot11->get_tracker_karma();
+
+            return karma != nullptr && karma->get_suspect();
+        };
+
+        karma_view =
+            std::make_shared<device_tracker_view>("phydot11_karma",
+                    "IEEE802.11 suspected karma APs", karma_filter, karma_filter);
+        devicetracker->add_view(karma_view);
     }
 
     // Register js module for UI
@@ -2694,6 +2786,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         if (ssid_itr == adv_ssid_map->end()) {
             ssid = bssid_dot11->new_advertised_ssid();
+            d11phy->trim_device_ssids(bssid_dot11, adv_ssid_map, in_pack->ts.tv_sec, false, 0);
             adv_ssid_map->insert(ssid_csum, ssid);
 
             ssid->set_ssid_hash(ssid_csum);
@@ -3479,6 +3572,8 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
     bool new_adv_ssid = false;
     bool new_resp_ssid = false;
+    // A new SSID is processed, but not kept when the device's list is full of recent ones
+    bool keep_ssid = true;
 
     if (dot11info->subtype == packet_sub_probe_resp) {
         auto resp_ssid_map = dot11dev->get_responded_ssid_map();
@@ -3499,6 +3594,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
             new_ssid = true;
             new_resp_ssid = true;
+            keep_ssid = trim_device_ssids(dot11dev, resp_ssid_map, in_pack->ts.tv_sec);
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
@@ -3523,6 +3619,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
             new_ssid = true;
             new_adv_ssid = true;
+            keep_ssid = trim_device_ssids(dot11dev, adv_ssid_map, in_pack->ts.tv_sec);
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
@@ -3644,7 +3741,8 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
             ssidstr = censor::format("SSID '{}'", censor::ssid(ssid->get_ssid()));
         }
 
-        _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
+        if (!dot11dev->ssids_trimmed)
+            _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
 
         if (alertracker->potential_alert(alert_formatstring_ref)) {
             auto ssidtxt = ssid->get_ssid();
@@ -3888,16 +3986,17 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
 
     }
 
+    if (!keep_ssid)
+        return;
+
     // Finalize processing and add it to the maps
     if (dot11info->subtype == packet_sub_probe_resp) {
-        auto resp_ssid_map = dot11dev->get_responded_ssid_map();
-            resp_ssid_map->insert(dot11info->ssid_csum, ssid);
+        dot11dev->get_responded_ssid_map()->insert(dot11info->ssid_csum, ssid);
 
         ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
                 dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
     } else {
-        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
-        adv_ssid_map->insert(dot11info->ssid_csum, ssid);
+        dot11dev->get_advertised_ssid_map()->insert(dot11info->ssid_csum, ssid);
 
         ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
                 dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
@@ -4165,6 +4264,12 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
                         dot11info->qbss_load.channel_utilization / 255.0 * 100.0);
             }
 
+            // The same tags carry the same SSID; a broadcast beacon for one counted for karma
+            // detection means the BSSID does advertise it, whichever arrived first
+            if (dot11info->subtype == packet_sub_beacon && dot11dev->has_karma() &&
+                    dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac))
+                karma_beaconed(dot11dev, static_cast<uint32_t>(ssid->get_ssid_hash()));
+
             ssidtracker->update_ssid_time(ssid->get_ssid_hash(), in_pack->ts.tv_sec);
         }
 
@@ -4214,6 +4319,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
     bool new_adv_ssid = false;
     bool new_resp_ssid = false;
+    // A new SSID is processed, but not kept when the device's list is full of recent ones
+    bool keep_ssid = true;
 
     if (dot11info->subtype == packet_sub_probe_resp) {
         auto resp_ssid_map = dot11dev->get_responded_ssid_map();
@@ -4226,6 +4333,17 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         auto ssid_itr = resp_ssid_map->find(dot11info->ssid_csum);
 
         if (ssid_itr == resp_ssid_map->end()) {
+            keep_ssid = trim_device_ssids(dot11dev, resp_ssid_map, in_pack->ts.tv_sec);
+
+            // Handled as new when it was left out of the full list; like a known SSID, it
+            // isn't again
+            if (!keep_ssid && dot11dev->ssid_recently_dropped(dot11info->ssid_csum)) {
+                dot11dev->set_last_adv_ie_csum(0);
+                if (karma_detect)
+                    handle_karma(basedev, dot11dev, in_pack, dot11info, false, 0);
+                return;
+            }
+
             dot11info->new_adv_ssid = true;
 
             ssid = dot11dev->new_responded_ssid();
@@ -4248,6 +4366,15 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
 
         if (ssid_itr == adv_ssid_map->end()) {
+            keep_ssid = trim_device_ssids(dot11dev, adv_ssid_map, in_pack->ts.tv_sec);
+
+            if (!keep_ssid && dot11dev->ssid_recently_dropped(dot11info->ssid_csum)) {
+                dot11dev->set_last_adv_ie_csum(0);
+                if (karma_detect)
+                    handle_karma(basedev, dot11dev, in_pack, dot11info, true, 0);
+                return;
+            }
+
             dot11info->new_adv_ssid = true;
 
             ssid = dot11dev->new_advertised_ssid();
@@ -4391,7 +4518,8 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             ssidstr = censor::format("new SSID '{}'", censor::ssid(ssid->get_ssid()));
         }
 
-        _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
+        if (!dot11dev->ssids_trimmed)
+            _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
 
         if (alertracker->potential_alert(alert_formatstring_ref)) {
             auto ssidtxt = ssid->get_ssid();
@@ -4916,17 +5044,32 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
     // Finalize processing and add it to the maps
     if (dot11info->subtype == packet_sub_probe_resp) {
-        auto resp_ssid_map = dot11dev->get_responded_ssid_map();
-            resp_ssid_map->insert(dot11info->ssid_csum, ssid);
+        time_t probe_ts = 0;
 
-        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
+        if (keep_ssid) {
+            dot11dev->get_responded_ssid_map()->insert(dot11info->ssid_csum, ssid);
+
+            probe_ts = ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                    dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
+        }
+
+        if (karma_detect)
+            handle_karma(basedev, dot11dev, in_pack, dot11info, false, probe_ts);
     } else {
-        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
-        adv_ssid_map->insert(dot11info->ssid_csum, ssid);
+        if (keep_ssid) {
+            dot11dev->get_advertised_ssid_map()->insert(dot11info->ssid_csum, ssid);
 
-        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
+            ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                    dot11info->ssid_csum, ssid->get_crypt_set(), basedev);
+        }
+
+        if (karma_detect)
+            handle_karma(basedev, dot11dev, in_pack, dot11info, new_adv_ssid, 0);
+    }
+
+    if (!keep_ssid) {
+        dot11dev->ssid_dropped(dot11info->ssid_csum);
+        return;
     }
 
     if (new_adv_ssid) {
@@ -4940,6 +5083,216 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         evt->get_event_content()->insert(dot11_new_response_ssid, ssid);
         eventbus->publish(evt);
     }
+}
+
+bool kis_80211_phy::trim_device_ssids(const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<tracker_element_hashkey_map>& ssid_map, time_t ts, bool probed,
+        time_t min_idle) {
+    if (max_device_ssids == 0 || ssid_map == nullptr)
+        return true;
+
+    while (ssid_map->size() >= max_device_ssids) {
+        auto oldest = ssid_map->end();
+        time_t oldest_time = 0;
+
+        for (auto i = ssid_map->begin(); i != ssid_map->end(); ++i) {
+            if (i->second == nullptr) {
+                oldest = i;
+                break;
+            }
+
+            const time_t t = probed ?
+                static_cast<dot11_probed_ssid *>(i->second.get())->get_last_time() :
+                static_cast<dot11_advertised_ssid *>(i->second.get())->get_last_time();
+
+            if (oldest == ssid_map->end() || t < oldest_time) {
+                oldest = i;
+                oldest_time = t;
+            }
+        }
+
+        if (!probed)
+            dot11dev->ssids_trimmed = true;
+
+        if (oldest == ssid_map->end())
+            return false;
+
+        if (oldest->second != nullptr && ts - oldest_time < min_idle)
+            return false;
+
+        if (!probed && oldest->second != nullptr &&
+                dot11dev->get_last_adv_ssid().get() == oldest->second.get()) {
+            dot11dev->set_last_adv_ssid(nullptr);
+            dot11dev->set_last_adv_ie_csum(0);
+        }
+
+        ssid_map->erase(oldest);
+    }
+
+    return true;
+}
+
+void kis_80211_phy::karma_beaconed(const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        uint32_t ssid_hash) {
+    auto karma = dot11dev->get_tracker_karma();
+
+    if (karma == nullptr || !karma->state.beaconed(ssid_hash))
+        return;
+
+    const auto c = karma->state.count(karma_params.window);
+    karma->set_unbeaconed_ssids(c.unbeaconed);
+    karma->set_probe_matched_ssids(c.matched);
+    karma->set_directed_beacons(c.directed);
+}
+
+void kis_80211_phy::handle_karma(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        bool new_adv_ssid, time_t probe_ts) {
+    using dot11_karma::flag;
+
+    const bool beacon = dot11info->subtype == packet_sub_beacon;
+    const uint32_t hash = dot11info->ssid_csum;
+
+    if (beacon && dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) {
+        karma_beaconed(dot11dev, hash);
+        return;
+    }
+
+    if (dot11_karma::ignored_ssid(dot11info->ssid, dot11info->ssid_len, dot11info->ssid_blank))
+        return;
+
+    auto karma = dot11dev->get_tracker_karma();
+    const bool listed = karma != nullptr && karma->state.find(hash) != nullptr;
+
+    // Unicast beacons (beacon response mode) don't count as advertising: a new SSID from one,
+    // or an SSID already counted, counts.  A probe response counts unless the BSSID
+    // broadcast-beacons the SSID.
+    if (beacon) {
+        if (!new_adv_ssid && !listed)
+            return;
+    } else if (!listed) {
+        auto adv_map = dot11dev->get_tracker_advertised_ssid_map();
+
+        if (adv_map != nullptr && adv_map->find(dot11info->ssid_csum) != adv_map->end())
+            return;
+    }
+
+    if (!karma_ignore_bssids.empty()) {
+        const auto& mac = basedev->get_macaddr();
+
+        for (const auto& m : karma_ignore_bssids)
+            if (m == mac)
+                return;
+    }
+
+    const time_t ts = in_pack->ts.tv_sec;
+
+    if (karma == nullptr)
+        karma = dot11dev->get_karma();
+
+    auto& st = karma->state;
+
+    {
+        auto& e = st.seen(hash, ts, beacon ? flag::directed_beacon : flag::none, karma_params.max_ssids);
+
+        if (dot11_karma::probe_matches(e.first, e.last, probe_ts, karma_params.probe_window))
+            e.flags = e.flags | flag::matched;
+    }
+
+    // Probes may arrive after the responses to them, or from another source
+    if (st.any_unmatched())
+        ssidtracker->karma_match_probes(st, karma_params.probe_window);
+
+    auto c = st.count(karma_params.window);
+
+    karma->set_unbeaconed_ssids(c.unbeaconed);
+    karma->set_probe_matched_ssids(c.matched);
+    karma->set_directed_beacons(c.directed);
+
+    if (karma->get_first_time() == 0 || ts < karma->get_first_time())
+        karma->set_first_time(ts);
+    if (ts > karma->get_last_time())
+        karma->set_last_time(ts);
+
+    if (st.alerted)
+        return;
+
+    // Already suspect, but the alert was rate limited: raise it once the limit allows
+    if (karma->get_suspect()) {
+        raise_karma_alert(basedev, karma, in_pack, dot11info, c);
+        return;
+    }
+
+    if (!dot11_karma::should_fire(c, 0, karma_params))
+        return;
+
+    // A hidden network answers probes for the name its beacons leave out; should_fire caps
+    // the allowance
+    unsigned int hidden = 0;
+
+    if (dot11dev->has_advertised_ssid_map()) {
+        for (const auto& a : *dot11dev->get_advertised_ssid_map()) {
+            if (a.second != nullptr &&
+                    static_cast<dot11_advertised_ssid *>(a.second.get())->get_ssid_cloaked() &&
+                    ++hidden >= dot11_karma::max_hidden_allowance)
+                break;
+        }
+    }
+
+    if (!dot11_karma::should_fire(c, hidden, karma_params))
+        return;
+
+    // Some vendors answer from a sibling BSSID of the one beaconing the network
+    std::vector<device_key> related;
+
+    for (const auto& rel : {"dot11_mbssid", "dot11_bssts_similar"}) {
+        auto ri = basedev->get_related_devices_map()->find(rel);
+
+        if (ri == basedev->get_related_devices_map()->end() || ri->second == nullptr)
+            continue;
+
+        for (const auto& k : *static_cast<tracker_element_device_key_map *>(ri->second.get()))
+            related.push_back(k.first);
+    }
+
+    if (!related.empty()) {
+        ssidtracker->karma_exclude_related(st, related);
+
+        c = st.count(karma_params.window);
+        karma->set_unbeaconed_ssids(c.unbeaconed);
+        karma->set_probe_matched_ssids(c.matched);
+        karma->set_directed_beacons(c.directed);
+
+        if (!dot11_karma::should_fire(c, hidden, karma_params))
+            return;
+    }
+
+    karma->set_suspect(true);
+
+    raise_karma_alert(basedev, karma, in_pack, dot11info, c);
+}
+
+void kis_80211_phy::raise_karma_alert(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_karma>& karma,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        const dot11_karma::counts& c) {
+    if (!alertracker->potential_alert(alert_karma_ref))
+        return;
+
+    auto al = censor::format("IEEE80211 frames from BSSID {} answered probes for {} networks it "
+            "does not advertise ({} probed for by clients, {} sent in unicast beacons), which may "
+            "indicate a karma or mana access point impersonating networks clients look for",
+            basedev->get_macaddr(), c.unbeaconed, c.matched, c.directed);
+
+    // Only a raised alert counts; a rate limited one is tried again on a later frame
+    if (alertracker->raise_alert(alert_karma_ref, in_pack,
+                dot11info->bssid_mac, dot11info->source_mac,
+                dot11info->dest_mac, dot11info->other_mac,
+                dot11info->channel, al) == 1)
+        karma->state.alerted = true;
 }
 
 void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_base>& basedev,
@@ -4967,6 +5320,7 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
     }
 
     bool new_probessid = false;
+    bool keep_probessid = true;
 
     if (dot11info->subtype == packet_sub_probe_req ||
             dot11info->subtype == packet_sub_association_req ||
@@ -4990,7 +5344,11 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
                 probessid->set_ssid_len(dot11info->ssid_len);
                 probessid->set_first_time(in_pack->ts.tv_sec);
 
-                probemap->insert(dot11info->ssid_csum, probessid);
+                // Processed but not kept when the list is full of recent ones
+                keep_probessid = trim_device_ssids(dot11dev, probemap, in_pack->ts.tv_sec, true);
+
+                if (keep_probessid)
+                    probemap->insert(dot11info->ssid_csum, probessid);
             } else {
                 probessid = std::static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
             }
@@ -5119,15 +5477,19 @@ void kis_80211_phy::handle_probed_ssid(const std::shared_ptr<kis_tracked_device_
             if (dot11info->wps_uuid_e != "" && probessid->get_wps_uuid_e() != dot11info->wps_uuid_e)
                 scan_wps_uuid = true;
 
-            // Enter it in the ssid tracker
+            // Enter it in the ssid tracker; only directed probe requests stamp the probe time
+            // karma detection matches responses with
             ssidtracker->handle_probe_ssid(probessid->get_ssid(), probessid->get_ssid_len(),
-                    dot11info->ssid_csum, probessid->get_crypt_set(), basedev);
+                    dot11info->ssid_csum, probessid->get_crypt_set(), basedev,
+                    dot11info->subtype == packet_sub_probe_req ? in_pack->ts.tv_sec : 0);
 
             if (new_probessid) {
-                auto evt = eventbus->get_eventbus_event(dot11_new_probed_ssid);
-                evt->get_event_content()->insert(dot11_new_ssid_device, basedev);
-                evt->get_event_content()->insert(dot11_new_probed_ssid, probessid);
-                eventbus->publish(evt);
+                if (keep_probessid) {
+                    auto evt = eventbus->get_eventbus_event(dot11_new_probed_ssid);
+                    evt->get_event_content()->insert(dot11_new_ssid_device, basedev);
+                    evt->get_event_content()->insert(dot11_new_probed_ssid, probessid);
+                    eventbus->publish(evt);
+                }
 
                 if (dot11info->ssid_len != 0 && alertracker->potential_alert(alert_ssidcanary_ref)) {
                     auto ntype =
@@ -6282,7 +6644,9 @@ public:
             auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
             std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
 
-            for (auto itr = adv_ssid_map->begin(); itr != adv_ssid_map->end(); ++itr) {
+            // erase() moves the last entry into the erased slot and returns it, so it isn't
+            // skipped and the scan doesn't restart
+            for (auto itr = adv_ssid_map->begin(); itr != adv_ssid_map->end(); ) {
                 // Always leave one
                 if (adv_ssid_map->size() <= 1)
                     break;
@@ -6295,9 +6659,10 @@ public:
                         dot11dev->set_last_adv_ie_csum(0);
                     }
 
-                    adv_ssid_map->erase(itr);
-                    itr = adv_ssid_map->begin();
+                    itr = adv_ssid_map->erase(itr);
                     devicetracker->update_full_refresh();
+                } else {
+                    ++itr;
                 }
             }
         }
@@ -6306,7 +6671,7 @@ public:
             auto resp_ssid_map = dot11dev->get_responded_ssid_map();
             std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
 
-            for (auto itr = resp_ssid_map->begin(); itr != resp_ssid_map->end(); ++itr) {
+            for (auto itr = resp_ssid_map->begin(); itr != resp_ssid_map->end(); ) {
                 // Always leave one
                 if (resp_ssid_map->size() <= 1)
                     break;
@@ -6319,9 +6684,10 @@ public:
                         dot11dev->set_last_adv_ie_csum(0);
                     }
 
-                    resp_ssid_map->erase(itr);
-                    itr = resp_ssid_map->begin();
+                    itr = resp_ssid_map->erase(itr);
                     devicetracker->update_full_refresh();
+                } else {
+                    ++itr;
                 }
             }
         }
@@ -6330,7 +6696,7 @@ public:
             auto probe_map = dot11dev->get_probed_ssid_map();
             std::shared_ptr<dot11_probed_ssid> pssid = NULL;
 
-            for (auto itr = probe_map->begin(); itr != probe_map->end(); ++itr) {
+            for (auto itr = probe_map->begin(); itr != probe_map->end(); ) {
                 // Always leave one
                 if (probe_map->size() <= 1)
                     break;
@@ -6338,9 +6704,10 @@ public:
                 pssid = std::static_pointer_cast<dot11_probed_ssid>(itr->second);
 
                 if (Globalreg::globalreg->last_tv_sec - pssid->get_last_time() > timeout && device->get_packets() < packets) {
-                    probe_map->erase(itr);
-                    itr = probe_map->begin();
+                    itr = probe_map->erase(itr);
                     devicetracker->update_full_refresh();
+                } else {
+                    ++itr;
                 }
             }
         }
@@ -6350,7 +6717,7 @@ public:
             std::shared_ptr<dot11_client> client = NULL;
             tracker_element_mac_map::iterator mac_itr;
 
-            for (mac_itr = client_map->begin(); mac_itr != client_map->end(); ++mac_itr) {
+            for (mac_itr = client_map->begin(); mac_itr != client_map->end(); ) {
                 // Always leave one
                 if (client_map->size() <= 1)
                     break;
@@ -6358,9 +6725,10 @@ public:
                 client = std::static_pointer_cast<dot11_client>(mac_itr->second);
 
                 if (Globalreg::globalreg->last_tv_sec - client->get_last_time() > timeout && device->get_packets() < packets) {
-                    client_map->erase(mac_itr);
-                    mac_itr = client_map->begin();
+                    mac_itr = client_map->erase(mac_itr);
                     devicetracker->update_full_refresh();
+                } else {
+                    ++mac_itr;
                 }
             }
         }

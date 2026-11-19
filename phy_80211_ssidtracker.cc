@@ -480,14 +480,14 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
     }
 }
 
-void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsigned int ssid_len,
+time_t phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsigned int ssid_len,
         size_t ssid_hash, uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
 
     if (!ssid_tracking_enabled)
-        return;
+        return 0;
 
     if (ssid_len == 0)
-        return;
+        return 0;
 
     auto key = ssid_hash;
 
@@ -501,11 +501,61 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
         trim_groups();
-    } else {
-        auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
-        tssid->add_responding_device(device);
+        return 0;
     }
 
+    auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
+    tssid->add_responding_device(device);
+    return tssid->last_probe_ts;
+}
+
+void phy_80211_ssid_tracker::karma_match_probes(dot11_karma::state& st, time_t probe_window) {
+    if (!ssid_tracking_enabled)
+        return;
+
+    kis_lock_guard<kis_mutex> lk(mutex);
+
+    for (auto& e : st.entries) {
+        if (dot11_karma::has(e.flags, dot11_karma::flag::matched) ||
+                dot11_karma::has(e.flags, dot11_karma::flag::excluded))
+            continue;
+
+        // Only probes near the newest response are still arriving
+        if (st.newest - e.last > probe_window)
+            continue;
+
+        auto mapdev = ssid_map.find(e.hash);
+
+        if (mapdev == ssid_map.end())
+            continue;
+
+        auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
+
+        if (dot11_karma::probe_matches(e.first, e.last, tssid->last_probe_ts, probe_window))
+            e.flags = e.flags | dot11_karma::flag::matched;
+    }
+}
+
+void phy_80211_ssid_tracker::karma_exclude_related(dot11_karma::state& st,
+        const std::vector<device_key>& related) {
+    if (!ssid_tracking_enabled || related.empty())
+        return;
+
+    // Group device maps only change under this mutex as well as the group mutex
+    kis_lock_guard<kis_mutex> lk(mutex);
+
+    for (auto& e : st.entries) {
+        if (dot11_karma::has(e.flags, dot11_karma::flag::excluded))
+            continue;
+
+        auto mapdev = ssid_map.find(e.hash);
+
+        if (mapdev == ssid_map.end())
+            continue;
+
+        if (static_cast<dot11_tracked_ssid_group *>(mapdev->second.get())->advertised_by_any(related))
+            e.flags = e.flags | dot11_karma::flag::excluded;
+    }
 }
 
 void phy_80211_ssid_tracker::update_ssid_time(size_t ssid_hash, time_t in_time) {
@@ -521,7 +571,8 @@ void phy_80211_ssid_tracker::update_ssid_time(size_t ssid_hash, time_t in_time) 
 }
 
 void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned int ssid_len,
-        size_t ssid_hash, uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
+        size_t ssid_hash, uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device,
+        time_t probe_ts) {
 
     if (!ssid_tracking_enabled)
         return;
@@ -538,12 +589,14 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
     if (mapdev == ssid_map.end()) {
         auto tssid = std::make_shared<dot11_tracked_ssid_group>(group_builder.get(), ssid, ssid_len, ssid_hash, crypt_set);
         tssid->add_probing_device(device);
+        tssid->last_probe_ts = probe_ts;
         ssid_map[key] = tssid;
         ssid_vector->push_back(tssid);
         trim_groups();
     } else {
         auto tssid = static_cast<dot11_tracked_ssid_group *>(mapdev->second.get());
         tssid->add_probing_device(device);
+        tssid->last_probe_ts = std::max(tssid->last_probe_ts, probe_ts);
     }
 
 }

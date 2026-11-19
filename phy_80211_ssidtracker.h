@@ -31,6 +31,8 @@
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 
+#include "phy_80211_karma.h"
+
 #include "unordered_dense.h"
 
 
@@ -163,6 +165,19 @@ public:
         mutex.unlock();
     }
 
+    // Capture time of the newest directed probe request for the SSID, for karma detection;
+    // not serialized, and only used under the ssid tracker mutex
+    time_t last_probe_ts = 0;
+
+    // Any of the devices advertises the SSID; under the ssid tracker mutex, which every
+    // change to the device maps also holds
+    bool advertised_by_any(const std::vector<device_key>& keys) const {
+        for (const auto& k : keys)
+            if (advertising_device_map->find(k) != advertising_device_map->end())
+                return true;
+        return false;
+    }
+
 protected:
     kis_mutex mutex;
 
@@ -216,12 +231,22 @@ public:
     // ssid_hash is the hash of the raw SSID bytes the dissector put in ssid_csum, the same
     // key the device's advertised, responded and probed SSID maps use; the printable ssid
     // can differ from those bytes
+    //
+    // Callers hold the device lock; the lock order is device, then the ssid tracker.
     void handle_broadcast_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
             uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
-    void handle_response_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
+    // Returns the capture time of the newest directed probe for the SSID, or 0
+    time_t handle_response_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
             uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
+    // probe_ts is the capture time of a directed probe request, or 0 for association requests,
+    // which don't count as a client asking for the network
     void handle_probe_ssid(const std::string& ssid, unsigned int ssid_len, size_t ssid_hash,
-            uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device);
+            uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device, time_t probe_ts);
+
+    // Karma detection, under one lock for the whole list: marks the unmatched entries a client
+    // probed for within the probe window, and the entries one of the related devices advertises
+    void karma_match_probes(dot11_karma::state& st, time_t probe_window);
+    void karma_exclude_related(dot11_karma::state& st, const std::vector<device_key>& related);
 
     // A beacon or probe response for a known group whose IE tags haven't changed doesn't go
     // through handle_broadcast_ssid/handle_response_ssid; this keeps the group's last_time
