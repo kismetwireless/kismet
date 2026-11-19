@@ -382,10 +382,10 @@ size_t diag_native_sib1_map_size(const diag_native_sib1_map_t *map);
 
 /* True iff log_code can contribute a map entry (0xB0C0 / 0xB821).
  *
- * This set is NOT a subset of diag_native_has_leg(): 0xB0C0 is both (it emits
- * an identity observation AND seeds the map) but 0xB821 is ONLY an identity
- * source -- it has no cell-observation leg of its own. A caller that routed on
- * has_leg() alone would never learn a single NR identity. */
+ * Both codes are also cell legs: each emits an identity observation per SIB1
+ * AND seeds the map. The map is still what attaches an identity to the
+ * measurement rows of other codes, so a caller must learn() every identity
+ * source whatever has_leg() says. */
 bool diag_native_is_identity_source(uint16_t log_code);
 
 /* 0xB197 serving-cell config. It is cached in the sib1 map under
@@ -485,7 +485,7 @@ int diag_native_lte_meas_neighbours(const diag_native_sib1_map_t *map,
  * snprintf-style: a value >= out_len means the line was truncated and the caller
  * MUST NOT emit it. Never writes the trailing newline -- the caller frames it.
  * Returns -1 if log_code has no cell-observation serialization (e.g. a GNSS code,
- * or 0xB821, which seeds identity but emits no observation of its own). */
+ * or 0xB197, which only feeds the cell-config cache). */
 int diag_native_obs_to_json(const diag_native_obs_t *obs, const char *imei,
         double captured_at, uint64_t log_tick, char *out, size_t out_len);
 
