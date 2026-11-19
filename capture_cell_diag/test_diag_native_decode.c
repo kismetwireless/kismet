@@ -127,6 +127,16 @@ static const char *kHex_b0c0_ident_rm520ngl =
 static const expect_t kExp_b0c0_ident_rm520ngl[] = {
         {"LTE", 0xB0C0, 20, 5200, false, false, 0.0, false, 0.0, true, "001", "001", 9029, 1193046},
 };
+/* NR SIB1 identity -- 0xB821 v12, BCCH-DL-SCH (pdu_id 2), 23-byte header.
+ * SYNTHETIC, built for this test: PLMN 001/01, TAC 0x1234, NCI 0xABCDE1,
+ * PCI 7, NR-ARFCN 100; the PDU is a UPER BCCH-DL-SCH-Message carrying only
+ * cellAccessRelatedInfo. Like the 0xB0C0 SIB1 rows, it is an identity-only
+ * row: no signal, not marked serving. */
+static const char *kHex_b821_sib1_v12_synthetic =
+        "0c0000000f000007006400000000000002000000000e00400008200201001234000abcde18";
+static const expect_t kExp_b821_sib1_v12_synthetic[] = {
+        {"NR", 0xB821, 7, 100, false, false, 0.0, false, 0.0, true, "001", "01", 0x1234, 0xABCDE1},
+};
 /* NR meas, v7 SDX55 -- carries a serving flag AND an absent-rsrp sentinel cell
  * Source fixture: nr5g_meas_db_update_b97f_rm500q_sdx55_168B.bin (168 B) */
 static const char *kHex_b97f_rm500q_sdx55_v7 =
@@ -1593,6 +1603,23 @@ static bool check_serialize(void) {
         "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
         "\"log_tick\":60345938315396},\"rsrp\":-95.9375,\"rsrq\":-8.0}");
 
+    /* 0xB821 NR SIB1: identity-only, no signal, not serving. The same branch
+     * as the MeasurementReport row; the identity follows prov. Synthetic
+     * values (PLMN 001/01, TAC 0x1234, NCI 0xABCDE1). */
+    diag_native_obs_t b821i;
+    memset(&b821i, 0, sizeof(b821i));
+    b821i.rat = "NR"; b821i.log_code = 0xB821; b821i.pci = 7; b821i.earfcn = 100;
+    b821i.is_serving = false;
+    b821i.has_identity = true;
+    strcpy(b821i.mcc, "001"); strcpy(b821i.mnc, "01");
+    b821i.tac = 0x1234; b821i.cell_id = 0xABCDE1;
+    ok &= check_serialize_one("b821_nr_sib1_identity", &b821i,
+        "{\"rat\":\"NR\",\"pci\":7,\"earfcn\":100,\"observation_type\":\"observation\","
+        "\"is_serving\":false,\"prov\":{\"src\":\"diag\",\"origin\":\"0xB821\","
+        "\"imei\":\"000000000000000\",\"captured_at\":1719873600.5,"
+        "\"log_tick\":60345938315396},\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":4660,"
+        "\"cell_id\":11259361}");
+
     /* A code with no cell-observation serialization must decline, not emit an
      * empty/partial line. 0xB197 feeds the cell-config cache, never a row. */
     diag_native_obs_t none;
@@ -2212,6 +2239,26 @@ int main(void) {
                 sizeof(kExp_b0c0_ident_eg25g_v20) / sizeof(kExp_b0c0_ident_eg25g_v20[0]));
     ok &= check("b0c0_ident_rm520ngl", 0xB0C0, kHex_b0c0_ident_rm520ngl, kExp_b0c0_ident_rm520ngl,
                 sizeof(kExp_b0c0_ident_rm520ngl) / sizeof(kExp_b0c0_ident_rm520ngl[0]));
+    /* An NR SIB1 makes an identity row of its own, as an LTE SIB1 does: a mask
+     * with no NR measurement code (a rayhunter recording, say) still yields the
+     * NR cell. */
+    ok &= check("b821_sib1_v12_synthetic", 0xB821, kHex_b821_sib1_v12_synthetic,
+                kExp_b821_sib1_v12_synthetic,
+                sizeof(kExp_b821_sib1_v12_synthetic) / sizeof(kExp_b821_sib1_v12_synthetic[0]));
+    {
+        /* Positive control for the fixture itself: the cross-record map path,
+         * which predates the identity row, takes the same record as a SIB1. */
+        uint8_t rec[64];
+        size_t len = unhex(kHex_b821_sib1_v12_synthetic, rec, sizeof(rec));
+        diag_native_sib1_map_t *map = diag_native_sib1_map_new();
+        int learned = map ? diag_native_sib1_learn(map, 0xB821, rec, len) : -2;
+        if (learned != 1) {
+            printf("FAIL[b821_sib1_v12_synthetic]: the map path did not learn it (%d)\n",
+                   learned);
+            ok = false;
+        }
+        diag_native_sib1_map_free(map);
+    }
     ok &= check("b97f_rm500q_sdx55_v7", 0xB97F, kHex_b97f_rm500q_sdx55_v7, kExp_b97f_rm500q_sdx55_v7,
                 sizeof(kExp_b97f_rm500q_sdx55_v7) / sizeof(kExp_b97f_rm500q_sdx55_v7[0]));
     ok &= check("b97f_rm520ngl_v9", 0xB97F, kHex_b97f_rm520ngl_v9, kExp_b97f_rm520ngl_v9,
