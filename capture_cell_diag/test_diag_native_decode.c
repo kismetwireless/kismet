@@ -353,6 +353,44 @@ static const char *kHex_b193_v60_synthetic =
 static const expect_t kExp_b193_v60_synthetic[] = {
         {"LTE", 0xB193, 1, 100, true, true, -119.12, true, -15.94, false, "", "", 0, 0},
 };
+/* v40 SDX24, TWO cells -- the fixed 4 x 132 B slots, cell[1] in slot 1
+ * 544 B. Synthetic identity (PCIs 1 and 2, EARFCN 100) over a real
+ * record's bytes. Multi-cell rows carry identity only, no signal. A stride
+ * derived from the count, (len - 8) / 2, would read cell[1] from the
+ * zero-filled slots and report PCI 0. */
+static const char *kHex_b193_v40_2cell_synthetic =
+        "0101180019281c0264000000020003000110000011080000fe4608007f238c0011ec18003cd665005c06000060099600"
+        "00d03d005dc6650014516412260100002699b41087bb1c000000000097030000ebffeaff25002300000000f38d0b1000"
+        "72ce1d0041b9020000000000340700001d0e00001e770200000000007400000026010000750800006f0b000000000000"
+        "0000000002000000110c0000fe4608007f238c00113818003cf661005c0600006009960000f039001ff66100d450c30d"
+        "dc000000dc70c30d9a1b1d0000000000a3030000ebffeaff25002300000000f3e4e50c00ffd309003859020000000000"
+        "7500000049000000a62401000000000074000000dc000000850800007b0b000000000000000000000000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        "00000000000000000000000000000000";
+static const expect_t kExp_b193_v40_2cell_synthetic[] = {
+        {"LTE", 0xB193, 1, 100, true, false, 0, false, 0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 2, 100, false, false, 0, false, 0, false, "", "", 0, 0},
+};
+
+/* v60 SDX72, TWO cells -- count-driven, v59's 148 B stride, count in bits0..2
+ * 312 B (164 + 148). Synthetic identity (PCIs 1 and 2, EARFCN 100) over a
+ * real record's bytes. Multi-cell rows carry identity only, no signal. */
+static const char *kHex_b193_v60_2cell_synthetic =
+        "01010100193c340164000000020000000f00000000010203018000009f0f0000b04d0900d8a6fc1c9f671300d6144800"
+        "8fc44f00fad449009e942500d9e44c00f4d0b30aab08640ff4d0330fa5ba1400ba4a1300a5020000feff0100fcff0100"
+        "38003900370038000000000036ea0000ad63000044ce0000b1cc0000dde10600d75d0700c300000056000000f0000000"
+        "ca000000f5144d00fe644f0036000000f40000000f00000000010203020000009f130000b64d0900dba6fc1c9f5b1200"
+        "d67441008f844500fad44900f163210096644900b0c082066874a104b0c0020ba67a1300bb3a1300a6020000feff0100"
+        "fcff0100380039003700380000000000006c0000c41f0000c81b00007e0e0000bb190600809105003a00000009000000"
+        "0900000005000000c0f446006f64450036000000b0000000";
+static const expect_t kExp_b193_v60_2cell_synthetic[] = {
+        {"LTE", 0xB193, 1, 100, true, false, 0, false, 0, false, "", "", 0, 0},
+        {"LTE", 0xB193, 2, 100, false, false, 0, false, 0, false, "", "", 0, 0},
+};
 
 static bool check(const char *name, uint16_t code, const char *hex,
         const expect_t *exp, size_t n_exp) {
@@ -2259,6 +2297,12 @@ int main(void) {
     ok &= check("b193_v60_synthetic", 0xB193, kHex_b193_v60_synthetic,
                 kExp_b193_v60_synthetic,
                 sizeof(kExp_b193_v60_synthetic) / sizeof(kExp_b193_v60_synthetic[0]));
+    ok &= check("b193_v40_2cell_synthetic", 0xB193, kHex_b193_v40_2cell_synthetic,
+                kExp_b193_v40_2cell_synthetic,
+                sizeof(kExp_b193_v40_2cell_synthetic) / sizeof(kExp_b193_v40_2cell_synthetic[0]));
+    ok &= check("b193_v60_2cell_synthetic", 0xB193, kHex_b193_v60_2cell_synthetic,
+                kExp_b193_v60_2cell_synthetic,
+                sizeof(kExp_b193_v60_2cell_synthetic) / sizeof(kExp_b193_v60_2cell_synthetic[0]));
     ok &= check_routing_contract();
     ok &= check_capacity_clamp();
     for (size_t i = 0; i < sizeof(kGnssCases) / sizeof(kGnssCases[0]); i++)
