@@ -205,32 +205,58 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 
 #endif
 
+// Well-formed UTF-8 as RFC 3629 section 4 defines it: no overlong forms, no UTF-16
+// surrogates (U+D800-DFFF), nothing above U+10FFFF
 bool is_valid_utf8(const char *subject, size_t length) {
-    int i, ix, nb, j;
+    const auto *s = reinterpret_cast<const unsigned char *>(subject);
+    size_t i = 0;
 
-    for (i = 0, ix = length; i < ix; i++) {
-        auto c = (unsigned char) subject[i];
+    while (i < length) {
+        const unsigned char c = s[i];
 
-        if (0x00 <= c && c <= 0x7f) {
-            nb = 0;
-        } else if ((c & 0xE0) == 0xC0) {
-            nb = 1;
-        } else if ( c==0xed && i < (ix - 1) && 
-                ((unsigned char) subject[i+1] & 0xa0) == 0xa0) {
-            return false; 
-        } else if ((c & 0xF0) == 0xE0) {
-            nb = 2;
-        } else if ((c & 0xF8) == 0xF0) {
-            nb = 3; 
+        if (c < 0x80) {
+            i++;
+            continue;
+        }
+
+        // Continuation bytes after the lead, and the range the first of them must be in
+        size_t n;
+        unsigned char lo = 0x80, hi = 0xBF;
+
+        if (c >= 0xC2 && c <= 0xDF) {
+            n = 1;
+        } else if (c == 0xE0) {
+            n = 2;
+            lo = 0xA0;
+        } else if ((c >= 0xE1 && c <= 0xEC) || c == 0xEE || c == 0xEF) {
+            n = 2;
+        } else if (c == 0xED) {
+            n = 2;
+            hi = 0x9F;
+        } else if (c == 0xF0) {
+            n = 3;
+            lo = 0x90;
+        } else if (c >= 0xF1 && c <= 0xF3) {
+            n = 3;
+        } else if (c == 0xF4) {
+            n = 3;
+            hi = 0x8F;
         } else {
             return false;
         }
 
-        for (j = 0; j < nb && i < ix; j++) { 
-            if ((++i == ix) || (((unsigned char) subject[i] & 0xC0) != 0x80)) {
+        if (length - i - 1 < n)
+            return false;
+
+        if (s[i + 1] < lo || s[i + 1] > hi)
+            return false;
+
+        for (size_t k = 2; k <= n; k++) {
+            if ((s[i + k] & 0xC0) != 0x80)
                 return false;
-            }
         }
+
+        i += n + 1;
     }
 
     return true;
