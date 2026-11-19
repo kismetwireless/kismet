@@ -7,6 +7,8 @@
 // Entries with a "ui2" path are modules for this UI and are loaded from there.
 // Entries without one are for the old UI; for the phys this UI already has a
 // module for, that module is loaded instead, and the rest are skipped.
+// Phys that name no module at all (Ethernet) get theirs when /phy/all_phys
+// lists them.
 //
 // The build token changes with the server's build and modules; the service
 // worker uses it to know when its copies of the UI and of the server's plugin
@@ -39,6 +41,13 @@ const builtin = {
     kismet_ui_zwave: './phy/zwave.js',
     kismet_ui_cell: './phy/cell.js',
     kismet_ui_radiation: './phy/radiation.js',
+    kismet_ui_ethernet: './phy/ethernet.js',
+};
+
+// Phys that name no UI module, old or new, but have one here: loaded when
+// the server lists the phy, unless it names the module after all
+const byPhy = {
+    'IEEE802.3': 'kismet_ui_ethernet',
 };
 
 export const loaded = [];
@@ -64,6 +73,11 @@ let lastCheck = 0;
 let offered = null;
 
 export async function loadServerModules(kismet) {
+    const physAsked = api.get('phy/all_phys.json').catch((err) => {
+        console.error('Could not get the phy list from the server:', err);
+        return [];
+    });
+
     let info = null;
     try {
         info = await api.get('dynamic.json');
@@ -87,6 +101,16 @@ export async function loadServerModules(kismet) {
             skipped.push({ name: entry.module, reason: 'plugin UI from another server; allow it in Servers' });
         else
             skipped.push({ name: entry.module, reason: ui2 ? 'module on another site' : 'no module for this UI yet' });
+    }
+
+    const named = new Set(list.map((entry) => entry.module));
+    const phys = await physAsked;
+    for (const p of Array.isArray(phys) ? phys : []) {
+        const name = byPhy[p?.['kismet.phy.phy_name']];
+        if (name && !named.has(name)) {
+            named.add(name);
+            builtins.push([name, new URL(builtin[name], new URL('..', import.meta.url)).href]);
+        }
     }
 
     // Bring the kept copies up to date first, so the modules load from them

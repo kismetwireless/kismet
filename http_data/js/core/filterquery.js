@@ -17,7 +17,8 @@
 //
 // Field names are full paths, the server's short names, column ids (without a
 // group prefix like wifi_) and titles, or search field ids, which match if any
-// of their fields do.  Columns and search fields may say what they hold with
+// of their fields do.  A column filters on its sortField, its filterField, or
+// its only field.  Columns and search fields may say what they hold with
 // filterKind ('text', 'number', 'time', 'mac', 'duration') and their wider set
 // with filterWide (paths).  A duration field takes 30s, 5m, 2h, 1d and turns
 // them into its own units with filterConvert(seconds), such as durationIn.us;
@@ -99,6 +100,8 @@ const durSeconds = { s: 1, m: 60, h: 3600, d: 86400 };
 const aliasByPath = new Map(Object.entries(aliases).map(([n, [p]]) => [p, n]));
 
 const pathOf = (spec) => (Array.isArray(spec) ? spec[0] : spec);
+// The field a column's filters use: its sort field, its filterField, or its only field
+const columnPath = (c) => c.sortField ?? c.filterField ?? (c.fields?.length === 1 ? pathOf(c.fields[0]) : null);
 // Short names read better in the generated filter
 const out = (path) => aliasByPath.get(path) ?? path;
 
@@ -159,7 +162,7 @@ export function fieldContext(columns = [], searchFields = [], hints = [], phys =
         (empty ?? null) === null && !present ? null : { empty: empty ?? null, present: present ?? null };
 
     for (const c of columns) {
-        const path = c.sortField ?? (c.fields?.length === 1 ? pathOf(c.fields[0]) : null);
+        const path = columnPath(c);
         if (!path || path.startsWith('#'))
             continue;
         const kind = c.filterKind ?? aliasKind(path) ?? (/_time$/.test(path) ? 'time' : null);
@@ -224,7 +227,7 @@ export function fieldGuide(columns = [], searchFields = [], hints = [], phys = n
         guide.push({ category: '', names: [n], kind, paths: [path], help: aliasHelp[n] ?? '' });
 
     for (const c of columns) {
-        const path = c.sortField ?? (c.fields?.length === 1 ? pathOf(c.fields[0]) : null);
+        const path = columnPath(c);
         if (!path || path.startsWith('#'))
             continue;
         const kind = c.filterKind ?? aliasKind(path) ?? (/_time$/.test(path) ? 'time' : null);

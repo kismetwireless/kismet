@@ -46,6 +46,10 @@ import { createRegistry } from './registry.js';
 //   filterKind    what sortField holds, for the search box's filters: 'text',
 //                 'number', 'time' (a timestamp), 'mac', or 'duration' (a length
 //                 of time) (optional; see js/core/filterquery.js)
+//   filterField   the field path the search box's filters use for a column
+//                 without a sortField, such as a path through a list of
+//                 records to the value in each (optional; the column's only
+//                 field when not given)
 //   filterConvert for a duration, seconds to the field's units, such as
 //                 ui.durationIn.us (optional; seconds when not given)
 //   filterWide    field paths the search box uses for name* (optional)
