@@ -3,7 +3,7 @@
 const a = 'kismet.alert';
 
 export function register(kismet) {
-    const { ui, format, dom, api, censor } = kismet;
+    const { ui, format, dom, api, censor, alertSeverity } = kismet;
     const { el } = dom;
     const noMac = (v) => !v || v === '00:00:00:00:00:00';
     const mac = (v) => (noMac(v) ? '' : el('span', { class: 'mono' }, v));
@@ -13,8 +13,7 @@ export function register(kismet) {
         create: (body) => kismet.widgets.devicetable.createDeviceTable(body),
     });
 
-    // Severity bands, for the column and the highlights
-    const severity = (v) => (v >= 15 ? 'Critical' : v >= 10 ? 'High' : v >= 5 ? 'Medium' : 'Low');
+    const severity = alertSeverity.label;
 
     ui.addTable({
         id: 'alerts', title: 'Alerts', area: 'main', priority: 30,
@@ -56,14 +55,18 @@ export function register(kismet) {
                 render: (r) => r[`${a}.channel`] || (r[`${a}.frequency`] ? format.frequency(r[`${a}.frequency`]) : '') },
         ],
         highlights: [
-            { id: 'critical', name: 'Critical alerts', priority: 0, description: 'Severity 15 and up',
+            // On the server's scale; medium and up are highlighted by default
+            { id: 'critical', name: 'Critical alerts', priority: 0, description: 'Severity 20',
                 fields: [`${a}.severity`], defaultColor: '#e03131', defaultEnabled: true,
-                match: (r) => r[`${a}.severity`] >= 15 },
-            { id: 'high', name: 'High alerts', priority: 10, description: 'Severity 10 to 14',
+                match: (r) => r[`${a}.severity`] >= 20 },
+            { id: 'high', name: 'High alerts', priority: 10, description: 'Severity 15',
                 fields: [`${a}.severity`], defaultColor: '#f08c00', defaultEnabled: true,
+                match: (r) => r[`${a}.severity`] >= 15 },
+            { id: 'medium', name: 'Medium alerts', priority: 20, description: 'Severity 10',
+                fields: [`${a}.severity`], defaultColor: '#fab005', defaultEnabled: true,
                 match: (r) => r[`${a}.severity`] >= 10 },
-            { id: 'medium', name: 'Medium alerts', priority: 20, description: 'Severity 5 to 9',
-                fields: [`${a}.severity`], defaultColor: '#fab005', defaultEnabled: false,
+            { id: 'low', name: 'Low alerts', priority: 30, description: 'Severity 5',
+                fields: [`${a}.severity`], defaultColor: '#74c0fc', defaultEnabled: false,
                 match: (r) => r[`${a}.severity`] >= 5 },
         ],
     });

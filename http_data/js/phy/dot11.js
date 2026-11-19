@@ -544,8 +544,7 @@ function registerDetails(kismet) {
     // last time), and the alerts that name it.  The alerts come from the
     // server's recent alerts, fetched while the section is on screen.
     const eventHandshakes = 8;
-    const severityColor = (sev) => (sev >= 15 ? 'var(--error)' :
-        sev >= 10 ? 'color-mix(in srgb, var(--error) 50%, var(--warn))' : sev >= 5 ? 'var(--warn)' : 'var(--muted)');
+    const severityColor = kismet.alertSeverity.color;
     // Handshake messages in blues and greens, apart from the PMKID (warn) and
     // WPS / disconnect (error) colours
     const handshakeColors = ['var(--accent)', 'var(--ok)', 'color-mix(in srgb, var(--accent) 50%, var(--text))',

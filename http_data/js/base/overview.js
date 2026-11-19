@@ -374,12 +374,7 @@ export function register(kismet) {
         },
     });
 
-    const severities = [
-        { id: 'critical', label: 'Critical', min: 15, color: 'var(--error)' },
-        { id: 'high', label: 'High', min: 10, color: 'color-mix(in srgb, var(--error) 50%, var(--warn))' },
-        { id: 'medium', label: 'Medium', min: 5, color: 'var(--warn)' },
-        { id: 'low', label: 'Low', min: -Infinity, color: 'var(--muted)' },
-    ];
+    const severities = kismet.alertSeverity.levels;
 
     ui.dashboardCards.add({
         id: 'alerts', title: 'Alerts, last hour', loading: [{ kind: 'bars', rows: 2 }, 'histogram'], priority: 75, w: 3, h: 5, needs: ['alerts'],
@@ -394,7 +389,7 @@ export function register(kismet) {
                     const counts = new Map();
                     const bins = new Array(12).fill(0);
                     for (const a of list) {
-                        const sev = severities.find((s) => (a['kismet.alert.severity'] ?? 0) >= s.min);
+                        const sev = kismet.alertSeverity.level(a['kismet.alert.severity']);
                         counts.set(sev.id, (counts.get(sev.id) ?? 0) + 1);
                         const ago = data.now - (a['kismet.alert.timestamp'] ?? 0);
                         if (ago >= 0 && ago < 3600)
