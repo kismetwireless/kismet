@@ -95,6 +95,7 @@ export function register(kismet) {
     });
 
     ui.deviceViews.add({ id: 'phydot11_accesspoints', title: 'Wi-Fi access points', group: 'Wi-Fi', priority: -100 });
+    ui.deviceViews.add({ id: 'phydot11_karma', title: 'Wi-Fi suspected karma APs', group: 'Wi-Fi' });
 
     // Access points don't move, so the middle of where Kismet heard them is
     // the best guess of where they are; clients are off until asked for
@@ -1010,6 +1011,7 @@ function registerDetails(kismet) {
 
     const beaconRec = `${d}/${d}.last_beaconed_ssid_record`;
     const probeRec = `${d}/${d}.last_probed_ssid_record`;
+    const karmaRec = `${d}/${d}.karma`;
 
     ui.deviceDetails.add({
         id: 'dot11', title: 'Wi-Fi (802.11)', priority: 5,
@@ -1250,6 +1252,27 @@ function registerDetails(kismet) {
                 help: 'One BSSID can advertise several SSIDs, by changing its name over time or by hosting several networks on one radio address.  Most modern access points with several SSIDs use a separate MAC for each one.  These SSIDs were seen in the access point\'s beacons.',
                 fields: [
                     advertisedTable('advertised', `${d}/${d}.advertised_ssid_map`, true),
+                ],
+            },
+
+            {
+                group: 'Karma detection',
+                show: (dev) => hasKeys(api.field(dev, karmaRec)),
+                help: 'Kismet keeps this for an access point that answered probe requests for networks it doesn\'t send in broadcast beacons, or sent beacons for them addressed to one device.  An access point normally answers only for its own networks; one that answers for the names nearby devices look for may be running a karma or mana attack, as a Wi-Fi Pineapple can.  A hidden network, or answers heard before the access point\'s beacons, also start this record, so the record alone doesn\'t mean an attack.  The counts are of the names answered within dot11_karma_window (10 minutes by default) of the newest one, by capture time.',
+                fields: [
+                    { title: 'Suspected karma AP', field: `${karmaRec}/dot11.karma.suspect`,
+                        format: (v) => (v ? el('span', { class: 'warn-text' }, 'Yes: this may be a karma or mana attack') : 'No'),
+                        help: 'Yes once it answered for enough networks it doesn\'t advertise to raise the DOT11KARMA alert: by default 3 that devices nearby had just probed for, or 10 in all, less one for a hidden network it beacons.  It stays set for the rest of the session.  An old access point serving several hidden networks from one address can look the same; dot11_karma_ignore_bssids leaves it out.' },
+                    { title: 'Unadvertised networks', field: `${karmaRec}/dot11.karma.unbeaconed_ssids`, format: count,
+                        help: 'Network names it answered probe requests for, or sent only in beacons addressed to one device, without sending them in broadcast beacons.' },
+                    { title: 'Probed for nearby', field: `${karmaRec}/dot11.karma.probe_matched_ssids`, format: count,
+                        help: 'Of those, the names another device probed for shortly before or after the answer (dot11_karma_probe_window, 60 seconds by default).' },
+                    { title: 'Directed beacons', field: `${karmaRec}/dot11.karma.directed_beacons`, format: count,
+                        help: 'Of those, the names seen only in beacons addressed to one device.  Some karma tools answer this way instead of with probe responses.' },
+                    { title: 'First answer', field: `${karmaRec}/dot11.karma.first_time`, hideZero: true, format: format.time,
+                        help: 'The capture time of its first answer for a network it doesn\'t advertise.' },
+                    { title: 'Last answer', field: `${karmaRec}/dot11.karma.last_time`, hideZero: true, format: format.time,
+                        help: 'The capture time of its last answer for a network it doesn\'t advertise.' },
                 ],
             },
 
