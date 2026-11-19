@@ -215,6 +215,8 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_TIMESYNCREPORT                      22
 /* Channel change timing, datasource -> server.  See below. */
 #define KIS_EXTERNAL_V3_KDS_HOPREPORT                           23
+/* Temperature, fan and battery readings, datasource -> server.  See below. */
+#define KIS_EXTERNAL_V3_KDS_ENVREPORT                           24
 
 /* eventbus commands */
 #define KIS_EXTERNAL_V3_EVT_REGISTER                            32
@@ -490,6 +492,9 @@ typedef struct kismet_external_frame_v3 {
  * */
 /* source definition, as string */
 #define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION            1
+/* u32, optional: the server takes ENVREPORT, at most one per this many ms.  Absent
+ * when the server doesn't; never 0. */
+#define KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_ENV_REPORT_MS         2
 
 
 
@@ -680,6 +685,54 @@ typedef struct kismet_external_frame_v3 {
 #define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MEAN_US            3
 #define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MIN_US             4
 #define KIS_EXTERNAL_V3_KDS_SUB_SWITCH_FIELD_MAX_US             5
+
+
+/* KIS_EXTERNAL_V3_KDS_ENVREPORT
+ *
+ * Datasource -> KS
+ *
+ * Current sensor readings of the datasource hardware, sent only to a server which
+ * sent OPENREQ_FIELD_ENV_REPORT_MS, and at most that often; put every reading in
+ * one report.  The server drops a report with a malformed field, or more than
+ * ENV_MAX_READINGS readings, and skips single readings with an invalid id, an
+ * unknown kind or an out of range value.
+ */
+/* array of sensor sub-blocks */
+#define KIS_EXTERNAL_V3_KDS_ENVREPORT_FIELD_SENSORS             1
+/* u64, optional, realtime clock of the readings */
+#define KIS_EXTERNAL_V3_KDS_ENVREPORT_FIELD_TS_S                2
+/* u32, optional */
+#define KIS_EXTERNAL_V3_KDS_ENVREPORT_FIELD_TS_US               3
+
+#define KIS_EXTERNAL_V3_ENV_MAX_READINGS                        16
+
+/* Sensor sub-block */
+/* string, 1-32 of [A-Za-z0-9_.-], not starting with '.'; unique per datasource */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_ID                    1
+/* u8, KIS_EXTERNAL_V3_ENV_KIND_* */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_KIND                  2
+/* float or double: thermal -100..400 C, fan 0..1000000 RPM, battery 0..100 % */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_VALUE                 3
+/* string, optional, what the sensor measures; at most 64 printable characters kept */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_LABEL                 4
+/* u8, optional, battery only, KIS_EXTERNAL_V3_ENV_BATT_* */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_BATT_STATE            5
+/* bool, optional, battery only: on external power; absent if unknown */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_EXT_POWER             6
+/* float, optional, battery only, volts, 0..100 */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_VOLTAGE               7
+/* u32, optional, battery only, seconds remaining, at most 30 days */
+#define KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_REMAINING_S           8
+
+#define KIS_EXTERNAL_V3_ENV_KIND_THERMAL                        1
+#define KIS_EXTERNAL_V3_ENV_KIND_FAN                            2
+#define KIS_EXTERNAL_V3_ENV_KIND_BATTERY                        3
+
+#define KIS_EXTERNAL_V3_ENV_BATT_UNKNOWN                        0
+#define KIS_EXTERNAL_V3_ENV_BATT_CHARGING                       1
+#define KIS_EXTERNAL_V3_ENV_BATT_DISCHARGING                    2
+#define KIS_EXTERNAL_V3_ENV_BATT_FULL                           3
+#define KIS_EXTERNAL_V3_ENV_BATT_NOT_CHARGING                   4
 
 
 /* KIS_EXTERNAL_V3_EVT_REGISTER

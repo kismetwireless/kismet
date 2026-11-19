@@ -59,6 +59,7 @@
 #endif
 
 #include "simple_ringbuf_c.h"
+#include "capture_env.h"
 
 #include "kis_external_packet.h"
 
@@ -466,6 +467,12 @@ struct kis_capture_handler {
 
     /* Send hop timing reports this often; 0 if the server doesn't take them */
     unsigned int hop_report_ms;
+
+    /* Send sensor reports at most this often, and when the last one went (monotonic
+     * ms); 0 if the server doesn't take them.  Set under handler_lock before the open
+     * callback runs, read with atomics by cf_send_envreport. */
+    unsigned int env_report_ms;
+    uint64_t env_last_report_ms;
 
     /* Clock estimate and switch timing, under handler_lock */
     struct cf_hop_clock *hop_clock;
@@ -1128,6 +1135,21 @@ int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno);
 /* Hop sync exchange and hop timing report; the framework sends these itself */
 int cf_send_timesyncreq(kis_capture_handler_t *caph, uint64_t t1);
 int cf_send_hopreport(kis_capture_handler_t *caph);
+
+/* Send the current sensor readings (cf_env_reading_t, in capture_env.h), if the server takes them.  Invalid readings are
+ * left out, and at most KIS_EXTERNAL_V3_ENV_MAX_READINGS are sent.  Reports are rate
+ * limited to the interval the server asked for, so put every reading in one call.
+ *
+ * Can be called from the capture thread, like cf_send_json; never from a libusb
+ * reader thread, a hop callback, or with handler_lock held.
+ *
+ * Returns:
+ * -1   An error occurred
+ *  0   Not sent: the server doesn't take reports, too soon after the last one, no
+ *      valid readings, or no space in the buffer
+ *  1   Sent
+ */
+int cf_send_envreport(kis_capture_handler_t *caph, const cf_env_reading_t *readings, size_t n);
 
 /* Send a NEWSOURCE command to initiate connecting to a remote server
  *

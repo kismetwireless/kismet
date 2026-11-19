@@ -930,6 +930,41 @@ static int send_radia_spectrum(kis_capture_handler_t *caph, struct timeval tv) {
     return send_radia_json(caph, tv, localrad->spectrum_json);
 }
 
+/* Device temperature and battery from the rare data record: temperature is C x100
+ * offset by 2000, charge is percent x100, as the radiation phy decodes them.  The
+ * record has no charging state. */
+static int send_radia_env(kis_capture_handler_t *caph, const radiacode_raredata_t *rare) {
+    cf_env_reading_t env[2];
+    size_t n = 0;
+    double temp = ((double) rare->temperature - 2000.0) / 100.0;
+    double charge = (double) rare->charge_level / 100.0;
+
+    memset(env, 0, sizeof(env));
+
+    if (temp >= -100.0 && temp <= 400.0) {
+        env[n].id = "device";
+        env[n].kind = KIS_EXTERNAL_V3_ENV_KIND_THERMAL;
+        env[n].value = temp;
+        env[n].label = "Radiacode";
+        n++;
+    }
+
+    if (charge <= 100.0) {
+        env[n].id = "battery";
+        env[n].kind = KIS_EXTERNAL_V3_ENV_KIND_BATTERY;
+        env[n].value = charge;
+        env[n].label = "Radiacode battery";
+        env[n].batt_state = KIS_EXTERNAL_V3_ENV_BATT_UNKNOWN;
+        env[n].ext_power = -1;
+        n++;
+    }
+
+    if (n == 0)
+        return 0;
+
+    return cf_send_envreport(caph, env, n);
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_radiacode_t *localrad = (local_radiacode_t *) caph->userdata;
     char errstr[STATUS_MAX];
@@ -1018,6 +1053,11 @@ void capture_thread(kis_capture_handler_t *caph) {
                     data_report.rare.temperature, data_report.rare.charge_level);
 
             if (send_radia_json(caph, now, json) < 0)
+                goto spindown;
+
+            /* The JSON above keeps the raw values for the radiation phy and older
+             * servers; a server which takes sensor reports gets them decoded too */
+            if (send_radia_env(caph, &data_report.rare) < 0)
                 goto spindown;
         }
 

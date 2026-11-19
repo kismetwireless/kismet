@@ -61,6 +61,7 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <net/if.h>
 #include <arpa/inet.h>
@@ -391,6 +392,12 @@ typedef struct {
     /* Last 100 ns channel set timings */
     unsigned long channel_set_ns_avg;
     unsigned int channel_set_ns_count;
+
+    /* Radio temperature from the phy's hwmon, if it has one, and when to read it
+     * next (monotonic ms) */
+    char radio_temp_path[256];
+    char radio_temp_label[64];
+    uint64_t radio_temp_next_ms;
 
 } local_wifi_t;
 
@@ -1801,6 +1808,138 @@ int build_explicit_filters(char **stringmacs, int num_macs, char **filter) {
     return num_macs;
 }
 
+/* A small sysfs file, without stdio: the capture thread can be cancelled at any
+ * point, so it shouldn't hold a FILE or allocate */
+static int read_sysfs_line(const char *path, char *buf, size_t sz) {
+    int fd;
+    ssize_t r;
+
+    if ((fd = open(path, O_RDONLY | O_CLOEXEC)) < 0)
+        return -1;
+
+    r = read(fd, buf, sz - 1);
+    close(fd);
+
+    if (r <= 0)
+        return -1;
+
+    buf[r] = 0;
+    buf[strcspn(buf, "\r\n")] = 0;
+
+    return 0;
+}
+
+/* Find the phy's hwmon temperature (mt76, ath1xk); radios without one report nothing */
+/* The first hwmonN/temp1_input under dir; 1 when found */
+static int find_radio_temp_in(local_wifi_t *local_wifi, const char *dir) {
+    char path[256], name[64];
+    DIR *d;
+    struct dirent *ent;
+    int found = 0;
+
+    if ((d = opendir(dir)) == NULL)
+        return 0;
+
+    while ((ent = readdir(d)) != NULL) {
+        if (strncmp(ent->d_name, "hwmon", 5) != 0 || strlen(ent->d_name) > 16)
+            continue;
+
+        snprintf(path, sizeof(path), "%s/%s/temp1_input", dir, ent->d_name);
+
+        if (access(path, R_OK) != 0)
+            continue;
+
+        snprintf(local_wifi->radio_temp_path, sizeof(local_wifi->radio_temp_path), "%s", path);
+
+        snprintf(path, sizeof(path), "%s/%s/name", dir, ent->d_name);
+        if (read_sysfs_line(path, name, sizeof(name)) == 0 && name[0] != 0)
+            snprintf(local_wifi->radio_temp_label, sizeof(local_wifi->radio_temp_label),
+                    "%s %s", local_wifi->base_phy, name);
+        else
+            snprintf(local_wifi->radio_temp_label, sizeof(local_wifi->radio_temp_label),
+                    "%s", local_wifi->base_phy);
+
+        found = 1;
+        break;
+    }
+
+    closedir(d);
+    return found;
+}
+
+static void find_radio_temp(local_wifi_t *local_wifi) {
+    char phydir[128];
+    size_t i, len;
+
+    local_wifi->radio_temp_path[0] = 0;
+    local_wifi->radio_temp_label[0] = 0;
+    local_wifi->radio_temp_next_ms = 0;
+
+    if (local_wifi->base_phy == NULL)
+        return;
+
+    len = strlen(local_wifi->base_phy);
+    if (len == 0 || len > 32)
+        return;
+
+    for (i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) local_wifi->base_phy[i];
+        if (!isalnum(c) && c != '_' && c != '-')
+            return;
+    }
+
+    /* mac80211 drivers register hwmon on the phy (iwlwifi, mt76); others such as
+     * ath10k register it on the underlying device */
+    snprintf(phydir, sizeof(phydir), "/sys/class/ieee80211/%s", local_wifi->base_phy);
+
+    if (find_radio_temp_in(local_wifi, phydir))
+        return;
+
+    snprintf(phydir, sizeof(phydir), "/sys/class/ieee80211/%s/device/hwmon", local_wifi->base_phy);
+
+    find_radio_temp_in(local_wifi, phydir);
+}
+
+/* Send the radio temperature if the server takes sensor reports and one is due.
+ * Called from the capture thread, between pcap reads; never from the hop path. */
+static void report_radio_temp(kis_capture_handler_t *caph, local_wifi_t *local_wifi) {
+    unsigned int interval = __atomic_load_n(&caph->env_report_ms, __ATOMIC_ACQUIRE);
+    struct timespec ts;
+    uint64_t now;
+    char buf[32];
+    char *end = NULL;
+    long mdeg;
+    cf_env_reading_t env;
+
+    if (interval == 0 || local_wifi->radio_temp_path[0] == 0)
+        return;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    now = (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
+
+    if (now < local_wifi->radio_temp_next_ms)
+        return;
+
+    local_wifi->radio_temp_next_ms = now + interval;
+
+    if (read_sysfs_line(local_wifi->radio_temp_path, buf, sizeof(buf)) < 0)
+        return;
+
+    errno = 0;
+    mdeg = strtol(buf, &end, 10);
+
+    if (errno != 0 || end == buf || *end != 0)
+        return;
+
+    memset(&env, 0, sizeof(env));
+    env.id = "radio";
+    env.kind = KIS_EXTERNAL_V3_ENV_KIND_THERMAL;
+    env.value = mdeg / 1000.0;
+    env.label = local_wifi->radio_temp_label;
+    env.ext_power = -1;
+
+    cf_send_envreport(caph, &env, 1);
+}
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid,
@@ -1891,6 +2030,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         free(local_wifi->base_phy);
         local_wifi->base_phy = NULL;
     }
+
+    local_wifi->radio_temp_path[0] = 0;
+    local_wifi->radio_temp_label[0] = 0;
+    local_wifi->radio_temp_next_ms = 0;
 
     if (local_wifi->name) {
         free(local_wifi->name);
@@ -3251,6 +3394,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->capif = strdup(local_wifi->cap_interface);
 
+    find_radio_temp(local_wifi);
+
     snprintf(errstr2, STATUS_MAX, "%s finished configuring %s/%s, ready to capture",
             local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
     cf_send_message(caph, errstr2, MSGFLAG_INFO);
@@ -3415,11 +3560,24 @@ void capture_thread(kis_capture_handler_t *caph) {
     char iferrstr[STATUS_MAX];
     int ifflags = 0, ifret;
 
-    /* Simple capture thread: since we don't care about blocking and
-     * channel control is managed by the channel hopping thread, all we have
-     * to do is enter a blocking pcap loop */
+    /* Simple capture thread: channel control is managed by the channel hopping
+     * thread, so all we have to do is read packets.  The radio temperature is read
+     * between dispatches; with TPACKET_V3 the timeout only runs once a packet arrives,
+     * so pcap_dispatch can block on a silent channel and the temperature is only sent
+     * while packets flow. */
 
-    pcap_loop(local_wifi->pd, -1, pcap_dispatch_cb, (u_char *) caph);
+    while (1) {
+        int r = pcap_dispatch(local_wifi->pd, -1, pcap_dispatch_cb, (u_char *) caph);
+
+        if (r < 0)
+            break;
+
+        /* Shutting down normally, not an interface error */
+        if (caph->spindown)
+            return;
+
+        report_radio_temp(caph, local_wifi);
+    }
 
     pcap_errstr = pcap_geterr(local_wifi->pd);
 

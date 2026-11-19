@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 #include <list>
@@ -34,6 +35,44 @@ struct kis_battery_info {
 };
 
 int fetch_battery_info(kis_battery_info *out_info);
+
+enum class kis_battery_state : uint8_t {
+    unknown = 0,
+    charging = 1,
+    discharging = 2,
+    full = 3,
+    not_charging = 4,
+};
+
+const char *kis_battery_state_str(kis_battery_state s);
+
+// One system battery from /sys/class/power_supply
+struct kis_battery_reading {
+    // power_supply name, [A-Za-z0-9_.-], at most 32 characters
+    std::string name;
+    // 0-100, -1 when unknown
+    int percentage = -1;
+    kis_battery_state state = kis_battery_state::unknown;
+    // volts, 0 when unknown
+    double voltage = 0;
+    // seconds at the present rate, 0 when unknown
+    int64_t remaining_sec = 0;
+
+    // Charge in mAh, converted from energy when needed; -1 when unknown
+    int64_t remaining_capacity = -1;
+    int64_t last_capacity = -1;
+    int64_t present_rate = -1;
+};
+
+// System batteries (type Battery, not scope Device) under a power_supply class
+// directory, sorted by name.  ext_online is 1 when a non-battery supply is online,
+// 0 when one reports offline and none online, -1 when none report.
+void fetch_linux_power_supplies(const std::string& root, std::vector<kis_battery_reading>& batteries,
+        int& ext_online);
+
+// Combine the batteries into the legacy summary
+void aggregate_battery_info(const std::vector<kis_battery_reading>& batteries, int ext_online,
+        kis_battery_info *out);
 
 #endif
 

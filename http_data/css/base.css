@@ -1506,7 +1506,39 @@ body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
     .mem-settings { grid-template-columns: max-content auto; }
 }
 
-/* Thermal window (js/widgets/thermal.js) */
+/* Environment window (js/widgets/environment.js); its sensor rows are the thermal-* ones */
+.env-bar .graph-tabs { margin: 0; }
+.env-status { flex: 1 1 auto; }
+.env-groups { display: flex; flex-direction: column; gap: 0.8rem; }
+.env-group-title { margin: 0 0 0.3rem; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+.env-group-title .link-button { font-weight: 600; overflow-wrap: anywhere; text-align: left; }
+.env-badge { background: color-mix(in srgb, var(--warn) 25%, var(--surface-2)); color: var(--text); font-weight: 500; }
+.thermal-row.env-stale .thermal-label, .thermal-row.env-stale .thermal-value:not(.muted) { color: var(--muted); }
+.thermal-row.env-stale .thermal-value.muted { color: var(--warn); }
+
+/* Overview Temperatures card: the fans and batteries listed under the graph */
+.ov-env-extra { list-style: none; margin: 0; padding: 0; flex: none; font-size: 0.82rem; }
+.ov-env-extra li { display: flex; gap: 0.5rem; justify-content: space-between; }
+.ov-env-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-env-value { flex: none; font-variant-numeric: tabular-nums; }
+
+/* "About this view" at the foot of a window (js/widgets/aboutview.js) */
+.about-view { position: sticky; bottom: -1rem; z-index: 4; margin: 0 -1rem -1rem; padding: 0.3rem 1rem 0.4rem;
+    font-size: 0.85em; color: var(--muted); border-top: 1px solid var(--border); background: var(--surface); }
+.about-view summary { cursor: pointer; width: max-content; list-style: none; }
+.about-view summary::-webkit-details-marker { display: none; }
+.about-view summary::before { content: '\25B8'; display: inline-block; margin-right: 0.4em; transition: transform 0.15s; }
+.about-view[open] summary::before { transform: rotate(-90deg); }
+.about-view > .about-view-body { position: absolute; left: 0; right: 0; bottom: 100%; max-height: 50vh; overflow: auto;
+    padding: 0.2rem 1rem 0.6rem; background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 16px rgb(0 0 0 / 0.25); }
+.about-view p, .about-view-pop p { margin: 0.4rem 0 0; line-height: 1.45; max-width: 60rem; }
+.about-anchor { position: relative; }
+.about-view-help { margin-left: auto; min-width: 2.2em; font-weight: 600; }
+.about-view-help.active { background: var(--accent-soft); border-color: var(--accent); }
+.about-view-pop { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5; max-height: 60vh; overflow-y: auto;
+    overscroll-behavior: contain; touch-action: pan-y; padding: 0.2rem 0.75rem 0.6rem; font-size: 0.85em; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
+
 .thermal-rows { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.9rem; }
 .thermal-row {
     display: grid; grid-template-columns: auto minmax(8rem, 1.6fr) minmax(4rem, auto) minmax(0, 1.4fr);

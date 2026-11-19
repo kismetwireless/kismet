@@ -287,12 +287,19 @@ TEST_DATASOURCE_PROBED_O = \
 	devicerules/dr_parse.cc.o devicerules/dr_sort.cc.o devicerules/dr_vm.cc.o \
 	gpsframer_v1.cc.o gpsnmea_v3.cc.o gpssirf_v1.cc.o gpsubx_v1.cc.o webhooks.cc.o \
 	devicerules/dr_sljit.c.o kis_datasource.cc.o kis_external.cc.o mpack/mpack.c.o \
-	version.c.o ipctracker_v2.cc.o
+	version.c.o ipctracker_v2.cc.o environment_report.cc.o
 
 # Saving and reading back the web login config; built on request, with the same objects
 TEST_HTTPD_LOGIN_CONF = test/httpd_login_conf/login_conf_test
 TEST_HTTPD_LOGIN_CONF_O = \
 	test/httpd_login_conf/login_conf_test.cc.o \
+	$(filter-out test/datasource_probed/probed_test.cc.o,$(TEST_DATASOURCE_PROBED_O))
+
+# Environmental sensors: report parser, sensor store, sysfs readers, and the capture
+# framework encoder; built on request, with the same objects
+TEST_ENVIRONMENT = test/environment/env_test
+TEST_ENVIRONMENT_O = \
+	test/environment/env_test.cc.o environment.cc.o battery.cc.o \
 	$(filter-out test/datasource_probed/probed_test.cc.o,$(TEST_DATASOURCE_PROBED_O))
 
 LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
@@ -385,7 +392,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	datasource_sniffle_ble.cc.o \
 	datasource_lorapipe.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o kis_httpd_ssl.cc.o \
-	system_monitor.cc.o \
+	system_monitor.cc.o environment.cc.o environment_report.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea_v3.cc.o gpsubx_v1.cc.o gpssirf_v1.cc.o gpsframer_v1.cc.o gpsserial_v3.cc.o gpstcp_v2.cc.o \
 	gpsgpsd_v3.cc.o gpsfake.cc.o gpsweb.cc.o gpsmeta.cc.o gpscellmodem.cc.o \
 	packetchain.cc.o packet_filter.cc.o class_filter.cc.o \
@@ -497,6 +504,9 @@ $(TEST_DATASOURCE_PROBED):	$(TEST_DATASOURCE_PROBED_O)
 
 $(TEST_HTTPD_LOGIN_CONF):	$(TEST_HTTPD_LOGIN_CONF_O)
 	$(LD) $(LDFLAGS) -o $(TEST_HTTPD_LOGIN_CONF) $(TEST_HTTPD_LOGIN_CONF_O) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
+
+$(TEST_ENVIRONMENT):	$(TEST_ENVIRONMENT_O) $(DATASOURCE_COMMON_A)
+	$(LD) $(LDFLAGS) -o $(TEST_ENVIRONMENT) $(TEST_ENVIRONMENT_O) $(DATASOURCE_COMMON_A) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) $(DATASOURCE_LIBS)
 
 diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
@@ -1096,6 +1106,7 @@ depclean:
 	@-rm -f test/cell_decisions/*.d diagspec/enrichment/cpp/lte_band.cpp.d
 	@-rm -f test/randomized_alias/*.d test/btle_corotation/*.d test/btle_related/*.d
 	@-rm -f test/btle_expire/*.d
+	@-rm -f test/environment/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -1114,6 +1125,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/device_rules/*.o $(TEST_DEVICE_RULES)
 	@-rm -f test/datasource_probed/*.o $(TEST_DATASOURCE_PROBED)
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
+	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1237,6 +1249,7 @@ include $(wildcard $(patsubst %.o,%.d,$(TEST_BTLE_EXPIRE_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DEVICE_RULES_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DATASOURCE_PROBED_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_HTTPD_LOGIN_CONF_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_ENVIRONMENT_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))

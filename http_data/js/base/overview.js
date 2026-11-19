@@ -2,7 +2,7 @@
 // device counts, activity, packet rates, what kinds of device are around, Wi-Fi security, manufacturers,
 // new arrivals, signal strength, the busiest channels, alerts, the top
 // talkers, the data sources, and the server's CPU load, memory and
-// temperatures.
+// environment (temperatures, and optionally fans and batteries).
 
 const base = 'kismet.device.base';
 
@@ -636,58 +636,101 @@ export function register(kismet) {
         },
     });
 
-    // The sensors the Thermal window graphs: the ones picked there, or the hottest few
-    const th = 'kismet.system.thermal';
-    const sn = 'kismet.system.thermal.sensor';
+    // The sensors the Environment window graphs: the ones picked there, or the hottest few;
+    // fans and batteries can be listed under them
     const thermalShown = 4;
-    const staleSeconds = 10;
+    const envSources = (data) => (Array.isArray(data.sources) ? new Map(data.sources
+        .filter((s) => widgets.envdata.validUuid(s['kismet.datasource.uuid']))
+        .map((s) => [s['kismet.datasource.uuid'].toUpperCase(),
+            { name: String(s['kismet.datasource.name'] ?? ''), running: !!s['kismet.datasource.running'] }])) : null);
 
     ui.dashboardCards.add({
-        id: 'thermal', title: 'Temperatures', loading: ['stat', 'tabs', 'graph'], priority: 130, w: 4, h: 6, needs: ['thermal'],
-        onClick: () => widgets.thermal.openThermal(),
-        create(body) {
+        // The id is from when it was the Temperatures card, so saved layouts keep it
+        id: 'thermal', title: 'Environment', loading: ['stat', 'tabs', 'graph'], priority: 130, w: 4, h: 6,
+        needs: ['thermal', 'environment_current', 'sources'],
+        description: 'Temperatures of the Kismet server and its data sources; fans and batteries can be listed too.',
+        settings: [
+            { id: 'fans', title: 'List fans', type: 'bool', default: false },
+            { id: 'battery', title: 'List batteries', type: 'bool', default: false },
+        ],
+        onClick: () => widgets.environment.openEnvironment('thermal'),
+        create(body, { settings: cs }) {
+            const { envdata, environment } = widgets;
             const hot = stat('hottest sensor');
             const tabs = spanTabs('thermal', () => draw());
             const graph = historyGraph({ type: 'line', height: null, joinGaps: true,
                 fmt: (v) => Number.isFinite(v) ? `${v.toFixed(1)}${format.tempUnit()}` : '-' });
             const bars = barList({ fmt: (v) => format.temperature(v), empty: '' });
+            const extra = el('ul', { class: 'ov-env-extra', hidden: true });
             const note = el('div', { class: 'muted ov-note' });
-            body.append(hot.node, tabs.node, graph.node, bars.node, note);
+            body.append(hot.node, tabs.node, graph.node, bars.node, extra, note);
             let last = null;
             let sensors = [];
-            const history = () => !!last?.thermal?.[`${th}.history`];
+            let history = false;
+            const kinds = ['fan', 'battery'].filter((k) => cs.get(k === 'fan' ? 'fans' : 'battery'));
+            // Fewer lines by default when fans or batteries take some of the room
+            const shown = kinds.length ? 2 : thermalShown;
             function draw() {
-                if (!history() || !sensors.length)
+                if (!history || !sensors.length)
                     return;
-                graph.draw(sensors.map((s, i) => ({ label: s.label, color: series(i),
+                const mixed = new Set(sensors.map((s) => s.source)).size > 1;
+                graph.draw(sensors.map((s, i) => ({ label: mixed ? envdata.fullLabel(s) : s.label, color: series(i),
                     values: past(s.rrd, last.now, tabs.span).map((v) => Number.isFinite(v) ? format.tempValue(v) : NaN) })),
                 spanLabels[tabs.span]);
+            }
+            // The fans and batteries asked for: a line each, for the slowest fan and the lowest battery
+            function drawExtra(all, sources, ref, limit) {
+                const items = kinds.map((k) => {
+                    const list = all.filter((s) => s.kind === k && !envdata.stale(s, ref, sources, limit))
+                        .sort((a, b) => a.value - b.value);
+                    if (!list.length)
+                        return el('li', { class: 'muted' }, k === 'fan' ? 'No fans' : 'No batteries');
+                    const s = list[0];
+                    const what = k === 'fan' ? (list.length > 1 ? `Slowest of ${list.length} fans` : 'Fan') :
+                        (list.length > 1 ? `Lowest of ${list.length} batteries` : 'Battery');
+                    const detail = k === 'battery' ? envdata.batteryState(s.battery).toLowerCase() : '';
+                    return el('li', { title: `${what}: ${envdata.fullLabel(s)}` },
+                        el('span', { class: 'ov-env-label' }, `${what}: ${envdata.fullLabel(s)}`),
+                        el('span', { class: 'ov-env-value' }, environment.valueText(k, s.value) + (detail ? `, ${detail}` : '')));
+                });
+                extra.replaceChildren(...items);
+                extra.hidden = !items.length;
             }
             return {
                 update(data) {
                     last = data;
-                    const all = Object.values(data.thermal?.[`${th}.sensors`] ?? {}).map((s) => ({
-                        name: s[`${sn}.name`], label: s[`${sn}.label`] || s[`${sn}.name`], temp: s[`${sn}.temp`],
-                        rrd: s[`${sn}.rrd`], live: data.now - (s[`${sn}.last_time`] ?? 0) <= staleSeconds,
-                    }));
-                    const live = all.filter((s) => s.live && Number.isFinite(s.temp)).sort((a, b) => b.temp - a.temp);
+                    const sources = envSources(data);
+                    // Temperatures with their history from /system/thermal; every sensor's
+                    // current value, and how often data sources report, from environment_current
+                    const env = data.environment_current;
+                    const all = envdata.sensors(env);
+                    const temps = env ? envdata.sensors(data.thermal) : [];
+                    history = !!data.thermal?.['kismet.system.environment.history'];
+                    const limit = envdata.sourceStaleSeconds(env);
+                    // Ages on the server's clock when it answered, so a slow reply doesn't age every reading
+                    const ref = envdata.servedAt(temps) || data.now;
+                    const live = temps.filter((s) => !envdata.stale(s, ref, sources, limit)).sort((a, b) => b.value - a.value);
                     const picked = new Set(kismet.settings.get('thermal.graphed', []));
-                    const chosen = all.filter((s) => picked.has(s.name));
-                    sensors = chosen.length ? chosen : live.slice(0, thermalShown);
+                    const chosen = temps.filter((s) => picked.has(s.id));
+                    sensors = chosen.length ? chosen : live.slice(0, shown);
 
-                    hot.update(live.length ? format.temperature(live[0].temp) : '---',
-                        live.length ? `hottest: ${live[0].label}` : 'hottest sensor');
+                    hot.update(live.length ? format.temperature(live[0].value) : '---',
+                        live.length ? `hottest: ${envdata.fullLabel(live[0])}` : 'hottest sensor');
                     // Without history, the current readings instead of a graph
-                    const graphed = history() && sensors.length > 0;
+                    const graphed = history && sensors.length > 0;
                     graph.node.hidden = !graphed;
                     tabs.node.hidden = !graphed;
                     bars.node.hidden = graphed || !live.length;
                     if (!graphed)
-                        bars.update(live.slice(0, thermalShown).map((s, i) => ({ id: s.name, label: s.label, value: s.temp,
-                            color: series(i) })));
-                    note.textContent = !data.thermal ? 'This server doesn\'t report temperatures' :
-                        !all.length ? 'The server has no temperature sensors it can read' :
-                            graphed ? '' : 'No history; set system_thermal_history=true for graphs';
+                        bars.update(live.slice(0, shown).map((s, i) => ({ id: s.id, label: envdata.fullLabel(s),
+                            value: s.value, color: series(i) })));
+                    if (env)
+                        drawExtra(all, sources, envdata.servedAt(all) || data.now, limit);
+                    else
+                        extra.hidden = true;
+                    note.textContent = !env ? 'This server doesn\'t report environmental sensors' :
+                        !temps.length ? 'Neither the server nor its data sources report a temperature' :
+                            graphed ? '' : 'No history; set environment_history=true for graphs';
                     note.hidden = !note.textContent;
                     draw();
                 },

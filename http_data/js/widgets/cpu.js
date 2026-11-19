@@ -15,7 +15,7 @@ import * as settings from '../core/settings.js';
 import { dialog } from './dialog.js';
 import { historyGraph } from './historygraph.js';
 import { series } from './charts.js';
-import { openThermal } from './thermal.js';
+import { openEnvironment } from './environment.js';
 
 const cpu = 'kismet.system.cpu';
 
@@ -89,7 +89,7 @@ export function openCpu() {
                 read();
             }), status,
             el('button', { type: 'button', class: 'link-button pk-channels', title: 'Temperatures and CPU load',
-                onclick: () => openThermal() }, 'Thermal')),
+                onclick: () => openEnvironment('thermal') }, 'Temperatures')),
         stats,
         empty,
         graphSection);
