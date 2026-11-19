@@ -276,6 +276,9 @@ public:
     // device write-locked, so it must lock neither.  Returns how many were forgotten.
     size_t expire_devices(const std::function<bool(kis_tracked_device_base&)>& pred);
 
+    // Forget one device if pred picks it; pred runs as above.  Call holding no device lock.
+    bool expire_device(const device_key& key, const std::function<bool(kis_tracked_device_base&)>& pred);
+
     // Limits on tags set through the API
     static constexpr size_t max_tag_name = 256;
     static constexpr size_t max_tag_value = 65536;
@@ -338,6 +341,9 @@ public:
 
     // Get phy views
     std::shared_ptr<device_tracker_view> get_phy_view(int in_phy);
+
+    // Devices tracked for a phy, whether or not phy views are kept; takes the device list lock
+    size_t count_phy_devices(int in_phy);
 
     // Get a cached simple type, such as "Wi-Fi" or "BTLE", which logs and filters work on;
     // use this to de-dup thousands of devices of the same types.
@@ -493,6 +499,9 @@ protected:
 
 	// Tracked devices
     device_map_t tracked_map;
+
+    // Entries of tracked_map per phy id; changed with it, under the device list lock
+    ankerl::unordered_dense::map<int, size_t> phy_device_counts;
 
     // MAC address lookups are incredibly expensive from the webui if we don't
     // track by map; in theory multiple objects in different PHYs could have the
