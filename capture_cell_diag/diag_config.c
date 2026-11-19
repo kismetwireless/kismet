@@ -42,11 +42,11 @@
 #define LOG_CFG_BITSIZES_OFFSET  12
 
 /* Target log codes. The eight cell codes are equipment id 0xB (item = code &
- * 0xFFF), so they subscribe within one type-0xB SET_MASK; the two GNSS codes
- * are type-1 (0x1476 >> 12 == 1), so the mask now spans two log types and
+ * 0xFFF), so they subscribe within one type-0xB SET_MASK; the GNSS code is
+ * type-1 (0x1476 >> 12 == 1), so the mask spans two log types and
  * apply_mask_struct emits a SET_MASK for type-1 as well as type-0xB. On an
  * LTE-only / GNSS-off modem that advertises no type-1 range, filter_supported
- * drops the GNSS codes and the cell subset still arms.
+ * drops the GNSS code and the cell subset still arms.
  *   0xB193 LTE ML1 serving cell measurement (signal).
  *   0xB0C0 LTE RRC OTA, carries SIB1 -> full cell identity (MCC/MNC/TAC/CellID).
  *   0xB192 LTE ML1 idle-mode neighbor cells (PCI/EARFCN; energy, not dBm).
@@ -78,29 +78,19 @@
  *   0x1476 GNSS Position Report (lat/lon/alt + GPS UTC). The position source;
  *          item 0x476 = 1142 -> byte 142 bit 6. Layout confirmed against F3
  *          prints.
- *   0x14D8 GNSS ME Position Fix -- NOT a position source. Item 0x4D8 = 1240
- *          -> byte 155 bit 0 (the highest item in the set; a modem's type-1
- *          range must advertise past 1240 for it to subscribe).
  *
- *          It is not a backup GPS source either. Its lat/lon/alt bytes
- *          [+20..+43] are not populated by any known firmware, so they read
- *          0.0, which fails the 1 < |lat| < 90 validity gate: a 0x14D8 record
- *          can never yield a fix; the 0x1476 records are the entire GNSS
- *          position yield.
- *
- *          It stays in the mask as a GNSS engine-liveness signal: records
- *          arriving from it while 0x1476 produces no fix distinguish "the GNSS
- *          engine is running and has no sky view" from "GNSS is off / not
- *          subscribed". Those two states are otherwise indistinguishable at
- *          this layer, since both present as zero positions. The per-code
- *          census reports it as `decoded=N emitted=0 silent=true`, which is
- *          the liveness reading. Volume is ~1% of the stream.
- *
- *          The `0x14d8 kept for liveness, not position` selftest below pins
- *          this, so anyone removing "the dead GNSS code" reads this first. */
+ * 0x14D8 is intentionally omitted. It is the thermal monitor log: each record
+ * is one temperature-sensor reading (a sensor name and its temperature), not
+ * a GNSS record. It used to be kept as a "GNSS engine liveness" signal, but
+ * thermal records arrive whether the GNSS engine runs or not, so they cannot
+ * tell "engine running, no sky view" from "GNSS off". On SDX62/SDX72 parts it
+ * is also the loudest code in the set: one 84-byte record per sensor per
+ * poll, about 97% of a wardrive-mask stream on one SDX72 unit. The `0x14d8
+ * not in the wardrive set` selftest below pins this. mask=full still
+ * subscribes it, and the census counts it there. */
 const uint16_t DIAG_TARGET_CODES[] = {
     0xB193, 0xB0C0, 0xB192, 0xB195, 0xB17F, 0xB197, 0xB821, 0xB97F,
-    0x1476, 0x14D8 };
+    0x1476 };
 const size_t DIAG_TARGET_CODES_COUNT =
     sizeof(DIAG_TARGET_CODES) / sizeof(DIAG_TARGET_CODES[0]);
 
@@ -920,32 +910,33 @@ int main(void) {
         check(diag_config_narrow_mask(bad, 1, &m) == -1, "empty type rejected");
     }
 
-    check(DIAG_TARGET_CODES_COUNT == 10 && DIAG_TARGET_CODES[0] == 0xB193 &&
+    check(DIAG_TARGET_CODES_COUNT == 9 && DIAG_TARGET_CODES[0] == 0xB193 &&
               DIAG_TARGET_CODES[1] == 0xB0C0 && DIAG_TARGET_CODES[2] == 0xB192 &&
               DIAG_TARGET_CODES[3] == 0xB195 && DIAG_TARGET_CODES[4] == 0xB17F &&
               DIAG_TARGET_CODES[5] == 0xB197 &&
               DIAG_TARGET_CODES[6] == 0xB821 && DIAG_TARGET_CODES[7] == 0xB97F &&
-              DIAG_TARGET_CODES[8] == 0x1476 && DIAG_TARGET_CODES[9] == 0x14D8,
-          "target codes == {8 cell type-0xB} + {0x1476,0x14D8 GNSS type-1}");
+              DIAG_TARGET_CODES[8] == 0x1476,
+          "target codes == {8 cell type-0xB} + {0x1476 GNSS type-1}");
 
-    /* 0x14D8 stays in the mask, but not as a backup GPS source (parse_0x14d8
-     * hardcodes lat/lon/alt to 0.0, so it never yields a fix). It is kept as a
-     * GNSS engine-liveness signal: its records distinguish "engine running, no
-     * sky view" from "GNSS off", two states that otherwise both present as
-     * zero positions.
-     *
-     * This check exists because the natural cleanup is to delete the code. An
-     * assertion that only counts codes would pass whichever GNSS code was
-     * dropped, so the identity is asserted alongside the ordering that puts
-     * 0x14D8 last, and the message names the reason. */
-    check(DIAG_TARGET_CODES[9] == 0x14D8 && DIAG_TARGET_CODES[8] == 0x1476,
-          "0x14d8 kept for liveness, not position; 0x1476 is the only "
-          "position source");
+    /* 0x14D8 is the thermal monitor log, not a GNSS record, and its records
+     * arrive whether GNSS runs or not, so it is no liveness signal either. On
+     * SDX62/SDX72 it floods the stream. This check exists because the old
+     * comment invited putting it back as "GNSS liveness"; the message names
+     * the reason. */
+    {
+        size_t j;
+        int has_14d8 = 0;
+        for (j = 0; j < DIAG_TARGET_CODES_COUNT; j++)
+            if (DIAG_TARGET_CODES[j] == 0x14D8)
+                has_14d8 = 1;
+        check(!has_14d8, "0x14d8 not in the wardrive set: it is the thermal "
+                         "monitor log, not GNSS liveness");
+    }
 
     /* Full target set mask math. The cell codes are type-0xB, incl. the high-
      * item NR codes 0xB821 (item 0x821 = 2081 -> byte 260, bit 1) and 0xB97F
      * (item 0x97F = 2431 -> byte 303, bit 7); needs a type-0xB range past 2431.
-     * The GNSS codes are type-1, so the same call now populates a second log
+     * The GNSS code is type-1, so the same call also populates a second log
      * type -- exercising the multi-type narrow-mask path.
      *   type 0xB:
      *     0xB0C0 item 192 -> byte 24 bit 0 (0x01)
@@ -957,8 +948,7 @@ int main(void) {
      *     0xB821 item 2081 -> byte 260 bit 1 (0x02)
      *     0xB97F item 2431 -> byte 303 bit 7 (0x80)
      *   type 0x1:
-     *     0x1476 item 1142 -> byte 142 bit 6 (0x40)
-     *     0x14D8 item 1240 -> byte 155 bit 0 (0x01) */
+     *     0x1476 item 1142 -> byte 142 bit 6 (0x40) */
     {
         memset(&m, 0, sizeof(m));
         m.bitsizes[0xB] = 4096;
@@ -978,9 +968,8 @@ int main(void) {
         /* type-1 GNSS leg */
         check(m.mask_len[0x1] == 512, "type 0x1 mask len == 512 (bitsize 4096)");
         check(m.mask[0x1][142] == 0x40, "byte 142 == 0x40 (0x1476)");
-        check(m.mask[0x1][155] == 0x01, "byte 155 == 0x01 (0x14D8)");
         for (i = 0; i < DIAG_MAX_MASK_BYTES; i++)
-            if (i != 142 && i != 155)
+            if (i != 142)
                 check(m.mask[0x1][i] == 0, "no stray bits set (type 0x1)");
     }
 
@@ -1260,7 +1249,7 @@ int main(void) {
     /* filter_supported: keep only codes the modem advertises. Models the
      * live EG25-G (LTE-only MDM9607) where type 0xB advertises 513 codes and no
      * type-1 range: the LTE codes survive; the NR codes 0xB821 (item 2081) /
-     * 0xB97F (item 2431) drop, and so do the type-1 GNSS codes. */
+     * 0xB97F (item 2431) drop, and so does the type-1 GNSS code. */
     {
         uint32_t bits[DIAG_LOG_TYPES];
         uint16_t out[DIAG_MAX_TARGET_CODES];
@@ -1270,22 +1259,22 @@ int main(void) {
         k = diag_config_filter_supported(DIAG_TARGET_CODES,
                                          DIAG_TARGET_CODES_COUNT, bits,
                                          out, DIAG_MAX_TARGET_CODES);
-        check(k == 6, "filter keeps 6 LTE codes, drops 2 NR + 2 GNSS");
+        check(k == 6, "filter keeps 6 LTE codes, drops 2 NR + 1 GNSS");
         check(out[0] == 0xB193 && out[1] == 0xB0C0 && out[2] == 0xB192 &&
                   out[3] == 0xB195 && out[4] == 0xB17F && out[5] == 0xB197,
               "filter kept the LTE codes in order");
         /* Fully-capable modem: NR range past 2431 AND a type-1 GNSS range past
-         * 1240 -> all 10 survive (the 8 cell codes + both GNSS codes). */
+         * 1142 -> all 9 survive (the 8 cell codes + the GNSS code). */
         memset(bits, 0, sizeof(bits));
         bits[0xB] = 2559;  /* LM960 SDX24 advertised range */
-        bits[0x1] = 1280;  /* type-1 range past item 0x4D8 = 1240 */
+        bits[0x1] = 1280;  /* type-1 range past item 0x476 = 1142 */
         k = diag_config_filter_supported(DIAG_TARGET_CODES,
                                          DIAG_TARGET_CODES_COUNT, bits,
                                          out, DIAG_MAX_TARGET_CODES);
         check(k == DIAG_TARGET_CODES_COUNT,
-              "fully-capable modem keeps all 10 (8 cell + 2 GNSS)");
-        check(out[8] == 0x1476 && out[9] == 0x14D8,
-              "filter kept the GNSS codes after the cell codes");
+              "fully-capable modem keeps all 9 (8 cell + 1 GNSS)");
+        check(out[8] == 0x1476,
+              "filter kept the GNSS code after the cell codes");
         /* A type advertising nothing drops all its codes; outcap is honored. */
         memset(bits, 0, sizeof(bits));  /* every type bitsize 0 */
         k = diag_config_filter_supported(DIAG_TARGET_CODES,
