@@ -20,6 +20,7 @@
 
 #include "kis_datasource.h"
 #include "configfile.h"
+#include "environment_report.h"
 #include "datasourcetracker.h"
 #include "entrytracker.h"
 #include "alertracker.h"
@@ -1470,9 +1471,41 @@ bool kis_datasource::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambu
         case KIS_EXTERNAL_V3_KDS_HOPREPORT:
             handle_packet_hop_report_v3(seqno, code, content);
             return true;
+        case KIS_EXTERNAL_V3_KDS_ENVREPORT:
+            handle_packet_env_report_v3(seqno, code, content);
+            return true;
     }
 
     return false;
+}
+
+void kis_datasource::handle_packet_env_report_v3(uint32_t in_seqno, uint16_t code,
+        const std::string_view& in_packet) {
+    auto sink = Globalreg::fetch_global_as<env_report_sink>();
+
+    if (sink == nullptr)
+        return;
+
+    // Only after asking for them; old servers drop them just the same
+    if (env_report_ms == 0) {
+        sink->env_source_report_dropped();
+        return;
+    }
+
+    env_report report;
+    std::string err;
+
+    // Parsed without any lock held; the sink takes its own
+    if (!env_report_parse(in_packet, report, err)) {
+        sink->env_source_report_dropped();
+
+        if (!env_report_warned.exchange(true))
+            _MSG_ERROR("Source '{}' sent a malformed sensor report ({}); further malformed "
+                    "reports are counted without logging", get_source_name(), err);
+        return;
+    }
+
+    sink->env_source_report(get_source_uuid(), get_source_name(), report);
 }
 
 void kis_datasource::handle_packet_timesync_req_v3(uint32_t in_seqno, uint64_t in_rx_ns,
@@ -3102,6 +3135,15 @@ unsigned int kis_datasource::send_open_source_v3(const std::string& in_definitio
 
     mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_DEFINITION);
     mpack_write_cstr(&writer, in_definition.c_str());
+
+    // Ask for sensor reports only when the server takes them; never as 0
+    auto env_sink = Globalreg::fetch_global_as<env_report_sink>();
+    const uint32_t env_ms = env_sink != nullptr ? env_sink->env_source_report_ms() : 0;
+    env_report_ms = env_ms;
+    if (env_ms > 0) {
+        mpack_write_u16(&writer, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_ENV_REPORT_MS);
+        mpack_write_u32(&writer, env_ms);
+    }
 
     mpack_complete_map(&writer);
 

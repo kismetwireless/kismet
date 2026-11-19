@@ -43,6 +43,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <time.h>
+#include <math.h>
 
 #ifdef HAVE_CAPABILITY
 #include <sys/capability.h>
@@ -655,6 +656,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->hop_sync = 0;
     ch->hop_sync_epoch_ns = 0;
     ch->hop_report_ms = 0;
+    ch->env_report_ms = 0;
+    ch->env_last_report_ms = 0;
     ch->hop_clock = (struct cf_hop_clock *) calloc(1, sizeof(struct cf_hop_clock));
     ch->hop_timing = (struct cf_hop_timing *) calloc(1, sizeof(struct cf_hop_timing));
     ch->switch_windows =
@@ -887,6 +890,7 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&(caph->handler_lock));
     caph->spindown = 1;
+    __atomic_store_n(&caph->env_report_ms, 0, __ATOMIC_RELEASE);
     pthread_mutex_unlock(&(caph->handler_lock));
 
     cf_handler_wake_loop(caph);
@@ -2111,6 +2115,201 @@ static uint64_t cf_hop_report_step(kis_capture_handler_t *caph, uint64_t now) {
     return t->next_report_ns;
 }
 
+/* The same checks the server makes, so a reading it would skip isn't sent */
+static int cf_env_reading_valid(const cf_env_reading_t *r) {
+    size_t i, len;
+
+    if (r->id == NULL)
+        return 0;
+
+    len = strnlen(r->id, 33);
+
+    if (len == 0 || len > 32 || r->id[0] == '.')
+        return 0;
+
+    for (i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) r->id[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+                    c == '_' || c == '.' || c == '-'))
+            return 0;
+    }
+
+    if (!isfinite(r->value))
+        return 0;
+
+    switch (r->kind) {
+        case KIS_EXTERNAL_V3_ENV_KIND_THERMAL:
+            return r->value >= -100.0 && r->value <= 400.0;
+        case KIS_EXTERNAL_V3_ENV_KIND_FAN:
+            return r->value >= 0.0 && r->value <= 1000000.0;
+        case KIS_EXTERNAL_V3_ENV_KIND_BATTERY:
+            return r->value >= 0.0 && r->value <= 100.5;
+    }
+
+    return 0;
+}
+
+size_t cf_env_estimate_len(size_t n) {
+    if (n > KIS_EXTERNAL_V3_ENV_MAX_READINGS)
+        n = KIS_EXTERNAL_V3_ENV_MAX_READINGS;
+
+    /* map and timestamps, then per reading: the map, the 32 byte id, the 64 byte
+     * label, and the numbers, with slop */
+    return 32 + n * 192;
+}
+
+ssize_t cf_env_encode(char *buf, size_t buf_sz, const cf_env_reading_t *readings, size_t n,
+        const struct timeval *ts) {
+    mpack_writer_t writer;
+    size_t i, nvalid = 0, written = 0, len;
+    const cf_env_reading_t *r;
+
+    if (readings == NULL)
+        return 0;
+
+    for (i = 0; i < n && nvalid < KIS_EXTERNAL_V3_ENV_MAX_READINGS; i++)
+        if (cf_env_reading_valid(&readings[i]))
+            nvalid++;
+
+    if (nvalid == 0)
+        return 0;
+
+    mpack_writer_init(&writer, buf, buf_sz);
+    mpack_build_map(&writer);
+
+    mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_ENVREPORT_FIELD_SENSORS);
+    mpack_build_array(&writer);
+
+    for (i = 0; i < n && written < nvalid; i++) {
+        r = &readings[i];
+
+        if (!cf_env_reading_valid(r))
+            continue;
+
+        written++;
+
+        mpack_build_map(&writer);
+
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_ID);
+        mpack_write_str(&writer, r->id, (uint32_t) strnlen(r->id, 32));
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_KIND);
+        mpack_write_u8(&writer, (uint8_t) r->kind);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_VALUE);
+        mpack_write_double(&writer, r->value);
+
+        if (r->label != NULL && (len = strnlen(r->label, 64)) > 0) {
+            mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_LABEL);
+            mpack_write_str(&writer, r->label, (uint32_t) len);
+        }
+
+        if (r->kind == KIS_EXTERNAL_V3_ENV_KIND_BATTERY) {
+            if (r->batt_state <= KIS_EXTERNAL_V3_ENV_BATT_NOT_CHARGING) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_BATT_STATE);
+                mpack_write_u8(&writer, (uint8_t) r->batt_state);
+            }
+
+            if (r->ext_power == 0 || r->ext_power == 1) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_EXT_POWER);
+                mpack_write_bool(&writer, r->ext_power == 1);
+            }
+
+            if (isfinite(r->voltage) && r->voltage > 0.0 && r->voltage <= 100.0) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_VOLTAGE);
+                mpack_write_float(&writer, (float) r->voltage);
+            }
+
+            if (r->remaining_s > 0 && r->remaining_s <= 30 * 24 * 60 * 60) {
+                mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_ENV_FIELD_REMAINING_S);
+                mpack_write_u32(&writer, r->remaining_s);
+            }
+        }
+
+        mpack_complete_map(&writer);
+    }
+
+    mpack_complete_array(&writer);
+
+    if (ts != NULL) {
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_ENVREPORT_FIELD_TS_S);
+        mpack_write_u64(&writer, (uint64_t) ts->tv_sec);
+        mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_ENVREPORT_FIELD_TS_US);
+        mpack_write_u32(&writer, (uint32_t) ts->tv_usec);
+    }
+
+    mpack_complete_map(&writer);
+
+    len = mpack_writer_buffer_used(&writer);
+
+    if (mpack_writer_destroy(&writer) != mpack_ok)
+        return -1;
+
+    return (ssize_t) len;
+}
+
+int cf_send_envreport(kis_capture_handler_t *caph, const cf_env_reading_t *readings, size_t n) {
+    unsigned int interval;
+    uint64_t now, last;
+    size_t est_len;
+    ssize_t final_len;
+    struct timeval tv;
+    cf_frame_metadata *meta;
+    int r;
+
+    if (caph == NULL || readings == NULL || n == 0)
+        return 0;
+
+    interval = __atomic_load_n(&caph->env_report_ms, __ATOMIC_ACQUIRE);
+
+    if (interval == 0)
+        return 0;
+
+    /* Lock-free: capture threads can be cancelled at any point, so this must not
+     * hold a lock of its own.  Claim the slot first; give it back if nothing went. */
+    now = cf_mono_ms();
+    last = __atomic_load_n(&caph->env_last_report_ms, __ATOMIC_ACQUIRE);
+
+    /* Another thread can claim a later slot between our clock read and load */
+    if (last != 0 && (now < last || now - last < interval))
+        return 0;
+
+    if (!__atomic_compare_exchange_n(&caph->env_last_report_ms, &last, now, 0,
+                __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+        return 0;
+
+    if (n > KIS_EXTERNAL_V3_ENV_MAX_READINGS * 4)
+        n = KIS_EXTERNAL_V3_ENV_MAX_READINGS * 4;
+
+    est_len = cf_env_estimate_len(n);
+    gettimeofday(&tv, NULL);
+
+    meta = cf_prepare_packet(caph, KIS_EXTERNAL_V3_KDS_ENVREPORT, cf_get_next_seqno(caph), 0, est_len);
+
+    if (meta == NULL) {
+        __atomic_compare_exchange_n(&caph->env_last_report_ms, &now, last, 0,
+                __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+        return 0;
+    }
+
+    final_len = cf_env_encode((char *) meta->frame->data, est_len, readings, n, &tv);
+
+    if (final_len <= 0) {
+        cf_cancel_packet(caph, meta);
+        __atomic_compare_exchange_n(&caph->env_last_report_ms, &now, last, 0,
+                __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+
+        if (final_len < 0) {
+            fprintf(stderr, "ERROR: Mpack couldn't serialize ENVREPORT\n");
+            return -1;
+        }
+
+        return 0;
+    }
+
+    r = cf_commit_packet(caph, meta, (size_t) final_len);
+
+    return r < 0 ? -1 : r;
+}
+
 static unsigned int cf_chan_band(kis_capture_handler_t *caph, void *privchan) {
     if (caph->chanband_cb == NULL || privchan == NULL)
         return 0;
@@ -2889,6 +3088,28 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             uint32_t dlt;
+
+            /* Only a server which takes sensor reports asks for them; a bad value
+             * leaves them off rather than failing the open */
+            {
+                uint32_t env_ms = 0;
+                mpack_node_t env_n =
+                    mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREQ_FIELD_ENV_REPORT_MS);
+
+                if (!mpack_node_is_missing(env_n) && mpack_node_type(env_n) == mpack_type_uint) {
+                    env_ms = mpack_node_u32(env_n);
+
+                    if (mpack_tree_error(&tree) != mpack_ok)
+                        env_ms = 0;
+                    else if (env_ms != 0 && env_ms < 1000)
+                        env_ms = 1000;
+                    else if (env_ms > 3600000)
+                        env_ms = 3600000;
+                }
+
+                __atomic_store_n(&caph->env_last_report_ms, 0, __ATOMIC_RELEASE);
+                __atomic_store_n(&caph->env_report_ms, env_ms, __ATOMIC_RELEASE);
+            }
 
             msgstr[0] = 0;
             cbret = (*(caph->open_cb))(caph, seqno, definition,

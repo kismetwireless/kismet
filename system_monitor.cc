@@ -20,7 +20,9 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <memory>
+#include <unordered_set>
 
 #include <fstream>
 #include <unistd.h>
@@ -70,8 +72,6 @@ Systemmonitor::Systemmonitor() :
     // Get the bytes per page
     mem_per_page = sysconf(_SC_PAGESIZE);
 #endif
-
-    timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 
     // No longer include the link to the devicetracker rrd since it's not protected under our
     // mutex here
@@ -212,16 +212,31 @@ Systemmonitor::Systemmonitor() :
     sensors_init(NULL);
 #endif
 
-    thermal_sensor_id =
-        Globalreg::globalreg->entrytracker->register_field("kismet.system.thermal.sensor",
-                tracker_element_factory<tracked_thermal_sensor>(), "temperature sensor");
+    // The system_thermal_ options are the old names of the first two
+    auto conf = Globalreg::globalreg->kismet_config;
+    env_store_config envconf;
+    envconf.history = conf->fetch_opt_bool("environment_history",
+            conf->fetch_opt_bool("system_thermal_history", true));
+    envconf.host_max_sensors =
+        std::clamp(conf->fetch_opt_as<unsigned int>("environment_max_sensors",
+                    conf->fetch_opt_as<unsigned int>("system_thermal_max_sensors", 32)), 1U, 1024U);
+    envconf.source_max_sensors =
+        std::clamp(conf->fetch_opt_as<unsigned int>("environment_source_max_sensors", 8), 0U, 32U);
+    envconf.source_total_max = 256;
+    envconf.report_ms =
+        std::clamp(conf->fetch_opt_as<unsigned int>("environment_source_report_sec", 5), 1U, 3600U) * 1000;
 
-    thermal = std::make_shared<tracked_thermal_status>();
-    thermal_history = Globalreg::globalreg->kismet_config->fetch_opt_bool("system_thermal_history", true);
-    thermal_max_sensors =
-        std::clamp(Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("system_thermal_max_sensors", 32),
-                1U, 1024U);
-    thermal->set_history(thermal_history);
+    env_report_ms = envconf.source_max_sensors > 0 ? envconf.report_ms : 0;
+
+    environment = std::make_unique<environment_store>(envconf);
+
+    {
+        // Batteries and sensors are there to read from the first request on
+        host_env_scan scan;
+        scan_host_environment(scan);
+        kis_lock_guard<kis_mutex> lk(monitor_mutex, "system monitor startup sensors");
+        record_host_environment(scan);
+    }
 
     cpustatus = std::make_shared<tracked_cpu_status>();
     cpustatus->insert(status->get_tracker_cpu_available());
@@ -253,8 +268,25 @@ Systemmonitor::Systemmonitor() :
             }, monitor_mutex);
     httpd->register_route("/system/memory", {"GET", "POST"}, httpd->RO_ROLE, {}, memory_endp);
 
-    thermal_endp = std::make_shared<kis_net_web_tracked_endpoint>(thermal, monitor_mutex);
+    environment_endp = std::make_shared<kis_net_web_tracked_endpoint>(environment->get_status(), monitor_mutex);
+    httpd->register_route("/system/environment", {"GET", "POST"}, httpd->RO_ROLE, {}, environment_endp);
+
+    // The same records, thermal sensors only
+    thermal_endp = std::make_shared<kis_net_web_tracked_endpoint>(
+            [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
+                return environment->thermal_view();
+            }, monitor_mutex);
     httpd->register_route("/system/thermal", {"GET", "POST"}, httpd->RO_ROLE, {}, thermal_endp);
+
+    // Current values without the history, copied under the monitor lock and
+    // serialized after it is released; the endpoint lock is its own
+    environment_current_endp = std::make_shared<kis_net_web_tracked_endpoint>(
+            [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
+                kis_lock_guard<kis_mutex> lk(monitor_mutex, "system monitor environment current");
+                return environment->current();
+            });
+    httpd->register_route("/system/environment_current", {"GET", "POST"}, httpd->RO_ROLE, {},
+            environment_current_endp);
 
     cpu_endp = std::make_shared<kis_net_web_tracked_endpoint>(cpustatus, monitor_mutex);
     httpd->register_route("/system/cpu", {"GET", "POST"}, httpd->RO_ROLE, {}, cpu_endp);
@@ -289,16 +321,30 @@ Systemmonitor::Systemmonitor() :
                         if (kismetdb == nullptr)
                             return 1;
 
-                        kis_lock_guard<kis_mutex> lk(monitor_mutex);
-
                         struct timeval tv;
                         gettimeofday(&tv, nullptr);
 
                         std::stringstream js;
+                        std::shared_ptr<tracker_element_string_map> readings;
 
-                        Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
+                        {
+                            kis_lock_guard<kis_mutex> lk(monitor_mutex);
+
+                            Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
+
+                            // Copies of the current values; the histories stay out of the log
+                            readings = environment->readings();
+                        }
 
                         kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
+
+                        if (readings->size() > 0) {
+                            std::stringstream envjs;
+                            auto envmap = std::make_shared<tracker_element_map>();
+                            envmap->insert(readings);
+                            Globalreg::globalreg->entrytracker->serialize("json", envjs, envmap, NULL);
+                            kismetdb->log_snapshot(nullptr, tv, "ENVIRONMENT", envjs.str());
+                        }
 
                         return 1;
                     });
@@ -330,6 +376,9 @@ Systemmonitor::Systemmonitor() :
     event_timer_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
+                std::shared_ptr<tracker_element_string_map> readings;
+
+                {
                 kis_lock_guard<kis_mutex> lg(monitor_mutex, "system monitor eventtimer");
 
                 status->pre_serialize();
@@ -397,8 +446,27 @@ Systemmonitor::Systemmonitor() :
 
                 status->post_serialize();
 
+                // Copies, published once the lock is released
+                readings = environment->readings();
+                }
+
+                auto eevt = eventbus->get_eventbus_event(event_environment());
+                auto eate = std::make_shared<tracker_element_map>();
+                eate->insert(readings);
+                eevt->get_event_content()->insert(event_environment(), eate);
+                eventbus->publish(eevt);
+
                 return 1;
                 });
+
+    env_sweep_timer =
+        timetracker->register_timer(std::chrono::seconds(60), true,
+                [this](int) -> int {
+                    sweep_environment();
+                    return 1;
+                });
+
+    timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 
 }
 
@@ -407,9 +475,11 @@ Systemmonitor::~Systemmonitor() {
     timetracker->remove_timer(timer_id);
     timetracker->remove_timer(kismetdb_log_timer);
     timetracker->remove_timer(event_timer_id);
+    timetracker->remove_timer(env_sweep_timer);
 
     kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
+    Globalreg::globalreg->remove_global(env_report_sink::global_name());
     Globalreg::globalreg->remove_global("SYSTEMMONITOR");
 
     eventbus->remove_listener(logopen_evt_id);
@@ -710,6 +780,10 @@ void Systemmonitor::update_cpu() {
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
+    // Sensor files are read before taking the lock
+    host_env_scan scan;
+    scan_host_environment(scan);
+
     kis_lock_guard<kis_mutex> lg(monitor_mutex, "system monitor timer");
 
     int num_devices = devicetracker->fetch_num_devices();
@@ -758,62 +832,26 @@ int Systemmonitor::timetracker_event(int eventid) {
 
 #endif
 
-    update_temps();
+    record_host_environment(scan);
 
     return 1;
 }
 
-void tracked_thermal_sensor::register_fields() {
-    register_field("kismet.system.thermal.sensor.name",
-            "sensor name, as in kismet.system.sensors.temp", &name);
-    register_field("kismet.system.thermal.sensor.label", "what the sensor measures", &label);
-    register_field("kismet.system.thermal.sensor.temp", "last temperature, in degrees C", &temp);
-    register_field("kismet.system.thermal.sensor.last_time", "last time the sensor was read", &last_time);
-    temp_rrd_id =
-        register_dynamic_field("kismet.system.thermal.sensor.rrd",
-                "temperature history, in degrees C", &temp_rrd);
-}
-
-void tracked_thermal_status::register_fields() {
-    register_field("kismet.system.thermal.history", "temperature history is kept", &history);
-    register_field("kismet.system.thermal.sensors", "temperature sensors, by name", &sensors);
-}
-
-// Called with monitor_mutex held
-void Systemmonitor::record_temp(const std::string& name, const std::string& label, double temp) {
-    time_t now = Globalreg::globalreg->last_tv_sec;
-
-    status->get_sensors_temp()->insert(name, std::make_shared<tracker_element_double>(0, temp));
-
-    auto sensors = thermal->get_sensors();
-    std::shared_ptr<tracked_thermal_sensor> sensor;
-
-    auto si = sensors->find(name);
-    if (si == sensors->end()) {
-        // Sensors are kept once seen, so a host with many is capped
-        if (sensors->size() >= thermal_max_sensors)
-            return;
-
-        sensor = std::make_shared<tracked_thermal_sensor>(thermal_sensor_id);
-        sensor->set_sensor_name(name);
-        sensor->set_label(label);
-        sensors->insert(name, sensor);
-    } else {
-        sensor = std::static_pointer_cast<tracked_thermal_sensor>(si->second);
-    }
-
-    sensor->set_temp(temp);
-    sensor->set_last_time(now);
-
-    if (thermal_history)
-        sensor->get_temp_rrd()->add_sample(temp, now);
-}
-
-// Called with monitor_mutex held
-void Systemmonitor::update_temps() {
+// Without monitor_mutex; libsensors is only used from the timer
+void Systemmonitor::scan_host_environment(host_env_scan& scan) {
 #if defined(SYS_LINUX)
-    status->get_sensors_fans()->clear();
-    status->get_sensors_temp()->clear();
+    std::vector<kis_battery_reading> batteries;
+    int ext_online;
+
+    // The battery files are read once for the summary and the per-battery records.  A
+    // kernel old enough to have /proc/acpi/battery keeps the old summary only.
+    if (access("/proc/acpi/battery", F_OK) == 0) {
+        fetch_battery_info(&scan.battery);
+    } else {
+        fetch_linux_power_supplies("/sys/class/power_supply", batteries, ext_online);
+        aggregate_battery_info(batteries, ext_online, &scan.battery);
+        env_battery_readings(batteries, ext_online, scan.readings);
+    }
 
 #if defined(HAVE_SENSORS_SENSORS_H)
     int sensor_nr = 0;
@@ -850,71 +888,120 @@ void Systemmonitor::update_temps() {
 
             free(label);
 
-            if (fi->type == SENSORS_FEATURE_TEMP)
-                record_temp(synth_name, fmt::format("{} ({})", label_s, chip_s), val);
-            else
-                status->get_sensors_fans()->insert(synth_name,
-                        std::make_shared<tracker_element_double>(0, val));
-        }
-    }
-#endif
+            if (!std::isfinite(val))
+                continue;
 
-    // Thermal zones of newer kernels, in millidegrees; zone 0 keeps its old name
-    // of system-thermal-0
-    for (unsigned int z = 0; z < 64; z++) {
-        auto zone = fmt::format("/sys/class/thermal/thermal_zone{}", z);
+            env_host_reading r;
+            r.id = synth_name;
+            r.value = val;
 
-        FILE *tempf = fopen(fmt::format("{}/temp", zone).c_str(), "r");
-
-        if (tempf == nullptr) {
-            if (access(zone.c_str(), F_OK) != 0)
-                break;
-            continue;
-        }
-
-        long mdeg;
-        int r = fscanf(tempf, "%ld", &mdeg);
-        fclose(tempf);
-
-        // Zones that can't be read right now (a sleeping device) fail the read
-        if (r != 1)
-            continue;
-
-        std::string label = fmt::format("thermal zone {}", z);
-
-        FILE *typef = fopen(fmt::format("{}/type", zone).c_str(), "r");
-        if (typef != nullptr) {
-            char type[64];
-            if (fgets(type, sizeof(type), typef) != nullptr) {
-                type[strcspn(type, "\r\n")] = 0;
-                if (type[0] != 0)
-                    label = munge_to_printable(type);
+            if (fi->type == SENSORS_FEATURE_TEMP) {
+                r.kind = env_kind::thermal;
+                r.label = fmt::format("{} ({})", label_s, chip_s);
+                scan.legacy_temps.push_back({synth_name, val});
+            } else {
+                r.kind = env_kind::fan;
+                r.label = fmt::format("{} ({})", label_s, chip_s);
+                scan.legacy_fans.push_back({synth_name, val});
             }
-            fclose(typef);
-        }
 
-        record_temp(fmt::format("system-thermal-{}", z), label, mdeg / 1000.0);
+            scan.readings.push_back(r);
+        }
     }
+#else
+    // Without libsensors, the same hwmon devices straight from sysfs
+    env_read_hwmon("/sys/class/hwmon", scan.readings);
 #endif
+
+    std::vector<env_host_reading> zones;
+    env_read_thermal_zones("/sys/class/thermal", zones);
+
+    for (auto& z : zones) {
+        scan.legacy_temps.push_back({z.id, z.value});
+        scan.readings.push_back(std::move(z));
+    }
+#else
+    fetch_battery_info(&scan.battery);
+#endif
+}
+
+// Called with monitor_mutex held
+void Systemmonitor::record_host_environment(const host_env_scan& scan) {
+    time_t now = Globalreg::globalreg->last_tv_sec;
+
+    status->set_battery_perc(scan.battery.percentage);
+    if (scan.battery.ac && scan.battery.charging) {
+        status->set_battery_charging("charging");
+    } else if (scan.battery.ac && !scan.battery.charging) {
+        status->set_battery_charging("charged");
+    } else if (!scan.battery.ac) {
+        status->set_battery_charging("discharging");
+    }
+
+    status->set_battery_ac(scan.battery.ac);
+    status->set_battery_remaining(scan.battery.remaining_sec);
+
+#if defined(SYS_LINUX)
+    status->get_sensors_fans()->clear();
+    status->get_sensors_temp()->clear();
+
+    for (const auto& t : scan.legacy_temps)
+        status->get_sensors_temp()->insert(t.first, std::make_shared<tracker_element_double>(0, t.second));
+
+    for (const auto& f : scan.legacy_fans)
+        status->get_sensors_fans()->insert(f.first, std::make_shared<tracker_element_double>(0, f.second));
+#endif
+
+    for (const auto& r : scan.readings)
+        environment->record_host(r, now);
+}
+
+void Systemmonitor::sweep_environment() {
+    auto datasourcetracker = Globalreg::fetch_global_as<datasource_tracker>();
+
+    if (datasourcetracker == nullptr)
+        return;
+
+    // Source uuids are read before taking monitor_mutex, under the tracker's own locks
+    std::unordered_set<uuid> live;
+
+    class uuid_worker : public datasource_tracker_worker {
+    public:
+        uuid_worker(std::unordered_set<uuid>& in_live) : live{in_live} { }
+        virtual void handle_datasource(shared_datasource in_src) override {
+            live.insert(in_src->get_source_uuid());
+        }
+        virtual void finalize() override { }
+    protected:
+        std::unordered_set<uuid>& live;
+    };
+
+    uuid_worker worker(live);
+    datasourcetracker->iterate_datasources(&worker);
+
+    kis_lock_guard<kis_mutex> lk(monitor_mutex, "system monitor environment sweep");
+    environment->sweep(live, time(0));
+}
+
+bool Systemmonitor::env_source_report(const uuid& in_uuid, const std::string& in_name,
+        const env_report& in_report) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    const uint64_t mono_ms = static_cast<uint64_t>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
+
+    kis_lock_guard<kis_mutex> lk(monitor_mutex, "system monitor environment report");
+    return environment->record_source(in_uuid, in_name, in_report, Globalreg::globalreg->last_tv_sec, mono_ms);
+}
+
+void Systemmonitor::env_source_report_dropped() {
+    kis_lock_guard<kis_mutex> lk(monitor_mutex, "system monitor environment drop");
+    environment->count_dropped_report();
 }
 
 void tracked_system_status::pre_serialize() {
     kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
-    kis_battery_info batinfo;
-    fetch_battery_info(&batinfo);
-
-    set_battery_perc(batinfo.percentage);
-    if (batinfo.ac && batinfo.charging) {
-        set_battery_charging("charging");
-    } else if (batinfo.ac && !batinfo.charging) {
-        set_battery_charging("charged");
-    } else if (!batinfo.ac) {
-        set_battery_charging("discharging");
-    }
-
-    set_battery_ac(batinfo.ac);
-    set_battery_remaining(batinfo.remaining_sec);
+    // The battery is read by the system monitor timer, with the other sensors
 
     struct timeval now;
     gettimeofday(&now, NULL);

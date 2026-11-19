@@ -29,6 +29,7 @@
 #include "devicetracker_component.h"
 #include "devicetracker.h"
 #include "kis_net_beast_httpd.h"
+#include "environment.h"
 
 class event_bus;
 
@@ -252,93 +253,6 @@ protected:
 
 using kis_tracked_gauge_rrd = kis_tracked_rrd<kis_tracked_rrd_gauge_aggregator>;
 
-// One temperature sensor, for /system/thermal; temperatures in degrees C
-class tracked_thermal_sensor : public tracker_component {
-public:
-    tracked_thermal_sensor() :
-        tracker_component() {
-        register_fields();
-        reserve_fields(nullptr);
-    }
-
-    tracked_thermal_sensor(int in_id) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(nullptr);
-    }
-
-    tracked_thermal_sensor(int in_id, std::shared_ptr<tracker_element_map> e) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(e);
-    }
-
-    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
-        using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>();
-        r->set_id(this->get_id());
-        return r;
-    }
-
-    virtual ~tracked_thermal_sensor() { }
-
-    __Proxy(sensor_name, std::string, std::string, std::string, name);
-    __Proxy(label, std::string, std::string, std::string, label);
-    __Proxy(temp, double, double, double, temp);
-    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
-    __ProxyDynamicTrackable(temp_rrd, kis_tracked_gauge_rrd, temp_rrd, temp_rrd_id);
-
-protected:
-    virtual void register_fields() override;
-
-    std::shared_ptr<tracker_element_string> name;
-    std::shared_ptr<tracker_element_string> label;
-    std::shared_ptr<tracker_element_double> temp;
-    std::shared_ptr<tracker_element_uint64> last_time;
-    std::shared_ptr<kis_tracked_gauge_rrd> temp_rrd;
-    uint16_t temp_rrd_id;
-};
-
-// Every temperature sensor seen since the server started, for /system/thermal
-class tracked_thermal_status : public tracker_component {
-public:
-    tracked_thermal_status() :
-        tracker_component() {
-        register_fields();
-        reserve_fields(nullptr);
-    }
-
-    tracked_thermal_status(int in_id) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(nullptr);
-    }
-
-    tracked_thermal_status(int in_id, std::shared_ptr<tracker_element_map> e) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(e);
-    }
-
-    virtual std::shared_ptr<tracker_element> clone_type() noexcept override {
-        using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto r = std::make_shared<this_t>();
-        r->set_id(this->get_id());
-        return r;
-    }
-
-    virtual ~tracked_thermal_status() { }
-
-    __Proxy(history, uint8_t, bool, bool, history);
-    __ProxyTrackable(sensors, tracker_element_string_map, sensors);
-
-protected:
-    virtual void register_fields() override;
-
-    std::shared_ptr<tracker_element_uint8> history;
-    std::shared_ptr<tracker_element_string_map> sensors;
-};
-
 // CPU load and its history, for /system/cpu; loads are percentages of all the CPUs
 class tracked_cpu_status : public tracker_component {
 public:
@@ -379,7 +293,7 @@ protected:
     std::shared_ptr<kis_tracked_gauge_rrd> kismet_rrd;
 };
 
-class Systemmonitor : public lifetime_global, public time_tracker_event {
+class Systemmonitor : public lifetime_global, public time_tracker_event, public env_report_sink {
 public:
     static std::string global_name() { return "SYSTEMMONITOR"; }
 
@@ -387,6 +301,8 @@ public:
         std::shared_ptr<Systemmonitor> mon(new Systemmonitor());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
+        Globalreg::globalreg->insert_global(env_report_sink::global_name(),
+                std::static_pointer_cast<env_report_sink>(mon));
         return mon;
     }
 
@@ -406,6 +322,13 @@ public:
     static std::string event_battery() { return "BATTERY"; }
     static std::string event_stats() { return "STATISTICS"; }
     static std::string event_thermal() { return "THERMAL"; }
+    static std::string event_environment() { return "ENVIRONMENT"; }
+
+    // env_report_sink
+    virtual uint32_t env_source_report_ms() const override { return env_report_ms; }
+    virtual bool env_source_report(const uuid& in_uuid, const std::string& in_name,
+            const env_report& in_report) override;
+    virtual void env_source_report_dropped() override;
 
 protected:
     kis_mutex monitor_mutex;
@@ -432,14 +355,29 @@ protected:
     // Data source and packet pool counts, and what they hold, for /system/memory
     void update_capture_memory();
 
-    std::shared_ptr<tracked_thermal_status> thermal;
+    // Temperatures, fans and batteries of the host and data sources, under monitor_mutex
+    std::unique_ptr<environment_store> environment;
+    std::shared_ptr<kis_net_web_tracked_endpoint> environment_endp;
     std::shared_ptr<kis_net_web_tracked_endpoint> thermal_endp;
-    int thermal_sensor_id;
-    bool thermal_history;
-    size_t thermal_max_sensors;
+    std::shared_ptr<kis_net_web_tracked_endpoint> environment_current_endp;
+    uint32_t env_report_ms;
+    int env_sweep_timer;
 
-    void update_temps();
-    void record_temp(const std::string& name, const std::string& label, double temp);
+    struct host_env_scan {
+        std::vector<env_host_reading> readings;
+        // libsensors and thermal zone temperatures, and libsensors fans, for the
+        // legacy kismet.system.sensors maps
+        std::vector<std::pair<std::string, double>> legacy_temps;
+        std::vector<std::pair<std::string, double>> legacy_fans;
+        kis_battery_info battery;
+    };
+
+    // Reads the host sensors; without monitor_mutex
+    void scan_host_environment(host_env_scan& scan);
+    // Called with monitor_mutex held
+    void record_host_environment(const host_env_scan& scan);
+    // Remove the sensors of removed data sources
+    void sweep_environment();
 
     std::shared_ptr<tracked_cpu_status> cpustatus;
     std::shared_ptr<kis_net_web_tracked_endpoint> cpu_endp;

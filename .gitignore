@@ -23,6 +23,7 @@ test/device_rules/baseline_test
 test/linuxwifi_channels/freq_to_chan_test
 test/datasource_probed/probed_test
 test/httpd_login_conf/login_conf_test
+test/environment/env_test
 callgrind*
 *.pcap
 *.pcapng

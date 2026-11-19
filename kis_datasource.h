@@ -923,6 +923,10 @@ protected:
     virtual void handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t code,
             const std::string_view& in_packet);
 
+    // Sensor readings of the source hardware
+    virtual void handle_packet_env_report_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_packet);
+
 	virtual void handle_interfaces_report_v3_callback(uint32_t in_seqno, uint16_t code,
 			kis_unique_lock<kis_mutex>& lock, std::vector<shared_interface>& interfaces);
     virtual void handle_packet_interfaces_report_v3(uint32_t in_seqno, uint16_t code,
@@ -1178,6 +1182,11 @@ protected:
     // Ask the source to hop on the shared slot grid, and how often to report hop timing
     std::atomic<bool> hop_sync;
     unsigned int hop_report_ms;
+
+    // Sensor report interval sent in the last open request, 0 if none; reports are
+    // only taken after asking for them, and a malformed one is logged once
+    std::atomic<uint32_t> env_report_ms{0};
+    std::atomic<bool> env_report_warned{false};
 
     // The helper has asked for the time, and when it was first told to sync
     std::atomic<bool> helper_synced{false};

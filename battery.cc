@@ -26,6 +26,10 @@
 #include <algorithm>
 #include <string>
 #include <string.h>
+#include <strings.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdlib.h>
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -126,10 +130,12 @@ int Fetch_Battery_Linux_ACPI(kis_battery_info *out __attribute__((unused))) {
 
 	closedir(adir);
 
-	out->percentage = (float) ((float) remain / cap) * 100;
+	// Clamped before the cast; an out of range float to int conversion is undefined
+	if (cap > 0)
+		out->percentage = (int) std::clamp(((float) remain / cap) * 100, 0.0f, 100.0f);
 
 	if (rate > 0)
-		out->remaining_sec = (float) ((float) remain / rate) * 60 * 60;
+		out->remaining_sec = (int) std::clamp(((float) remain / rate) * 60 * 60, 0.0f, 2147483520.0f);
 
     return 1;
 #endif
@@ -145,167 +151,301 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
      *      Michael Meskes  <meskes@debian.org>
      */
 #ifdef SYS_LINUX
-    // Default to being on AC; if we lack battery info we're probably
-    // not a laptop
-    out->ac = 1;
+    std::vector<kis_battery_reading> batteries;
+    int ext_online;
 
-    FILE *f;
-    struct stat statbuf;
-
-    const char *base_dir = "/sys/class/power_supply/";
-    std::string bdir, fpath;
-
-    char *line;
-    size_t linesz;
-
-    int itr;
-
-    int on_ac = 0;
-    int charging = 0;
-
-    struct _long_file_pairs {
-        const char *filename;
-        long *target;
-    };
-
-    long power_now;
-    long current_now;
-    long charge_now;
-    long energy_now;
-    long voltage_now;
-    long charge_full;
-    long energy_full;
-
-    long present_rate = -1;
-    long remaining_capacity = -1;
-    long remaining_energy = -1;
-    long last_capacity = -1;
-    long last_capacity_unit = -1;
-    long voltage = -1;
-    long seconds_remaining = -1;
-
-    int percentage = 0;
-
-    struct _long_file_pairs filepairs[] = {
-        { "power_now", &power_now },
-        { "current_now", &current_now },
-        { "charge_now", &charge_now },
-        { "energy_now", &energy_now },
-        { "voltage_now", &voltage_now },
-        { "charge_full", &charge_full },
-        { "energy_full", &energy_full },
-        { "end", NULL }
-    };
-
-    // Are we indexed as bat0 or bat1
-    bdir = fmt::format("{}/BAT0", base_dir);
-    if (stat(bdir.c_str(), &statbuf) < 0) {
-        bdir = fmt::format("{}/BAT1", base_dir);
-        if (stat(bdir.c_str(), &statbuf) < 0) {
-            return -1;
-        }
-    }
-
-    fpath = fmt::format("{}/status", bdir);
-    if ((f = fopen(fpath.c_str(), "r")) == NULL) {
-        return -1;
-    } 
-
-    ssize_t glsz __attribute__((unused));
-    line = NULL;
-    linesz = 0;
-    glsz = getline(&line, &linesz, f);
-    fclose(f);
-
-    if (strcasestr(line, "discharging") == line) {
-        on_ac = 0;
-    } else if (strcasestr(line, "charging") == line) {
-        on_ac = 1;
-        charging = 1;
-    }
-
-    free(line);
-
-    itr = 0;
-    while (filepairs[itr].target != NULL) {
-        fpath = fmt::format("{}/{}", bdir, filepairs[itr].filename);
-
-        if ((f = fopen(fpath.c_str(), "r")) != NULL) {
-            if (fscanf(f, "%lu", filepairs[itr].target) != 1) {
-                *(filepairs[itr].target) = -1L;
-            }
-
-            fclose(f);
-        } else {
-            *(filepairs[itr].target) = -1L;
-        }
-
-        itr++;
-    }
-
-    if (charge_now != -1) {
-        remaining_capacity = charge_now / 1000L; 
-    } else if (energy_now != -1) {
-        remaining_energy = energy_now / 1000L;
-    }
-
-    if (current_now != -1) {
-        present_rate = current_now / 1000L;
-    } else if (power_now != -1) {
-        present_rate = power_now / 1000L;
-    }
-
-    if (charge_full != -1) {
-        last_capacity = charge_full / 1000L;
-    } else if (energy_full != -1) {
-        last_capacity_unit = energy_full / 1000L;
-    }
-
-    if (voltage_now != -1) {
-        voltage = voltage_now / 1000L;
-    }
-
-
-    if (last_capacity_unit != -1 && last_capacity == -1) {
-        if (voltage == 0) {
-            last_capacity = 0;
-        } else if (voltage != -1) {
-            last_capacity = last_capacity_unit * 1000L / voltage;
-        } else {
-            last_capacity = last_capacity_unit;
-        }
-    }
-
-    if (remaining_energy != -1 && remaining_capacity == -1) {
-        if (voltage == 0) {
-            remaining_capacity = 0;
-        } else if (voltage != -1) {
-            remaining_capacity = remaining_energy * 1000 / voltage;
-            present_rate = present_rate * 1000 / voltage;
-        } else {
-            remaining_capacity = remaining_energy;
-        }
-    }
-
-    if (last_capacity <= 0)
-        percentage = 0;
-    else
-        percentage = remaining_capacity * 100 / last_capacity;
-
-    if (present_rate <= 0)
-        seconds_remaining = 0;
-    else
-        seconds_remaining = 3600 * remaining_capacity / present_rate;
-
-    out->percentage = percentage;
-    out->charging = charging;
-    out->ac = on_ac;
-    out->remaining_sec = seconds_remaining;
+    fetch_linux_power_supplies("/sys/class/power_supply", batteries, ext_online);
+    aggregate_battery_info(batteries, ext_online, out);
 
     return 1;
 #endif
 
     return 0;
+}
+
+const char *kis_battery_state_str(kis_battery_state s) {
+    switch (s) {
+        case kis_battery_state::charging:
+            return "charging";
+        case kis_battery_state::discharging:
+            return "discharging";
+        case kis_battery_state::full:
+            return "full";
+        case kis_battery_state::not_charging:
+            return "not_charging";
+        default:
+            return "unknown";
+    }
+}
+
+namespace {
+    // Larger sysfs values are garbage; the cap keeps the int64 unit math below in range
+    constexpr int64_t ps_max_value = 1000000000000LL;
+    constexpr int64_t ps_max_seconds = 2147483647LL;
+    constexpr size_t ps_max_supplies = 32;
+    constexpr size_t ps_max_name = 32;
+
+    bool ps_valid_name(const char *n) {
+        size_t len = strlen(n);
+
+        if (len == 0 || len > ps_max_name || n[0] == '.')
+            return false;
+
+        for (size_t i = 0; i < len; i++) {
+            const auto c = static_cast<unsigned char>(n[i]);
+            if (!isalnum(c) && c != '_' && c != '.' && c != '-')
+                return false;
+        }
+
+        return true;
+    }
+
+    // First line of a small sysfs file, without the newline
+    bool ps_read_line(const std::string& path, std::string& out) {
+        char buf[64];
+        FILE *f = fopen(path.c_str(), "r");
+
+        if (f == nullptr)
+            return false;
+
+        bool ok = fgets(buf, sizeof(buf), f) != nullptr;
+        fclose(f);
+
+        if (!ok)
+            return false;
+
+        buf[strcspn(buf, "\r\n")] = 0;
+        out = buf;
+        return true;
+    }
+
+    // A decimal sysfs value; -1 when missing, unparseable or out of range.  Rates
+    // are signed on some drivers (negative while discharging), so keep the magnitude.
+    int64_t ps_read_long(const std::string& path, bool magnitude = false) {
+        std::string line;
+
+        if (!ps_read_line(path, line) || line.empty())
+            return -1;
+
+        errno = 0;
+        char *end = nullptr;
+        long long v = strtoll(line.c_str(), &end, 10);
+
+        if (errno != 0 || end == line.c_str() || (*end != 0 && !isspace(static_cast<unsigned char>(*end))))
+            return -1;
+
+        if (v < 0 && magnitude && v > -ps_max_value)
+            v = -v;
+
+        if (v < 0 || v > ps_max_value)
+            return -1;
+
+        return static_cast<int64_t>(v);
+    }
+
+    kis_battery_state ps_parse_status(const std::string& s) {
+        if (strcasecmp(s.c_str(), "Charging") == 0)
+            return kis_battery_state::charging;
+        if (strcasecmp(s.c_str(), "Discharging") == 0)
+            return kis_battery_state::discharging;
+        if (strcasecmp(s.c_str(), "Full") == 0)
+            return kis_battery_state::full;
+        if (strcasecmp(s.c_str(), "Not charging") == 0)
+            return kis_battery_state::not_charging;
+        return kis_battery_state::unknown;
+    }
+
+    // Charge and rate in mA(h), converting energy readings with the voltage; the
+    // same math as the original single-battery code
+    void ps_read_battery(const std::string& bdir, kis_battery_reading& b) {
+        std::string status;
+
+        if (ps_read_line(bdir + "/status", status))
+            b.state = ps_parse_status(status);
+
+        const int64_t power_now = ps_read_long(bdir + "/power_now", true);
+        const int64_t current_now = ps_read_long(bdir + "/current_now", true);
+        const int64_t charge_now = ps_read_long(bdir + "/charge_now");
+        const int64_t energy_now = ps_read_long(bdir + "/energy_now");
+        const int64_t voltage_now = ps_read_long(bdir + "/voltage_now");
+        const int64_t charge_full = ps_read_long(bdir + "/charge_full");
+        const int64_t energy_full = ps_read_long(bdir + "/energy_full");
+        const int64_t capacity = ps_read_long(bdir + "/capacity");
+
+        int64_t present_rate = -1;
+        int64_t remaining_capacity = -1;
+        int64_t remaining_energy = -1;
+        int64_t last_capacity = -1;
+        int64_t last_capacity_unit = -1;
+        int64_t voltage = -1;
+
+        if (charge_now != -1)
+            remaining_capacity = charge_now / 1000;
+        else if (energy_now != -1)
+            remaining_energy = energy_now / 1000;
+
+        if (current_now != -1)
+            present_rate = current_now / 1000;
+        else if (power_now != -1)
+            present_rate = power_now / 1000;
+
+        if (charge_full != -1)
+            last_capacity = charge_full / 1000;
+        else if (energy_full != -1)
+            last_capacity_unit = energy_full / 1000;
+
+        if (voltage_now != -1) {
+            voltage = voltage_now / 1000;
+            b.voltage = voltage_now / 1000000.0;
+        }
+
+        if (last_capacity_unit != -1 && last_capacity == -1) {
+            if (voltage == 0)
+                last_capacity = 0;
+            else if (voltage != -1)
+                last_capacity = last_capacity_unit * 1000 / voltage;
+            else
+                last_capacity = last_capacity_unit;
+        }
+
+        if (remaining_energy != -1 && remaining_capacity == -1) {
+            if (voltage == 0) {
+                remaining_capacity = 0;
+            } else if (voltage != -1) {
+                remaining_capacity = remaining_energy * 1000 / voltage;
+                if (present_rate != -1)
+                    present_rate = present_rate * 1000 / voltage;
+            } else {
+                remaining_capacity = remaining_energy;
+            }
+        }
+
+        b.remaining_capacity = remaining_capacity;
+        b.last_capacity = last_capacity;
+        b.present_rate = present_rate;
+
+        if (remaining_capacity >= 0 && last_capacity > 0)
+            b.percentage = static_cast<int>(std::clamp<int64_t>(remaining_capacity * 100 / last_capacity, 0, 100));
+        else if (capacity >= 0)
+            b.percentage = static_cast<int>(std::min<int64_t>(capacity, 100));
+
+        if (remaining_capacity >= 0 && present_rate > 0)
+            b.remaining_sec = std::min<int64_t>(3600 * remaining_capacity / present_rate, ps_max_seconds);
+    }
+}
+
+void fetch_linux_power_supplies(const std::string& root, std::vector<kis_battery_reading>& batteries,
+        int& ext_online) {
+    batteries.clear();
+    ext_online = -1;
+
+    DIR *d = opendir(root.c_str());
+
+    if (d == nullptr)
+        return;
+
+    std::vector<std::string> names;
+    struct dirent *ent;
+
+    while ((ent = readdir(d)) != nullptr && names.size() < ps_max_supplies) {
+        if (ps_valid_name(ent->d_name))
+            names.push_back(ent->d_name);
+    }
+
+    closedir(d);
+
+    std::sort(names.begin(), names.end());
+
+    for (const auto& n : names) {
+        const auto dir = fmt::format("{}/{}", root, n);
+        std::string type, scope;
+
+        if (!ps_read_line(dir + "/type", type))
+            continue;
+
+        // Peripheral batteries and chargers (mice, headsets) aren't the system's
+        if (ps_read_line(dir + "/scope", scope) && strcasecmp(scope.c_str(), "Device") == 0)
+            continue;
+
+        if (strcasecmp(type.c_str(), "Battery") != 0) {
+            const int64_t online = ps_read_long(dir + "/online");
+
+            if (online > 0)
+                ext_online = 1;
+            else if (online == 0 && ext_online < 0)
+                ext_online = 0;
+
+            continue;
+        }
+
+        if (ps_read_long(dir + "/present") == 0)
+            continue;
+
+        kis_battery_reading b;
+        b.name = n;
+        ps_read_battery(dir, b);
+        batteries.push_back(b);
+    }
+}
+
+void aggregate_battery_info(const std::vector<kis_battery_reading>& batteries, int ext_online,
+        kis_battery_info *out) {
+    // No battery: probably not a laptop, so on AC
+    out->percentage = 0;
+    out->charging = 0;
+    out->ac = 1;
+    out->remaining_sec = 0;
+
+    if (batteries.empty())
+        return;
+
+    bool any_charging = false, any_external = false, any_discharging = false;
+    int64_t sum_remaining = 0, sum_last = 0, sum_rate = 0, sum_rate_remaining = 0;
+    int64_t sum_perc = 0, num_perc = 0;
+
+    for (const auto& b : batteries) {
+        any_charging |= b.state == kis_battery_state::charging;
+        any_external |= b.state == kis_battery_state::charging || b.state == kis_battery_state::full ||
+            b.state == kis_battery_state::not_charging;
+        any_discharging |= b.state == kis_battery_state::discharging;
+
+        if (b.remaining_capacity >= 0 && b.last_capacity > 0) {
+            sum_remaining += b.remaining_capacity;
+            sum_last += b.last_capacity;
+        }
+
+        if (b.remaining_capacity >= 0 && b.present_rate > 0) {
+            sum_rate_remaining += b.remaining_capacity;
+            sum_rate += b.present_rate;
+        }
+
+        if (b.percentage >= 0) {
+            sum_perc += b.percentage;
+            num_perc++;
+        }
+    }
+
+    if (sum_last > 0)
+        out->percentage = static_cast<int>(std::clamp<int64_t>(sum_remaining * 100 / sum_last, 0, 100));
+    else if (num_perc > 0)
+        out->percentage = static_cast<int>(sum_perc / num_perc);
+
+    if (sum_rate > 0)
+        out->remaining_sec = static_cast<int>(std::min<int64_t>(3600 * sum_rate_remaining / sum_rate, ps_max_seconds));
+
+    out->charging = any_charging;
+
+    // A battery draining while a supply is online (a weak USB-C charger) still reads
+    // as discharging, like the original code; full and not-charging batteries are on
+    // external power
+    if (any_discharging && !any_charging)
+        out->ac = 0;
+    else if (ext_online == 1 || any_external)
+        out->ac = 1;
+    else if (ext_online == 0)
+        out->ac = 0;
+    else
+        out->ac = !any_discharging;
 }
 
 int Fetch_Battery_Darwin(kis_battery_info *out __attribute__((unused))) {
