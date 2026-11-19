@@ -341,6 +341,8 @@ typedef struct {
                              * the mask outlives the capture otherwise. */
     int   disabled;         /* enabled=false: registered but idle --
                              * no port open, no mask/f3 handshake, no decoder */
+    int   replay_eof;       /* the replay read its file to the end (not an
+                             * error path): hold the helper open at `done:` */
     int   debug;
 
     /* Health stats: "is the data flowing?" counters + status cadence. */
@@ -5657,6 +5659,27 @@ static void send_session_log(kis_capture_handler_t *caph, local_diag_t *local) {
         celldiag_log_send(caph, &tv, rec);
 }
 
+/* A finished replay is not a failed source. Spinning down here closes the
+ * IPC, which the server reads as a source error and answers by re-opening the
+ * source 5 s later -- and the re-open replays the whole file again, so every
+ * row reaches the kismetdb once per re-open, for as long as the server runs.
+ * Everything the file held has been delivered by now (final stats, the native
+ * flush, the END raw slice), so say once that the replay is complete and idle
+ * like an enabled=false source until the server closes us. */
+static void replay_hold_at_eof(kis_capture_handler_t *caph, local_diag_t *local) {
+    char m[STATUS_MAX];
+
+    snprintf(m, sizeof(m),
+             "%s REPLAY COMPLETE: %s was read to the end; the source stays open "
+             "and idle until it is closed",
+             local->name ? local->name : "celldiag", local->replay_path);
+    cf_send_message(caph, m, MSGFLAG_INFO);
+    while (!caph->shutdown && !cf_handler_close_requested(caph)) {
+        struct timespec ts = { .tv_sec = 0, .tv_nsec = 250000000 };
+        nanosleep(&ts, NULL);
+    }
+}
+
 static void capture_thread_run(kis_capture_handler_t *caph) {
     local_diag_t *local = (local_diag_t *)caph->userdata;
     char errstr[ERRBUF_MAX];
@@ -6037,8 +6060,10 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                 /* Replay: EOF, finish (the residual frame is flushed at
                  * `done:`). Live: a 0-byte read is a VTIME idle tick, keep
                  * going. */
-                if (local->replay_path)
+                if (local->replay_path) {
+                    local->replay_eof = 1;
                     break;
+                }
                 continue;
             }
             feed_bytes(caph, local, rbuf, (size_t)n);
@@ -6156,6 +6181,8 @@ done:
      * not touch, so it is turned off here too; otherwise 0x60 events keep
      * streaming after a qsh=on stop (REST or Ctrl-C) even though 0x9D stops. */
     diag_fd_release(local);   /* + the LOG mask this capture armed */
+    if (local->replay_eof)
+        replay_hold_at_eof(caph, local);
     cf_handler_spindown(caph);
 }
 
