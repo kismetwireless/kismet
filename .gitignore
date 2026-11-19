@@ -26,6 +26,7 @@ test/datasource_probed/probed_test
 test/httpd_login_conf/login_conf_test
 test/environment/env_test
 test/util_utf8/utf8_test
+test/ethernet/l3_parse_test
 callgrind*
 *.pcap
 *.pcapng
