@@ -77,7 +77,7 @@ export function apply(next) {
 
 // Fields that name or identify a device, a network or a person: by the end
 // of the field's name, less the ones that name a kind of thing
-const identField = /(?:^|[._])(?:name|commonname|username|longname|shortname|ssid|callsign|hostname|dhcp_host|identity|serial|serial_number|serialnumber|nodeid|owner|imei|imsi|cellid|address|gateway|ipv4|url|notes)$/;
+const identField = /(?:^|[._])(?:name|commonname|username|longname|shortname|ssid|callsign|hostname|dhcp_host|identity|serial|serial_number|serialnumber|nodeid|owner|imei|imsi|cellid|address|gateway|ipv4|url|notes|addr_a|addr_b|client_id|dhcpv6_duid)$/;
 const notIdent = /^kismet\.(?:system|datasource|gps|alert|devicerules|plugin|logfile|stream|httpd|phy|range|eventbus|messagebus)\.|(?:phyname|company_name|uuid_name|appearance_name|vendor_name|state_name|type_name|default_name|phy_name|dirname|model_name|ssidalert\.name)$/;
 const alsoIdent = new Set(['kismet.datasource.cell.modem_imei']);
 
