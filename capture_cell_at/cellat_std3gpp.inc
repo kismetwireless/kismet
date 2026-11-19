@@ -402,6 +402,29 @@ static int parse_cops_scan(const char *response, char json_out[][JSON_BUF_MAX],
  * calls this, so the merge is unit-tested (test_cellat_std3gpp) even though a
  * modem with a vendor engineering command never takes the runtime fallback:
  * the `else` branch that calls this fires only on a modem without one. */
+/* The generic fallback's reads, in poll order (the order of
+ * parse_generic_serving's arguments), and the TS 27.007 test form that tells
+ * whether the modem has the verb at all. A verb whose test form answers ERROR
+ * is left out of the poll: sending it every cycle only collects the same
+ * refusal (an FX4200 ATCoP refused AT+CESQ on every poll of a 300 s run).
+ * NULL = never probed, always sent: AT+COPS=? is the PLMN scan, not a cheap
+ * test, and +COPS? names the operator on every modem. */
+#define STDAT_GENERIC_N 6
+static const char *const STDAT_GENERIC_READ[STDAT_GENERIC_N] = {
+    "AT+C5GREG?", "AT+CEREG?", "AT+CREG?", "AT+COPS?", "AT+CESQ", "AT+CSQ",
+};
+static const char *const STDAT_GENERIC_TEST[STDAT_GENERIC_N] = {
+    "AT+C5GREG=?", "AT+CEREG=?", "AT+CREG=?", NULL, "AT+CESQ=?", "AT+CSQ=?",
+};
+
+/* Did a test-form reply refuse the verb? Only an explicit ERROR (plain or
+ * +CME ERROR) counts. An empty reply or a timeout is unknown, not a refusal,
+ * so the verb stays in the poll. */
+static int stdat_test_refused(const char *resp) {
+    return resp != NULL && strstr(resp, "ERROR") != NULL &&
+           strstr(resp, "OK") == NULL;
+}
+
 static int parse_generic_serving(const char *c5greg, const char *cereg,
                                  const char *creg, const char *cops_q,
                                  const char *cesq, const char *csq,
