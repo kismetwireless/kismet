@@ -5,6 +5,8 @@
 export function register(kismet) {
     const { ui, eventbus, api, format, rrd, dom, icons } = kismet;
     const { el } = dom;
+    // The battery stat is marked at or below this charge
+    const lowBattery = 20;
 
     // A stat that shows one value with an icon
     function valueStat(name) {
@@ -204,45 +206,76 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'thermal', title: 'Thermal', priority: 45,
-        description: 'Temperatures of the Kismet server: the hottest sensor, or the ones chosen below; ' +
-            'click for the thermal window',
+        description: 'Temperatures of the Kismet server and its data sources: the hottest sensor, or the ones ' +
+            'chosen below; click for the environment window',
         create(body) {
+            const { environment, envdata } = kismet.widgets;
             const v = valueStat('thermometer');
             v.value.textContent = '---';
             body.append(v.node);
             const stat = body.parentElement;
             stat.classList.add('clickable');
-            const open = () => kismet.widgets.thermal.openThermal();
+            const open = () => environment.openEnvironment('thermal');
             stat.addEventListener('click', open);
-            let temps = null;
+            // id -> { value, last_time, source }: every thermal sensor from the ENVIRONMENT
+            // event, or the server's own from THERMAL on servers without it
+            let temps = {};
+            let fromEnv = false;
             let labels = {};
-            const label = (name) => labels[name] ?? name;
+            // How old a data source's reading may get, from the server's report interval
+            let sourceLimit = envdata.fallbackSourceStale;
+            const relabel = () => environment.load(60).then((d) => {
+                labels = Object.fromEntries(d.sensors.map((s) => [s.id, envdata.fullLabel(s)]));
+                sourceLimit = d.sourceStale;
+                show();
+            }).catch(() => {});
+            const label = (id) => labels[id] ?? id;
+            const now = () => (kismet.clock.isKnown() ? kismet.clock.now() : NaN);
+            const current = (id) => temps[id] &&
+                !envdata.stale({ ...temps[id], kind: 'thermal' }, now(), null, sourceLimit) ? temps[id] : null;
             // The sensors chosen in settings, or the hottest when none are
             const show = () => {
                 const chosen = kismet.settings.get('ribbon.thermal', []);
                 if (chosen.length) {
-                    const read = chosen.filter((n) => Number.isFinite(temps?.[n]));
-                    v.value.textContent = read.length ? read.map((n) => format.temperature(temps[n])).join(' · ') : '---';
-                    stat.title = [...(read.length ? read.map((n) => `${label(n)}: ${format.temperature(temps[n], 1)}`) :
-                        ['The chosen sensors aren\'t being read']), 'Click for the thermal window'].join('\n');
+                    const read = chosen.filter((id) => current(id));
+                    v.value.textContent = read.length ? read.map((id) => format.temperature(temps[id].value)).join(' · ') : '---';
+                    stat.title = [...(read.length ? read.map((id) => `${label(id)}: ${format.temperature(temps[id].value, 1)}`) :
+                        ['The chosen sensors aren\'t being read']), 'Click for the environment window'].join('\n');
                     return;
                 }
-                const hot = kismet.widgets.thermal.hottest(temps);
-                v.value.textContent = hot ? format.temperature(hot[1]) : '---';
-                stat.title = hot ? `Hottest: ${label(hot[0])}\nClick for the thermal window` :
-                    'No temperature sensors; click for the thermal window';
+                const hot = Object.keys(temps).filter((id) => current(id))
+                    .reduce((a, id) => (!a || temps[id].value > temps[a].value ? id : a), null);
+                v.value.textContent = hot ? format.temperature(temps[hot].value) : '---';
+                stat.title = hot ? `Hottest: ${label(hot)}\nClick for the environment window` :
+                    'No temperature sensors; click for the environment window';
             };
-            kismet.widgets.thermal.sensorList().then((list) => {
-                labels = Object.fromEntries(list.map((s) => [s.name, s.label]));
+            relabel();
+            const stopEnv = eventbus.subscribe('ENVIRONMENT', ['kismet.system.environment.sensors'], (e) => {
+                fromEnv = true;
+                const all = envdata.readings(e);
+                temps = Object.fromEntries(Object.entries(all).filter(([, r]) => r.kind === 'thermal'));
+                if (Object.keys(temps).some((id) => !(id in labels)))
+                    relabel();
                 show();
-            }).catch(() => {});
-            const stop = eventbus.subscribe('THERMAL', ['kismet.system.sensors.temp'], (e) => {
-                temps = e['kismet.system.sensors.temp'];
+            });
+            const stopThermal = eventbus.subscribe('THERMAL', ['kismet.system.sensors.temp'], (e) => {
+                if (fromEnv)
+                    return;
+                const at = now();
+                temps = Object.fromEntries(Object.entries(e['kismet.system.sensors.temp'] ?? {})
+                    .filter(([, c]) => Number.isFinite(c)).map(([id, c]) => [id, { value: c, last_time: at, source: '' }]));
                 show();
+            });
+            // Readings from before a dropped connection aren't current
+            const stopState = eventbus.onState((up) => {
+                if (!up) {
+                    temps = {};
+                    show();
+                }
             });
             const stopUnits = kismet.settings.watch('units.temperature', show);
             const stopChosen = kismet.settings.watch('ribbon.thermal', show);
-            return () => { stop(); stopUnits(); stopChosen(); stat.removeEventListener('click', open); };
+            return () => { stopEnv(); stopThermal(); stopState(); stopUnits(); stopChosen(); stat.removeEventListener('click', open); };
         },
     });
 
@@ -289,17 +322,86 @@ export function register(kismet) {
 
     ui.ribbonStats.add({
         id: 'battery', title: 'Battery', priority: 60,
+        description: 'Battery of the Kismet server, and of data sources with one (such as a Radiacode); ' +
+            `marked when one is at ${lowBattery}% or less; click for the environment window`,
         create(body) {
+            const { environment, envdata } = kismet.widgets;
             const v = valueStat('battery');
             body.append(v.node);
             const stat = body.parentElement;
-            return eventbus.subscribe('BATTERY',
-                ['kismet.system.battery.percentage', 'kismet.system.battery.charging', 'kismet.system.battery.ac'], (e) => {
-                    const pct = e['kismet.system.battery.percentage'] ?? 0;
-                    // Machines with no battery report 0%
-                    stat.hidden = pct === 0;
-                    v.value.textContent = `${pct}%${e['kismet.system.battery.charging'] ? ' (charging)' : ''}`;
+            stat.classList.add('clickable');
+            const open = () => environment.openEnvironment('battery');
+            stat.addEventListener('click', open);
+            let host = null;
+            // id -> reading, for the batteries of data sources
+            let others = {};
+            let names = {};
+            let sourceLimit = envdata.fallbackSourceStale;
+            const rename = () => environment.load(60).then((d) => {
+                names = Object.fromEntries(d.sensors.map((s) => [s.id, envdata.fullLabel(s)]));
+                sourceLimit = d.sourceStale;
+                show();
+            }).catch(() => {});
+            const now = () => (kismet.clock.isKnown() ? kismet.clock.now() : NaN);
+            let offline = false;
+            function show() {
+                if (offline) {
+                    v.value.textContent = '---';
+                    v.value.classList.remove('warn-text');
+                    stat.title = 'Not connected to the Kismet server';
+                    return;
+                }
+                // Machines with no battery report 0%
+                const hostPct = host?.['kismet.system.battery.percentage'] ?? 0;
+                const state = host?.['kismet.system.battery.charging'];
+                const ac = !!host?.['kismet.system.battery.ac'];
+                const live = Object.entries(others).filter(([, r]) => Number.isFinite(r.value) &&
+                    !envdata.stale({ ...r, kind: 'battery' }, now(), null, sourceLimit));
+                const lowest = live.reduce((a, b) => (!a || b[1].value < a[1].value ? b : a), null);
+                stat.hidden = hostPct === 0 && !lowest;
+                if (stat.hidden)
+                    return;
+                const lines = [];
+                let text;
+                let low;
+                if (hostPct > 0) {
+                    const remaining = host['kismet.system.battery.remaining'];
+                    const how = state === 'charging' ? 'charging' : ac ? 'on AC power' : 'on battery';
+                    text = `${hostPct}%${state === 'charging' ? ' (charging)' : ac ? ' (on AC)' : ''}`;
+                    low = hostPct <= lowBattery && !ac;
+                    lines.push(`Kismet server: ${hostPct}%, ${how}` +
+                        (state === 'discharging' && remaining > 0 ? `, ${format.duration(remaining)} left` : ''));
+                } else {
+                    text = `${Math.round(lowest[1].value)}%`;
+                    low = lowest[1].value <= lowBattery;
+                }
+                for (const [id, r] of live.sort((a, b) => a[1].value - b[1].value)) {
+                    lines.push(`${names[id] ?? id}: ${Math.round(r.value)}%`);
+                    low ||= r.value <= lowBattery;
+                }
+                v.value.textContent = text;
+                v.value.classList.toggle('warn-text', low);
+                stat.title = [...lines, 'Click for the environment window'].join('\n');
+            }
+            const stopHost = eventbus.subscribe('BATTERY',
+                ['kismet.system.battery.percentage', 'kismet.system.battery.charging', 'kismet.system.battery.ac',
+                    'kismet.system.battery.remaining'], (e) => {
+                    host = e;
+                    show();
                 });
+            const stopEnv = eventbus.subscribe('ENVIRONMENT', ['kismet.system.environment.sensors'], (e) => {
+                others = Object.fromEntries(Object.entries(envdata.readings(e))
+                    .filter(([, r]) => r.kind === 'battery' && r.source));
+                if (Object.keys(others).some((id) => !(id in names)))
+                    rename();
+                show();
+            });
+            // Kept showing (as ---) while the connection is down, so the ribbon doesn't jump
+            const stopState = eventbus.onState((up) => {
+                offline = !up;
+                show();
+            });
+            return () => { stopHost(); stopEnv(); stopState(); stat.removeEventListener('click', open); };
         },
     });
 

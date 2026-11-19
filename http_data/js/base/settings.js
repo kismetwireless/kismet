@@ -122,23 +122,27 @@ export function register(kismet) {
             body.append(el('h4', {}, 'Thermal'),
                 el('p', { class: 'muted' }, 'The temperatures the Thermal stat shows; with none checked, it shows the hottest.'),
                 thermalList);
-            kismet.widgets.thermal.sensorList().then((list) => {
-                if (!list.length) {
-                    thermalList.replaceChildren(message('The server has no temperature sensors it can read.'));
+            kismet.widgets.environment.sensorList('thermal').then((list) => {
+                // Chosen sensors the server no longer has stay listed, so they can be unchecked
+                const chosen = new Set(settings.get('ribbon.thermal', []));
+                const gone = [...chosen].filter((id) => typeof id === 'string' && !list.some((s) => s.id === id))
+                    .map((id) => ({ id, label: id, gone: true }));
+                if (!list.length && !gone.length) {
+                    thermalList.replaceChildren(message('Neither the server nor its data sources report a temperature.'));
                     return;
                 }
-                const chosen = new Set(settings.get('ribbon.thermal', []));
-                thermalList.replaceChildren(...list.map((s) => el('label', { class: 'check-item' },
-                    el('input', { type: 'checkbox', checked: chosen.has(s.name), onchange: (e) => {
+                thermalList.replaceChildren(...[...list, ...gone].map((s) => el('label', { class: 'check-item' },
+                    el('input', { type: 'checkbox', checked: chosen.has(s.id), onchange: (e) => {
                         const now = new Set(settings.get('ribbon.thermal', []));
                         if (e.target.checked)
-                            now.add(s.name);
+                            now.add(s.id);
                         else
-                            now.delete(s.name);
+                            now.delete(s.id);
                         settings.set('ribbon.thermal', [...now]);
                     } }),
                     s.label,
-                    s.label !== s.name ? el('span', { class: 'muted' }, ` - ${s.name}`) : null)));
+                    s.gone ? el('span', { class: 'muted' }, ' - not reported now') :
+                        s.label !== s.id && !s.source ? el('span', { class: 'muted' }, ` - ${s.id}`) : null)));
             }).catch((err) => {
                 thermalList.replaceChildren(message(err.status === 404 ?
                     'This server doesn\'t report temperatures.' : `Couldn't read the sensors: ${err.message}`));

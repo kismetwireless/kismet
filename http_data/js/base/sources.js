@@ -170,6 +170,57 @@ export function register(kismet) {
         ],
     });
 
+    // Temperatures, fans and batteries the source reports, from the shared read of
+    // /system/environment_current, which is read again when it's older than envAge
+    // seconds; short enough that a source reporting often isn't shown as late
+    const envAge = 5;
+    const envOf = (s) => {
+        const uuid = String(s[`${ds}.uuid`] ?? '').toUpperCase();
+        return (kismet.widgets.environment.peek(envAge)?.sensors ?? []).filter((e) => e.source === uuid);
+    };
+    const envKindTitle = { thermal: 'Temperature', fan: 'Fan', battery: 'Battery' };
+    const envHelp = {
+        thermal: 'A temperature this source reports, such as its radio\'s.',
+        fan: 'A fan speed this source reports.',
+        battery: 'The charge of this source\'s battery, and its charging state, voltage and time left when it reports them.',
+    };
+
+    ui.sourceSections.add({
+        id: 'environment', title: 'Environment', priority: 30,
+        when: (s) => envOf(s).length > 0,
+        render: (s, node) => {
+            const { environment, envdata } = kismet.widgets;
+            const list = envOf(s).sort((a, b) => envdata.kinds.indexOf(a.kind) - envdata.kinds.indexOf(b.kind) ||
+                a.label.localeCompare(b.label, undefined, { numeric: true }));
+            // Ages on the server's clock when it answered, plus the time since
+            const data = environment.peek(envAge);
+            const now = data?.served ? data.served + Date.now() / 1000 - data.arrived :
+                clock.isKnown() ? clock.now() : NaN;
+            kismet.ui.detailFields(node, s, [
+                ...list.map((e) => ({
+                    id: `env:${e.id}`, title: envKindTitle[e.kind],
+                    value: () => {
+                        const why = envdata.stale(e, now, null, data?.sourceStale);
+                        const text = [environment.valueText(e.kind, e.value, e.kind === 'thermal' ? 1 : 0),
+                            e.kind === 'battery' ? environment.batteryText(e) : ''].filter(Boolean).join(', ');
+                        const age = Number.isFinite(now) && e.last_time ? `, ${format.since(e.last_time, now)}` : '';
+                        return why ? `${text} (${why}${age})` : text;
+                    },
+                    // The sensor's own name after the reading
+                    format: (v) => el('span', {}, v, el('span', { class: 'muted' }, ` · ${e.label}`)),
+                    help: envHelp[e.kind],
+                })),
+                { id: 'env:open', title: 'History', draw: (cell, v, rec, state) => {
+                    if (state.kind === list[0]?.kind)
+                        return;
+                    state.kind = list[0]?.kind;
+                    cell.replaceChildren(el('button', { type: 'button', class: 'link-button',
+                        onclick: () => environment.openEnvironment(state.kind) }, 'Open the environment window'));
+                } },
+            ]);
+        },
+    });
+
     // Hop or lock, the hop rate, and the channel picker, with the state the
     // picker shares: what the user has chosen but not sent yet
     function channelControl(node, ctx) {

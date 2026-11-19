@@ -16,7 +16,12 @@
 //              fields in deviceFields (renamed short), for counting
 //   cpu        /system/cpu: system and Kismet CPU load, with their RRDs
 //   thermal    /system/thermal: the temperature sensors and their RRDs
-// cpu and thermal are null on servers without them.
+//   environment  /system/environment: temperatures, fans and batteries, of
+//              the server and its data sources, with their RRDs
+//   environment_current  the same without the RRDs (/system/environment_current,
+//              or /system/environment from servers without it)
+// cpu, thermal, environment and environment_current are null on servers
+// without them.
 // plus `now` (server time) and `window` (seconds, or 0 for all devices).
 //
 // Until all of a card's data has arrived it shows a loading outline in the
@@ -46,6 +51,7 @@ import { dashboardCards } from '../registry/ui.js';
 import { showPane, expandTool } from './panes.js';
 import { dialog, confirm } from './dialog.js';
 import * as loading from './loading.js';
+import { getCurrent } from './environment.js';
 
 const base = 'kismet.device.base';
 const fastSeconds = 5;
@@ -100,6 +106,8 @@ const loaders = {
     talkers: () => api.post('devices/views/all/last-time/-15/devices.json', { fields: talkerFields }),
     cpu: () => orMissing(api.get('system/cpu.json')),
     thermal: () => orMissing(api.get('system/thermal.json')),
+    environment: () => orMissing(api.get('system/environment.json')),
+    environment_current: () => orMissing(getCurrent()),
 };
 
 // null from servers older than the endpoint
