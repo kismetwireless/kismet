@@ -119,8 +119,8 @@ export function register(kismet) {
 
             const message = (text) => el('span', { class: 'muted' }, text);
             const thermalList = el('div', {}, message('Loading the temperature sensors...'));
-            body.append(el('h4', {}, 'Thermal'),
-                el('p', { class: 'muted' }, 'The temperatures the Thermal stat shows; with none checked, it shows the hottest.'),
+            body.append(el('h4', {}, 'Sensors'),
+                el('p', { class: 'muted' }, 'The temperatures the Sensors stat shows; with none checked, it shows the hottest.'),
                 thermalList);
             kismet.widgets.environment.sensorList('thermal').then((list) => {
                 // Chosen sensors the server no longer has stay listed, so they can be unchecked
