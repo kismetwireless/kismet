@@ -18,6 +18,7 @@ CONFIGFILES = \
 	kismet_filter.conf \
 	kismet_uav.conf \
 	kismet_80211.conf \
+	kismet_wired.conf \
 	kismet_wardrive.conf
 
 # Parsers (modeled on former Kaitai model)
@@ -435,7 +436,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_btle_adv.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	phy_cell.cc.o phy_cell_decisions.cc.o \
-	kis_l3_parse.cc.o wired_flow_tracker.cc.o \
+	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
