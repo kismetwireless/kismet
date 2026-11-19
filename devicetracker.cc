@@ -1504,6 +1504,7 @@ std::shared_ptr<kis_tracked_device_base>
                 // Add it before releasing the list so other threads find this device
                 tracked_map[key] = device;
                 tracked_mac_multimap.insert(std::make_pair(in_mac, device));
+                phy_device_counts[in_phy->fetch_phy_id()]++;
 
                 new_device = true;
             }
@@ -1819,8 +1820,13 @@ void device_tracker::timetracker_event(int eventid) {
 
 void device_tracker::forget_device(const std::shared_ptr<kis_tracked_device_base>& d) {
     device_itr mi = tracked_map.find(d->get_key());
-    if (mi != tracked_map.end())
+    if (mi != tracked_map.end()) {
         tracked_map.erase(mi);
+
+        auto ci = phy_device_counts.find(d->get_phyid());
+        if (ci != phy_device_counts.end() && ci->second > 0)
+            ci->second--;
+    }
 
     auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
 
@@ -1863,6 +1869,35 @@ size_t device_tracker::expire_devices(const std::function<bool(kis_tracked_devic
         update_full_refresh();
 
     return drop.size();
+}
+
+bool device_tracker::expire_device(const device_key& key,
+        const std::function<bool(kis_tracked_device_base&)>& pred) {
+    KIS_CHECK_NO_DEVICE_LOCKS("device_tracker expire_device");
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker expire_device");
+
+    auto mi = tracked_map.find(key);
+    if (mi == tracked_map.end())
+        return false;
+
+    auto d = mi->second;
+
+    {
+        kis_device_lock dlk(d, false);
+
+        if (d->get_removed() || !pred(*d))
+            return false;
+
+        d->set_removed();
+
+        if (d->has_tag_map() && d->get_tag_map()->find(baseline_tag) != d->get_tag_map()->end())
+            count_baseline(d->get_macaddr(), false);
+    }
+
+    forget_device(d);
+    update_full_refresh();
+
+    return true;
 }
 
 bool device_tracker::has_saved_tag(kis_tracked_device_base *dev) {
@@ -1982,6 +2017,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
     device->set_kis_internal_id(next_device_id++);
 
     tracked_map[device->get_key()] = device;
+    phy_device_counts[device->get_phyid()]++;
 
     auto mm_pair = std::make_pair(device->get_macaddr(), device);
     tracked_mac_multimap.emplace(mm_pair);
@@ -2070,6 +2106,16 @@ std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) 
         return vk->second;
 
     return nullptr;
+}
+
+size_t device_tracker::count_phy_devices(int in_phyid) {
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker count_phy_devices");
+
+    auto ci = phy_device_counts.find(in_phyid);
+    if (ci != phy_device_counts.end())
+        return ci->second;
+
+    return 0;
 }
 
 void device_tracker::databaselog_write_devices() {

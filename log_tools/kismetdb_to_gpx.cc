@@ -572,6 +572,11 @@ int main(int argc, char *argv[]) {
             }
 
             auto phyname = sqlite3_column_as<std::string>(d, 0);
+
+            // Wired devices have no location; their packets carry the sensor's
+            if (phyname == "IEEE802.3")
+                continue;
+
             auto devmac = sqlite3_column_as<std::string>(d, 1);
             nlohmann::json json;
 

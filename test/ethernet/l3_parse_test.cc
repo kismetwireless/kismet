@@ -1,0 +1,799 @@
+/* Tests for kis_l3_parse (the wired frame decoder) and wired_flow_tracker.
+ *
+ *   make test/ethernet/l3_parse_test && test/ethernet/l3_parse_test
+ *
+ * Every frame is also decoded at every captured length below its full length, which under
+ * ASan/UBSan shows any read past the captured bytes.
+ */
+
+#include "config.h"
+
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include "kis_l3_parse.h"
+#include "wired_flow_tracker.h"
+
+using namespace kis_l3;
+using bytes = std::vector<uint8_t>;
+
+static int failures = 0;
+
+#define CHECK(c) do { \
+    if (!(c)) { \
+        fprintf(stderr, "%s:%d: CHECK(%s) failed\n", __FILE__, __LINE__, #c); \
+        failures++; \
+    } \
+} while (0)
+
+static void put16(bytes& b, unsigned v) { b.push_back(v >> 8); b.push_back(v & 0xff); }
+static void put32(bytes& b, uint32_t v) { put16(b, v >> 16); put16(b, v & 0xffff); }
+static void put(bytes& b, const bytes& v) { b.insert(b.end(), v.begin(), v.end()); }
+static void puts_(bytes& b, const char *s) { b.insert(b.end(), s, s + strlen(s)); }
+
+static const bytes mac_a{0x02, 0, 0, 0, 0xe0, 0x01};
+static const bytes mac_b{0x02, 0, 0, 0, 0xe0, 0x02};
+static const bytes bcast(6, 0xff);
+
+static bytes eth(const bytes& dst, const bytes& src, std::vector<std::pair<unsigned, unsigned>> tags,
+        unsigned type, const bytes& payload) {
+    bytes b;
+    put(b, dst);
+    put(b, src);
+    for (auto [tpid, tci] : tags) {
+        put16(b, tpid);
+        put16(b, tci);
+    }
+    put16(b, type);
+    put(b, payload);
+    return b;
+}
+
+static bytes ipv4(const bytes& src, const bytes& dst, uint8_t proto, const bytes& payload,
+        const bytes& opts = {}, int total_override = -1, unsigned frag = 0x4000) {
+    bytes b;
+    const unsigned ihl = 5 + opts.size() / 4;
+    b.push_back(0x40 | ihl);
+    b.push_back(0);
+    put16(b, total_override >= 0 ? total_override : ihl * 4 + payload.size());
+    put16(b, 1);
+    put16(b, frag);
+    b.push_back(64);
+    b.push_back(proto);
+    put16(b, 0);
+    put(b, src);
+    put(b, dst);
+    put(b, opts);
+    put(b, payload);
+    return b;
+}
+
+static bytes udp(unsigned sport, unsigned dport, const bytes& payload) {
+    bytes b;
+    put16(b, sport);
+    put16(b, dport);
+    put16(b, 8 + payload.size());
+    put16(b, 0);
+    put(b, payload);
+    return b;
+}
+
+static bytes tcp(unsigned sport, unsigned dport, uint8_t flags) {
+    bytes b;
+    put16(b, sport);
+    put16(b, dport);
+    put32(b, 1);
+    put32(b, 0);
+    b.push_back(0x50);
+    b.push_back(flags);
+    put16(b, 65535);
+    put16(b, 0);
+    put16(b, 0);
+    return b;
+}
+
+static bytes opt(uint8_t code, const bytes& d) {
+    bytes b{code, static_cast<uint8_t>(d.size())};
+    put(b, d);
+    return b;
+}
+
+static bytes str(const char *s) { return bytes(s, s + strlen(s)); }
+
+static bytes dhcp4(uint8_t op, uint8_t type, const bytes& chaddr, const bytes& opts,
+        const bytes& yiaddr = {0, 0, 0, 0}, const bytes& sname = {}, const bytes& file = {}) {
+    bytes b{op, 1, 6, 0};
+    put32(b, 0x11223344);
+    put16(b, 0);
+    put16(b, 0x8000);
+    put(b, bytes(4));
+    put(b, yiaddr);
+    put(b, bytes(8));
+    put(b, chaddr);
+    put(b, bytes(10));
+    bytes sn = sname; sn.resize(64);
+    bytes fl = file; fl.resize(128);
+    put(b, sn);
+    put(b, fl);
+    put32(b, 0x63825363);
+    put(b, opt(53, {type}));
+    put(b, opts);
+    b.push_back(255);
+    return b;
+}
+
+static bytes dns(const char *name) {
+    bytes b;
+    std::string n(name);
+    size_t p = 0;
+    while (p < n.size()) {
+        auto d = n.find('.', p);
+        if (d == std::string::npos)
+            d = n.size();
+        b.push_back(d - p);
+        b.insert(b.end(), n.begin() + p, n.begin() + d);
+        p = d + 1;
+    }
+    b.push_back(0);
+    return b;
+}
+
+static frame parse(int dlt, const bytes& b) {
+    frame f;
+    parse_frame(dlt, b.data(), b.size(), f);
+    // and every shorter capture of it
+    for (size_t l = 0; l < b.size(); l++) {
+        frame t;
+        std::vector<uint8_t> cut(b.begin(), b.begin() + l);
+        parse_frame(dlt, cut.empty() ? nullptr : cut.data(), cut.size(), t);
+        if (t.dhcp4.hostname.len > max_opt_string || t.dhcp4.fqdn.len > max_dns_name)
+            failures++;
+    }
+    return f;
+}
+
+static ip_addr v4(uint8_t a, uint8_t b, uint8_t c, uint8_t d) {
+    ip_addr r;
+    r.family = 4;
+    r.a[0] = a; r.a[1] = b; r.a[2] = c; r.a[3] = d;
+    return r;
+}
+
+static void test_l2() {
+    const bytes s{192, 0, 2, 1}, d{192, 0, 2, 2};
+    auto f = parse(1, eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(1000, 2000, str("x")))));
+    CHECK(f.l2_ok && f.has_dst && f.dclass == dst_class::unicast);
+    CHECK(f.n_tags == 0 && f.ethertype == 0x0800 && f.l3 == l3_type::ipv4);
+    CHECK(f.l4_ok && f.sport == 1000 && f.dport == 2000 && f.ip_proto == 17);
+    CHECK(f.src[5] == 0x01 && f.dst[5] == 0x02 && f.errors == 0);
+
+    f = parse(1, eth(bcast, mac_a, {{0x8100, 0xa000 | 10}}, 0x0806, bytes(28)));
+    CHECK(f.dclass == dst_class::broadcast && f.n_tags == 1 && f.tags[0].vid() == 10 && f.tags[0].pcp() == 5);
+
+    // priority tagged: one tag, VLAN 0
+    f = parse(1, eth(mac_b, mac_a, {{0x8100, 0x6000}}, 0x0800, ipv4(s, d, 17, udp(1, 2, {}))));
+    CHECK(f.n_tags == 1 && f.tags[0].vid() == 0 && f.l4_ok);
+
+    f = parse(1, eth(mac_b, mac_a, {{0x88a8, 100}, {0x8100, 20}}, 0x0800, ipv4(s, d, 6, tcp(1, 2, 0x12))));
+    CHECK(f.n_tags == 2 && f.tags[0].tpid == 0x88a8 && f.tags[0].vid() == 100 && f.tags[1].vid() == 20);
+    CHECK(f.tcp_flags == 0x12 && f.l4_ok);
+
+    f = parse(1, eth(mac_b, mac_a, {{0x9100, 200}, {0x8100, 30}}, 0x0800, ipv4(s, d, 6, tcp(1, 2, 0x02))));
+    CHECK(f.n_tags == 2 && f.tags[0].tpid == 0x9100 && f.l4_ok);
+
+    f = parse(1, eth(mac_b, mac_a, {{0x88a8, 1}, {0x8100, 2}, {0x8100, 3}, {0x9200, 4}}, 0x0800,
+                ipv4(s, d, 6, tcp(1, 2, 0x02))));
+    CHECK(f.n_tags == 4 && f.l4_ok && f.errors == 0);
+
+    // five tags: malformed, nothing past the tags
+    f = parse(1, eth(mac_b, mac_a, {{0x88a8, 1}, {0x8100, 2}, {0x8100, 3}, {0x8100, 4}, {0x8100, 5}},
+                0x0800, ipv4(s, d, 6, tcp(1, 2, 0x02))));
+    CHECK((f.errors & err_tags_deep) && f.l3 == l3_type::none && f.n_tags == 4);
+
+    // multicast destination, LLC length field, LLC/SNAP with IPv4
+    f = parse(1, eth({0x01, 0x00, 0x5e, 0, 0, 1}, mac_a, {}, 46, bytes(46)));
+    CHECK(f.dclass == dst_class::multicast && f.llc && f.l3 == l3_type::none);
+    bytes snap{0xaa, 0xaa, 0x03, 0, 0, 0, 0x08, 0x00};
+    put(snap, ipv4(s, d, 17, udp(5, 6, {})));
+    f = parse(1, eth(mac_b, mac_a, {}, snap.size(), snap));
+    CHECK(f.llc && f.ethertype == 0x0800 && f.l4_ok && f.dport == 6);
+
+    // runts
+    CHECK(!parse_frame(1, mac_a.data(), 6, f));
+    CHECK(!parse_frame(1, nullptr, 0, f));
+
+    // SLL: source only, broadcast packet type, a tag inline
+    bytes sll;
+    put16(sll, 1);
+    put16(sll, 1);
+    put16(sll, 6);
+    put(sll, mac_a);
+    put16(sll, 0);
+    put16(sll, 0x8100);
+    put16(sll, 42);
+    put16(sll, 0x0800);
+    put(sll, ipv4(s, d, 17, udp(7, 8, {})));
+    f = parse(113, sll);
+    CHECK(f.l2_ok && !f.has_dst && f.dclass == dst_class::broadcast && f.src[5] == 0x01);
+    CHECK(f.n_tags == 1 && f.tags[0].vid() == 42 && f.l4_ok && f.dport == 8);
+
+    // SLL2, outgoing
+    bytes sll2;
+    put16(sll2, 0x0800);
+    put16(sll2, 0);
+    put32(sll2, 3);
+    put16(sll2, 1);
+    sll2.push_back(4);
+    sll2.push_back(6);
+    put(sll2, mac_a);
+    put16(sll2, 0);
+    put(sll2, ipv4(s, d, 6, tcp(9, 10, 0x10)));
+    f = parse(276, sll2);
+    CHECK(f.l2_ok && f.outgoing && f.dclass == dst_class::unknown && f.l4_ok && f.dport == 10);
+
+    // SLL from a non-Ethernet interface (loopback, ARPHRD 772)
+    sll2[8] = 0x03;
+    sll2[9] = 0x04;
+    CHECK(!parse_frame(276, sll2.data(), sll2.size(), f));
+
+    // unknown DLT
+    CHECK(!parse_frame(105, sll2.data(), sll2.size(), f));
+}
+
+static void test_ipv4() {
+    const bytes s{192, 0, 2, 1}, d{192, 0, 2, 2};
+
+    // IHL 6 (router alert) and IHL 15 (record route)
+    auto f = parse(1, eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(7000, 7001, {}), {0x94, 4, 0, 0})));
+    CHECK(f.ipv4_ihl == 24 && f.l4_ok && f.sport == 7000 && f.dport == 7001);
+    bytes rr{7, 39, 4};
+    rr.resize(40);
+    f = parse(1, eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 6, tcp(7002, 7003, 2), rr)));
+    CHECK(f.ipv4_ihl == 60 && f.l4_ok && f.sport == 7002);
+
+    // IHL past the captured bytes
+    auto b = eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(1, 2, {})));
+    b[14] = 0x4f;
+    f = parse(1, b);
+    CHECK((f.errors & err_ip_short) && !f.l4_ok && f.ip_src == v4(192, 0, 2, 1));
+
+    // total length shorter than the header; and IHL < 5
+    f = parse(1, eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(1, 2, {}), {}, 10)));
+    CHECK((f.errors & err_ip_len) && !f.l4_ok);
+    b = eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(1, 2, {})));
+    b[14] = 0x44;
+    f = parse(1, b);
+    CHECK((f.errors & err_ip_hdr) && f.l3 == l3_type::none);
+
+    // total length larger than the frame: read what was captured
+    f = parse(1, eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(1, 2, {}), {}, 0xffff)));
+    CHECK(f.l4_ok && f.dport == 2);
+
+    // Ethernet padding past the datagram doesn't become UDP payload: a DHCP header in the
+    // padding isn't parsed
+    auto dh = dhcp4(1, 1, mac_a, opt(12, str("pad")));
+    auto u = udp(68, 67, {});
+    auto ip = ipv4(s, d, 17, u);
+    put(ip, dh);
+    f = parse(1, eth(bcast, mac_a, {}, 0x0800, ip));
+    CHECK(f.l4_ok && !f.dhcp4.valid);
+
+    // later fragment: no transport
+    f = parse(1, eth(mac_b, mac_a, {}, 0x0800, ipv4(s, d, 17, udp(1, 2, {}), {}, -1, 0x0010)));
+    CHECK(f.fragment && !f.l4_ok);
+}
+
+static bytes ipv6(uint8_t nh, const bytes& payload, std::vector<std::pair<uint8_t, bytes>> ext = {}) {
+    bytes chain;
+    std::vector<uint8_t> types;
+    for (auto& e : ext)
+        types.push_back(e.first);
+    types.push_back(nh);
+    for (size_t i = 0; i < ext.size(); i++) {
+        chain.push_back(types[i + 1]);
+        if (ext[i].first == 44)
+            chain.push_back(0);
+        else
+            chain.push_back((ext[i].second.size() + 2) / 8 - 1);
+        put(chain, ext[i].second);
+    }
+    bytes b;
+    put32(b, 0x60000000);
+    put16(b, chain.size() + payload.size());
+    b.push_back(types[0]);
+    b.push_back(64);
+    bytes a(16), z(16);
+    a[0] = 0x20; a[1] = 0x01; a[2] = 0x0d; a[3] = 0xb8; a[15] = 2;
+    z = a; z[15] = 3;
+    put(b, a);
+    put(b, z);
+    put(b, chain);
+    put(b, payload);
+    return b;
+}
+
+static void test_ipv6() {
+    const bytes padn{1, 4, 0, 0, 0, 0};
+    bytes rh{0, 0, 0, 0, 0, 0};
+    rh.resize(22);
+
+    auto f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(6, tcp(6000, 443, 2), {{0, padn}, {43, rh}, {60, padn}})));
+    CHECK(f.l3 == l3_type::ipv6 && f.n_ext == 3 && f.l4_ok && f.sport == 6000 && f.dport == 443);
+    CHECK(f.ip_src.family == 6 && f.ip_src.a[15] == 2);
+
+    // first fragment carries UDP; a later one doesn't
+    f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(17, udp(6001, 9999, str("frag")), {{44, {0x00, 0x01, 0, 0, 0x12, 0x34}}})));
+    CHECK(!f.fragment && f.more_fragments && f.l4_ok && f.dport == 9999);
+    f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(17, str("later-bytes"), {{44, {0x01, 0x00, 0, 0, 0x12, 0x34}}})));
+    CHECK(f.fragment && !f.l4_ok && f.ip_proto == 17);
+
+    // 8 extension headers are read, a 9th is too deep
+    std::vector<std::pair<uint8_t, bytes>> ext(8, {60, padn});
+    f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(17, udp(1, 2, {}), ext)));
+    CHECK(f.l4_ok && f.n_ext == 8 && f.errors == 0);
+    ext.push_back({60, padn});
+    f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(17, udp(1, 2, {}), ext)));
+    CHECK((f.errors & err_ext_deep) && !f.l4_ok);
+
+    // an extension header claiming more than was captured
+    auto b = eth(mac_b, mac_a, {}, 0x86dd, ipv6(17, udp(1, 2, {}), {{60, padn}}));
+    b[14 + 40 + 1] = 200;
+    f = parse(1, b);
+    CHECK((f.errors & err_ip_short) && !f.l4_ok);
+
+    // ESP ends the chain
+    f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(50, bytes(16))));
+    CHECK(f.ip_proto == 50 && !f.l4_ok);
+
+    // ICMPv6
+    f = parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(58, {135, 0, 0, 0, 0, 0, 0, 0})));
+    CHECK(f.l4_ok && f.icmp_type == 135);
+}
+
+static void test_arp() {
+    bytes a;
+    put16(a, 1);
+    put16(a, 0x0800);
+    a.push_back(6);
+    a.push_back(4);
+    put16(a, 2);
+    put(a, mac_a);
+    put(a, {192, 0, 2, 1});
+    put(a, mac_b);
+    put(a, {192, 0, 2, 2});
+    auto f = parse(1, eth(mac_b, mac_a, {}, 0x0806, a));
+    CHECK(f.l3 == l3_type::arp && f.arp_op == 2 && f.arp_spa == v4(192, 0, 2, 1) && f.arp_tpa == v4(192, 0, 2, 2));
+    CHECK(f.arp_sha[5] == 1 && f.arp_tha[5] == 2 && f.errors == 0);
+
+    // hardware length 255: not decoded
+    a[4] = 255;
+    f = parse(1, eth(mac_b, mac_a, {}, 0x0806, a));
+    CHECK((f.errors & err_arp) && !f.arp_spa.set());
+}
+
+static frame dhcp_frame(const bytes& d, unsigned sport = 68, unsigned dport = 67) {
+    return parse(1, eth(bcast, mac_a, {}, 0x0800, ipv4({0, 0, 0, 0}, {255, 255, 255, 255}, 17, udp(sport, dport, d))));
+}
+
+static void test_dhcp4() {
+    bytes fq{0x05, 0, 0};
+    put(fq, dns("client-one.example.com"));
+    bytes opts;
+    put(opts, opt(61, {1, 2, 0, 0, 0, 0xe0, 1}));
+    put(opts, opt(12, str("client-one")));
+    put(opts, opt(60, str("vendor 1.0")));
+    put(opts, opt(55, {1, 3, 6, 15}));
+    put(opts, opt(81, fq));
+    put(opts, opt(50, {192, 0, 2, 10}));
+    auto f = dhcp_frame(dhcp4(1, 3, mac_a, opts));
+    const auto& d = f.dhcp4;
+    CHECK(d.valid && d.op == 1 && d.msgtype == 3 && d.xid == 0x11223344 && d.chaddr_eth);
+    CHECK(d.hostname.view() == "client-one" && d.vendor.view() == "vendor 1.0");
+    CHECK(d.prl.len == 4 && d.prl.buf[3] == 15 && d.client_id.len == 7);
+    CHECK(d.has_fqdn && d.fqdn.view() == "client-one.example.com");
+    CHECK(d.requested == v4(192, 0, 2, 10));
+
+    // server: router, DNS, yiaddr
+    bytes so;
+    put(so, opt(54, {192, 0, 2, 254}));
+    put(so, opt(3, {192, 0, 2, 1, 192, 0, 2, 2}));
+    put(so, opt(6, {192, 0, 2, 53, 192, 0, 2, 54, 192, 0, 2, 55, 192, 0, 2, 56, 192, 0, 2, 57}));
+    put(so, opt(1, {255, 255, 255, 0}));
+    f = dhcp_frame(dhcp4(2, 5, mac_a, so, {192, 0, 2, 10}), 67, 68);
+    CHECK(f.dhcp4.op == 2 && f.dhcp4.msgtype == 5 && f.dhcp4.yiaddr == v4(192, 0, 2, 10));
+    CHECK(f.dhcp4.router == v4(192, 0, 2, 1) && f.dhcp4.n_dns == max_dns_servers);
+    CHECK(f.dhcp4.server_id == v4(192, 0, 2, 254));
+
+    // overload: file then sname
+    bytes fl = opt(12, str("overload-host"));
+    fl.push_back(255);
+    bytes sn = opt(60, str("overload-vendor"));
+    sn.push_back(255);
+    f = dhcp_frame(dhcp4(1, 3, mac_a, opt(52, {3}), {0, 0, 0, 0}, sn, fl));
+    CHECK(f.dhcp4.overload == 3 && f.dhcp4.hostname.view() == "overload-host" &&
+            f.dhcp4.vendor.view() == "overload-vendor");
+
+    // option 52 inside the file or sname field is ignored, so no loop and no re-read
+    bytes fl52 = opt(52, {3});
+    fl52.push_back(255);
+    f = dhcp_frame(dhcp4(1, 1, mac_a, opt(52, {1}), {0, 0, 0, 0}, {}, fl52));
+    CHECK(f.dhcp4.overload == 1);
+
+    // option running past the end: stops, keeps what came before
+    auto bad = dhcp4(1, 1, mac_a, opt(12, str("before")));
+    bad.pop_back();
+    put(bad, {60, 0x40, 'x'});
+    f = dhcp_frame(bad);
+    CHECK((f.errors & err_dhcp_opt) && f.dhcp4.hostname.view() == "before" && f.dhcp4.vendor.empty());
+
+    // RFC 3396 concatenation, capped
+    bytes cat;
+    for (int i = 0; i < 3; i++)
+        put(cat, opt(12, bytes(200, 'a')));
+    f = dhcp_frame(dhcp4(1, 1, mac_a, cat));
+    CHECK(f.dhcp4.hostname.len == max_opt_string && (f.errors & err_truncated_string));
+
+    // FQDN with the E flag clear is ASCII
+    bytes fa{0x01, 0, 0};
+    put(fa, str("ascii.example.com"));
+    fa.push_back(0);
+    f = dhcp_frame(dhcp4(1, 1, mac_a, opt(81, fa)));
+    CHECK(f.dhcp4.has_fqdn && f.dhcp4.fqdn.view() == "ascii.example.com");
+
+    // FQDN partial name (no root label)
+    bytes fp{0x05, 0, 0, 4, 'h', 'o', 's', 't'};
+    f = dhcp_frame(dhcp4(1, 1, mac_a, opt(81, fp)));
+    CHECK(f.dhcp4.has_fqdn && f.dhcp4.fqdn.view() == "host");
+
+    // FQDN that is only the root names nothing
+    f = dhcp_frame(dhcp4(1, 1, mac_a, opt(81, {0x05, 0, 0, 0})));
+    CHECK(!f.dhcp4.has_fqdn && f.errors == 0);
+
+    // FQDN with a pointer loop, and a forward pointer
+    f = dhcp_frame(dhcp4(1, 1, mac_a, opt(81, {0x05, 0, 0, 0xc0, 0x00})));
+    CHECK(!f.dhcp4.has_fqdn && (f.errors & err_dns_name));
+    f = dhcp_frame(dhcp4(1, 1, mac_a, opt(81, {0x05, 0, 0, 0xc0, 0x02, 0})));
+    CHECK(!f.dhcp4.has_fqdn);
+
+    // bad magic, short message
+    auto nm = dhcp4(1, 1, mac_a, {});
+    nm[236] = 0;
+    f = dhcp_frame(nm);
+    CHECK(!f.dhcp4.valid && (f.errors & err_dhcp));
+    f = dhcp_frame(bytes(100));
+    CHECK(!f.dhcp4.valid && (f.errors & err_dhcp));
+
+    // relay to server, 67 to 67
+    f = dhcp_frame(dhcp4(1, 3, mac_a, {}), 67, 67);
+    CHECK(f.dhcp4.valid);
+}
+
+static void test_dns_names() {
+    bstr<max_dns_name> out;
+
+    auto n = dns("a.example.com");
+    CHECK(decode_dns_name(n.data(), n.size(), 0, out) && out.view() == "a.example.com");
+
+    // backward pointer: "www" then a pointer to the name at 0
+    bytes m = dns("example.com");
+    const size_t at = m.size();
+    put(m, {3, 'w', 'w', 'w', 0xc0, 0x00});
+    CHECK(decode_dns_name(m.data(), m.size(), at, out) && out.view() == "www.example.com");
+
+    // a pointer to itself, and a forward pointer
+    bytes self{3, 'a', 'b', 'c', 0xc0, 0x00};
+    CHECK(!decode_dns_name(self.data(), self.size(), 0, out));
+    bytes fwd{0xc0, 0x02, 1, 'x', 0};
+    CHECK(!decode_dns_name(fwd.data(), fwd.size(), 0, out));
+
+    // pointer chain that goes backwards each time is fine
+    bytes chain{1, 'a', 0, 1, 'b', 0xc0, 0x00, 1, 'c', 0xc0, 0x03};
+    CHECK(decode_dns_name(chain.data(), chain.size(), 7, out) && out.view() == "c.b.a");
+
+    // 128 one-character labels are fine (255 bytes), 129 are not
+    bytes many;
+    for (int i = 0; i < 128; i++)
+        put(many, {1, 'x'});
+    many.push_back(0);
+    CHECK(decode_dns_name(many.data(), many.size(), 0, out) && out.len == 255);
+    bytes too_many;
+    for (int i = 0; i < 129; i++)
+        put(too_many, {1, 'x'});
+    too_many.push_back(0);
+    CHECK(!decode_dns_name(too_many.data(), too_many.size(), 0, out));
+
+    // over 255 bytes
+    bytes longn;
+    for (int i = 0; i < 5; i++) {
+        longn.push_back(63);
+        put(longn, bytes(63, 'y'));
+    }
+    longn.push_back(0);
+    CHECK(!decode_dns_name(longn.data(), longn.size(), 0, out));
+
+    // label running off the end, reserved label types, no terminator
+    bytes off{10, 'a', 'b'};
+    CHECK(!decode_dns_name(off.data(), off.size(), 0, out));
+    bytes rsv{0x40, 'a', 0};
+    CHECK(!decode_dns_name(rsv.data(), rsv.size(), 0, out));
+    bytes noterm{1, 'a'};
+    CHECK(!decode_dns_name(noterm.data(), noterm.size(), 0, out));
+    CHECK(!decode_dns_name(noterm.data(), noterm.size(), 5, out));
+}
+
+static void test_dhcp6() {
+    bytes d{1, 0xab, 0xcd, 0xef};
+    auto o6 = [&d](unsigned code, const bytes& v) { put16(d, code); put16(d, v.size()); put(d, v); };
+    bytes duid{0, 1, 0, 1, 0x29, 0xb9, 0x27, 0};
+    put(duid, mac_a);
+    o6(1, duid);
+    o6(6, {0, 23, 0, 24, 0, 39});
+    bytes fq{1};
+    put(fq, dns("six.example.com"));
+    o6(39, fq);
+    bytes vc;
+    put32(vc, 311);
+    put16(vc, 3);
+    puts_(vc, "abc");
+    o6(16, vc);
+
+    auto v6 = [](const bytes& payload) {
+        return parse(1, eth(mac_b, mac_a, {}, 0x86dd, ipv6(17, udp(546, 547, payload))));
+    };
+
+    auto f = v6(d);
+    CHECK(f.dhcp6.valid && f.dhcp6.msgtype == 1 && f.dhcp6.xid == 0xabcdef);
+    CHECK(f.dhcp6.client_duid.len == 14 && f.dhcp6.n_oro == 3 && f.dhcp6.oro[2] == 39);
+    CHECK(f.dhcp6.has_fqdn && f.dhcp6.fqdn.view() == "six.example.com");
+    CHECK(f.dhcp6.vendor.view() == "abc" && f.dhcp6.vendor_enterprise == 311);
+
+    // reply with an IA_NA holding two addresses
+    bytes r{7, 0, 0, 1};
+    bytes ia;
+    put32(ia, 1);
+    put32(ia, 100);
+    put32(ia, 200);
+    for (int i = 0; i < 2; i++) {
+        put16(ia, 5);
+        put16(ia, 24);
+        bytes a(16);
+        a[0] = 0x20; a[1] = 0x01; a[2] = 0x0d; a[3] = 0xb8; a[15] = 0x10 + i;
+        put(ia, a);
+        put32(ia, 1);
+        put32(ia, 2);
+    }
+    put16(r, 3);
+    put16(r, ia.size());
+    put(r, ia);
+    f = parse(1, eth(mac_a, mac_b, {}, 0x86dd, ipv6(17, udp(547, 546, r))));
+    CHECK(f.dhcp6.msgtype == 7 && f.dhcp6.n_ia_addrs == 2 && f.dhcp6.ia_addrs[1].a[15] == 0x11);
+
+    // option length past the end
+    bytes bad{1, 0, 0, 1, 0, 1, 0xff, 0xff, 1, 2};
+    f = v6(bad);
+    CHECK((f.errors & err_dhcp6) && f.dhcp6.client_duid.empty());
+
+    // relay-forward isn't unwrapped; type 0 is invalid
+    f = v6({12, 0, 0, 0});
+    CHECK(!f.dhcp6.valid && f.errors == 0);
+    f = v6({0, 0, 0, 0});
+    CHECK(!f.dhcp6.valid && (f.errors & err_dhcp6));
+
+    // oversized DUID is capped
+    bytes big{1, 0, 0, 1};
+    put16(big, 1);
+    put16(big, 300);
+    put(big, bytes(300, 0x41));
+    f = v6(big);
+    CHECK(f.dhcp6.client_duid.len == max_duid && (f.errors & err_truncated_string));
+}
+
+static wired_flow_tracker::observation obs(uint8_t a, uint8_t b, uint16_t sp, uint16_t dp, time_t ts,
+        uint8_t proto = 17, uint8_t flags = 0) {
+    wired_flow_tracker::observation o;
+    o.src = v4(192, 0, 2, a);
+    o.dst = v4(198, 51, 100, b);
+    o.proto = proto;
+    o.sport = sp;
+    o.dport = dp;
+    o.tcp_flags = flags;
+    o.bytes = 100;
+    o.ts = ts;
+    o.seen = ts;
+    o.src_mac = 0x020000000000ULL | a;
+    o.dst_mac = 0x020000000100ULL | b;
+    return o;
+}
+
+static void test_flows() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 100;
+    wired_flow_tracker t(p);
+
+    CHECK(t.add(obs(1, 1, 1000, 53, 10)) == r::created);
+    CHECK(t.add(obs(1, 1, 1000, 53, 11)) == r::updated);
+
+    // the reply is the same flow, other direction
+    auto rep = obs(1, 1, 1000, 53, 12);
+    std::swap(rep.src, rep.dst);
+    std::swap(rep.sport, rep.dport);
+    std::swap(rep.src_mac, rep.dst_mac);
+    CHECK(t.add(rep) == r::updated);
+
+    std::vector<wired_flow_tracker::flow> out;
+    size_t total;
+    t.snapshot({}, 0, 0, out, total);
+    CHECK(total == 1 && out.size() == 1);
+    CHECK(out[0].packets_ab + out[0].packets_ba == 3 && out[0].first_time == 10 && out[0].last_time == 12);
+    CHECK(out[0].initiator_a);
+
+    // different VLAN is a different flow
+    auto vo = obs(1, 1, 1000, 53, 13);
+    vo.vlan = wired_flow_tracker::vlan_key(1, 10, 0);
+    CHECK(t.add(vo) == r::created);
+
+    // fill to 90: still admitted on the first packet
+    for (int i = 0; i < 88; i++)
+        CHECK(t.add(obs(2, 2, 2000 + i, 80, 20, 6)) == r::created);
+    CHECK(t.get_stats().flows == 90);
+
+    // past 90%: a new flow waits for its second packet
+    CHECK(t.add(obs(3, 3, 1, 1, 21)) == r::deferred);
+    CHECK(t.add(obs(3, 3, 1, 1, 21)) == r::created);
+
+    for (int i = 0; i < 9; i++) {
+        t.add(obs(4, 4, 10 + i, 1, 22));
+        t.add(obs(4, 4, 10 + i, 1, 22));
+    }
+    CHECK(t.get_stats().flows == 100);
+    CHECK(t.add(obs(5, 5, 1, 1, 23)) == r::dropped);
+    CHECK(t.add(obs(5, 5, 1, 1, 23)) == r::dropped);
+    CHECK(t.get_stats().dropped_full >= 2);
+
+    // filters and paging
+    wired_flow_tracker::filter f;
+    f.vlan = 10;
+    t.snapshot(f, 0, 0, out, total);
+    CHECK(total == 1 && out.size() == 1);
+    f = {};
+    f.mac = 0x020000000002ULL;
+    t.snapshot(f, 0, 10, out, total);
+    CHECK(total == 88 && out.size() == 10);
+    t.snapshot(f, 85, 10, out, total);
+    CHECK(out.size() == 3);
+    t.snapshot(f, 500, 10, out, total);
+    CHECK(out.empty());
+    f = {};
+    f.ip = v4(198, 51, 100, 4);
+    t.snapshot(f, 0, 0, out, total);
+    CHECK(total == 9);
+
+    // TCP after FIN expires after 10 s, open TCP after 300, UDP after 60
+    CHECK(t.add(obs(2, 2, 2000, 80, 25, 6, 0x11)) == r::updated);
+    size_t before = t.get_stats().flows;
+    t.expire(36);
+    CHECK(t.get_stats().flows == before - 1);
+    t.expire(100);
+    CHECK(t.get_stats().flows == 87);
+    t.expire(400);
+    CHECK(t.get_stats().flows == 0);
+
+    // mismatched families and a zero cap are ignored
+    wired_flow_tracker::observation m = obs(1, 1, 1, 1, 1);
+    m.dst.family = 6;
+    CHECK(t.add(m) == r::ignored);
+    p.max_flows = 0;
+    wired_flow_tracker z(p);
+    CHECK(z.add(obs(1, 1, 1, 1, 1)) == r::ignored);
+}
+
+static void test_flow_times() {
+    wired_flow_tracker::params p;
+    p.max_flows = 1000;
+    wired_flow_tracker t(p);
+
+    // Packet times from 2036 and a day back: expiry follows server time only
+    auto fut = obs(1, 1, 1, 1, 0);
+    fut.ts = 2100000000;
+    fut.seen = 1000;
+    t.add(fut);
+    for (int i = 0; i < 100; i++) {
+        auto o = obs(2, 2, 100 + i, 53, 0);
+        o.ts = 1700000000 - 86400;
+        o.seen = 1000;
+        t.add(o);
+    }
+    t.expire(1050);
+    CHECK(t.get_stats().flows == 101);
+    t.expire(1061);
+    CHECK(t.get_stats().flows == 0);
+
+    // Newest packet first, ties in key order, and every page of a large table agrees with a
+    // full listing
+    wired_flow_tracker u(p);
+    for (int i = 0; i < 500; i++)
+        u.add(obs(static_cast<uint8_t>(i % 7), static_cast<uint8_t>(i % 11), static_cast<uint16_t>(i), 9,
+                    static_cast<time_t>(i % 13)));
+
+    std::vector<wired_flow_tracker::flow> all, page;
+    size_t total;
+    u.snapshot({}, 0, 0, all, total);
+    CHECK(total == 500 && all.size() == 500);
+    for (size_t i = 1; i < all.size(); i++)
+        CHECK(all[i - 1].last_time >= all[i].last_time);
+
+    for (size_t start = 0; start < 520; start += 37) {
+        u.snapshot({}, start, 37, page, total);
+        CHECK(total == 500);
+        CHECK(page.size() == (start >= 500 ? 0 : std::min<size_t>(37, 500 - start)));
+        for (size_t i = 0; i < page.size(); i++)
+            CHECK(page[i].k == all[start + i].k);
+    }
+}
+
+static void test_escape_hidden() {
+    CHECK(escape_hidden("plain") == "plain");
+    CHECK(escape_hidden("caf\xc3\xa9 \xe2\x82\xac \xf0\x9f\x98\x80") == "caf\xc3\xa9 \xe2\x82\xac \xf0\x9f\x98\x80");
+    CHECK(escape_hidden("a\x7f" "b") == "a\\u007fb");
+    CHECK(escape_hidden("\xc2\x85") == "\\u0085");
+    CHECK(escape_hidden("soft\xc2\xadhy") == "soft\\u00adhy");
+    CHECK(escape_hidden("alm\xd8\x9c") == "alm\\u061c");
+    CHECK(escape_hidden("\xe2\x80\x8b\xe2\x80\x8f") == "\\u200b\\u200f");
+    CHECK(escape_hidden("\xe2\x80\xa8\xe2\x80\xae") == "\\u2028\\u202e");
+    CHECK(escape_hidden("\xe2\x81\xa0\xe2\x81\xa4") == "\\u2060\\u2064");
+    CHECK(escape_hidden("\xe2\x81\xa6\xe2\x81\xa9") == "\\u2066\\u2069");
+    CHECK(escape_hidden("\xef\xbb\xbf" "bom") == "\\ufeffbom");
+    CHECK(escape_hidden("\xef\xbf\xb9\xef\xbf\xbb") == "\\ufff9\\ufffb");
+    CHECK(escape_hidden("tag\xf3\xa0\x80\x81\xf3\xa0\x81\xbf") == "tag\\U000e0001\\U000e007f");
+
+    // Neighbours of each range pass
+    CHECK(escape_hidden("\xc2\xa0\xc2\xac\xc2\xae") == "\xc2\xa0\xc2\xac\xc2\xae");
+    CHECK(escape_hidden("\xd8\x9b\xe2\x80\x8a\xe2\x80\x90\xe2\x81\xa5\xe2\x81\xaa") ==
+            "\xd8\x9b\xe2\x80\x8a\xe2\x80\x90\xe2\x81\xa5\xe2\x81\xaa");
+    CHECK(escape_hidden("\xef\xbf\xb8\xef\xbf\xbc\xf3\xa0\x82\x80") == "\xef\xbf\xb8\xef\xbf\xbc\xf3\xa0\x82\x80");
+
+    // Truncated or stray bytes are copied, never read past the end
+    CHECK(escape_hidden("\xe2\x80") == "\xe2\x80");
+    CHECK(escape_hidden("x\xf3\xa0\x80") == "x\xf3\xa0\x80");
+    CHECK(escape_hidden("\xc2") == "\xc2");
+    CHECK(escape_hidden("\x80\xc2\x85") == "\x80\\u0085");
+}
+
+static void test_frame_reuse() {
+    // A frame struct reused for a short frame after a DHCP one keeps nothing of the first
+    auto pkt = eth(bcast, mac_a, {}, 0x0800, ipv4({0, 0, 0, 0}, {255, 255, 255, 255}, 17,
+                udp(68, 67, dhcp4(1, 3, mac_a, opt(12, str("host"))))));
+    frame f;
+    CHECK(parse_frame(dlt_en10mb, pkt.data(), pkt.size(), f));
+    CHECK(f.dhcp4.valid && f.dhcp4.hostname.view() == "host" && f.l4_ok);
+
+    auto arp_short = eth(bcast, mac_a, {}, 0x0806, {0x00, 0x01});
+    CHECK(parse_frame(dlt_en10mb, arp_short.data(), arp_short.size(), f));
+    CHECK(!f.dhcp4.valid && f.dhcp4.hostname.empty() && f.l3 == l3_type::arp && !f.l4_ok);
+    CHECK(!f.ip_src.set() && f.sport == 0);
+}
+
+int main() {
+    test_l2();
+    test_ipv4();
+    test_ipv6();
+    test_arp();
+    test_dhcp4();
+    test_dns_names();
+    test_dhcp6();
+    test_flows();
+    test_flow_times();
+    test_frame_reuse();
+    test_escape_hidden();
+
+    if (failures) {
+        fprintf(stderr, "%d failures\n", failures);
+        return 1;
+    }
+
+    printf("all wired parser and flow tests passed\n");
+    return 0;
+}

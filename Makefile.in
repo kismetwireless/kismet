@@ -18,6 +18,7 @@ CONFIGFILES = \
 	kismet_filter.conf \
 	kismet_uav.conf \
 	kismet_80211.conf \
+	kismet_wired.conf \
 	kismet_wardrive.conf
 
 # Parsers (modeled on former Kaitai model)
@@ -267,6 +268,17 @@ TEST_DOT11_KARMA = test/dot11_karma/karma_test
 TEST_DOT11_KARMA_O = \
 	test/dot11_karma/karma_test.cc.o
 
+# The UTF-8 validation tests; built on request
+TEST_UTIL_UTF8 = test/util_utf8/utf8_test
+TEST_UTIL_UTF8_O = \
+	test/util_utf8/utf8_test.cc.o util.cc.o
+
+# The wired frame decoder and flow table tests; built on request
+TEST_ETHERNET = test/ethernet/l3_parse_test
+TEST_ETHERNET_O = \
+	test/ethernet/l3_parse_test.cc.o \
+	kis_l3_parse.cc.o wired_flow_tracker.cc.o
+
 # The device rules baseline grammar tests; built on request
 TEST_DEVICE_RULES = test/device_rules/baseline_test
 TEST_DEVICE_RULES_O = \
@@ -424,6 +436,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_btle_adv.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	phy_cell.cc.o phy_cell_decisions.cc.o \
+	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -503,6 +516,12 @@ $(TEST_BTLE_EXPIRE):	$(TEST_BTLE_EXPIRE_O)
 
 $(TEST_DOT11_KARMA):	$(TEST_DOT11_KARMA_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DOT11_KARMA) $(TEST_DOT11_KARMA_O) $(CXXLIBS)
+
+$(TEST_UTIL_UTF8):	$(TEST_UTIL_UTF8_O)
+	$(LD) $(LDFLAGS) -o $(TEST_UTIL_UTF8) $(TEST_UTIL_UTF8_O) $(LIBS) $(CXXLIBS) $(KSLIBS)
+
+$(TEST_ETHERNET):	$(TEST_ETHERNET_O)
+	$(LD) $(LDFLAGS) -o $(TEST_ETHERNET) $(TEST_ETHERNET_O) $(CXXLIBS)
 
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
@@ -1116,6 +1135,8 @@ depclean:
 	@-rm -f test/btle_expire/*.d
 	@-rm -f test/dot11_karma/*.d
 	@-rm -f test/environment/*.d
+	@-rm -f test/util_utf8/*.d
+	@-rm -f test/ethernet/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -1136,6 +1157,8 @@ clean: all-plugins-clean depclean
 	@-rm -f test/datasource_probed/*.o $(TEST_DATASOURCE_PROBED)
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
+	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
+	@-rm -f test/ethernet/*.o $(TEST_ETHERNET)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)

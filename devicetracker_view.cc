@@ -433,6 +433,11 @@ void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> de
         // apply a stale filter result
         kis_device_lock dlk(device, true);
 
+        // Forgotten before the new device event reached the views; set_removed runs under
+        // the device's write lock before it's removed from the views, so this can't miss
+        if (device->get_removed())
+            return;
+
         if (new_cb(device)) {
             kis_view_lock vlk(view_mutex, false);
             set_present(device, true);
@@ -448,6 +453,9 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
     // Hold the device through the membership change so a concurrent update can't apply
     // a stale filter result
     kis_device_lock dlk(device, true);
+
+    if (device->get_removed())
+        return;
 
     bool retain = update_cb(device);
 

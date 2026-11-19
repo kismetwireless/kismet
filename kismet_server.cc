@@ -148,6 +148,7 @@
 #include "phy_meshcore.h"
 #include "phy_radiation.h"
 #include "phy_cell.h"
+#include "phy_ethernet.h"
 #include "phy_sensor.h"
 #include "phy_uav_drone.h"
 #include "phy_zwave.h"
@@ -995,6 +996,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshtastic_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_meshcore_phy()));
     devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_ant_phy()));
+    devicetracker->register_phy_handler(dynamic_cast<kis_phy_handler *>(new kis_ethernet_phy()));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();

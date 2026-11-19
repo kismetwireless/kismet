@@ -531,6 +531,7 @@ struct constant_time_string_compare_ne {
 
 };
 
+bool is_valid_utf8(const char *subject, size_t length);
 bool is_valid_utf8(const std::string& subject);
 
 bool iequals(const std::string& a, const std::string& b);
