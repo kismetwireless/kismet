@@ -118,6 +118,23 @@ TEST_TACFIX_BIN = test_cellat_tacfix
 
 all: $(MONITOR_BIN) $(PROBE_BIN)
 
+# A standalone helper build (`make` in this directory, MAKELEVEL 0) links the
+# parent's ../libkismetdatasource.a, but nothing here knows how to rebuild it.
+# When ../capture_framework.h changes (a field added to struct
+# kis_capture_handler), the helper compiles against the new header and links
+# the archive built from the old one: a silent ABI mismatch that segfaults at
+# open. So delegate the archive to the parent, whose rules (and depfiles)
+# decide whether it is stale; an up-to-date archive is left alone and forces no
+# relink. A top-level build already made the archive before recursing here
+# (MAKELEVEL >= 1), so it is not re-entered.
+ifeq ($(MAKELEVEL),0)
+../libkismetdatasource.a: FORCE
+	$(MAKE) -C .. libkismetdatasource.a
+
+FORCE:
+.PHONY: FORCE
+endif
+
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a \
 		    $(DATASOURCE_LIBS) $(MONITOR_LIBS)
