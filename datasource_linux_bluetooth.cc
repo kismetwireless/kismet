@@ -181,10 +181,11 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     }
 
     if (report.has_message())
-        _MSG(report.message().msgtext(), report.message().msgtype());
+        _MSG(clean_capture_text(report.message().msgtext()),
+                clamp_capture_msgtype(report.message().msgtype()));
 
     if (report.has_warning())
-        set_int_source_warning(report.warning());
+        set_int_source_warning(clean_capture_text(report.warning()));
 
     if (gpstracker == nullptr)
         gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();

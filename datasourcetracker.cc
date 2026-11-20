@@ -144,7 +144,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
                     if (decline_reason.empty())
                         decline_reason = in_reason;
                 } else if (hardware_reason.empty() && v->second->get_probe_found_hardware()) {
-                    hardware_reason = fmt::format("{}: {}", b->get_source_type(), munge_to_printable(in_reason));
+                    hardware_reason = fmt::format("{}: {}", b->get_source_type(), in_reason);
                 }
             }
         }
@@ -2101,7 +2101,7 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
             lock.lock();
         } else {
             _MSG_INFO("Matching new remote source '{}' with known source with UUID '{}'",
-                    in_definition, in_uuid.uuid_to_string());
+                    kis_datasource::redact_source_definition(in_definition), in_uuid.uuid_to_string());
         }
 
         // Explicitly unlock our mutex before running a thread
@@ -2159,7 +2159,7 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
     _MSG_ERROR("Kismet could not find a datasource driver for incoming remote source "
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
-            in_type, in_definition);
+            in_type, kis_datasource::redact_source_definition(in_definition));
 
     return nullptr;
 }
@@ -2524,6 +2524,33 @@ double datasource_tracker::string_to_rate(std::string in_str, double in_default)
 
 
 
+namespace {
+    // A remote's definition is parsed for options and becomes the source name and
+    // interface, so one that isn't plain printable text is refused, not munged
+    constexpr size_t remote_definition_max_len = 8192;
+    constexpr size_t remote_type_max_len = 64;
+
+    bool remote_announcement_ok(const std::string& in_peer, const std::string& in_type,
+            const std::string& in_definition) {
+        if (in_type.empty() || in_type.length() > remote_type_max_len ||
+                in_type.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                    "0123456789._-") != std::string::npos) {
+            _MSG_ERROR("Incoming remote capture connection from {} announced an invalid source "
+                    "type; closing it.", in_peer);
+            return false;
+        }
+
+        if (in_definition.empty() || in_definition.length() > remote_definition_max_len ||
+                !is_printable_utf8(in_definition)) {
+            _MSG_ERROR("Incoming remote capture connection from {} for a '{}' source announced "
+                    "an invalid source definition; closing it.", in_peer, in_type);
+            return false;
+        }
+
+        return true;
+    }
+}
+
 dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
     kis_datasource() {
 
@@ -2570,12 +2597,12 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno,
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG("Could not process incoming remote datasource announcement", MSGFLAG_ERROR);
+        _MSG_ERROR("Could not process incoming remote datasource announcement from {}", peer_address());
         kill();
         return;
     }
 
-    if (cb != NULL) {
+    if (cb != NULL && remote_announcement_ok(peer_address(), c.sourcetype(), c.definition())) {
         cb(this, c.sourcetype(), c.definition(), c.uuid());
     }
 
@@ -2607,8 +2634,8 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
 
     if (!mpack_tree_try_parse(&tree)) {
-        _MSG_ERROR("Kismet external interface got unparseable v3 PROBEREPORT");
-        trigger_error("invalid v3 PROBEREPORT");
+        _MSG_ERROR("Kismet external interface got unparseable v3 NEWSOURCE");
+        trigger_error("invalid v3 NEWSOURCE");
         return;
     }
 
@@ -2636,7 +2663,7 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     }
 
     if (mpack_tree_error(&tree)) {
-        _MSG_ERROR("Could not process incoming remote datasource announcement");
+        _MSG_ERROR("Could not process incoming remote datasource announcement from {}", peer_address());
         kill();
         return;
     }
@@ -2644,7 +2671,7 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     auto definition = std::string(definition_s, definition_sz);
     auto srctype = std::string(type_s, type_sz);
 
-    if (cb != NULL) {
+    if (cb != NULL && remote_announcement_ok(peer_address(), srctype, definition)) {
         cb(this, srctype, definition, u);
     }
 

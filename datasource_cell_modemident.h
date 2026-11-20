@@ -40,8 +40,9 @@
 //      timestamped `ModemIdentity` row in `data` (phy_cell devicifies only
 //      CellModem / Cellular, so it builds no device).
 //
-// The values are the modem's answers, verbatim. This file sets them; it does
-// not interpret, normalise or correct them.
+// The values are the modem's answers, verbatim apart from the length cap and
+// control-character escaping all capture text gets. This file sets them; it
+// does not interpret, normalise or correct them.
 
 #include "config.h"
 
@@ -54,6 +55,7 @@
 
 #include "entrytracker.h"
 #include "globalregistry.h"
+#include "kis_external.h"
 #include "nlohmann/json.hpp"
 #include "trackedelement.h"
 #include "capture_cell_diag/diag_modemident.h"
@@ -214,9 +216,10 @@ private:
                     tracker_element_factory<tracker_element_string>(), desc));
     }
 
+    // Every value comes from a helper, so each is cut and cleaned like other capture text
     static std::string str_of(const nlohmann::json& j, const char *key) {
         if (j.contains(key) && j[key].is_string())
-            return j[key].get<std::string>();
+            return kis_external_interface::clean_capture_text(j[key].get_ref<const std::string&>());
         return "";
     }
 

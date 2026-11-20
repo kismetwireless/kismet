@@ -1744,7 +1744,7 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
             return;
         }
 
-        msg = std::string(mpack_node_data(msg_n), msg_len);
+        msg = clean_capture_text(mpack_node_data(msg_n), msg_len);
     }
 
     /* interface sub block */
@@ -1767,7 +1767,8 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
                 auto ch_n = mpack_node_array_at(chanvec, szi);
                 auto ch_sz = mpack_node_data_len(ch_n);
 
-                if (mpack_tree_error(&tree) != mpack_ok) {
+                if (mpack_tree_error(&tree) != mpack_ok ||
+                        !capture_id_ok(mpack_node_data(ch_n), ch_sz, capture_channel_max_len)) {
                     _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
                     trigger_error("invalid v3 PROBEREPORT");
                     handle_probesource_report_v3_callback(report_seqno, 1, lock, "invalid v3 PROBEREPORT");
@@ -1782,7 +1783,8 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
             auto ch_n = mpack_node_map_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL);
             auto ch_sz = mpack_node_data_len(ch_n);
 
-            if (mpack_tree_error(&tree) != mpack_ok) {
+            if (mpack_tree_error(&tree) != mpack_ok ||
+                    !capture_id_ok(mpack_node_data(ch_n), ch_sz, capture_channel_max_len)) {
 
                 _MSG_ERROR("Kismet datasource got malformed v3 PROBEREPORT");
                 trigger_error("invalid v3 PROBEREPORT");
@@ -1804,7 +1806,7 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
                 return;
             }
 
-            set_int_source_hardware(std::string(mpack_node_data(hw_n), hw_sz));
+            set_int_source_hardware(clean_capture_text(mpack_node_data(hw_n), hw_sz));
             probe_found_hardware = hw_sz > 0;
         }
     }
@@ -1870,7 +1872,7 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        msg = std::string(mpack_node_data(msg_n), msg_len);
+        msg = clean_capture_text(mpack_node_data(msg_n), msg_len);
     }
 
     // List reports use 0 for success; a failure carries its reason in the msg
@@ -1895,11 +1897,12 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        version = std::string(mpack_node_data(vr_n), vr_sz);
+        version = clean_capture_text(mpack_node_data(vr_n), vr_sz);
     }
 
 
     /* interfaces array */
+    size_t n_refused = 0;
     auto ifaces_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_LISTREPORT_FIELD_IFLIST);
     if (!mpack_node_is_missing(ifaces_n)) {
         auto ifaces_sz = mpack_node_array_length(ifaces_n);
@@ -1918,7 +1921,7 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
             intf->set_prototype(get_source_builder());
             intf->set_datasource_version(version);
 
-            std::string ifname, ifflags;
+            std::string ifname, ifflags, capif;
 
             auto iface_name_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_IFACE);
             if (!mpack_node_is_missing(iface_name_n)) {
@@ -1948,8 +1951,6 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
                 ifflags = std::string(mpack_node_data(flags_n), flags_sz);
             }
 
-            intf->populate(ifname, ifflags);
-
             auto capif_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CAPIFACE);
             if (!mpack_node_is_missing(capif_n)) {
                 auto capif_sz = mpack_node_data_len(capif_n);
@@ -1961,8 +1962,20 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
                     return;
                 }
 
-                intf->set_cap_interface(std::string(mpack_node_data(capif_n), capif_sz));
+                capif = std::string(mpack_node_data(capif_n), capif_sz);
             }
+
+            // An interface that couldn't be opened by the name it was listed under isn't offered
+            if (!capture_id_ok(ifname, capture_text_max_len) || !capture_id_ok(ifflags, capture_text_max_len) ||
+                    !capture_id_ok(capif, capture_text_max_len)) {
+                n_refused++;
+                continue;
+            }
+
+            intf->populate(ifname, ifflags);
+
+            if (!mpack_node_is_missing(capif_n))
+                intf->set_cap_interface(capif);
 
             auto hw_n = mpack_node_map_uint_optional(iface_n, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_HW);
             if (!mpack_node_is_missing(hw_n)) {
@@ -1975,7 +1988,7 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
                     return;
                 }
 
-                intf->set_hardware(std::string(mpack_node_data(hw_n), hw_sz));
+                intf->set_hardware(clean_capture_text(mpack_node_data(hw_n), hw_sz));
             }
 
             ifaces.push_back(intf);
@@ -1984,6 +1997,12 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
 
 
     handle_interfaces_report_v3_callback(report_seqno, code, lock, ifaces);
+
+    if (n_refused > 0) {
+        lock.unlock();
+        _MSG_ERROR("A capture tool listed {} interface(s) whose name, flags or capture interface "
+                "isn't printable text; they can't be opened and aren't offered.", n_refused);
+    }
 }
 
 
@@ -2046,7 +2065,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
             return;
         }
 
-        msg = std::string(msg_s, msg_sz);
+        msg = clean_capture_text(msg_s, msg_sz);
     }
 
     if (code == 0) {
@@ -2063,7 +2082,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
         auto chan_sz = mpack_node_data_len(channel_n);
         auto chan_s = mpack_node_str(channel_n);
 
-        if (mpack_tree_error(&tree) != mpack_ok) {
+        if (mpack_tree_error(&tree) != mpack_ok || !capture_id_ok(chan_s, chan_sz, capture_channel_max_len)) {
             _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
             trigger_error("invalid v3 CONFIGUREREPORT");
             handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
@@ -2163,7 +2182,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
                 auto chan_s = mpack_node_str(chan_n);
                 auto chan_sz = mpack_node_data_len(chan_n);
 
-                if (mpack_tree_error(&tree) != mpack_ok) {
+                if (mpack_tree_error(&tree) != mpack_ok || !capture_id_ok(chan_s, chan_sz, capture_channel_max_len)) {
                     _MSG_ERROR("Kismet datasource got malformed v3 CONFIGUREREPORT");
                     trigger_error("invalid v3 CONFIGUREREPORT");
                     handle_configsource_report_v3_callback(report_seqno, 1, lock, "invalid v3 CONFIGUREREPORT");
@@ -2241,7 +2260,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        msg = std::string(msg_s, msg_sz);
+        msg = clean_capture_text(msg_s, msg_sz);
     }
 
     auto version_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_VERSION);
@@ -2255,7 +2274,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        set_int_datasource_version(std::string(ver_s, ver_sz));
+        set_int_datasource_version(clean_capture_text(ver_s, ver_sz));
     }
 
     // Graceful close support, per open: a capture binary that does not
@@ -2327,7 +2346,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         auto capif_s = mpack_node_str(capif_n);
         auto capif_sz = mpack_node_data_len(capif_n);
 
-        if (mpack_tree_error(&tree) != mpack_ok) {
+        if (mpack_tree_error(&tree) != mpack_ok || !capture_id_ok(capif_s, capif_sz, capture_text_max_len)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
             handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
@@ -2349,7 +2368,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        set_int_source_hardware(std::string(hw_s, hw_sz));
+        set_int_source_hardware(clean_capture_text(hw_s, hw_sz));
     }
 
     // set the basic channel and channel hopping parameters from the remote in case we're
@@ -2358,7 +2377,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     if (!mpack_node_is_missing(channel_n)) {
         auto chan_s = mpack_node_str(channel_n);
         auto chan_sz = mpack_node_data_len(channel_n);
-        if (mpack_tree_error(&tree) != mpack_ok) {
+        if (mpack_tree_error(&tree) != mpack_ok || !capture_id_ok(chan_s, chan_sz, capture_channel_max_len)) {
             _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
             trigger_error("invalid v3 OPENREPORT");
             handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
@@ -2447,7 +2466,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             auto chan_sz = mpack_node_data_len(chan_n);
 
 
-            if (mpack_tree_error(&tree) != mpack_ok) {
+            if (mpack_tree_error(&tree) != mpack_ok || !capture_id_ok(chan_s, chan_sz, capture_channel_max_len)) {
                 _MSG_ERROR("Kismet datasource got malformed v3 OPENREPORT");
                 trigger_error("invalid v3 OPENREPORT");
                 handle_opensource_report_v3_callback(report_seqno, 1, lock, "invalid v3 OPENREPORT");
@@ -2680,7 +2699,9 @@ bool kis_datasource::handle_sub_signal(mpack_node_t& root, mpack_tree_t *tree,
         auto channel_s = mpack_node_str(channel_n);
         auto channel_sz = mpack_node_data_len(channel_n);
 
-        siginfo.channel = std::string(channel_s, channel_sz);
+        // Per packet: a channel that isn't one is dropped, without a copy or a log line
+        if (capture_id_ok(channel_s, channel_sz, capture_channel_max_len))
+            siginfo.channel = std::string(channel_s, channel_sz);
     }
 
     if (mpack_tree_error(tree) != mpack_ok) {
@@ -3236,6 +3257,18 @@ unsigned int kis_datasource::send_probe_source_v3(const std::string& in_definiti
 }
 
 #ifdef HAVE_PROTOBUF_CPP
+namespace {
+    // v2 channel lists (SubChannels channels, SubChanset hopping channels)
+    template <class T>
+    bool v2_channels_ok(const T& in_channels) {
+        for (const auto& c : in_channels) {
+            if (!kis_external_interface::capture_id_ok(c, kis_external_interface::capture_channel_max_len))
+                return false;
+        }
+        return true;
+    }
+}
+
 bool kis_datasource::dispatch_rx_packet(const std::string_view& command,
         uint32_t seqno, const std::string_view& content) {
     // Handle all the default options first; ping, pong, message, etc are all
@@ -3289,11 +3322,19 @@ void kis_datasource::handle_packet_probesource_report_v2(uint32_t in_seqno,
         return;
     }
 
+    if ((report.has_channels() && !v2_channels_ok(report.channels().channels())) ||
+            (report.has_channel() && !capture_id_ok(report.channel().channel(), capture_channel_max_len))) {
+        _MSG_ERROR("Kismet datasource driver '{}' got a probe report with an invalid channel "
+                "from the capture tool", source_builder->get_source_type());
+        trigger_error("Invalid KDSPROBESOURCEREPORT");
+        return;
+    }
+
     std::string msg;
 
     // Extract any message to send to the probe callback
     if (report.has_message()) {
-        msg = report.message().msgtext();
+        msg = clean_capture_text(report.message().msgtext());
     }
 
     if (report.has_channels()) {
@@ -3309,7 +3350,7 @@ void kis_datasource::handle_packet_probesource_report_v2(uint32_t in_seqno,
     }
 
     if (report.has_hardware()) {
-        set_int_source_hardware(report.hardware());
+        set_int_source_hardware(clean_capture_text(report.hardware()));
     }
 
     uint32_t seq = report.success().seqno();
@@ -3345,11 +3386,20 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
         return;
     }
 
+    if ((report.has_channels() && !v2_channels_ok(report.channels().channels())) ||
+            (report.has_channel() && !capture_id_ok(report.channel().channel(), capture_channel_max_len)) ||
+            (report.has_capture_interface() && !capture_id_ok(report.capture_interface(), capture_text_max_len))) {
+        _MSG_ERROR("Kismet datasource driver '{}' got an open report with an invalid channel or "
+                "capture interface from the capture tool", get_source_builder()->get_source_type());
+        trigger_error("Invalid KDSOPENSOURCEREPORT");
+        return;
+    }
+
     std::string msg;
 
     // Extract any message to send to the probe callback
     if (report.has_message()) {
-        msg = report.message().msgtext();
+        msg = clean_capture_text(report.message().msgtext());
     }
 
     if (report.has_uuid() && get_source_uuid() == 0) {
@@ -3399,7 +3449,7 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     }
 
     if (report.has_hardware()) {
-        set_int_source_hardware(report.hardware());
+        set_int_source_hardware(clean_capture_text(report.hardware()));
     }
 
     // Only override the source level dlt if it hasn't been set
@@ -3561,10 +3611,20 @@ void kis_datasource::handle_packet_interfaces_report_v2(uint32_t in_seqno,
     std::string msg;
 
     if (report.has_message()) {
-        msg = report.message().msgtext();
+        msg = clean_capture_text(report.message().msgtext());
     }
 
+    size_t n_refused = 0;
+
     for (auto rintf : report.interfaces()) {
+        // An interface that couldn't be opened by the name it was listed under isn't offered
+        if (!capture_id_ok(rintf.interface(), capture_text_max_len) ||
+                !capture_id_ok(rintf.flags(), capture_text_max_len) ||
+                !capture_id_ok(rintf.capinterface(), capture_text_max_len)) {
+            n_refused++;
+            continue;
+        }
+
         auto intf =
             std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
 
@@ -3572,7 +3632,7 @@ void kis_datasource::handle_packet_interfaces_report_v2(uint32_t in_seqno,
         intf->set_prototype(get_source_builder());
 
         if (rintf.has_hardware())
-            intf->set_hardware(rintf.hardware());
+            intf->set_hardware(clean_capture_text(rintf.hardware()));
 
         if (rintf.has_capinterface())
             intf->set_cap_interface(rintf.capinterface());
@@ -3584,6 +3644,10 @@ void kis_datasource::handle_packet_interfaces_report_v2(uint32_t in_seqno,
     quiet_errors = true;
 
     lock.unlock();
+
+    if (n_refused > 0)
+        _MSG_ERROR("A capture tool listed {} interface(s) whose name, flags or capture interface "
+                "isn't printable text; they can't be opened and aren't offered.", n_refused);
 
     uint32_t seq = report.success().seqno();
 
@@ -3616,7 +3680,7 @@ void kis_datasource::handle_packet_error_report_v2(uint32_t in_seqno,
     }
 
     if (report.has_message())
-        handle_msg_proxy(report.message().msgtext(), MSGFLAG_ERROR);
+        handle_msg_proxy(clean_capture_text(report.message().msgtext()), MSGFLAG_ERROR);
 
     if (!report.success().success()) {
         trigger_error("Fatal error from remote source");
@@ -3638,13 +3702,21 @@ void kis_datasource::handle_packet_configure_report_v2(uint32_t in_seqno,
         return;
     }
 
+    if ((report.has_channel() && !capture_id_ok(report.channel().channel(), capture_channel_max_len)) ||
+            (report.has_hopping() && !v2_channels_ok(report.hopping().channels()))) {
+        _MSG_ERROR("Kismet datasource driver '{}' got a configure report with an invalid channel "
+                "from the capture tool", get_source_builder()->get_source_type());
+        trigger_error("Invalid KDSCONFIGUREREPORT");
+        return;
+    }
+
     std::string msg;
 
     if (report.has_message())
-        msg = report.message().msgtext();
+        msg = clean_capture_text(report.message().msgtext());
 
     if (report.has_warning())
-        set_int_source_warning(munge_to_printable(report.warning()));
+        set_int_source_warning(clean_capture_text(report.warning()));
 
     if (report.has_channel()) {
         set_int_source_hopping(false);
@@ -3724,10 +3796,11 @@ void kis_datasource::handle_packet_data_report_v2(uint32_t in_seqno,
     }
 
     if (report->has_message())
-        handle_msg_proxy(report->message().msgtext(), report->message().msgtype());
+        handle_msg_proxy(clean_capture_text(report->message().msgtext()),
+                clamp_capture_msgtype(report->message().msgtype()));
 
     if (report->has_warning())
-        set_int_source_warning(report->warning());
+        set_int_source_warning(clean_capture_text(report->warning()));
 
     auto packet = packetchain->generate_packet();
 
@@ -3865,8 +3938,9 @@ void kis_datasource::handle_packet_warning_report_v2(uint32_t in_seqno,
         return;
     }
 
-    _MSG(report.warning(), MSGFLAG_INFO);
-    set_int_source_warning(report.warning());
+    const auto warning = clean_capture_text(report.warning());
+    _MSG(warning, MSGFLAG_INFO);
+    set_int_source_warning(warning);
 }
 
 bool kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig,
@@ -3905,7 +3979,8 @@ bool kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig,
         siginfo.freq_khz = in_sig.freq_khz();
     }
 
-    if (in_sig.has_channel()) {
+    // Per packet: a channel that isn't one is dropped, without a copy or a log line
+    if (in_sig.has_channel() && capture_id_ok(in_sig.channel(), capture_channel_max_len)) {
         has_siginfo = true;
         siginfo.channel = in_sig.channel();
     }

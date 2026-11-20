@@ -82,6 +82,12 @@
 std::string munge_to_printable(const std::string& in_str) noexcept;
 std::string munge_to_printable(const char *begin, size_t len) noexcept;
 
+// Text for logs and display, from at most the first max_len bytes cut back to a character
+// boundary ("..." appended when cut): valid UTF-8 is kept, controls and hidden code points
+// become \uXXXX and invalid bytes \xNN.  Quotes and backslashes are left as they are for
+// the output encoder (JSON, kismetdb) to escape.
+std::string munge_to_display(std::string_view in_str, size_t max_len);
+
 std::string str_lower(const std::string& in_str);
 std::string str_upper(const std::string& in_str);
 std::string str_strip(const std::string& in_str);
@@ -533,6 +539,10 @@ struct constant_time_string_compare_ne {
 
 bool is_valid_utf8(const char *subject, size_t length);
 bool is_valid_utf8(const std::string& subject);
+
+// Well-formed UTF-8 with no C0 controls and no hidden code points (kis_l3::hidden_codepoint:
+// DEL, C1, bidi and zero-width marks...)
+bool is_printable_utf8(std::string_view subject);
 
 bool iequals(const std::string& a, const std::string& b);
 uint64_t human_to_freq_khz(const std::string&);

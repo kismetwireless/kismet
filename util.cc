@@ -33,6 +33,8 @@
 #include <memory>
 #include <string>
 
+#include "kis_l3_parse.h"
+
 #ifdef HAVE_LIBPCRE1
 #include <pcre.h>
 #endif
@@ -205,58 +207,89 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 
 #endif
 
-// Well-formed UTF-8 as RFC 3629 section 4 defines it: no overlong forms, no UTF-16
-// surrogates (U+D800-DFFF), nothing above U+10FFFF
+// Length of the well-formed UTF-8 sequence at s[i] (i < len), or 0 if there isn't one.
+// Well-formed as RFC 3629 section 4 defines it: no overlong forms, no UTF-16 surrogates
+// (U+D800-DFFF), nothing above U+10FFFF.  is_valid_utf8 runs on every SSID: forced inline
+// and indexed rather than given s + i, so its ASCII loop stays as tight as before the split
+static __attribute__((always_inline)) inline size_t utf8_sequence_len(const unsigned char *s, size_t i,
+        size_t len) {
+    const unsigned char c = s[i];
+
+    if (c < 0x80)
+        return 1;
+
+    // Continuation bytes after the lead, and the range the first of them must be in
+    size_t n;
+    unsigned char lo = 0x80, hi = 0xBF;
+
+    if (c >= 0xC2 && c <= 0xDF) {
+        n = 1;
+    } else if (c == 0xE0) {
+        n = 2;
+        lo = 0xA0;
+    } else if ((c >= 0xE1 && c <= 0xEC) || c == 0xEE || c == 0xEF) {
+        n = 2;
+    } else if (c == 0xED) {
+        n = 2;
+        hi = 0x9F;
+    } else if (c == 0xF0) {
+        n = 3;
+        lo = 0x90;
+    } else if (c >= 0xF1 && c <= 0xF3) {
+        n = 3;
+    } else if (c == 0xF4) {
+        n = 3;
+        hi = 0x8F;
+    } else {
+        return 0;
+    }
+
+    if (len - i - 1 < n)
+        return 0;
+
+    if (s[i + 1] < lo || s[i + 1] > hi)
+        return 0;
+
+    for (size_t k = 2; k <= n; k++) {
+        if ((s[i + k] & 0xC0) != 0x80)
+            return 0;
+    }
+
+    return n + 1;
+}
+
+// Code point of a sequence utf8_sequence_len accepted
+static uint32_t utf8_code_point(const unsigned char *s, size_t len) {
+    switch (len) {
+        case 1:
+            return s[0];
+        case 2:
+            return ((s[0] & 0x1Fu) << 6) | (s[1] & 0x3Fu);
+        case 3:
+            return ((s[0] & 0x0Fu) << 12) | ((s[1] & 0x3Fu) << 6) | (s[2] & 0x3Fu);
+        default:
+            return ((s[0] & 0x07u) << 18) | ((s[1] & 0x3Fu) << 12) | ((s[2] & 0x3Fu) << 6) | (s[3] & 0x3Fu);
+    }
+}
+
+// C0 controls, and what hides or reorders text on screen (DEL, C1, bidi and zero-width marks...)
+static bool unprintable_code_point(uint32_t cp) {
+    return cp < 0x20 || kis_l3::hidden_codepoint(cp);
+}
+
 bool is_valid_utf8(const char *subject, size_t length) {
     const auto *s = reinterpret_cast<const unsigned char *>(subject);
-    size_t i = 0;
 
-    while (i < length) {
-        const unsigned char c = s[i];
-
-        if (c < 0x80) {
+    for (size_t i = 0; i < length; ) {
+        if (s[i] < 0x80) {
             i++;
             continue;
         }
 
-        // Continuation bytes after the lead, and the range the first of them must be in
-        size_t n;
-        unsigned char lo = 0x80, hi = 0xBF;
-
-        if (c >= 0xC2 && c <= 0xDF) {
-            n = 1;
-        } else if (c == 0xE0) {
-            n = 2;
-            lo = 0xA0;
-        } else if ((c >= 0xE1 && c <= 0xEC) || c == 0xEE || c == 0xEF) {
-            n = 2;
-        } else if (c == 0xED) {
-            n = 2;
-            hi = 0x9F;
-        } else if (c == 0xF0) {
-            n = 3;
-            lo = 0x90;
-        } else if (c >= 0xF1 && c <= 0xF3) {
-            n = 3;
-        } else if (c == 0xF4) {
-            n = 3;
-            hi = 0x8F;
-        } else {
+        const auto n = utf8_sequence_len(s, i, length);
+        if (n == 0)
             return false;
-        }
-
-        if (length - i - 1 < n)
-            return false;
-
-        if (s[i + 1] < lo || s[i + 1] > hi)
-            return false;
-
-        for (size_t k = 2; k <= n; k++) {
-            if ((s[i + k] & 0xC0) != 0x80)
-                return false;
-        }
-
-        i += n + 1;
+        i += n;
     }
 
     return true;
@@ -264,6 +297,24 @@ bool is_valid_utf8(const char *subject, size_t length) {
 
 bool is_valid_utf8(const std::string& subject) {
     return is_valid_utf8(subject.data(), subject.size());
+}
+
+bool is_printable_utf8(std::string_view subject) {
+    const auto *s = reinterpret_cast<const unsigned char *>(subject.data());
+
+    for (size_t i = 0; i < subject.size(); ) {
+        if (s[i] >= 0x20 && s[i] < 0x7F) {
+            i++;
+            continue;
+        }
+
+        const auto n = utf8_sequence_len(s, i, subject.size());
+        if (n == 0 || unprintable_code_point(utf8_code_point(s + i, n)))
+            return false;
+        i += n;
+    }
+
+    return true;
 }
 
 
@@ -430,6 +481,63 @@ std::string munge_to_printable(const char *s, size_t len) noexcept {
 
 std::string munge_to_printable(const std::string& s) noexcept {
     return munge_to_printable(s.data(), s.length());
+}
+
+std::string munge_to_display(std::string_view in_str, size_t max_len) {
+    size_t len = in_str.length();
+    const bool cut = len > max_len;
+
+    // s[len] exists while len < length; back up over up to 3 continuation bytes so the cut
+    // lands before the lead byte of a split character
+    if (cut) {
+        len = max_len;
+        for (unsigned int back = 0; back < 3 && len > 0 &&
+                (static_cast<unsigned char>(in_str[len]) & 0xC0) == 0x80; back++)
+            len--;
+    }
+
+    constexpr char hex_upper[] = "0123456789ABCDEF";
+    constexpr char hex_lower[] = "0123456789abcdef";
+
+    const auto *s = reinterpret_cast<const unsigned char *>(in_str.data());
+    std::string r;
+    r.reserve(len + (cut ? 3 : 0));
+
+    for (size_t i = 0; i < len; ) {
+        if (s[i] >= 0x20 && s[i] < 0x7F) {
+            r.push_back(in_str[i]);
+            i++;
+            continue;
+        }
+
+        const auto n = utf8_sequence_len(s, i, len);
+
+        if (n == 0) {
+            r += "\\x";
+            r.push_back(hex_upper[s[i] >> 4]);
+            r.push_back(hex_upper[s[i] & 0x0F]);
+            i++;
+            continue;
+        }
+
+        const auto cp = utf8_code_point(s + i, n);
+
+        if (unprintable_code_point(cp)) {
+            const int digits = cp > 0xFFFF ? 8 : 4;
+            r += cp > 0xFFFF ? "\\U" : "\\u";
+            for (int sh = (digits - 1) * 4; sh >= 0; sh -= 4)
+                r.push_back(hex_lower[(cp >> sh) & 0xF]);
+        } else {
+            r.append(in_str.data() + i, n);
+        }
+
+        i += n;
+    }
+
+    if (cut)
+        r += "...";
+
+    return r;
 }
 
 
