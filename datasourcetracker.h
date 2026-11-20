@@ -576,6 +576,13 @@ public:
 protected:
     virtual void handle_error(const std::string& error) override;
 
+    // Where the connection came from, for log lines about it
+    std::string peer_address() {
+        auto io = get_io();
+        auto addr = io != nullptr ? io->remote_addresss() : std::string();
+        return addr.empty() ? "an unknown peer" : addr;
+    }
+
     // Timeout for killing this connection
     int timerid;
 

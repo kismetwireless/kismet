@@ -967,6 +967,16 @@ void kis_external_interface::handle_msg_proxy(const std::string& msg, const int 
     _MSG(msg, msgtype);
 }
 
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_DEBUG) == MSGFLAG_DEBUG);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_INFO) == MSGFLAG_INFO);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_ERROR) == MSGFLAG_ERROR);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_ALERT) == MSGFLAG_ERROR);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_FATAL) == MSGFLAG_ERROR);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_INFO | MSGFLAG_LOCAL) == MSGFLAG_INFO);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_DEBUG | MSGFLAG_FATAL) == MSGFLAG_ERROR);
+static_assert(kis_external_interface::clamp_capture_msgtype(MSGFLAG_PRINT) == MSGFLAG_NONE);
+static_assert(kis_external_interface::clamp_capture_msgtype(0xFFFF) == MSGFLAG_ERROR);
+
 void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
 
@@ -998,12 +1008,12 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
         return;
     }
 
-    auto message_str = std::string(message_s, message_sz);
+    auto message_str = clean_capture_text(message_s, message_sz);
     if (message_sz == 0) {
         message_str = "[no message provided by datasource]";
     }
 
-    handle_msg_proxy(message_str, msgtype);
+    handle_msg_proxy(message_str, clamp_capture_msgtype(msgtype));
 }
 
 void kis_external_interface::handle_packet_ping_v3(uint32_t in_seqno,
@@ -1047,7 +1057,7 @@ void kis_external_interface::handle_packet_shutdown_v3(uint32_t in_seqno,
         _MSG_INFO("Kismet external interface shutting down: no reason");
         trigger_error("remote connection triggered shutdown: no reason");
     } else {
-		std::string_view reason(reason_s, reason_sz);
+        auto reason = clean_capture_text(reason_s, reason_sz);
         _MSG_INFO("Kismet external interface shutting down: {}", reason);
         trigger_error(fmt::format("remote connection triggered shutdown: {}", reason));
     }
@@ -1597,7 +1607,7 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno,
         return;
     }
 
-    handle_msg_proxy(m.msgtext(), m.msgtype());
+    handle_msg_proxy(clean_capture_text(m.msgtext()), clamp_capture_msgtype(m.msgtype()));
 }
 
 void kis_external_interface::handle_packet_ping(uint32_t in_seqno,
@@ -1635,8 +1645,9 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
         return;
     }
 
-    _MSG(std::string("Kismet external interface shutting down: ") + s.reason(), MSGFLAG_INFO);
-    trigger_error(std::string("Remote connection requesting shutdown: ") + s.reason());
+    const auto reason = clean_capture_text(s.reason());
+    _MSG(std::string("Kismet external interface shutting down: ") + reason, MSGFLAG_INFO);
+    trigger_error(std::string("Remote connection requesting shutdown: ") + reason);
 }
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,

@@ -44,6 +44,8 @@
 #include "ipctracker_v2.h"
 #include "kis_external_packet.h"
 #include "kis_net_beast_httpd.h"
+#include "messagebus.h"
+#include "util.h"
 
 #include "boost/asio.hpp"
 using boost::asio::ip::tcp;
@@ -326,6 +328,48 @@ public:
     // Trigger an error
     virtual void trigger_error(const std::string& in_error);
 
+    // Text from a capture tool or remote peer is cut and cleaned before it reaches logs,
+    // messages or tracked fields; the C helpers build theirs in STATUS_MAX (1024) buffers
+    static constexpr size_t capture_text_max_len = 1024;
+
+    static std::string clean_capture_text(std::string_view in_text) {
+        return munge_to_display(in_text, capture_text_max_len);
+    }
+
+    static std::string clean_capture_text(const char *in_text, size_t in_len) {
+        if (in_text == nullptr)
+            return "";
+        return clean_capture_text(std::string_view(in_text, in_len));
+    }
+
+    // Channels, interface names and flags go back to the capture tool and are matched
+    // against other sources, so they are used as sent or refused, never escaped.  The
+    // largest channel a helper takes is lorapipe's, in a 128 byte buffer.
+    static constexpr size_t capture_channel_max_len = 128;
+
+    static bool capture_id_ok(std::string_view in_id, size_t in_max_len) {
+        return in_id.length() <= in_max_len && is_printable_utf8(in_id);
+    }
+
+    static bool capture_id_ok(const char *in_id, size_t in_len, size_t in_max_len) {
+        if (in_id == nullptr)
+            return in_len == 0;
+        return capture_id_ok(std::string_view(in_id, in_len), in_max_len);
+    }
+
+    // A capture tool or remote reports debug, info or error messages; one it marks alert or
+    // fatal is logged as an error, so a peer can't raise a FATAL or pose as an alert, and
+    // the server-only local and print flags are dropped
+    static constexpr int clamp_capture_msgtype(unsigned int in_type) {
+        if (in_type & (MSGFLAG_ERROR | MSGFLAG_ALERT | MSGFLAG_FATAL))
+            return MSGFLAG_ERROR;
+        if (in_type & MSGFLAG_INFO)
+            return MSGFLAG_INFO;
+        if (in_type & MSGFLAG_DEBUG)
+            return MSGFLAG_DEBUG;
+        return MSGFLAG_NONE;
+    }
+
     // Get the IO handler
     virtual std::shared_ptr<kis_external_io> move_io(std::shared_ptr<kis_external_interface> newif) {
         if (io_ == nullptr) {
@@ -420,7 +464,9 @@ protected:
         frame->code = kis_hton16(code);
         frame->seqno = kis_hton32(in_seqno);
 
-        memcpy(frame->data, content, content_sz);
+        // Commands with no content (LISTREQ) pass a null pointer
+        if (content_sz > 0)
+            memcpy(frame->data, content, content_sz);
 
         start_write(frame_buf, sizeof(kismet_external_frame_v3_t) + content_sz);
 
