@@ -419,7 +419,8 @@ kis_external_interface::kis_external_interface() :
     io_{nullptr},
     protocol_version{3},
     eventbus{Globalreg::fetch_mandatory_global_as<event_bus>()},
-    http_session_id{0} {
+    http_session_id{0},
+    v2_probe_ack{false} {
 
     ext_mutex.set_name("kis_external_interface");
 
