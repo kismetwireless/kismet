@@ -755,7 +755,8 @@ enum kis_protocol_info_type {
     proto_iapp,
     proto_isakmp,
     proto_pptp,
-    proto_eap
+    proto_eap,
+    proto_dhcp_ack
 };
 
 class kis_data_packinfo : public packet_component {
@@ -774,6 +775,14 @@ public:
         ip_gateway_addr.s_addr = 0;
         field1 = 0;
         ivset[0] = ivset[1] = ivset[2] = 0;
+
+        // Pooled copies come back through here; don't hand one packet's strings to the next
+        cdp_dev_id.clear();
+        cdp_port_id.clear();
+        discover_host.clear();
+        discover_vendor.clear();
+        auxstring.clear();
+        dhcp_chaddr = mac_addr();
     }
 
     kis_protocol_info_type proto;
@@ -795,6 +804,9 @@ public:
 
     // DHCP Discover data
     std::string discover_host, discover_vendor;
+
+    // DHCP Offer / ACK client hardware address; the frame may be broadcast
+    mac_addr dhcp_chaddr;
 
     // IV
     uint8_t ivset[3];

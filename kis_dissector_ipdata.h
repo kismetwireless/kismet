@@ -45,6 +45,8 @@ public:
 	~kis_dissector_ip_data();
 
 protected:
+	int handle_cdp(const std::shared_ptr<kis_packet>& in_pack, const uint8_t *data, size_t len);
+
 	int pack_comp_datapayload, pack_comp_basicdata;
 	int alert_dhcpclient_ref;
 };

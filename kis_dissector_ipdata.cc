@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <cstring>
+
 #include "globalregistry.h"
 #include "util.h"
 #include "endian_magic.h"
@@ -27,62 +29,38 @@
 #include "alertracker.h"
 
 #include "kis_dissector_ipdata.h"
-#include "phy_80211_packetsignatures.h"
+#include "kis_l3_parse.h"
 
-int get_length_tag_offsets(unsigned int init_offset, 
-        std::shared_ptr<kis_datachunk> in_chunk, std::map<int, std::vector<int> > *tag_cache_map) {
-    int cur_tag = 0;
-    // Initial offset is 36, that's the first tag
-    unsigned int cur_offset = (unsigned int) init_offset;
-    uint8_t len;
+namespace {
 
-    // Bail on invalid incoming offsets
-    if (init_offset >= in_chunk->length()) {
-        return -1;
-	}
-    
-    // If we haven't parsed the tags for this frame before, parse them all now.
-    // Return an error code if one of them is malformed.
-    if (tag_cache_map->size() == 0) {
-        while (1) {
-            // Are we over the packet length?
-            if (cur_offset + 2 >= in_chunk->length()) {
-                break;
-            }
+// LLC/SNAP: DSAP, SSAP, UI control, OUI, then a protocol id
+constexpr size_t snap_len = 8;
 
-            // Read the tag we're on and bail out if we're done
-            cur_tag = (int) in_chunk->data()[cur_offset];
+// Cisco OUI and the CDP protocol id
+constexpr uint8_t cdp_snap[snap_len] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x0c, 0x20, 0x00};
+constexpr size_t cdp_tlv_hdr = 4;
 
-            // Move ahead one byte and read the length.
-            len = (in_chunk->data()[cur_offset+1] & 0xFF);
-
-            // If this is longer than we have...
-            if ((cur_offset + len + 2) > in_chunk->length()) {
-                return -1;
-            }
-
-            // (*tag_cache_map)[cur_tag] = cur_offset + 1;
-			
-            (*tag_cache_map)[cur_tag].push_back(cur_offset + 1);
-
-            // Jump the length+length byte, this should put us at the next tag
-            // number.
-            cur_offset += len+2;
-        }
-    }
-    
-    return 0;
+constexpr uint16_t be16(const uint8_t *p) {
+    return static_cast<uint16_t>((p[0] << 8) | p[1]);
 }
 
-// Length of the first copy of a tag from get_length_tag_offsets, or -1 when it's absent
-static int tag_length(const std::shared_ptr<kis_datachunk>& chunk,
-        const std::map<int, std::vector<int>>& tags, int tag) {
-    auto t = tags.find(tag);
-    if (t == tags.end() || t->second.empty())
-        return -1;
-    return static_cast<uint8_t>(chunk->data()[t->second[0]]);
+// The byte order the device ipdata records have always used
+uint32_t ipdata_addr(const kis_l3::ip_addr& a) {
+    uint32_t addr;
+    memcpy(&addr, a.a.data(), 4);
+    return kis_hton32(addr);
 }
 
+// A host address a lease can hand out: not 0/8, loopback, multicast or above
+constexpr bool usable_v4(const kis_l3::ip_addr& a) {
+    return a.family == 4 && a.a[0] != 0 && a.a[0] != 127 && a.a[0] < 224;
+}
+
+std::string clean(std::string_view s) {
+    return kis_l3::escape_hidden(munge_to_printable(s.data(), s.length()));
+}
+
+}
 
 int ipdata_packethook(CHAINCALL_PARMS) {
 	return ((kis_dissector_ip_data *) auxdata)->handle_packet(in_pack);
@@ -95,7 +73,7 @@ kis_dissector_ip_data::kis_dissector_ip_data() {
     packetchain->register_handler(&ipdata_packethook, this,
             CHAINPOS_DATADISSECT, -100);
 
-	pack_comp_basicdata = 
+	pack_comp_basicdata =
 		packetchain->register_packet_component("BASICDATA");
 
 	pack_comp_datapayload =
@@ -124,112 +102,57 @@ kis_dissector_ip_data::~kis_dissector_ip_data() {
         packetchain->remove_handler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }
 
-#define MDNS_PTR_MASK		0xC0
-#define MDNS_PTR_ADDRESS	0x3FFF
+// CDP over LLC/SNAP: device and port id
+int kis_dissector_ip_data::handle_cdp(const std::shared_ptr<kis_packet>& in_pack,
+        const uint8_t *data, size_t len) {
+    // The TLVs start after the version, TTL and checksum; frames that aren't version 2 have
+    // always been read from 15, which is kept
+    size_t offset = data[snap_len] == 2 ? snap_len + 4 : 15;
 
-// Fetch a name; if it's a pointer, follow that reference and get the value
-// Cache offsets we've looked at in the map so we don't follow them repeatedly
-// Bytelen indicates how many bytes to advance the stream; negative indicates
-// error
-std::string MDNS_Fetchname(std::shared_ptr<kis_datachunk> chunk, unsigned int baseofft,
-					  unsigned int startofft, std::map<unsigned int, std::string> *name_cache,
-					  int *bytelen, unsigned int depth = 0) {
-	// If we're fed a bad offset, or a chain of pointers no real name needs, throw it back
-	if (startofft > chunk->length() || depth > 32) {
-		*bytelen = -1;
-		return "";
-	}
+    std::string dev_id, port_id;
 
-	std::string dns_str;
+    while (offset < len && len - offset >= cdp_tlv_hdr) {
+        const uint16_t elemtype = be16(data + offset);
+        const size_t elemlen = be16(data + offset + 2);
 
-	unsigned int offt = startofft;
+        if (elemlen == 0 || elemlen > len - offset)
+            break;
 
-	while (offt < chunk->length()) {
-		// Find a starting at this position
-		uint8_t len = chunk->data()[offt];
+        if (elemtype == 0x01 || elemtype == 0x03) {
+            if (elemlen < cdp_tlv_hdr) {
+                _MSG_ERROR("Corrupt CDP frame (possibly an exploit attempt), discarded");
+                return 0;
+            }
 
-		// If we hit a 0x00 we're at the end of the string
-		if (len == 0) {
-			offt += 1;
-			break;
-		}
+            auto v = clean(std::string_view(reinterpret_cast<const char *>(data + offset + cdp_tlv_hdr),
+                        elemlen - cdp_tlv_hdr));
 
-		// Pointer to another value
-		if ((len & MDNS_PTR_MASK) == MDNS_PTR_MASK) {
-			// Catch wonky records
-			if (offt + 1 >= chunk->length()) {
-				*bytelen = -1;
-				return dns_str;
-			}
+            if (elemtype == 0x01)
+                dev_id = std::move(v);
+            else
+                port_id = std::move(v);
+        }
 
-			// Derive the new start address
-			uint16_t ptr = 
-				kis_ntoh16(kis_extract16(&(chunk->data()[offt])));
+        offset += elemlen;
+    }
 
-			ptr &= MDNS_PTR_ADDRESS;
+    if (dev_id.empty() && port_id.empty())
+        return 1;
 
-			// Get the cached value if we can, instead of following the pointer
-			std::map<unsigned int, std::string>::iterator nci = name_cache->find(ptr);
-			if (nci != name_cache->end()) {
-				if (dns_str == "")
-					dns_str = nci->second;
-				else
-					dns_str += "." + nci->second;
-			} else {
-				// Mark the target before following it, under the same key the lookup
-				// above uses, so pointers that loop back stop at the cache
-				(*name_cache)[ptr] = "";
+    auto datainfo = std::make_shared<kis_data_packinfo>();
+    datainfo->proto = proto_cdp;
+    datainfo->cdp_dev_id = std::move(dev_id);
+    datainfo->cdp_port_id = std::move(port_id);
+    in_pack->insert(pack_comp_basicdata, datainfo);
 
-				int junklen;
-				std::string ret = MDNS_Fetchname(chunk, baseofft, baseofft + ptr, name_cache,
-											&junklen, depth + 1);
-
-				(*name_cache)[ptr] = ret;
-
-				if (dns_str == "")
-					dns_str = ret;
-				else
-					dns_str += "." + ret;
-			}
-
-			// All address pointers are len2 in the buffer, cached or not
-			offt += 2;
-
-			// Pointer record indicates end of string
-			break;
-		}
-
-		// Skip the length byte
-		offt += 1;
-
-		if (offt + len >= chunk->length()) {
-			*bytelen = -1;
-			return dns_str;
-		}
-
-		std::string ret = 
-			munge_to_printable(std::string((char *) &(chunk->data()[offt]), len));
-
-		offt += len;
-
-		if (dns_str == "")
-			dns_str = ret;
-		else
-			dns_str += "." + ret;
-	}
-
-	*bytelen = (offt - startofft);
-
-	return dns_str;
+    return 1;
 }
 
 int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
-    std::shared_ptr<kis_data_packinfo> datainfo;
-	uint32_t addr;
-
 	if (in_pack->error)
 		return 0;
 
+    // Only 802.11 inserts the data payload; it starts at the LLC header
 	auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
 
 	if (chunk == nullptr)
@@ -242,344 +165,107 @@ int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 0;
     }
 
-	datainfo = std::make_shared<kis_data_packinfo>();
-
-	// CDP cisco discovery frames, good for finding unauthorized APs
-	// +1 for the version frame we compare first
-	if ((LLC_UI_OFFSET + 1 + sizeof(CISCO_SIGNATURE)) < chunk->length() &&
-		memcmp(&(chunk->data()[LLC_UI_OFFSET]), CISCO_SIGNATURE,
-			   sizeof(CISCO_SIGNATURE)) == 0) {
-		unsigned int offset = 0;
-
-		// Look for frames the old way, maybe v1 used it?  Compare the versions.
-		// I don't remember why the code worked this way.
-		if (chunk->data()[LLC_UI_OFFSET + sizeof(CISCO_SIGNATURE)] == 2)
-			offset = LLC_UI_OFFSET + sizeof(CISCO_SIGNATURE) + 4;
-		else
-			offset = LLC_UI_OFFSET + 12;
-
-		// Did we get useful info?
-		int gotinfo = 0;
-
-		while (offset + CDP_ELEMENT_LEN < chunk->length()) {
-		// uint16_t dot1x_length = kis_extract16(&(chunk->data[offset + 2]));
-			uint16_t elemtype = kis_ntoh16(kis_extract16(&(chunk->data()[offset + 0])));
-			uint16_t elemlen = kis_ntoh16(kis_extract16(&(chunk->data()[offset + 2])));
-
-			if (elemlen == 0)
-				break;
-
-			if (offset + elemlen >= chunk->length())
-				break;
-
-			if (elemtype == 0x01) {
-				// Device id, we care about this
-				if (elemlen < 4) {
-					_MSG_ERROR("Corrupt CDP frame (possibly an exploit attempt), discarded");
-					return 0;
-				}
-
-				datainfo->cdp_dev_id = 
-					munge_to_printable(std::string((char *) &(chunk->data()[offset + 4]), elemlen - 4));
-				gotinfo = 1;
-			} else if (elemtype == 0x03) {
-				if (elemlen < 4) {
-					_MSG_ERROR("Corrupt CDP frame (possibly an exploit attempt), discarded");
-					return 0;
-				}
-
-				datainfo->cdp_port_id = 
-					munge_to_printable(std::string((char *) &(chunk->data()[offset + 4]), elemlen - 4));
-				gotinfo = 1;
-			}
-
-			offset += elemlen;
-		}
-
-		if (gotinfo) {
-			datainfo->proto = proto_cdp;
-			in_pack->insert(pack_comp_basicdata, datainfo);
-			return 1;
-		}
-
-	}
-
-	if (kismax(20, ARP_OFFSET + ARP_PACKET_SIZE) < chunk->length() && 
-		ARP_OFFSET + sizeof(ARP_SIGNATURE) < chunk->length() &&
-		memcmp(&(chunk->data()[ARP_OFFSET]), ARP_SIGNATURE, sizeof(ARP_SIGNATURE)) == 0) {
-		// If we look like a ARP frame and we're big enough to be an arp 
-		// frame...
-		
-		datainfo->proto = proto_arp;
-		memcpy(&addr, &(chunk->data()[ARP_OFFSET + 16]), 4);
-		datainfo->ip_source_addr.s_addr = kis_hton32(addr);
-		in_pack->insert(pack_comp_basicdata, datainfo);
-		return 1;
-	}
-
-	if (kismax(UDP_OFFSET + 4, IP_OFFSET + 11) < chunk->length() && 
-		IP_OFFSET + sizeof(TCP_SIGNATURE) < chunk->length() &&
-		memcmp(&(chunk->data()[IP_OFFSET]), UDP_SIGNATURE, sizeof(UDP_SIGNATURE)) == 0) {
-
-		// UDP frame...
-		datainfo->proto = proto_udp;
-		datainfo->ip_source_port = 
-			kis_ntoh16(kis_extract16(&(chunk->data()[UDP_OFFSET])));
-		datainfo->ip_dest_port = 
-			kis_ntoh16(kis_extract16(&(chunk->data()[UDP_OFFSET + 2])));
-
-		memcpy(&addr, &(chunk->data()[IP_OFFSET + 3]), 4);
-		datainfo->ip_source_addr.s_addr = kis_hton32(addr);
-		memcpy(&addr, &(chunk->data()[IP_OFFSET + 7]), 4);
-		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
-
-		/* DHCP Offer */
-		if (in_pack->common_info.dest == Globalreg::globalreg->broadcast_mac &&
-			datainfo->ip_source_port == 67 &&
-			datainfo->ip_dest_port == 68) {
-
-			// Extract the DHCP tags the same way we get IEEE 80211 tags,
-			// in fact we can re-use the code
-			std::map<int, std::vector<int> > dhcp_tag_map;
-
-			// This is convenient since it won't return anything that is outside
-			// the context of the packet, we can feed it the length w/out checking
-			// and we can trust the tags
-			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
-
-			if (tag_length(chunk, dhcp_tag_map, 53) >= 1 &&
-				chunk->data()[dhcp_tag_map[53][0] + 1] == 0x02) {
-
-				// We're a DHCP offer...
-				datainfo->proto = proto_dhcp_offer;
-
-				// This should never be possible, but let's check
-				if ((DHCPD_OFFSET + 32) >= chunk->length()) {
-					return 0;
-				}
-
-				memcpy(&addr, &(chunk->data()[DHCPD_OFFSET + 28]), 4);
-				datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
-
-				// Addresses are 4 bytes; a shorter tag would read past it
-				if (tag_length(chunk, dhcp_tag_map, 1) >= 4) {
-
-					memcpy(&addr, &(chunk->data()[dhcp_tag_map[1][0] + 1]), 4);
-					datainfo->ip_netmask_addr.s_addr = kis_hton32(addr);
-				}
-
-				if (tag_length(chunk, dhcp_tag_map, 3) >= 4) {
-
-					memcpy(&addr, &(chunk->data()[dhcp_tag_map[3][0] + 1]), 4);
-					datainfo->ip_gateway_addr.s_addr = kis_hton32(addr);
-				}
-			}
-		}
-
-		/* DHCP Discover */
-		if (in_pack->common_info.dest == Globalreg::globalreg->broadcast_mac &&
-			datainfo->ip_source_port == 68 &&
-			datainfo->ip_dest_port == 67) {
-
-			// Extract the DHCP tags the same way we get IEEE 80211 tags,
-			// in fact we can re-use the code
-			std::map<int, std::vector<int> > dhcp_tag_map;
-
-			// This is convenient since it won't return anything that is outside
-			// the context of the packet, we can feed it the length w/out checking
-			// and we can trust the tags
-			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
-
-			if (tag_length(chunk, dhcp_tag_map, 53) >= 1 &&
-				chunk->data()[dhcp_tag_map[53][0] + 1] == 0x01) {
-
-				// We're definitely a dhcp discover
-				datainfo->proto = proto_dhcp_discover;
-
-				if (dhcp_tag_map.find(12) != dhcp_tag_map.end() &&
-					dhcp_tag_map[12].size() != 0) {
-
-					datainfo->discover_host = 
-						std::string((char *) &(chunk->data()[dhcp_tag_map[12][0] + 1]), 
-							   chunk->data()[dhcp_tag_map[12][0]]);
-
-					datainfo->discover_host = munge_to_printable(datainfo->discover_host);
-				}
-
-				if (dhcp_tag_map.find(60) != dhcp_tag_map.end() &&
-					dhcp_tag_map[60].size() != 0) {
-
-					datainfo->discover_vendor = 
-						std::string((char *) &(chunk->data()[dhcp_tag_map[60][0] + 1]), 
-							   chunk->data()[dhcp_tag_map[60][0]]);
-					datainfo->discover_vendor = 
-						munge_to_printable(datainfo->discover_vendor);
-				}
-
-				// Client id is a type byte and a 6 byte MAC; this used to count the tags
-				// instead of checking the length
-				if (tag_length(chunk, dhcp_tag_map, 61) == 7) {
-					mac_addr clmac = mac_addr(&(chunk->data()[dhcp_tag_map[61][0] + 2]), 6);
-
-					if (clmac != in_pack->common_info.source) {
-                        _COMMONALERT(alert_dhcpclient_ref, in_pack,
-                                in_pack->common_info.network,
-                                censor::format("DHCP request from {} doesn't match DHCP "
-                                    "DISCOVER client id {} which can indicate a DHCP "
-                                    "spoofing attack", in_pack->common_info.source, clmac));
-					}
-				}
-			}
-		}
-
-		// MDNS extractor
-		if (datainfo->ip_source_port == 5353 &&
-			datainfo->ip_dest_port == 5353) {
-			uint16_t mdns_flag_response = (1 << 15);
-
-			uint16_t mdns_flags;
-			uint16_t answer_rr = 0, auth_rr = 0, additional_rr = 0;
-
-			// mdns name
-			std::string mdns_name;
-			std::string mdns_ptr;
-
-			// Skip UDP headers
-			unsigned int mdns_start = UDP_OFFSET + 8;
-			unsigned int offt = UDP_OFFSET + 8;
-
-			std::map<unsigned int, std::string> mdns_cache;
-
-			// Skip transaction ID, we don't care
-			offt += 2;
-
-			if (offt + 2 >= chunk->length())
-				goto mdns_end;
-
-			mdns_flags = 
-				kis_ntoh16(kis_extract16(&(chunk->data()[offt])));
-
-			// Only care about responses right now
-			if ((mdns_flags & mdns_flag_response) == 0) {
-				// printf("debug - mdns doesn't look like response, flags %x\n", mdns_flags);
-				goto mdns_end;
-			}
-
-			// Skip past flags
-			offt += 2;
-
-			// Skip Q
-			offt += 2;
-
-			if (offt + 8 >= chunk->length())
-				goto mdns_end;
-
-			answer_rr = 
-				kis_ntoh16(kis_extract16(&(chunk->data()[offt])));
-			auth_rr = 
-				kis_ntoh16(kis_extract16(&(chunk->data()[offt+2])));
-			additional_rr = 
-				kis_ntoh16(kis_extract16(&(chunk->data()[offt+4])));
-
-			// answer, auth, additional
-			offt += 6;
-
-			if (offt >= chunk->length())
-				goto mdns_end;
-
-			// printf("debug - mdns - looking at %u answers\n", answer_rr + auth_rr + additional_rr);
-			for (uint32_t a = 0; a < (uint32_t) (answer_rr + auth_rr + additional_rr); a++) {
-				int retbytes;
-
-				mdns_name = MDNS_Fetchname(chunk, mdns_start, offt, &mdns_cache, &retbytes);
-
-				if (retbytes <= 0)
-					goto mdns_end;
-
-				offt += retbytes;
-
-				// printf("debug - mdns record name: %s\n", mdns_name.c_str());
-
-				if (offt + 2 >= chunk->length()) {
-					goto mdns_end;
-				}
-
-				uint16_t rec_type;
-
-				rec_type = 
-					kis_ntoh16(kis_extract16(&(chunk->data()[offt])));
-
-				// printf("debug - rectype %x\n", rec_type);
-
-				offt += 8;
-
-				if (offt + 2 >= chunk->length()) {
-					goto mdns_end;
-				}
-
-				uint16_t rec_len;
-
-				rec_len =
-					kis_ntoh16(kis_extract16(&(chunk->data()[offt])));
-
-				offt += 2;
-
-				// printf("debug - mdns - record length %u\n", rec_len);
-
-				if (offt + rec_len >= chunk->length())
-					goto mdns_end;
-
-				// printf("debug - mdns - rectype %x reclen %u\n", rec_type, rec_len);
-
-				// Only care about PTR records for now
-				if (rec_type != 0xC) {
-					offt += rec_len;
-					continue;
-				}
-
-				std::string mdns_rec;
-
-				mdns_rec = MDNS_Fetchname(chunk, mdns_start, offt, &mdns_cache, &retbytes);
-
-				if (retbytes <= 0)
-					goto mdns_end;
-
-				offt += retbytes;
-
-				// printf("debug - mdns ptr %s\n", mdns_rec.c_str());
-			}
-
-mdns_end:
-			;
-
-		}
-
-		in_pack->insert(pack_comp_basicdata, datainfo);
-		return 1;
-
-	} // UDP frame
-
-	if (kismax(TCP_OFFSET + 4, IP_OFFSET + TCP_HEADER_SIZE) < chunk->length() && 
-		IP_OFFSET + sizeof(TCP_SIGNATURE) < chunk->length() &&
-		memcmp(&(chunk->data()[IP_OFFSET]),
-			   TCP_SIGNATURE, sizeof(TCP_SIGNATURE)) == 0) {
-
-		// TCP frame...
-		datainfo->ip_source_port = 
-			kis_ntoh16(kis_extract16(&(chunk->data()[TCP_OFFSET])));
-		datainfo->ip_dest_port = 
-			kis_ntoh16(kis_extract16(&(chunk->data()[TCP_OFFSET + 2])));
-
-		memcpy(&addr, &(chunk->data()[IP_OFFSET + 3]), 4);
-		datainfo->ip_source_addr.s_addr = kis_hton32(addr);
-		memcpy(&addr, &(chunk->data()[IP_OFFSET + 7]), 4);
-		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
-
-		datainfo->proto = proto_tcp;
-
-		in_pack->insert(pack_comp_basicdata, datainfo);
-		return 1;
-	} // TCP frame
-
-	return 1;
+    const auto *data = reinterpret_cast<const uint8_t *>(chunk->data());
+    const size_t len = chunk->length();
+
+    // +1 for the CDP version byte
+    if (len > snap_len + 1 && memcmp(data, cdp_snap, snap_len) == 0)
+        return handle_cdp(in_pack, data, len);
+
+    // RFC 1042 SNAP, or 802.1H for the protocols bridged that way
+    if (len < snap_len || data[0] != 0xaa || data[1] != 0xaa || data[2] != 0x03 ||
+            data[3] != 0 || data[4] != 0 || (data[5] != 0 && data[5] != 0xf8))
+        return 1;
+
+    uint16_t ethertype = be16(data + 6);
+    size_t offset = snap_len;
+
+    if (ethertype == 0x8100) {
+        if (len - offset < 4)
+            return 1;
+        ethertype = be16(data + offset + 2);
+        offset += 4;
+    }
+
+    if (ethertype != 0x0800 && ethertype != 0x0806)
+        return 1;
+
+    // Reused per thread; reset() clears the strings by length, not by zeroing them
+    thread_local kis_l3::frame f;
+    f.reset();
+
+    kis_l3::parse_l3(ethertype, data + offset, len - offset, f);
+
+    if (f.l3 == kis_l3::l3_type::arp) {
+        if (!f.arp_spa.set())
+            return 1;
+
+        auto datainfo = std::make_shared<kis_data_packinfo>();
+        datainfo->proto = proto_arp;
+        datainfo->ip_source_addr.s_addr = ipdata_addr(f.arp_spa);
+        in_pack->insert(pack_comp_basicdata, datainfo);
+        return 1;
+    }
+
+    // Addresses are set once the 20 byte IPv4 header was captured; the ports need the
+    // transport header too
+    if (f.l3 != kis_l3::l3_type::ipv4 || !f.ip_src.set() ||
+            (f.ip_proto != 6 && f.ip_proto != 17))
+        return 1;
+
+    auto datainfo = std::make_shared<kis_data_packinfo>();
+
+    datainfo->proto = f.ip_proto == 17 ? proto_udp : proto_tcp;
+    datainfo->ip_source_addr.s_addr = ipdata_addr(f.ip_src);
+    datainfo->ip_dest_addr.s_addr = ipdata_addr(f.ip_dst);
+
+    if (f.l4_ok) {
+        datainfo->ip_source_port = f.sport;
+        datainfo->ip_dest_port = f.dport;
+    }
+
+    const auto& dhcp = f.dhcp4;
+
+    if (f.ip_proto == 17 && f.l4_ok && dhcp.valid) {
+        if (f.sport == 67 && f.dport == 68 && (dhcp.msgtype == 2 || dhcp.msgtype == 5) &&
+                usable_v4(dhcp.yiaddr)) {
+            // Broadcast or unicast; phy80211 matches the client by chaddr
+            datainfo->proto = dhcp.msgtype == 5 ? proto_dhcp_ack : proto_dhcp_offer;
+            datainfo->ip_dest_addr.s_addr = ipdata_addr(dhcp.yiaddr);
+
+            if (dhcp.chaddr_eth)
+                datainfo->dhcp_chaddr = mac_addr(dhcp.chaddr.data(), 6);
+
+            if (dhcp.subnet_mask.set())
+                datainfo->ip_netmask_addr.s_addr = ipdata_addr(dhcp.subnet_mask);
+
+            if (dhcp.router.set())
+                datainfo->ip_gateway_addr.s_addr = ipdata_addr(dhcp.router);
+        } else if (in_pack->common_info.dest == Globalreg::globalreg->broadcast_mac &&
+                f.sport == 68 && f.dport == 67 && dhcp.msgtype == 1) {
+            datainfo->proto = proto_dhcp_discover;
+
+            if (!dhcp.hostname.empty())
+                datainfo->discover_host = clean(dhcp.hostname.view());
+
+            if (!dhcp.vendor.empty())
+                datainfo->discover_vendor = clean(dhcp.vendor.view());
+
+            // Client id is a type byte and a 6 byte MAC
+            if (dhcp.client_id.len == 7) {
+                mac_addr clmac(reinterpret_cast<const uint8_t *>(dhcp.client_id.buf.data()) + 1, 6);
+
+                if (clmac != in_pack->common_info.source) {
+                    _COMMONALERT(alert_dhcpclient_ref, in_pack,
+                            in_pack->common_info.network,
+                            censor::format("DHCP request from {} doesn't match DHCP "
+                                "DISCOVER client id {} which can indicate a DHCP "
+                                "spoofing attack", in_pack->common_info.source, clmac));
+                }
+            }
+        }
+    }
+
+    in_pack->insert(pack_comp_basicdata, datainfo);
+    return 1;
 }
