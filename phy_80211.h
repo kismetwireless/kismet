@@ -741,6 +741,10 @@ protected:
             const std::shared_ptr<dot11_packinfo>& dot11info,
             const std::shared_ptr<kis_data_packinfo>& pack_datainfo);
 
+    // A broadcast DHCP offer or ACK names its client only in chaddr
+    void process_broadcast_dhcp_lease(const std::shared_ptr<dot11_packinfo>& dot11info,
+            const std::shared_ptr<kis_data_packinfo>& pack_datainfo);
+
     void process_wpa_handshake(const std::shared_ptr<kis_tracked_device_base>& bssid_dev,
             const std::shared_ptr<dot11_tracked_device>& bssid_dot11,
             const std::shared_ptr<kis_tracked_device_base>& dest_dev,

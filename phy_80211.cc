@@ -2361,6 +2361,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->dest_dev, dot11info->dest_dot11,
                         in_pack, dot11info);
             }
+
+            d11phy->process_broadcast_dhcp_lease(dot11info, pack_datainfo);
         }
 
         // If we're WDS, link source and dest devices as clients of the transmitting WDS AP
@@ -5814,6 +5816,54 @@ void kis_80211_phy::handle_randomized_alias(const std::shared_ptr<kis_tracked_de
     }
 }
 
+// Leases come from the DS side: from-DS, or ad-hoc from a station other than the client named.
+// A station sending an offer or ACK toward the DS is ordinary UDP, so it can't assign itself or a
+// neighbour an address.
+static bool dhcp_lease_from_ds(const std::shared_ptr<dot11_packinfo>& dot11info, const mac_addr& chaddr) {
+    if (dot11info->distrib == distrib_from)
+        return true;
+
+    return dot11info->distrib == distrib_adhoc && dot11info->source_mac != chaddr;
+}
+
+// The leased address, and the netmask and gateway when the message carried them; the caller
+// holds the client device lock.  The dissector only classifies offers and ACKs with a usable
+// yiaddr.  The address comes only from an ACK, as in phy_ethernet.  An ACK for a new address
+// replaces the netmask and gateway even when it lacks them, so a previous lease's values don't
+// stay with the new address.  An offer for the address the client already holds only fills in
+// a netmask or gateway still missing.  Both compare the address alone, since ARP and UDP/TCP
+// traffic rewrite the ip type without touching the netmask or gateway.
+static void apply_dhcp_lease(const std::shared_ptr<dot11_client>& client_record,
+        const std::shared_ptr<kis_data_packinfo>& pack_datainfo) {
+    // An offer doesn't create the ipdata record
+    if (pack_datainfo->proto == proto_dhcp_offer && !client_record->has_ipdata())
+        return;
+
+    auto ipdata = client_record->get_ipdata();
+
+    if (ipdata == nullptr)
+        return;
+
+    if (pack_datainfo->proto == proto_dhcp_offer) {
+        if (ipdata->get_ip_addr() != pack_datainfo->ip_dest_addr.s_addr)
+            return;
+        if (ipdata->get_ip_netmask() == 0 && pack_datainfo->ip_netmask_addr.s_addr != 0)
+            ipdata->set_ip_netmask(pack_datainfo->ip_netmask_addr.s_addr);
+        if (ipdata->get_ip_gateway() == 0 && pack_datainfo->ip_gateway_addr.s_addr != 0)
+            ipdata->set_ip_gateway(pack_datainfo->ip_gateway_addr.s_addr);
+        return;
+    }
+
+    const bool new_lease = ipdata->get_ip_addr() != pack_datainfo->ip_dest_addr.s_addr;
+
+    ipdata->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
+    if (new_lease || pack_datainfo->ip_netmask_addr.s_addr != 0)
+        ipdata->set_ip_netmask(pack_datainfo->ip_netmask_addr.s_addr);
+    if (new_lease || pack_datainfo->ip_gateway_addr.s_addr != 0)
+        ipdata->set_ip_gateway(pack_datainfo->ip_gateway_addr.s_addr);
+    ipdata->set_ip_type(ipdata_dhcp);
+}
+
 // Associate a client device and a dot11 access point
 void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base>& bssiddev,
         const std::shared_ptr<dot11_tracked_device>& bssiddot11,
@@ -5907,7 +5957,7 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
                 if (client_record->get_dhcp_vendor() != "" &&
                         client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
                         alertracker->potential_alert(alert_dhcpos_ref)) {
-                    auto al = censor::format("IEEE80211 network BSSID {} client {}changed "
+                    auto al = censor::format("IEEE80211 network BSSID {} client {} changed "
                         "advertised DHCP vendor from '{}' to '{}' which may indicate client "
                         "spoofing or impersonation", client_record->get_bssid(),
                         clientdev->get_macaddr(), client_record->get_dhcp_vendor(),
@@ -5926,7 +5976,7 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
                 if (client_record->get_dhcp_host() != "" &&
                         client_record->get_dhcp_host() != pack_datainfo->discover_host &&
                         alertracker->potential_alert(alert_dhcpname_ref)) {
-                    auto al = censor::format("IEEE80211 network BSSID {} client {}changed "
+                    auto al = censor::format("IEEE80211 network BSSID {} client {} changed "
                         "advertised DHCP hostname from '{}' to '{}' which may indicate client "
                         "spoofing or impersonation", client_record->get_bssid(),
                         clientdev->get_macaddr(), censor::name(client_record->get_dhcp_host()),
@@ -5957,13 +6007,17 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
                     }
                     break;
                 case proto_dhcp_offer:
-                    if (dot11info->dest_mac == clientdev->get_macaddr()) {
-                        client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
-                        client_record->get_ipdata()->set_ip_netmask(pack_datainfo->ip_netmask_addr.s_addr);
-                        client_record->get_ipdata()->set_ip_gateway(pack_datainfo->ip_gateway_addr.s_addr);
-                        client_record->get_ipdata()->set_ip_type(ipdata_dhcp);
+                case proto_dhcp_ack:
+                    // A unicast offer or ACK must come from the DS side and be addressed to the
+                    // client it names; broadcast ones go through process_broadcast_dhcp_lease.
+                    // Otherwise it's any other UDP frame.
+                    if (dot11info->dest_mac == clientdev->get_macaddr() &&
+                            pack_datainfo->dhcp_chaddr == clientdev->get_macaddr() &&
+                            dhcp_lease_from_ds(dot11info, pack_datainfo->dhcp_chaddr)) {
+                        apply_dhcp_lease(client_record, pack_datainfo);
+                        break;
                     }
-                    break;
+                    [[fallthrough]];
                 case proto_tcp:
                 case proto_udp:
                     if (dot11info->source_mac == clientdev->get_macaddr())
@@ -6003,6 +6057,47 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
         bssiddot11->get_associated_client_map()->insert(clientdev->get_macaddr(),
                 clientdev->get_tracker_key());
     }
+}
+
+void kis_80211_phy::process_broadcast_dhcp_lease(const std::shared_ptr<dot11_packinfo>& dot11info,
+        const std::shared_ptr<kis_data_packinfo>& pack_datainfo) {
+    if (pack_datainfo == nullptr ||
+            (pack_datainfo->proto != proto_dhcp_offer && pack_datainfo->proto != proto_dhcp_ack))
+        return;
+
+    // Unicast offers and ACKs are matched in process_client
+    if (!dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac))
+        return;
+
+    const auto& chaddr = pack_datainfo->dhcp_chaddr;
+
+    if (chaddr == Globalreg::globalreg->empty_mac ||
+            chaddr.bitwise_and(Globalreg::globalreg->multicast_mac) ||
+            chaddr == dot11info->source_mac || chaddr == dot11info->bssid_mac ||
+            !dhcp_lease_from_ds(dot11info, chaddr))
+        return;
+
+    // Only a device that's already a client of this BSS; a forged chaddr never creates a
+    // device or an association
+    auto dev = devicetracker->fetch_device(device_key(fetch_phyname_hash(), chaddr));
+
+    if (dev == nullptr)
+        return;
+
+    kis_device_lock lk(dev, false);
+
+    auto d11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+    if (d11 == nullptr || !d11->has_client_map())
+        return;
+
+    auto client_map = d11->get_tracker_client_map();
+    auto cmi = client_map->find(dot11info->bssid_mac);
+
+    if (cmi == client_map->end() || cmi->second == nullptr)
+        return;
+
+    apply_dhcp_lease(std::static_pointer_cast<dot11_client>(cmi->second), pack_datainfo);
 }
 
 void kis_80211_phy::process_wpa_handshake(const std::shared_ptr<kis_tracked_device_base>& bssid_dev,

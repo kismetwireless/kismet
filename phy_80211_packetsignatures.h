@@ -30,9 +30,6 @@
 // Offset for all LLC-fragment protocols
 const unsigned int LLC_UI_OFFSET = 3;
 
-const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
-const unsigned int CDP_ELEMENT_LEN = 5;
-
 const uint8_t DOT1X_PROTO[] = {0x88, 0x8e};
 const uint8_t DOT1X_OFFSET = LLC_UI_OFFSET + 5;
 
@@ -45,21 +42,6 @@ const uint8_t EAP_TYPE_TLS  = 13;
 const uint8_t EAP_TYPE_LEAP = 17;
 const uint8_t EAP_TYPE_TTLS = 21;
 const uint8_t EAP_TYPE_PEAP = 25;
-
-const uint8_t ARP_SIGNATURE[] = {0x08, 0x06};
-const unsigned int ARP_OFFSET = 6;
-const uint8_t ARP_PACKET_SIZE = 30;
-
-const unsigned int DHCPD_OFFSET = 24;
-
-const unsigned int IP_OFFSET = 17;
-
-const uint8_t UDP_SIGNATURE[] = {0x11};
-const unsigned int UDP_OFFSET = 28;
-
-const uint8_t TCP_SIGNATURE[] = {0x06};
-const unsigned int TCP_OFFSET = 28;
-const unsigned int TCP_HEADER_SIZE = 11;
 
 const mac_addr msfopcode_mac = mac_addr("90:E9:75:00:00:00/FF:FF:FF:00:00:00");
 
