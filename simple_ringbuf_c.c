@@ -307,10 +307,16 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
         ringbuf->length += size;
         return size;
     } else {
+        /* The data is the split-op buffer kis_simple_ringbuf_reserve
+         * allocated; copy it in, then free it */
+        ringbuf->free_commit = 0;
+
         /* Does the write op fit w/out looping? */
         if (copy_start + size <= ringbuf->buffer_sz) {
             memcpy(ringbuf->buffer + copy_start, data, size);
             ringbuf->length += size;
+
+            free(data);
 
             return size;
         } else {
@@ -323,6 +329,8 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
 
             /* Increase the length of the buffer */
             ringbuf->length += size;
+
+            free(data);
 
             return size;
         }
