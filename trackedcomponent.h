@@ -26,6 +26,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <type_traits>
 
 #include <vector>
 #include <map>
@@ -84,20 +85,24 @@ class tracker_component : public tracker_element_map {
         set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
+// The type of the mutex given to a proxy macro; readers lock it with kis_read_lock, which
+// is shared on a kis_recursive_shared_mutex
+#define __ProxyMutexType(m) std::remove_reference_t<decltype(m)>
+
 // Ugly macro for standard proxy access but with an additional mutex; this should
-// be a kis_mutex
+// be a kis_mutex or a kis_recursive_shared_mutex
 #define __ProxyM(name, ptype, itype, rtype, cvar, mvar) \
     inline shared_tracker_element get_tracker_##name() { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_read_lock<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     inline rtype get_##name() { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_read_lock<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     inline void set_##name(const itype& in) { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_lock_guard<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
@@ -127,21 +132,21 @@ class tracker_component : public tracker_element_map {
 
 #define __ProxyLM(name, ptype, itype, rtype, cvar, mvar, lambda) \
     inline shared_tracker_element get_tracker_##name() { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_read_lock<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     inline rtype get_##name() { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_read_lock<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     inline bool set_##name(const itype& in) { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_lock_guard<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
         return lambda(in); \
     } \
     inline void set_only_##name(const itype& in) { \
-        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
+        kis_lock_guard<__ProxyMutexType(mvar)> lk(mvar, __func__); \
         set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
@@ -353,12 +358,12 @@ class tracker_component : public tracker_element_map {
 // Get and set only, protected with mutex
 #define __ProxyGetM(name, ptype, rtype, cvar, mutex) \
     inline rtype get_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex); \
+        kis_read_lock<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         return (rtype) get_tracker_value<ptype>(cvar); \
     }
 #define __ProxySetM(name, ptype, stype, cvar, mutex) \
     inline void set_##name(const stype& in) { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         set_tracker_value<ptype>(cvar, in); \
     }
 
@@ -484,19 +489,19 @@ class tracker_component : public tracker_element_map {
 // Proxy increment and decrement functions, with mutex
 #define __ProxyIncDecM(name, ptype, rtype, cvar, mutex) \
     inline void inc_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         (*cvar) += 1; \
     } \
     inline void inc_##name(rtype i) { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         (*cvar) += (ptype) i; \
     } \
     inline void dec_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         (*cvar) -= 1; \
     } \
     inline void dec_##name(rtype i) { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         (*cvar) -= (ptype) i; \
     }
 
@@ -578,11 +583,11 @@ class tracker_component : public tracker_element_map {
 // Proxy sub-trackable (name, trackable type, class variable), with mutex
 #define __ProxyTrackableM(name, ttype, cvar, mutex) \
     inline std::shared_ptr<ttype> get_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex); \
+        kis_read_lock<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         return cvar; \
     } \
     inline void set_##name(const std::shared_ptr<ttype>& in) { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         if (cvar != NULL) \
             erase(cvar); \
         cvar = in; \
@@ -590,7 +595,7 @@ class tracker_component : public tracker_element_map {
             insert(cvar); \
     }  \
     inline shared_tracker_element get_tracker_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex); \
+        kis_read_lock<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         return std::static_pointer_cast<tracker_element>(cvar); \
     }
 
@@ -755,7 +760,7 @@ class tracker_component : public tracker_element_map {
 // built), with mutex
 #define __ProxyDynamicTrackableM(name, ttype, cvar, id, mutex) \
     inline std::shared_ptr<ttype> get_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         if (cvar == NULL) { \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != NULL) \
@@ -764,7 +769,7 @@ class tracker_component : public tracker_element_map {
         return cvar; \
     } \
     inline void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
-        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
+        kis_lock_guard<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         if (cvar != nullptr) \
             erase(cvar); \
         cvar = in; \
@@ -774,11 +779,11 @@ class tracker_component : public tracker_element_map {
         } \
     } \
     inline std::shared_ptr<ttype> get_tracker_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex); \
+        kis_read_lock<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         return cvar; \
     } \
     inline bool has_##name() { \
-        kis_lock_guard<kis_mutex> lk(mutex); \
+        kis_read_lock<__ProxyMutexType(mutex)> lk(mutex, __func__); \
         return cvar != NULL; \
     } \
     inline void clear_##name() { \

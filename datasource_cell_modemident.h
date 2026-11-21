@@ -54,6 +54,7 @@
 
 #include "entrytracker.h"
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "nlohmann/json.hpp"
 #include "trackedelement.h"
 #include "capture_cell_diag/diag_modemident.h"
@@ -104,8 +105,13 @@ public:
     // Registered into `map` -- the datasource itself -- from its constructor.
     // Both cell datasources register the same names; the entry tracker hands
     // back the existing id for a name already registered with the same type.
+    // `mutex` is the datasource's data_mutex: the fields are written under it,
+    // exclusively, since serializers read them holding it shared. They are only
+    // written from the source's rx path, so reads there need no lock.
     template <class Map>
-    void register_into(Map *map) {
+    void register_into(Map *map, kis_recursive_shared_mutex *mutex) {
+        data_mutex = mutex;
+
         auto et = Globalreg::globalreg->entrytracker;
 
         make = reg_str(et, "kismet.datasource.cell.modem_make",
@@ -153,13 +159,16 @@ public:
         if (!str_of(j, "imei").size() && !str_of(j, "label").size())
             return "";
 
-        make->set(str_of(j, "make"));
-        model->set(str_of(j, "model"));
-        firmware->set(str_of(j, "firmware"));
-        imei->set(str_of(j, "imei"));
-        at_port->set(str_of(j, "at_port"));
-        method->set(str_of(j, "method"));
-        epoch->set(static_cast<uint64_t>(time(nullptr)));
+        {
+            kis_lock_guard<kis_recursive_shared_mutex> lk(*data_mutex, "cell_modemident apply_json");
+            make->set(str_of(j, "make"));
+            model->set(str_of(j, "model"));
+            firmware->set(str_of(j, "firmware"));
+            imei->set(str_of(j, "imei"));
+            at_port->set(str_of(j, "at_port"));
+            method->set(str_of(j, "method"));
+            epoch->set(static_cast<uint64_t>(time(nullptr)));
+        }
         // A reading, not an address -- offer it to same-IMEI siblings.
         if (str_of(j, "method") == MODEMIDENT_METHOD_AT && !str_of(j, "imei").empty())
             cell_modemident_registry::publish(str_of(j, "imei"), j);
@@ -223,6 +232,8 @@ private:
     std::shared_ptr<tracker_element_string> make, model, firmware, imei,
         at_port, method;
     std::shared_ptr<tracker_element_uint64> epoch;
+
+    kis_recursive_shared_mutex *data_mutex = nullptr;
 };
 
 #endif

@@ -50,7 +50,7 @@ kis_datasource_cell_diag::kis_datasource_cell_diag(shared_datasource_builder in_
     // this frame), so `this` is now a fully-formed kis_datasource_cell_diag and
     // insert() targets this source's own field map. Register the runtime counters.
     register_celldiag_fields();
-    modemident.register_into(this);
+    modemident.register_into(this, &data_mutex);
 }
 
 void kis_datasource_cell_diag::register_celldiag_fields() {
@@ -447,9 +447,12 @@ void kis_datasource_cell_diag::open_interface(std::string in_definition, unsigne
     // retry that SUCCEEDS would keep showing the previous attempt's failure,
     // and handle_source_error would pin a stale reason on a later, unrelated
     // exit.
-    diag_bringup_ms->set(0);
-    diag_bringup_phases->set("");
-    diag_bringup_error->set("");
+    {
+        kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "celldiag open_interface");
+        diag_bringup_ms->set(0);
+        diag_bringup_phases->set("");
+        diag_bringup_error->set("");
+    }
 
     kis_datasource::open_interface(in_definition, in_transaction, in_cb);
 }
@@ -616,7 +619,11 @@ void kis_datasource_cell_diag::handle_source_error() {
     // ("Pass diagport=/dev/ttyUSBx explicitly"), so it wins -- only over that
     // generic text, never over a specific error the transport raised.
     {
-        auto why = diag_bringup_error->get();
+        std::string why;
+        {
+            kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, "celldiag handle_source_error");
+            why = diag_bringup_error->get();
+        }
         if (!why.empty() && get_source_error_reason() == "IPC connection closed")
             set_int_source_error_reason("bring-up failed: " + why);
     }
@@ -805,8 +812,10 @@ void kis_datasource_cell_diag::apply_diag_census_json(const std::string& json_st
     // Skipping the empty case would leave a stale table from an earlier census
     // rendered beside a current count -- the two disagreeing, with nothing
     // saying which is live.
-    if (j.contains("table") && j["table"].is_string())
+    if (j.contains("table") && j["table"].is_string()) {
+        kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "celldiag census");
         diag_inv_table->set(j["table"].get<std::string>());
+    }
 }
 
 void kis_datasource_cell_diag::apply_diag_stats_json(const std::string& json_str) {
@@ -822,6 +831,9 @@ void kis_datasource_cell_diag::apply_diag_stats_json(const std::string& json_str
 
     if (!j.is_object())
         return;
+
+    // Serializers read the fields holding data_mutex shared
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "celldiag stats");
 
     if (j.contains("bytes_read") && j["bytes_read"].is_number_unsigned())
         diag_bytes_read->set(j["bytes_read"].get<uint64_t>());
