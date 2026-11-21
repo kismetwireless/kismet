@@ -28,6 +28,9 @@
 // With rowKey(row) and detail(row, el), clicking a row shows its details
 // under the table, kept open (and redrawn with fresh data) across updates.
 // t.redraw() redraws the rows, for cells that fill in later.
+//
+// With fill: true the table takes the height of its container (a tab, say)
+// instead of ten rows; the container must be a flex column.
 
 import { el, debounce } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -40,7 +43,7 @@ const visibleRows = 10;
 const listWidths = new Map();
 
 export function listTable({ id, load = null, columns, search = 'Search', empty = 'Nothing to show.',
-    refreshSeconds = 5, defaultSort = null, rowKey = null, detail = null }) {
+    refreshSeconds = 5, defaultSort = null, rowKey = null, detail = null, fill = false }) {
 
     const sortKey = `listtable.${id}.sort`;
     let sort = settings.get(sortKey, null);
@@ -74,7 +77,7 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
         el('button', { class: 'icon-button list-table-detail-close', type: 'button', title: 'Close',
             onclick: () => select(null) }, icon('close')),
         detailBody);
-    const node = el('div', { class: 'list-table' },
+    const node = el('div', { class: ['list-table', fill && 'fill'] },
         el('div', { class: 'list-table-search' }, el('label', { class: 'search-box' }, icon('search'), input), count),
         scroll, message, detailBox);
 
@@ -230,7 +233,7 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
     // Ten rows high once there are rows to measure; shorter lists take only what they need
     function fit() {
         const row = tbody.rows[0];
-        if (!row || !row.offsetHeight)
+        if (fill || !row || !row.offsetHeight)
             return;
         scroll.style.maxHeight = `${table.tHead.offsetHeight + visibleRows * row.offsetHeight + 2}px`;
     }

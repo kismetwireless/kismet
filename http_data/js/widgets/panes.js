@@ -1,5 +1,6 @@
 // A tabbed area of the page.  Its tabs are the kismet.ui.panes entries for
-// that area; the last tab the user picked is remembered.
+// that area; the last tab the user picked is remembered, and shown again
+// when it's added after the page is built (a phy tab that waits for data).
 //
 // A pane's create(body, area) can return tools: nodes shown at the right of
 // the tab bar while its tab is showing.  area.setExpanded(true) makes the
@@ -136,11 +137,12 @@ export function createPaneArea(container, area, { minimizable = false } = {}) {
     const built = new Map();    // pane id -> { tab, body, handle }
     let active = null;
     let overflow = [];          // pane ids whose tabs are in the More menu
+    let order = [];             // pane ids in tab bar order
 
     // Puts every tab on the bar, then moves the ones that don't fit (other
     // than the active one) into the More menu, last first
     function layout() {
-        const all = [...built.keys()];
+        const all = order.filter((id) => built.has(id));
         for (const id of all)
             built.get(id).tab.hidden = false;
         more.hidden = true;
@@ -194,7 +196,9 @@ export function createPaneArea(container, area, { minimizable = false } = {}) {
     });
     new ResizeObserver(() => layout()).observe(bar);
 
-    function activate(id) {
+    // remember is false when a tab is shown only because the picked one isn't
+    // there (yet): a tab a phy adds once it has data comes back when it appears
+    function activate(id, remember = true) {
         if (active === id || !built.has(id))
             return;
         if (active && built.has(active)) {
@@ -211,12 +215,14 @@ export function createPaneArea(container, area, { minimizable = false } = {}) {
         tools.replaceChildren(...(now.handle?.tools ?? []));
         now.handle?.show?.();
         active = id;
-        settings.set(`panes.${area}.active`, id);
+        if (remember)
+            settings.set(`panes.${area}.active`, id);
         layout();
     }
 
     function build() {
         const list = panes.list().filter((p) => p.area === area);
+        order = list.map((p) => p.id);
         const ids = new Set(list.map((p) => p.id));
 
         for (const [id, b] of built) {
@@ -250,7 +256,10 @@ export function createPaneArea(container, area, { minimizable = false } = {}) {
         }
 
         const wanted = settings.get(`panes.${area}.active`, null);
-        activate(built.has(wanted) ? wanted : list[0]?.id);
+        if (built.has(wanted))
+            activate(wanted);
+        else
+            activate(built.has(active) ? active : list[0]?.id, false);
         container.hidden = list.length === 0;
         layout();
     }
