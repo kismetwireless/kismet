@@ -65,6 +65,13 @@ static int checks = 0;
     } \
 } while (0)
 
+/* capture_framework has no destroy for a handler that never ran a thread; cf_handler_free leaves these */
+static void handler_release(kis_capture_handler_t *caph) {
+    cf_handler_free(caph);
+    free(caph->switch_windows);
+    free(caph);
+}
+
 static unsigned long long cap_field(const char *name) {
     char l[256];
     unsigned long long v = ~0ULL;
@@ -352,7 +359,7 @@ int main(int argc, char *argv[]) {
         CHECK(r == -1 && !p.left_root, "drop refused");
         CHECK(strstr(p.why, "could not read the uid and gid maps") != NULL &&
                 strstr(p.why, "grant it CAP_SETUID") == NULL, "why: %s", p.why);
-        cf_handler_free(caph);
+        handler_release(caph);
         printf("%s: %d checks, %d failed\n", failures ? "FAIL" : "ok", checks, failures);
         return failures != 0;
     }
@@ -364,7 +371,7 @@ int main(int argc, char *argv[]) {
 
         CHECK(r == -1 && !p.left_root, "drop refused");
         CHECK(strstr(p.why, want) != NULL && strstr(p.why, "could not tell") == NULL, "why: %s", p.why);
-        cf_handler_free(caph);
+        handler_release(caph);
         printf("%s: %d checks, %d failed\n", failures ? "FAIL" : "ok", checks, failures);
         return failures != 0;
     }
@@ -442,7 +449,7 @@ int main(int argc, char *argv[]) {
         CHECK(!back, "can't raise CAP_NET_ADMIN again");
     }
 
-    cf_handler_free(caph);
+    handler_release(caph);
 
     printf("%s: %d checks, %d failed\n", failures ? "FAIL" : "ok", checks, failures);
 

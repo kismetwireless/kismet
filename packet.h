@@ -37,6 +37,7 @@
 #include "base64.h"
 #include "eventbus.h"
 #include "globalregistry.h"
+#include "gps_bounds.h"
 #include "json_adapter_v2.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
@@ -219,10 +220,8 @@ public:
     // A position from a web client or capture tool, which may send anything; NaN fails
     // every comparison
     static constexpr bool values_valid(double in_lat, double in_lon, double in_alt, double in_speed) {
-        return in_lat >= -90 && in_lat <= 90 &&
-            in_lon >= -180 && in_lon <= 180 &&
-            in_alt >= -100000 && in_alt <= 1000000 &&
-            in_speed >= 0 && in_speed <= 1000000;
+        return gps_bounds::lat_valid(in_lat) && gps_bounds::lon_valid(in_lon) &&
+            gps_bounds::alt_valid(in_alt) && gps_bounds::speed_valid(in_speed);
     }
 
     // A position reported by the device itself (ADS-B, AIS, Remote ID...),
