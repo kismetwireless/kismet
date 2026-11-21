@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <arpa/inet.h>
@@ -844,7 +845,18 @@ wired_ifup_t wired_ifup_action(int up, int ifup) {
     return ifup ? WIRED_IFUP_BRING : WIRED_IFUP_REFUSE;
 }
 
-int wired_ifup_req_build(const char *ifname, uint32_t seq, wired_ifup_req_t *req) {
+uint64_t wired_mono_ms(void) {
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
+}
+
+uint64_t wired_ifup_seq(uint32_t owner, uint32_t seq) {
+    return (uint64_t) owner << 32 | seq;
+}
+
+int wired_ifup_req_build(const char *ifname, uint64_t seq, wired_ifup_req_t *req) {
     size_t l;
 
     if (req == NULL || ifname == NULL || !wired_ifname_valid(ifname, (l = strlen(ifname))))
@@ -852,13 +864,14 @@ int wired_ifup_req_build(const char *ifname, uint32_t seq, wired_ifup_req_t *req
 
     memset(req, 0, sizeof(*req));
     req->magic = WIRED_IFUP_MAGIC;
-    req->seq = seq;
+    req->owner = (uint32_t) (seq >> 32);
+    req->seq = (uint32_t) seq;
     memcpy(req->ifname, ifname, l);
 
     return 1;
 }
 
-int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint32_t *seq,
+int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint64_t *seq,
         char ifname[WIRED_IFNAMSIZ]) {
     wired_ifup_req_t req;
     size_t l, i;
@@ -871,7 +884,7 @@ int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint32_t *seq,
     if (req.magic != WIRED_IFUP_MAGIC)
         return -1;
 
-    *seq = req.seq;
+    *seq = wired_ifup_seq(req.owner, req.seq);
 
     /* NUL-terminated inside the field, and nothing after the NUL */
     for (l = 0; l < sizeof(req.ifname) && req.ifname[l] != 0; l++)
@@ -892,20 +905,21 @@ int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint32_t *seq,
     return 1;
 }
 
-void wired_ifup_reply_build(uint32_t seq, wired_ifup_status_t status, int err,
+void wired_ifup_reply_build(uint64_t seq, wired_ifup_status_t status, int err,
         wired_ifup_reply_t *reply) {
     memset(reply, 0, sizeof(*reply));
     reply->magic = WIRED_IFUP_MAGIC;
-    reply->seq = seq;
+    reply->owner = (uint32_t) (seq >> 32);
+    reply->seq = (uint32_t) seq;
     reply->status = (uint32_t) status;
     reply->err = status == WIRED_IFUP_FAILED ? err : 0;
 }
 
-int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint32_t seq,
+int wired_ifup_reply_read(const uint8_t *buf, size_t len, uint64_t *seq,
         wired_ifup_status_t *status, int *err) {
     wired_ifup_reply_t reply;
 
-    if (buf == NULL || status == NULL || err == NULL || len != sizeof(reply))
+    if (buf == NULL || seq == NULL || status == NULL || err == NULL || len != sizeof(reply))
         return -1;
 
     memcpy(&reply, buf, sizeof(reply));
@@ -917,12 +931,28 @@ int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint32_t seq,
             reply.err != 0)
         return -1;
 
-    /* An answer to an earlier request, one whose asker died waiting */
-    if (reply.seq != seq)
-        return 0;
-
+    *seq = wired_ifup_seq(reply.owner, reply.seq);
     *status = (wired_ifup_status_t) reply.status;
     *err = reply.err;
+    return 1;
+}
+
+int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint64_t seq,
+        wired_ifup_status_t *status, int *err) {
+    wired_ifup_status_t st;
+    uint64_t got;
+    int e;
+
+    if (status == NULL || err == NULL || wired_ifup_reply_read(buf, len, &got, &st, &e) < 0)
+        return -1;
+
+    /* An answer to an earlier request: one which timed out, or whose asker died
+     * waiting */
+    if (got != seq)
+        return 0;
+
+    *status = st;
+    *err = e;
     return 1;
 }
 

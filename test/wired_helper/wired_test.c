@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <linux/if_link.h>
 #include <linux/netlink.h>
@@ -37,6 +38,7 @@
 
 #include <pcap.h>
 
+#include "../../capture_wired/wired_filter.h"
 #include "../../capture_wired/wired_ifupd.h"
 #include "../../capture_wired/wired_priv.h"
 #include "../../capture_wired/wired_sysfs.h"
@@ -1111,13 +1113,6 @@ static void test_sysfs(const char *root) {
     CHECK(wired_classify(root, "lo") == WIRED_IF_LOOPBACK, "lo");
     CHECK(wired_classify(root, "loflag") == WIRED_IF_LOOPBACK, "IFF_LOOPBACK");
 
-    CHECK(wired_read_up(root, "eth0") == 1, "eth0 up");
-    CHECK(wired_read_up(root, "eth1") == 0, "eth1 down");
-    CHECK(wired_read_up(root, "notype") == -1, "no flags");
-    CHECK(wired_read_up(root, "missing") == -1, "missing");
-    CHECK(wired_read_up(root, "../eth0") == -1, "bad name");
-    mkiface(root, "badflags", NULL, "0xzz\n", NULL);
-    CHECK(wired_read_up(root, "badflags") == -1, "bad flags");
     CHECK(wired_classify(root, "tun0") == WIRED_IF_NOT_ETHERNET, "tun0");
     CHECK(wired_classify(root, "wlan0") == WIRED_IF_WIRELESS, "wireless dir");
     CHECK(wired_classify(root, "wlan1") == WIRED_IF_WIRELESS, "phy80211 link");
@@ -1764,14 +1759,30 @@ static void test_ifup_proto(void) {
     wired_ifup_status_t st;
     char name[WIRED_IFNAMSIZ];
     uint8_t buf[sizeof(req) + 4];
-    uint32_t seq = 0;
+    const uint64_t pid_a = (uint64_t) 1000 << 32, pid_b = (uint64_t) 1001 << 32;
+    uint64_t seq = 0;
     int err = 0;
 
-    CHECK(sizeof(req) == 24 && sizeof(rep) == 16, "fixed sizes %zu %zu", sizeof(req), sizeof(rep));
+    CHECK(sizeof(req) == 28 && sizeof(rep) == 20, "fixed sizes %zu %zu", sizeof(req), sizeof(rep));
+    CHECK(wired_ifup_seq(1000, 5) == (pid_a | 5) && wired_ifup_seq(1001, 0xffffffffU) ==
+            (pid_b | 0xffffffffU), "owner high, seq low");
 
     CHECK(wired_ifup_req_build("eth0", 5, &req) == 1, "build");
     CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) == 1 && seq == 5 &&
             strcmp(name, "eth0") == 0, "round trip");
+    CHECK(wired_ifup_req_build("eth0", pid_a | 5, &req) == 1 && req.owner == 1000 && req.seq == 5 &&
+            wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) == 1 && seq == (pid_a | 5),
+            "the owner travels with the seq");
+    wired_ifup_reply_build(pid_b | 5, WIRED_IFUP_DONE, 0, &rep);
+    CHECK(rep.owner == 1001 && rep.seq == 5, "reply owner");
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), pid_a | 5, &st, &err) == 0,
+            "the same seq from another process is another request's answer");
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), pid_b | 5, &st, &err) == 1 &&
+            st == WIRED_IFUP_DONE, "its own process's answer");
+    CHECK(wired_ifup_reply_read((uint8_t *) &rep, sizeof(rep), &seq, &st, &err) == 1 &&
+            seq == (pid_b | 5) && st == WIRED_IFUP_DONE && err == 0, "read any answer");
+    CHECK(wired_ifup_reply_read((uint8_t *) &rep, sizeof(rep) - 1, &seq, &st, &err) < 0 &&
+            wired_ifup_reply_read(NULL, sizeof(rep), &seq, &st, &err) < 0, "read malformed");
     CHECK(wired_ifup_req_build("abcdefghijklmno", 6, &req) == 1 &&
             wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) == 1 &&
             strcmp(name, "abcdefghijklmno") == 0, "15 characters");
@@ -2048,42 +2059,148 @@ static void test_ifupd_decide(void) {
     CHECK(wired_ifupd_decide(1, WIRED_ROOT_GROUPS) == WIRED_IFUPD_ROOT, "supplementary group 0");
 }
 
-static uint64_t test_mono_ms(void) {
-    struct timespec ts;
+/* Where the wired_ifupd_t under test started counting: set from its d.seq after
+ * its first request */
+static uint32_t seq_base;
 
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
+/* This process's request number n, and another process's with the same n */
+static uint64_t own_seq(uint32_t n) {
+    return wired_ifup_seq((uint32_t) getpid(), seq_base + n);
 }
 
-/* A child which never reads nor answers: the request times out once, then
- * fails at once; a socket it has stopped reading never blocks the send */
+static uint64_t other_seq(uint32_t n) {
+    return wired_ifup_seq((uint32_t) getpid() + 1, seq_base + n);
+}
+
+/* The child's side: an answer, sent without blocking */
+static void child_reply(int fd, uint64_t seq, wired_ifup_status_t st, int e) {
+    wired_ifup_reply_t rep;
+
+    wired_ifup_reply_build(seq, st, e, &rep);
+    CHECK(send(fd, &rep, sizeof(rep), MSG_DONTWAIT | MSG_NOSIGNAL) == (ssize_t) sizeof(rep),
+            "child reply sent");
+}
+
+/* The child's side: the next request's number, or 0 when none is queued */
+static uint64_t child_request(int fd) {
+    uint8_t buf[sizeof(wired_ifup_req_t) + 8];
+    char name[WIRED_IFNAMSIZ];
+    uint64_t seq = 0;
+    ssize_t r;
+
+    if ((r = recv(fd, buf, sizeof(buf), MSG_DONTWAIT)) <= 0 ||
+            wired_ifup_req_parse(buf, (size_t) r, &seq, name) < 0)
+        return 0;
+
+    return seq;
+}
+
+static void ifupd_fake(wired_ifupd_t *d, int fd, int timeout_ms, int stall_ms) {
+    memset(d, 0, sizeof(*d));
+    d->fd = fd;
+    d->pid = -1;
+    d->state = WIRED_IFUPD_RUNNING;
+    d->timeout_ms = timeout_ms;
+    d->stall_ms = stall_ms;
+}
+
+/* A child which stops answering: the request times out, the socket stays open
+ * and nothing more is sent until it answers; answers to other processes'
+ * requests numbered alike are skipped, and after stall_ms the next request goes
+ * out regardless */
 static void test_ifupd_stalled(void) {
+    wired_ifupd_t d, d2;
+    uint64_t t0, t1;
+    uint32_t parent_seq;
+    pid_t pid;
+    int sv[2], err = 0, r, status = 0;
+
+    CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sv) == 0, "socketpair");
+    ifupd_fake(&d, sv[0], 300, 1000);
+
+    t0 = wired_mono_ms();
+    r = wired_ifupd_request(&d, "eth1", &err);
+    t1 = wired_mono_ms();
+    seq_base = d.seq - 1;
+    CHECK(r < 0 && err == ETIMEDOUT && d.state == WIRED_IFUPD_RUNNING && d.busy && d.fd == sv[0],
+            "timed out, socket kept: %d %d", r, err);
+    CHECK(t1 - t0 >= 250 && t1 - t0 < 2000, "waited %llu ms", (unsigned long long) (t1 - t0));
+    CHECK(child_request(sv[1]) == own_seq(1), "request 1 numbered with this pid");
+
+    /* Each owner counts from its own random start, so a pid reused doesn't
+     * reuse the numbers */
+    ifupd_fake(&d2, -1, 300, 1000);
+    wired_ifupd_collect(&d2);
+    CHECK(d2.seq_owner == getpid() && d2.seq != d.seq - 1, "another start: %u %u", d2.seq,
+            d.seq - 1);
+
+    t0 = wired_mono_ms();
+    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && err == EBUSY, "then busy: %d", err);
+    CHECK(wired_mono_ms() - t0 < 100, "at once");
+    CHECK(child_request(sv[1]) == 0, "nothing sent while busy");
+
+    child_reply(sv[1], other_seq(1), WIRED_IFUP_DONE, 0);
+    wired_ifupd_collect(&d);
+    CHECK(d.busy, "another process's answer numbered alike skipped");
+
+    child_reply(sv[1], own_seq(1), WIRED_IFUP_DONE, 0);
+    wired_ifupd_collect(&d);
+    CHECK(!d.busy, "answered late");
+
+    /* Recovered: a duplicate of the late answer and another process's answer
+     * numbered alike are both skipped */
+    child_reply(sv[1], own_seq(1), WIRED_IFUP_FAILED, EIO);
+    child_reply(sv[1], other_seq(2), WIRED_IFUP_FAILED, EPERM);
+    child_reply(sv[1], own_seq(2), WIRED_IFUP_ALREADY, 0);
+    r = wired_ifupd_request(&d, "eth1", &err);
+    CHECK(r == WIRED_IFUP_ALREADY && !d.busy, "next open answered: %d %d", r, err);
+    CHECK(child_request(sv[1]) == own_seq(2), "request 2 sent");
+
+    /* Never answered in time: given up on after stall_ms; its answer, when it
+     * comes, is skipped */
+    CHECK(wired_ifupd_request(&d, "eth3", &err) < 0 && err == ETIMEDOUT && d.busy, "times out again");
+    CHECK(child_request(sv[1]) == own_seq(3), "request 3 sent");
+    CHECK(wired_ifupd_request(&d, "eth3", &err) < 0 && err == EBUSY, "busy");
+    usleep(1100 * 1000);
+    wired_ifupd_collect(&d);
+    CHECK(!d.busy, "given up after stall_ms");
+    child_reply(sv[1], own_seq(3), WIRED_IFUP_DONE, 0);
+    child_reply(sv[1], own_seq(4), WIRED_IFUP_FAILED, ENODEV);
+    r = wired_ifupd_request(&d, "eth4", &err);
+    CHECK(r == WIRED_IFUP_FAILED && err == ENODEV, "sent after stall_ms: %d %d", r, err);
+    CHECK(child_request(sv[1]) == own_seq(4), "request 4 sent");
+
+    /* A process forked with the struct numbers its own requests, and waits on
+     * none of its parent's */
+    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && err == ETIMEDOUT && d.busy, "busy parent");
+    CHECK(child_request(sv[1]) == own_seq(5), "request 5 sent");
+    parent_seq = d.seq;
+
+    if ((pid = fork()) == 0) {
+        wired_ifupd_collect(&d);
+        _exit(d.seq_owner == getpid() && d.seq != parent_seq && !d.busy ? 0 : 1);
+    }
+
+    CHECK(pid > 0 && waitpid(pid, &status, 0) == pid && WIFEXITED(status) &&
+            WEXITSTATUS(status) == 0, "forked copy starts its own numbering");
+
+    /* The child gone: the socket is closed, and later requests fail at once */
+    close(sv[1]);
+    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && d.state == WIRED_IFUPD_GONE && d.fd < 0,
+            "child gone: %d", err);
+    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && err == ENOTCONN, "then not connected");
+}
+
+/* A child which stopped reading: a full socket never blocks the send, and once
+ * the child answers anything the next request goes out */
+static void test_ifupd_full(void) {
     wired_ifup_req_t req;
     wired_ifupd_t d;
-    uint64_t t0, t1;
+    uint64_t t0;
     int sv[2], err = 0, r, i, filled = 0;
 
     CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sv) == 0, "socketpair");
-    memset(&d, 0, sizeof(d));
-    d.fd = sv[0];
-    d.pid = -1;
-    d.state = WIRED_IFUPD_RUNNING;
-    d.timeout_ms = 300;
-
-    t0 = test_mono_ms();
-    r = wired_ifupd_request(&d, "eth1", &err);
-    t1 = test_mono_ms();
-    CHECK(r < 0 && err == ETIMEDOUT && d.state == WIRED_IFUPD_GONE && d.timed_out && d.fd < 0,
-            "timed out: %d %d", r, err);
-    CHECK(t1 - t0 >= 250 && t1 - t0 < 2000, "waited %llu ms", (unsigned long long) (t1 - t0));
-
-    t0 = test_mono_ms();
-    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && err == ENOTCONN, "then not connected");
-    CHECK(test_mono_ms() - t0 < 100, "at once");
-    close(sv[1]);
-
-    CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sv) == 0, "socketpair");
-    wired_ifup_req_build("eth1", 1, &req);
+    wired_ifup_req_build("eth1", other_seq(1), &req);
 
     for (i = 0; i < 1000000; i++) {
         if (send(sv[0], &req, sizeof(req), MSG_DONTWAIT | MSG_NOSIGNAL) < 0) {
@@ -2093,18 +2210,87 @@ static void test_ifupd_stalled(void) {
     }
 
     CHECK(filled, "filled the socket");
-    memset(&d, 0, sizeof(d));
-    d.fd = sv[0];
-    d.pid = -1;
-    d.state = WIRED_IFUPD_RUNNING;
-    d.timeout_ms = 3000;
+    ifupd_fake(&d, sv[0], 3000, 60000);
 
-    t0 = test_mono_ms();
+    t0 = wired_mono_ms();
     r = wired_ifupd_request(&d, "eth1", &err);
-    CHECK(r < 0 && (err == EAGAIN || err == EWOULDBLOCK) && d.timed_out && d.fd < 0,
-            "full socket: %d %d", r, err);
-    CHECK(test_mono_ms() - t0 < 100, "never blocked");
+    seq_base = d.seq - 1;
+    CHECK(r < 0 && err == EBUSY && d.busy && d.fd == sv[0], "full socket: %d %d", r, err);
+    CHECK(wired_mono_ms() - t0 < 100, "never blocked");
+    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && err == EBUSY, "still busy");
+
+    /* The child reads again and answers what it read */
+    while (child_request(sv[1]) != 0)
+        ;
+
+    child_reply(sv[1], other_seq(1), WIRED_IFUP_DONE, 0);
+    child_reply(sv[1], own_seq(2), WIRED_IFUP_DONE, 0);
+    r = wired_ifupd_request(&d, "eth1", &err);
+    CHECK(r == WIRED_IFUP_DONE && !d.busy, "reading again: %d %d", r, err);
+
+    close(sv[0]);
     close(sv[1]);
+}
+
+/* A malformed answer ends the wait with EPROTO and leaves nothing busy: the
+ * next request goes out at once */
+static void test_ifupd_malformed(void) {
+    wired_ifup_reply_t rep;
+    wired_ifupd_t d;
+    int sv[2], err = 0, r;
+
+    CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sv) == 0, "socketpair");
+    ifupd_fake(&d, sv[0], 3000, 60000);
+
+    memset(&rep, 0xa5, sizeof(rep));
+    CHECK(send(sv[1], &rep, sizeof(rep), MSG_DONTWAIT | MSG_NOSIGNAL) == (ssize_t) sizeof(rep),
+            "malformed reply queued");
+    r = wired_ifupd_request(&d, "eth1", &err);
+    seq_base = d.seq - 1;
+    CHECK(r < 0 && err == EPROTO && !d.busy && d.fd == sv[0], "malformed: %d %d", r, err);
+    CHECK(child_request(sv[1]) == own_seq(1), "request 1 sent");
+
+    child_reply(sv[1], own_seq(2), WIRED_IFUP_DONE, 0);
+    r = wired_ifupd_request(&d, "eth1", &err);
+    CHECK(r == WIRED_IFUP_DONE && !d.busy, "next request answered: %d %d", r, err);
+    CHECK(child_request(sv[1]) == own_seq(2), "request 2 sent");
+
+    close(sv[0]);
+    close(sv[1]);
+}
+
+/* The filter checked before the bring-up: one which needs a netmask fails there
+ * without one, and a filter wrong either way gives the error it has with one */
+static void test_filter_check(void) {
+    char err[PCAP_ERRBUF_SIZE];
+    char withmask[PCAP_ERRBUF_SIZE];
+
+    CHECK(wired_filter_check("tcp port 80", PCAP_NETMASK_UNKNOWN, err, sizeof(err)) == 1,
+            "compiles");
+    CHECK(wired_filter_check("vlan and ip", PCAP_NETMASK_UNKNOWN, err, sizeof(err)) == 1,
+            "vlan compiles");
+    err[0] = 0;
+    CHECK(wired_filter_check("ip broadcast", PCAP_NETMASK_UNKNOWN, err, sizeof(err)) == 0 &&
+            strstr(err, "netmask") != NULL, "ip broadcast needs a netmask: %s", err);
+    CHECK(wired_filter_check("ip broadcast", 0xffffff00U, err, sizeof(err)) == 1,
+            "ip broadcast with the interface's netmask");
+    CHECK(wired_filter_check("tcp and ip broadcast", PCAP_NETMASK_UNKNOWN, err,
+                sizeof(err)) == 0, "combined with one needing a netmask");
+    err[0] = 0;
+    CHECK(wired_filter_check("tcp port", PCAP_NETMASK_UNKNOWN, err, sizeof(err)) < 0 &&
+            err[0] != 0, "syntax error: %s", err);
+
+    /* Without a netmask libpcap stops at 'ip broadcast'; the error reported is
+     * the syntax error after it */
+    CHECK(wired_filter_check("ip broadcast and port", 0xffffff00U, withmask, sizeof(withmask)) < 0,
+            "syntax error with a netmask");
+    err[0] = 0;
+    CHECK(wired_filter_check("ip broadcast and port", PCAP_NETMASK_UNKNOWN, err,
+                sizeof(err)) < 0 && strcmp(err, withmask) == 0 && strstr(err, "netmask") == NULL,
+            "a netmask doesn't save a syntax error, and it's the one reported: %s", err);
+    err[0] = 0;
+    CHECK(wired_filter_check("ip broadcast and port", 0xffffff00U, err, sizeof(err)) < 0 &&
+            strstr(err, "netmask") == NULL, "with a netmask, its own error: %s", err);
 }
 
 static void test_nl_kind(void) {
@@ -2257,6 +2443,9 @@ int main(int argc, char *argv[]) {
     test_ifupd_answer(root);
     test_ifupd_decide();
     test_ifupd_stalled();
+    test_ifupd_full();
+    test_ifupd_malformed();
+    test_filter_check();
     test_ethtool();
 
     if (jout != NULL)

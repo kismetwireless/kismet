@@ -234,6 +234,7 @@ static void test_foreign(void) {
 static int host_sysfs_main(const char *a) {
     const wired_ifupd_ops_t ops = { WIRED_SYSFS_NET, wired_nl_getlink, counting_set_up };
     wired_nl_link_t link;
+    char path[128];
     int err = 0, st;
 
     if (if_flags(a) >= 0 || wired_nl_getlink(a, 0, &link) < 0) {
@@ -250,7 +251,8 @@ static int host_sysfs_main(const char *a) {
     CHECK(st == WIRED_IFUP_FAILED && err == EOPNOTSUPP && set_up_calls == 0, "lo by netlink");
     st = answer_with(&ops, "nosuch0", &err);
     CHECK(st == WIRED_IFUP_FAILED && err == ENODEV && set_up_calls == 0, "missing by netlink");
-    CHECK(wired_nl_read_up(a) == 0 && wired_read_up(WIRED_SYSFS_NET, a) < 0,
+    snprintf(path, sizeof(path), "/sys/class/net/%s", a);
+    CHECK(access(path, F_OK) < 0 && wired_nl_read_up(a) == 0,
             "netlink sees %s down where /sys doesn't see it", a);
 
     printf("%s: %d checks, %d failed\n", failures ? "FAIL" : "ok", checks, failures);
@@ -350,6 +352,32 @@ static void test_parent_death(void) {
     CHECK(gone_within(child, 2000), "child gone with its parent");
 }
 
+/* A stopped child: the request times out with the socket kept, nothing more is
+ * sent while it's busy, and once it runs again its late answer comes in and the
+ * next request goes through.  a is up by now */
+static void test_stopped_child(wired_ifupd_t *d, const char *a) {
+    int err = 0, st, i;
+
+    d->timeout_ms = 300;
+    CHECK(kill(d->pid, SIGSTOP) == 0, "stop the child");
+    st = wired_ifupd_request(d, "nosuch1", &err);
+    CHECK(st < 0 && err == ETIMEDOUT && d->busy && d->fd >= 0 && d->state == WIRED_IFUPD_RUNNING,
+            "stopped child times out: %d %d", st, err);
+    st = wired_ifupd_request(d, a, &err);
+    CHECK(st < 0 && err == EBUSY, "busy while stopped: %d %d", st, err);
+    CHECK(kill(d->pid, SIGCONT) == 0, "continue the child");
+
+    for (i = 0; i < 300 && d->busy; i++) {
+        usleep(10 * 1000);
+        wired_ifupd_collect(d);
+    }
+
+    CHECK(!d->busy && d->fd >= 0, "late answer collected");
+    d->timeout_ms = WIRED_IFUPD_TIMEOUT_MS;
+    st = wired_ifupd_request(d, a, &err);
+    CHECK(st == WIRED_IFUP_ALREADY, "recovered: %d %d", st, err);
+}
+
 int main(int argc, char *argv[]) {
     const char *a, *b;
     const long long admin = 1LL << CAP_NET_ADMIN;
@@ -374,8 +402,8 @@ int main(int argc, char *argv[]) {
     }
 
     test_foreign();
-    CHECK(wired_read_up(WIRED_SYSFS_NET, a) == 0, "%s starts down", a);
-    CHECK(wired_read_up(WIRED_SYSFS_NET, b) == 0, "%s starts down", b);
+    CHECK(wired_nl_read_up(a) == 0, "%s starts down", a);
+    CHECK(wired_nl_read_up(b) == 0, "%s starts down", b);
 
     memset(&d, 0, sizeof(d));
     d.fd = -1;
@@ -408,13 +436,13 @@ int main(int argc, char *argv[]) {
     errno = 0;
     CHECK(wired_set_up((int) if_nametoindex(b)) < 0 && errno == EPERM, "%s refused here: %s", b,
             strerror(errno));
-    CHECK(wired_read_up(WIRED_SYSFS_NET, b) == 0, "%s still down", b);
+    CHECK(wired_nl_read_up(b) == 0, "%s still down", b);
 
     before = if_flags(a);
     st = wired_ifupd_request(&d, a, &err);
     after = if_flags(a);
     CHECK(st == WIRED_IFUP_DONE, "bring %s up: %d %s", a, st, strerror(err));
-    CHECK(wired_read_up(WIRED_SYSFS_NET, a) == 1, "%s up", a);
+    CHECK(wired_nl_read_up(a) == 1, "%s up", a);
     CHECK((after & ~0x1L) == (before & ~0x1L) && !(after & 0x100), "only IFF_UP changed: %lx -> %lx",
             before, after);
     CHECK(wired_ifupd_request(&d, a, &err) == WIRED_IFUP_ALREADY && if_flags(a) == after,
@@ -424,11 +452,12 @@ int main(int argc, char *argv[]) {
     CHECK(st == WIRED_IFUP_FAILED && err == EOPNOTSUPP, "loopback refused: %d %d", st, err);
     CHECK(wired_ifupd_request(&d, "../x", &err) < 0 && err == EINVAL, "bad name never sent");
 
+    test_stopped_child(&d, a);
     test_hostile(&d);
 
     /* After every failure above, a retry still works */
     st = wired_ifupd_request(&d, b, &err);
-    CHECK(st == WIRED_IFUP_DONE && wired_read_up(WIRED_SYSFS_NET, b) == 1, "bring %s up: %d %s",
+    CHECK(st == WIRED_IFUP_DONE && wired_nl_read_up(b) == 1, "bring %s up: %d %s",
             b, st, strerror(err));
 
     close(d.fd);

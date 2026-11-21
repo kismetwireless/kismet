@@ -31,11 +31,11 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <sys/ioctl.h>
 #include <sys/prctl.h>
+#include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 
@@ -153,7 +153,7 @@ void wired_ifupd_answer(const uint8_t *buf, size_t len, const wired_ifupd_ops_t 
         wired_ifup_reply_t *reply) {
     char ifname[WIRED_IFNAMSIZ];
     wired_nl_link_t link, after;
-    uint32_t seq = 0;
+    uint64_t seq = 0;
     int e;
 
     if (wired_ifup_req_parse(buf, len, &seq, ifname) < 0) {
@@ -332,10 +332,13 @@ int wired_ifupd_spawn(wired_ifupd_t *d) {
     d->fd = sv[0];
     d->pid = pid;
     d->state = WIRED_IFUPD_RUNNING;
-    d->timed_out = 0;
+    d->busy = 0;
 
     if (d->timeout_ms <= 0)
         d->timeout_ms = WIRED_IFUPD_TIMEOUT_MS;
+
+    if (d->stall_ms <= 0)
+        d->stall_ms = WIRED_IFUPD_STALL_MS;
 
     return 1;
 }
@@ -347,6 +350,7 @@ int wired_ifupd_start(wired_ifupd_t *d) {
     d->fd = -1;
     d->pid = -1;
     d->timeout_ms = WIRED_IFUPD_TIMEOUT_MS;
+    d->stall_ms = WIRED_IFUPD_STALL_MS;
     d->netns_foreign = wired_netns_foreign() == 1;
 
     if (wired_caps_get(&eff, &prm, &inh) < 0 || (d->root_ids = wired_root_ids()) < 0)
@@ -360,18 +364,72 @@ int wired_ifupd_start(wired_ifupd_t *d) {
     return wired_ifupd_drop_admin();
 }
 
-static uint64_t wired_ifupd_mono_ms(void) {
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
-}
-
-static void wired_ifupd_gone(wired_ifupd_t *d, int timed_out) {
+static void wired_ifupd_gone(wired_ifupd_t *d) {
     close(d->fd);
     d->fd = -1;
     d->state = WIRED_IFUPD_GONE;
-    d->timed_out = timed_out;
+    d->busy = 0;
+}
+
+static void wired_ifupd_set_busy(wired_ifupd_t *d, uint64_t seq) {
+    d->busy = 1;
+    d->busy_seq = seq;
+    d->busy_since_ms = wired_mono_ms();
+}
+
+/* A process forked with a copy numbers its own requests and waits on none of
+ * the copy's.  The count starts anywhere, so a later process given a dead one's
+ * pid doesn't take that one's late answers for its own */
+static void wired_ifupd_own(wired_ifupd_t *d) {
+    pid_t self = getpid();
+    uint32_t start;
+
+    if (d->seq_owner == self)
+        return;
+
+    if (getrandom(&start, sizeof(start), GRND_NONBLOCK) != (ssize_t) sizeof(start))
+        start = (uint32_t) wired_mono_ms();
+
+    d->seq_owner = self;
+    d->seq = start;
+    d->busy = 0;
+}
+
+void wired_ifupd_collect(wired_ifupd_t *d) {
+    uint8_t buf[sizeof(wired_ifup_reply_t)];
+    wired_ifup_status_t status;
+    uint64_t seq;
+    ssize_t r;
+    int e;
+
+    wired_ifupd_own(d);
+
+    while (d->busy && d->fd >= 0) {
+        r = recv(d->fd, buf, sizeof(buf), MSG_DONTWAIT | MSG_TRUNC);
+
+        if (r < 0 && errno == EINTR)
+            continue;
+
+        if (r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            break;
+
+        if (r <= 0) {
+            wired_ifupd_gone(d);
+            return;
+        }
+
+        /* Skipped: other processes' answers, and ones already given up on.  After
+         * a full socket (busy_seq 0) any answer shows the child reading again */
+        if (wired_ifup_reply_read(buf, (size_t) r, &seq, &status, &e) < 0 ||
+                (d->busy_seq != 0 && seq != d->busy_seq))
+            continue;
+
+        d->busy = 0;
+    }
+
+    if (d->busy && wired_mono_ms() - d->busy_since_ms >=
+            (uint64_t) (d->stall_ms > 0 ? d->stall_ms : WIRED_IFUPD_STALL_MS))
+        d->busy = 0;
 }
 
 int wired_ifupd_request(wired_ifupd_t *d, const char *ifname, int *err) {
@@ -379,9 +437,8 @@ int wired_ifupd_request(wired_ifupd_t *d, const char *ifname, int *err) {
     wired_ifup_req_t req;
     wired_ifup_status_t status;
     struct pollfd pfd;
-    uint64_t deadline, now;
+    uint64_t deadline, now, seq;
     ssize_t r;
-    pid_t self = getpid();
     int e;
 
     if (d->fd < 0) {
@@ -389,36 +446,55 @@ int wired_ifupd_request(wired_ifupd_t *d, const char *ifname, int *err) {
         return -1;
     }
 
-    if (d->seq_owner != self) {
-        d->seq_owner = self;
-        d->seq = (uint32_t) self << 12;
+    wired_ifupd_collect(d);
+
+    if (d->fd < 0) {
+        *err = EPIPE;
+        return -1;
     }
 
-    if (wired_ifup_req_build(ifname, ++d->seq, &req) < 0) {
+    /* One request at a time: the child answers in order, so a new one would only
+     * queue behind the one it's still working on */
+    if (d->busy) {
+        *err = EBUSY;
+        return -1;
+    }
+
+    seq = wired_ifup_seq((uint32_t) d->seq_owner, d->seq + 1);
+
+    if (wired_ifup_req_build(ifname, seq, &req) < 0) {
         *err = EINVAL;
         return -1;
     }
 
-    /* Answers left by an asker which died waiting are skipped by their seq below.
-     * A full socket is a child which stopped reading */
+    d->seq++;
+
     do {
         r = send(d->fd, &req, sizeof(req), MSG_NOSIGNAL | MSG_DONTWAIT);
     } while (r < 0 && errno == EINTR);
 
-    if (r != (ssize_t) sizeof(req)) {
-        e = r < 0 ? errno : EIO;
-        *err = e;
-        wired_ifupd_gone(d, e == EAGAIN || e == EWOULDBLOCK);
+    /* A full socket is a child which stopped reading */
+    if (r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        wired_ifupd_set_busy(d, 0);
+        *err = EBUSY;
         return -1;
     }
 
-    deadline = wired_ifupd_mono_ms() + (uint64_t) (d->timeout_ms > 0 ? d->timeout_ms :
+    if (r != (ssize_t) sizeof(req)) {
+        *err = r < 0 ? errno : EIO;
+        wired_ifupd_gone(d);
+        return -1;
+    }
+
+    deadline = wired_mono_ms() + (uint64_t) (d->timeout_ms > 0 ? d->timeout_ms :
             WIRED_IFUPD_TIMEOUT_MS);
 
+    /* Answers to requests which timed out, or whose asker died waiting, are
+     * skipped by their seq */
     for (;;) {
-        if ((now = wired_ifupd_mono_ms()) >= deadline) {
+        if ((now = wired_mono_ms()) >= deadline) {
+            wired_ifupd_set_busy(d, seq);
             *err = ETIMEDOUT;
-            wired_ifupd_gone(d, 1);
             return -1;
         }
 
@@ -429,6 +505,8 @@ int wired_ifupd_request(wired_ifupd_t *d, const char *ifname, int *err) {
         if ((r = poll(&pfd, 1, (int) (deadline - now))) < 0 && errno == EINTR)
             continue;
 
+        /* Not left busy: the answer, if one comes, is skipped by its seq and the
+         * next request waits behind it at most */
         if (r < 0) {
             *err = errno;
             return -1;
@@ -439,22 +517,23 @@ int wired_ifupd_request(wired_ifupd_t *d, const char *ifname, int *err) {
 
         r = recv(d->fd, buf, sizeof(buf), MSG_DONTWAIT | MSG_TRUNC);
 
-        if (r < 0 && (errno == EINTR || errno == EAGAIN))
+        if (r < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
             continue;
 
         if (r <= 0) {
             *err = r < 0 ? errno : EPIPE;
-            wired_ifupd_gone(d, 0);
+            wired_ifupd_gone(d);
             return -1;
         }
 
-        switch (wired_ifup_reply_parse(buf, (size_t) r, req.seq, &status, &e)) {
+        switch (wired_ifup_reply_parse(buf, (size_t) r, seq, &status, &e)) {
             case 1:
                 *err = e;
                 return (int) status;
             case 0:
                 continue;
             default:
+                /* The child answered, if wrongly, so it's reading */
                 *err = EPROTO;
                 return -1;
         }

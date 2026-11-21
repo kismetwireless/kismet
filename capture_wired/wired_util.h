@@ -240,7 +240,7 @@ typedef enum {
 } wired_ifup_t;
 
 /* What open does with an interface: up is 1 up, 0 down, -1 unknown
- * (wired_read_up), ifup the source option */
+ * (wired_nl_read_up), ifup the source option */
 wired_ifup_t wired_ifup_action(int up, int ifup);
 
 /* The bring-up child's protocol (wired_ifupd.h), one fixed-size message each way
@@ -250,8 +250,12 @@ wired_ifup_t wired_ifup_action(int up, int ifup);
 /* MAX_ERRNO in linux/err.h */
 #define WIRED_ERRNO_MAX         4095
 
+/* A request's 64-bit number travels as owner (the high 32 bits, the asking
+ * process's pid) and seq (the low 32, its own count), so capture processes
+ * sharing the child never number two requests alike */
 typedef struct {
     uint32_t magic;
+    uint32_t owner;
     uint32_t seq;
     /* NUL-terminated, zero after the NUL */
     char ifname[WIRED_IFNAMSIZ];
@@ -266,25 +270,37 @@ typedef enum {
 
 typedef struct {
     uint32_t magic;
+    uint32_t owner;
     uint32_t seq;
     uint32_t status;
     int32_t err;
 } wired_ifup_reply_t;
 
+/* A request's 64-bit number from its owner and seq */
+uint64_t wired_ifup_seq(uint32_t owner, uint32_t seq);
+
 /* Returns 1, or -1 for an invalid name */
-int wired_ifup_req_build(const char *ifname, uint32_t seq, wired_ifup_req_t *req);
+int wired_ifup_req_build(const char *ifname, uint64_t seq, wired_ifup_req_t *req);
 
 /* A request of exactly len bytes.  Returns 1 with seq and a valid ifname, or -1 */
-int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint32_t *seq,
+int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint64_t *seq,
         char ifname[WIRED_IFNAMSIZ]);
 
-void wired_ifup_reply_build(uint32_t seq, wired_ifup_status_t status, int err,
+void wired_ifup_reply_build(uint64_t seq, wired_ifup_status_t status, int err,
         wired_ifup_reply_t *reply);
+
+/* A reply of exactly len bytes, whichever request it answers.  Returns 1 with
+ * *seq, *status and *err set, or -1 for a malformed one */
+int wired_ifup_reply_read(const uint8_t *buf, size_t len, uint64_t *seq,
+        wired_ifup_status_t *status, int *err);
 
 /* A reply of exactly len bytes.  Returns 1 for the answer to seq, 0 for a valid
  * answer to another request, -1 for a malformed one */
-int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint32_t seq,
+int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint64_t seq,
         wired_ifup_status_t *status, int *err);
+
+/* CLOCK_MONOTONIC in milliseconds */
+uint64_t wired_mono_ms(void);
 
 /* The user's filter and the self-exclusion together, "not (exclusion) and
  * (user)"; either may be NULL or empty.  The exclusion goes first: 'vlan',
