@@ -26,6 +26,7 @@
 #include <climits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -76,13 +77,13 @@ namespace {
 kis_external_ipc::~kis_external_ipc() {
     close_impl();
 
-    if (ipc_.pid > 0) {
-        kill(ipc_.pid, SIGKILL);
+    if (pid_ > 0) {
+        kill(pid_, SIGKILL);
     }
 }
 
 std::string kis_external_ipc::remote_addresss() {
-    return fmt::format("PID {}", ipc_.pid);
+    return fmt::format("PID {}", pid_);
 }
 
 void kis_external_io::handle_read_error(const boost::system::error_code& ec) {
@@ -253,8 +254,8 @@ void kis_external_ipc::close() {
 void kis_external_ipc::close_impl() {
     stopped_ = true;
 
-    if (ipc_.pid > 0) {
-        ipctracker_->remove_ipc(ipc_.pid);
+    if (pid_ > 0) {
+        ipctracker_->remove_ipc(pid_);
     }
 
     if (ipc_in_.is_open()) {
@@ -271,8 +272,8 @@ void kis_external_ipc::close_impl() {
         } catch (...) { }
     }
 
-    if (ipc_.pid > 0) {
-        kill(ipc_.pid, SIGTERM);
+    if (pid_ > 0) {
+        kill(pid_, SIGTERM);
     }
 
     out_bufs_.clear();
@@ -470,11 +471,18 @@ void kis_external_interface::close_external() {
 }
 
 void kis_external_interface::close_external_impl() {
+    close_external_io(nullptr);
+}
+
+void kis_external_interface::close_external_io(const std::shared_ptr<kis_external_io> *only_io) {
     // Internal implementation of closing the external interface, called
     // inside a strand by the close_external wrapper
-    cancelled = true;
-
     kis_unique_lock<kis_mutex> lk(ext_mutex, "kei close_external");
+
+    if (only_io != nullptr && get_io() != *only_io)
+        return;
+
+    cancelled = true;
 
     // Kill any eventbus listeners
     for (const auto& ebid : eventbus_callback_map)
@@ -509,13 +517,14 @@ void kis_external_interface::close_external_impl() {
     if (io != nullptr)
         io->close();
 
-    if (closure_cb != nullptr) {
-        lk.unlock();
-        closure_cb();
-        lk.lock();
-    }
+    // Taken under the lock and run outside it: a remote reconnecting meanwhile installs its
+    // own closure, which must be neither raced nor cleared
+    auto closure = std::exchange(closure_cb, nullptr);
 
-    closure_cb = nullptr;
+    if (closure != nullptr) {
+        lk.unlock();
+        closure();
+    }
 };
 
 

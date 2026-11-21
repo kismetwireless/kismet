@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <future>
 #include <optional>
+#include <utility>
 
 namespace {
     // Lines a remote source causes.  A remote can connect again and again, as the same source
@@ -125,6 +126,7 @@ kis_datasource::~kis_datasource() {
     timetracker->remove_timer(error_timer_id);
     timetracker->remove_timer(ping_timer_id);
     timetracker->remove_timer(graceful_close_timer_id);
+    timetracker->remove_timer(handshake_timer_id);
 
     kis_unique_lock<kis_mutex> lk(ext_mutex, "~kisdatasource");
     cancel_all_commands("source deleted");
@@ -260,13 +262,17 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
         return;
     }
 
-    deferred_event = [this, in_transaction, in_cb]() {
+    // The failure is posted and can run after the lister is gone; nobody waits on it then
+    arm_deferred_handshake([this, in_transaction, in_cb]() {
         kis_lock_guard<kis_mutex> lg(ext_mutex, "list lambda");
 
         send_list_interfaces(in_transaction, in_cb);
-
-        deferred_event = {};
-    };
+    },
+    [weak = weak_from_this(), in_transaction, in_cb](const std::string&) {
+        auto self = std::static_pointer_cast<kis_datasource>(weak.lock());
+        if (self != nullptr && in_cb != nullptr)
+            in_cb(self, in_transaction, std::vector<shared_interface>());
+    }, "replaced by a newer request");
 
     send_v2_probe_ping();
 }
@@ -325,12 +331,15 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     // Launch the IPC
     if (launch_ipc()) {
         // queue events after a ping handshake
-        deferred_event = [this, in_transaction, in_cb]() {
+        arm_deferred_handshake([this, in_transaction, in_cb]() {
             kis_lock_guard<kis_mutex> lg(ext_mutex, "probe lambda");
 
             send_probe_source(get_source_definition(), in_transaction, in_cb);
-            deferred_event = {};
-        };
+        },
+        [in_transaction, in_cb](const std::string& reason) {
+            if (in_cb != nullptr)
+                in_cb(in_transaction, false, reason);
+        }, "replaced by a newer request");
 
         send_v2_probe_ping();
     } else {
@@ -446,11 +455,19 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         timetracker->cancel_timer(error_timer_id);
 
     if (!launch_ipc()) {
+        lock.unlock();
+
+        // The capture tool of an open still waiting on its handshake is gone too
+        fail_deferred_handshake("Failed to launch IPC to open source");
+
+        if (in_cb != nullptr)
+            in_cb(in_transaction, false, "Failed to launch IPC to open source");
+
         return;
     }
 
     // Store the cb, and queue sending a v2 discovery probe
-    deferred_event = [this, in_transaction, in_cb]() mutable {
+    arm_deferred_handshake([this, in_transaction, in_cb]() mutable {
         kis_lock_guard<kis_mutex> lg(ext_mutex, "handle_v2_pong_event");
 
         set_int_source_running(true);
@@ -474,17 +491,94 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
         // Create and send open command
         send_open_source(get_source_definition(), in_transaction, in_cb);
-
-        deferred_event = {};
-    };
+    },
+    [in_transaction, in_cb](const std::string& reason) {
+        if (in_cb != nullptr)
+            in_cb(in_transaction, false, reason);
+    }, "replaced by a newer open of the source");
 
     send_v2_probe_ping();
 }
 
-void kis_datasource::handle_v2_pong_event() {
-    if (deferred_event) {
-        deferred_event();
+void kis_datasource::arm_deferred_handshake(std::function<void ()> in_event,
+        std::function<void (const std::string&)> in_fail, const std::string& in_replaced_reason) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource arm_deferred_handshake");
+
+    fail_deferred_handshake(in_replaced_reason);
+
+    deferred_event = std::move(in_event);
+    deferred_fail = std::move(in_fail);
+
+    auto gen = ++handshake_gen;
+    std::weak_ptr<kis_external_interface> weak = shared_from_this();
+    handshake_timer_id = timetracker->register_timer(std::chrono::seconds(handshake_timeout_s), false,
+            [weak, gen](int) -> int {
+                auto self = std::static_pointer_cast<kis_datasource>(weak.lock());
+                if (self != nullptr)
+                    self->expire_deferred_handshake(gen);
+                return 0;
+            });
+}
+
+void kis_datasource::cancel_handshake_timer() {
+    if (handshake_timer_id >= 0)
+        timetracker->cancel_timer(handshake_timer_id);
+
+    handshake_timer_id = -1;
+}
+
+void kis_datasource::fail_deferred_handshake(const std::string& in_reason) {
+    std::function<void (const std::string&)> fail;
+
+    {
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource fail_deferred_handshake");
+
+        cancel_handshake_timer();
+        deferred_event = nullptr;
+        fail = std::exchange(deferred_fail, nullptr);
     }
+
+    if (fail == nullptr)
+        return;
+
+    // Callers can hold ext_mutex (handle_error from a SHUTDOWN, an invalid PONG or the
+    // ping timer), so the callback always runs from a clean stack
+    boost::asio::post(Globalreg::globalreg->io,
+            [fail = std::move(fail), in_reason]() {
+                fail(in_reason);
+            });
+}
+
+void kis_datasource::expire_deferred_handshake(uint64_t in_gen) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource expire_deferred_handshake");
+
+    // Answered, failed or replaced since this timer was armed
+    if (in_gen != handshake_gen || deferred_fail == nullptr)
+        return;
+
+    handshake_timer_id = -1;
+
+    auto reason = fmt::format("capture tool did not answer within {} seconds", handshake_timeout_s);
+
+    // Held through the error, as the ping timer does, so a newer open can't be armed between
+    // the generation check and the error.  The close is posted to the connection's strand and
+    // runs after the lock is released; it closes only this connection, not a newer one.  The
+    // handshake failure is posted by handle_error, or here when the connection was already
+    // cancelled.
+    trigger_error(reason);
+    fail_deferred_handshake(reason);
+}
+
+// Called with ext_mutex held
+void kis_datasource::handle_v2_pong_event() {
+    cancel_handshake_timer();
+    deferred_fail = nullptr;
+
+    // Moved out first, so it never runs from inside the std::function holding it
+    auto event = std::exchange(deferred_event, nullptr);
+
+    if (event != nullptr)
+        event();
 }
 
 void kis_datasource::set_channel(std::string in_channel, unsigned int in_transaction,
@@ -660,6 +754,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     set_int_source_error_reason("");
 
     set_source_uuid(uuid);
+    provisional_uuid = false;
 
     // Populate our local info about the interface
     if (!parse_source_definition(in_definition)) {
@@ -724,18 +819,37 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     cancel_graceful_close_timer();
     pending_open = nullptr;
 
+    // ... and a local open still waiting on its capture tool's handshake.  The
+    // remote is past its handshake; its first PONG must not run that open.
+    fail_deferred_handshake("replaced by a remote capture connection");
+    v2_probe_ack = true;
+
+    // Detached with the state above, under ext_mutex, where a posted close of the old
+    // connection checks which connection is current: one landing from here on finds it gone
+    // and leaves this setup alone
+    auto old_io = swap_io(nullptr);
+
     // Unlock before attaching sockets
     lk.unlock();
 
-    // Inherit the incoming io mode
+    // Inherit the incoming io mode and closure
     auto io = in_remote->move_io(shared_from_this());
+    auto remote_closure = in_remote->move_closure_cb();
 
-    auto old_io = swap_io(io);
-    if (old_io != nullptr)
-        old_io->stop();
+    lk.lock();
+    // Anything a local open launched meanwhile is replaced too
+    auto launched_io = swap_io(io);
+    closure_cb = std::move(remote_closure);
+    lk.unlock();
 
-    // Inherit the incoming closure
-    closure_cb = in_remote->move_closure_cb();
+    // Closed as well as stopped: a capture tool still in its handshake is killed, and the
+    // pending read holding the old io is cancelled
+    for (const auto& oi : {old_io, launched_io}) {
+        if (oi != nullptr) {
+            oi->stop();
+            oi->close();
+        }
+    }
 
     if (io == nullptr) {
         trigger_error("remote capture connection closed before it could be attached");
@@ -760,6 +874,18 @@ void kis_datasource::stop_source() {
     error_timer_id = -1;
 
     close_source();
+}
+
+void kis_datasource::assign_provisional_uuid() {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource assign_provisional_uuid");
+
+    if (local_uuid || get_source_uuid() != 0)
+        return;
+
+    uuid nuuid;
+    nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+    set_source_uuid(nuuid);
+    provisional_uuid = true;
 }
 
 void kis_datasource::disable_source() {
@@ -848,6 +974,7 @@ void kis_datasource::handle_error(const std::string& in_error) {
     lk.unlock();
     handle_source_error();
     cancel_all_commands(in_error);
+    fail_deferred_handshake(in_error);
     lk.lock();
 
     close_external();
@@ -974,16 +1101,25 @@ void kis_datasource::close_external() {
     if (io == nullptr || io->strand().running_in_this_thread()) {
         close_external_impl();
     } else {
-        auto ft = boost::asio::post(io->strand(),
-                std::packaged_task<void()>([this]() mutable {
-                    close_external_impl();
-                }));
-        // ft.wait();
+        // Not waited for, so it can run after a newer open has launched a new capture tool;
+        // it closes only the connection it was issued for.  Holding the io holds the source.
+        boost::asio::post(io->strand(),
+                [this, io]() {
+                    close_external_impl(&io);
+                });
     }
 }
 
 void kis_datasource::close_external_impl() {
+    close_external_impl(nullptr);
+}
+
+void kis_datasource::close_external_impl(const std::shared_ptr<kis_external_io> *only_io) {
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource close_external");
+
+    // Under ext_mutex, which open_interface holds while it launches a new capture tool
+    if (only_io != nullptr && get_io() != *only_io)
+        return;
 
     if (ping_timer_id > 0) {
         timetracker->cancel_timer(ping_timer_id);
@@ -999,15 +1135,23 @@ void kis_datasource::close_external_impl() {
 
     set_int_source_running(false);
 
-    lk.unlock();
+    // A posted close keeps the lock until here, so a newer connection can't be installed
+    // and then have its commands cancelled; the callbacks are posted, and the event queued.
+    // The connection is detached only if it is still the one this close was issued for.
+    if (only_io == nullptr)
+        lk.unlock();
 
     auto evt = eventbus->get_eventbus_event(event_datasource_closed());
     evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
     eventbus->publish(evt);
 
     cancel_all_commands("source closed");
+    fail_deferred_handshake("source closed");
 
-    kis_external_interface::close_external_impl();
+    if (only_io != nullptr)
+        lk.unlock();
+
+    kis_external_interface::close_external_io(only_io);
 
     // An open that waited on this close.  Posted rather than run here:
     // we may be inside the old connection's strand, and the open must start
@@ -1166,6 +1310,7 @@ bool kis_datasource::parse_source_definition(std::string in_definition) {
 
         set_source_uuid(u);
         local_uuid = true;
+        provisional_uuid = false;
     }
 
     auto datasourcetracker =
@@ -1343,33 +1488,57 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
 
         // Cancel any callbacks, zeroing them out as we call them so they
         // can't recurse through
+        const auto transaction = cmd->transaction;
+
         if (cmd->list_cb != NULL) {
             list_callback_t cb = cmd->list_cb;
             cmd->list_cb = NULL;
             lk.unlock();
-            cb(std::static_pointer_cast<kis_datasource>(shared_from_this()),
-                    cmd->transaction, std::vector<shared_interface>());
+            run_command_callback([this, cb, transaction]() {
+                    cb(std::static_pointer_cast<kis_datasource>(shared_from_this()),
+                            transaction, std::vector<shared_interface>());
+                    });
             lk.lock();
         } else if (cmd->probe_cb != NULL) {
             probe_callback_t cb = cmd->probe_cb;
             cmd->probe_cb = NULL;
             lk.unlock();
-            cb(cmd->transaction, false, in_error);
+            run_command_callback([cb, transaction, in_error]() { cb(transaction, false, in_error); });
             lk.lock();
         } else if (cmd->open_cb != NULL) {
             open_callback_t cb = cmd->open_cb;
             cmd->open_cb = NULL;
             lk.unlock();
-            cb(cmd->transaction, false, in_error);
+            run_command_callback([cb, transaction, in_error]() { cb(transaction, false, in_error); });
             lk.lock();
         } else if (cmd->configure_cb != NULL) {
             configure_callback_t cb = cmd->configure_cb;
             cmd->configure_cb = NULL;
             lk.unlock();
-            cb(cmd->transaction, false, in_error);
+            run_command_callback([cb, transaction, in_error]() { cb(transaction, false, in_error); });
             lk.lock();
         }
     }
+}
+
+void kis_datasource::run_command_callback(std::function<void ()> in_cb) {
+    if (!ext_mutex.owned_by_this_thread()) {
+        in_cb();
+        return;
+    }
+
+    // Held by the source itself until the callback has run.  Expired only in the
+    // destructor, which cancels with the lock held and has to run them now.
+    auto self = weak_from_this().lock();
+    if (self == nullptr) {
+        in_cb();
+        return;
+    }
+
+    boost::asio::post(Globalreg::globalreg->io,
+            [keep = std::move(self), cb = std::move(in_cb)]() {
+                cb();
+            });
 }
 
 void kis_datasource::cancel_all_commands(std::string in_error) {
@@ -2406,6 +2575,79 @@ void kis_datasource::handle_opensource_report_v3_callback(uint32_t in_seqno, uin
     }
 }
 
+bool kis_datasource::settle_provisional_uuid(const std::optional<uuid>& in_reported, uint32_t in_seqno,
+        kis_unique_lock<kis_mutex>& lock) {
+    if (!provisional_uuid)
+        return true;
+
+    // Without a usable UUID from the capture tool the provisional one stays, as the time
+    // UUID a first open would have made
+    provisional_uuid = false;
+
+    if (!in_reported.has_value() || in_reported->error || *in_reported == 0 ||
+            *in_reported == get_source_uuid())
+        return true;
+
+    const uuid prev = get_source_uuid();
+    set_source_uuid(*in_reported);
+
+    // The tracker takes dst_lock, which orders before ext_mutex
+    auto self = std::static_pointer_cast<kis_datasource>(shared_from_this());
+    auto datasourcetracker = Globalreg::fetch_global_as<datasource_tracker>();
+
+    lock.unlock();
+    auto conflict = datasourcetracker == nullptr ? std::string{} :
+        datasourcetracker->replace_source_uuid(self, prev);
+    lock.lock();
+
+    // Closed while unlocked: the close failed the open
+    if (conflict.empty())
+        return !cancelled;
+
+    // Stays listed under its own UUID, stopped and in error: two sources must not share a
+    // UUID, and a later open can take the reported one if the other source has gone
+    set_source_uuid(prev);
+    provisional_uuid = true;
+
+    set_int_source_retry(false);
+    if (error_timer_id > 0)
+        timetracker->cancel_timer(error_timer_id);
+    error_timer_id = -1;
+
+    open_callback_t cb;
+    unsigned int transaction = 0;
+
+    auto ci = command_ack_map.find(in_seqno);
+    if (ci != command_ack_map.end()) {
+        if (ci->second->timer_id > -1)
+            timetracker->cancel_timer(ci->second->timer_id);
+
+        cb = ci->second->open_cb;
+        transaction = ci->second->transaction;
+        command_ack_map.erase(ci);
+    }
+
+    lock.unlock();
+
+    close_external();
+
+    lock.lock();
+    set_int_source_running(false);
+    set_int_source_error(true);
+    set_int_source_error_reason(conflict);
+    lock.unlock();
+
+    auto evt = eventbus->get_eventbus_event(event_datasource_error());
+    evt->get_event_content()->insert(event_datasource_error(), source_uuid);
+    eventbus->publish(evt);
+
+    if (cb != nullptr)
+        cb(transaction, false, conflict);
+
+    lock.lock();
+    return false;
+}
+
 void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t code,
         const std::string_view& in_packet) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report_v3");
@@ -2489,8 +2731,11 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         return;
     }
 
+    // Replaces a provisional UUID once the rest of the report is accepted
+    std::optional<uuid> reported_uuid;
+
     auto uuid_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_UUID);
-    if (!mpack_node_is_missing(uuid_n) && get_source_uuid() == 0) {
+    if (!mpack_node_is_missing(uuid_n) && (get_source_uuid() == 0 || provisional_uuid)) {
         auto uuid_s = mpack_node_str(uuid_n);
         auto uuid_sz = mpack_node_data_len(uuid_n);
 
@@ -2502,7 +2747,10 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
         }
 
         uuid u(std::string(uuid_s, uuid_sz));
-        set_source_uuid(u);
+        if (provisional_uuid)
+            reported_uuid = u;
+        else
+            set_source_uuid(u);
     } else if (!local_uuid && get_source_uuid() == 0) {
         uuid u;
         u.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
@@ -2745,6 +2993,9 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
 
     update_channel_spans();
     data_lk.unlock();
+
+    if (!settle_provisional_uuid(reported_uuid, report_seqno, lock))
+        return;
 
     set_int_source_running(code != 0);
     set_source_paused(0);
@@ -3595,7 +3846,12 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
         msg = clean_capture_text(report.message().msgtext());
     }
 
-    if (report.has_uuid() && get_source_uuid() == 0) {
+    // Replaces a provisional UUID only if the open worked
+    std::optional<uuid> reported_uuid;
+
+    if (report.has_uuid() && provisional_uuid) {
+        reported_uuid = uuid(report.uuid());
+    } else if (report.has_uuid() && get_source_uuid() == 0) {
         // Don't clobber local UUID
         uuid u(report.uuid());
         set_source_uuid(u);
@@ -3761,6 +4017,10 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
 
     update_channel_spans();
     data_lk.unlock();
+
+    if (report.success().success() &&
+            !settle_provisional_uuid(reported_uuid, report.success().seqno(), lock))
+        return;
 
     if (report.success().success())
         set_int_source_retry_attempts(0);
