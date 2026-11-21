@@ -188,10 +188,13 @@ bool time_of(const Reading& r, int64_t* out_ms) {
 
 // The gate sequence, written ONCE for both fix_verdict() and
 // FreshnessTracker::judge(). `reference_gnss_ms` nullptr keeps the staleness
-// arm inert; `anchor` nullptr keeps the jump arm inert.
+// arm inert; `anchor` nullptr keeps the jump arm inert; `clock_run` /
+// `run_span_ticks` nullptr keep the frozen-clock count / span arm inert.
 GpsFix verdict_of(const Reading& rd, Decline* reason,
                   const int64_t* reference_gnss_ms, int64_t max_fix_age_ms,
-                  const Anchor* anchor, double max_speed_mps) {
+                  const Anchor* anchor, double max_speed_mps,
+                  const uint32_t* clock_run, uint32_t frozen_run,
+                  const uint64_t* run_span_ticks, uint64_t frozen_span_ticks) {
     // A local so the gate arms below can `return` without every one having to
     // remember to write through the pointer; the single exit stamps it once.
     Decline why = Decline::kNone;
@@ -214,7 +217,7 @@ GpsFix verdict_of(const Reading& rd, Decline* reason,
 
     // Gate order is load-bearing and mirrors gps_gate_verdict exactly:
     // coordinate plausibility, then placeholder, then time solution, then
-    // altitude, then staleness, then jump. A seed position passes the coordinate gates (that is why the
+    // altitude, then staleness, then frozen clock, then jump. A seed position passes the coordinate gates (that is why the
     // time gate exists), so reordering would relabel every kNoTimeSolution as
     // something else.
 
@@ -241,6 +244,13 @@ GpsFix verdict_of(const Reading& rd, Decline* reason,
     else if (reference_gnss_ms != nullptr && has_clock &&
              *reference_gnss_ms - own_ms > max_fix_age_ms)
         why = Decline::kStale;
+    // Frozen-clock gate, after staleness (a re-served OLD fix is the stale
+    // finding) and before jump (a frozen record is not a movement). Either
+    // arm: the run's record count or its DIAG-time span.
+    else if (has_clock &&
+             ((clock_run != nullptr && *clock_run >= frozen_run) ||
+              (run_span_ticks != nullptr && *run_span_ticks > frozen_span_ticks)))
+        why = Decline::kFrozenClock;
     // Jump gate, after staleness: a re-served old fix is the stale
     // finding. dt is |own - anchor| in seconds, floored --
     // `max(abs(own - a_ms) / 1000.0, 1.0)`, int64 difference converted once.
@@ -288,6 +298,7 @@ const char* decline_name(Decline why) {
     case Decline::kStale:          return "stale_fix";
     case Decline::kAltitude:       return "implausible_altitude";
     case Decline::kJump:           return "implausible_jump";
+    case Decline::kFrozenClock:    return "frozen_clock";
     }
     return nullptr;
 }
@@ -295,7 +306,8 @@ const char* decline_name(Decline why) {
 GpsFix fix_verdict(const std::string& payload, Decline* reason,
                    const int64_t* reference_gnss_ms, int64_t max_fix_age_ms) {
     return verdict_of(read_record(payload), reason, reference_gnss_ms,
-                      max_fix_age_ms, nullptr, kDefaultMaxSpeedMps);
+                      max_fix_age_ms, nullptr, kDefaultMaxSpeedMps, nullptr,
+                      kDefaultFrozenRun, nullptr, kDefaultFrozenSpanTicks);
 }
 
 GpsFix fix_verdict(const std::string& payload, Decline* reason) {
@@ -320,9 +332,14 @@ bool gps_time_ms(const std::string& payload, int64_t* out_ms) {
 }
 
 FreshnessTracker::FreshnessTracker(int64_t max_fix_age_ms,
-                                   double max_speed_mps)
+                                   double max_speed_mps,
+                                   uint32_t frozen_run,
+                                   uint64_t frozen_span_ticks)
     : max_fix_age_ms_(max_fix_age_ms), max_speed_mps_(max_speed_mps),
-      has_newest_(false), newest_(0), unjudged_(0), has_anchor_(false) {
+      has_newest_(false), newest_(0), unjudged_(0), has_anchor_(false),
+      frozen_run_(frozen_run), has_last_clock_(false), last_clock_(0),
+      clock_run_(0), frozen_span_ticks_(frozen_span_ticks),
+      has_run_start_(false), run_start_ticks_(0) {
     anchor_.lat_deg = 0.0;
     anchor_.lon_deg = 0.0;
     anchor_.gnss_ms = 0;
@@ -336,9 +353,19 @@ void FreshnessTracker::reset() {
     anchor_.lat_deg = 0.0;
     anchor_.lon_deg = 0.0;
     anchor_.gnss_ms = 0;
+    has_last_clock_ = false;
+    last_clock_ = 0;
+    clock_run_ = 0;
+    has_run_start_ = false;
+    run_start_ticks_ = 0;
 }
 
 GpsFix FreshnessTracker::judge(const std::string& payload, Decline* reason) {
+    return judge(payload, reason, 0);
+}
+
+GpsFix FreshnessTracker::judge(const std::string& payload, Decline* reason,
+                               uint64_t log_time) {
     // GnssFreshnessTracker.judge, step for step, on ONE parse of the record:
     // count the warm-up hole, judge against the reference as it stood BEFORE
     // this record, then fold this record's clock in -- whatever the gates said,
@@ -348,9 +375,34 @@ GpsFix FreshnessTracker::judge(const std::string& payload, Decline* reason) {
     const bool has_clock = time_of(rd, &own_ms);
     if (!has_newest_ && has_clock)
         ++unjudged_;
+    // The frozen-clock run: a record with no clock neither extends nor breaks it.
+    if (has_clock) {
+        clock_run_ = (has_last_clock_ && own_ms == last_clock_) ? clock_run_ + 1 : 1;
+        last_clock_ = own_ms;
+        has_last_clock_ = true;
+    }
+    // The run's DIAG-time span: a new run forgets its start; log_time 0 is "no
+    // timestamp" and neither starts nor extends a span; a log_time BEHIND the
+    // start restarts the span there.
+    bool has_span = false;
+    uint64_t span = 0;
+    if (has_clock) {
+        if (clock_run_ == 1)
+            has_run_start_ = false;
+        if (log_time != 0) {
+            if (!has_run_start_ || log_time < run_start_ticks_) {
+                run_start_ticks_ = log_time;
+                has_run_start_ = true;
+            }
+            span = log_time - run_start_ticks_;
+            has_span = true;
+        }
+    }
     GpsFix f = verdict_of(rd, reason, has_newest_ ? &newest_ : nullptr,
                           max_fix_age_ms_, has_anchor_ ? &anchor_ : nullptr,
-                          max_speed_mps_);
+                          max_speed_mps_, has_clock ? &clock_run_ : nullptr,
+                          frozen_run_, has_span ? &span : nullptr,
+                          frozen_span_ticks_);
     if (has_clock && (!has_newest_ || own_ms > newest_)) {
         newest_ = own_ms;
         has_newest_ = true;

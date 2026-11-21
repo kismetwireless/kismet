@@ -402,6 +402,8 @@ static diag_native_gps_decline_t map_decline(diag_0x1476_gpsfix::Decline why) {
             return DIAG_NATIVE_GPS_DECLINE_ALTITUDE;
         case diag_0x1476_gpsfix::Decline::kJump:
             return DIAG_NATIVE_GPS_DECLINE_JUMP;
+        case diag_0x1476_gpsfix::Decline::kFrozenClock:
+            return DIAG_NATIVE_GPS_DECLINE_FROZEN;
     }
     return DIAG_NATIVE_GPS_DECLINE_NONE;  // unreachable; keeps -Werror happy
 }
@@ -426,6 +428,8 @@ static diag_0x1476_gpsfix::Decline to_leg_decline(diag_native_gps_decline_t why)
             return diag_0x1476_gpsfix::Decline::kAltitude;
         case DIAG_NATIVE_GPS_DECLINE_JUMP:
             return diag_0x1476_gpsfix::Decline::kJump;
+        case DIAG_NATIVE_GPS_DECLINE_FROZEN:
+            return diag_0x1476_gpsfix::Decline::kFrozenClock;
     }
     return diag_0x1476_gpsfix::Decline::kNone;
 }
@@ -470,6 +474,13 @@ extern "C" uint64_t diag_native_gnss_tracker_unjudged(const diag_native_gnss_tra
 extern "C" int diag_native_decode_gps_fix(diag_native_gnss_tracker_t *tracker,
         uint16_t log_code, const uint8_t *payload,
         size_t payload_len, diag_native_gps_fix_t *out_fix) {
+    return diag_native_decode_gps_fix_at(tracker, log_code, 0, payload,
+                                         payload_len, out_fix);
+}
+
+extern "C" int diag_native_decode_gps_fix_at(diag_native_gnss_tracker_t *tracker,
+        uint16_t log_code, uint64_t log_time, const uint8_t *payload,
+        size_t payload_len, diag_native_gps_fix_t *out_fix) {
     if (out_fix == nullptr)
         return -1;
     // Written before any early return, so a caller that ignores the return value
@@ -499,7 +510,7 @@ extern "C" int diag_native_decode_gps_fix(diag_native_gnss_tracker_t *tracker,
     try {
         diag_0x1476_gpsfix::Decline why = diag_0x1476_gpsfix::Decline::kNone;
         diag_0x1476_gpsfix::GpsFix f = tracker != nullptr
-            ? tracker->leg.judge(blob, &why)
+            ? tracker->leg.judge(blob, &why, log_time)
             : diag_0x1476_gpsfix::fix_verdict(blob, &why);
         if (!f.valid) {
             out_fix->decline_reason = map_decline(why);

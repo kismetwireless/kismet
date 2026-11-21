@@ -103,10 +103,12 @@ enum class Decline {
     kStale,               // older than the stream's newest clock by > the bound
     kAltitude,            // alt_m outside [kMinPlausibleAltM, kMaxPlausibleAltM] or NaN
     kJump,                // implied speed from the last ACCEPTED fix > the bound
+    kFrozenClock,         // own clock unchanged over a run too long or too long-lived
 };
 
 // The decline reason as a stable string ("no_position", "placeholder_position",
-// "no_time_solution", "stale_fix", "implausible_altitude", "implausible_jump"),
+// "no_time_solution", "stale_fix", "implausible_altitude", "implausible_jump",
+// "frozen_clock"),
 // byte-equal to the reference gate's names, which the
 // stateful equivalence harness asserts. kUnparseable has no reference name (the
 // gate is never reached for a record the parser refused) and answers
@@ -156,6 +158,29 @@ const double kDefaultMaxSpeedMps = HUGE_VAL;
 // ~0.3 s apart (or backwards in GNSS time) cannot turn jitter into a jump.
 const double kJumpMinDtS = 1.0;
 
+// ---- Frozen clock ----------------------------------------------------------
+//
+// A receiver that has GPS time but no current fix can re-serve its LAST KNOWN
+// position, record after record, on one frozen GNSS clock: real degrees, a
+// valid week, a sane altitude. With no live fix in the stream the staleness
+// arm has no newer clock to measure it against, so it accepts every copy.
+// A same-clock run is declined kFrozenClock by either arm:
+//
+// The count arm: the record is at least the kDefaultFrozenRun-th consecutive
+// clock-bearing record on the same clock. Measured over a 336k-fix corpus
+// sample: runs of 2-3 are routine live repeats and runs of 4-7 are sub-second
+// bursts or two engines' live pairs, while every run of 8+ was a re-served
+// position frozen over 46-338 s.
+const uint32_t kDefaultFrozenRun = 8;
+// The span arm: the run has lasted MORE than this many raw DIAG log_time ticks
+// since its first record -- 3 s at the LOG_F ts64 rate (Q16, 1.25 ms units).
+// Measured, frozen re-serves span >= 7.1 s and live bursts <= 0.7 s, so it
+// also catches a short frozen run the count never reaches (one engine
+// re-serves in runs of 3 over >= 5 s). log_time 0 means "no timestamp" and
+// leaves the arm inert; a log_time BEHIND the run's start restarts the span
+// there, so a counter reset never reads as frozen.
+const uint64_t kDefaultFrozenSpanTicks = static_cast<uint64_t>(2400) << 16;
+
 // Great-circle metres between two (deg, deg) points, in a fixed operation order
 // (deg * (pi/180), squares as s * s, h clamped to 1, 2 * R * asin(sqrt(h))) so
 // the result is reproducible to the last bit. Exposed so the equivalence
@@ -202,11 +227,16 @@ struct Anchor {
 class FreshnessTracker {
  public:
     explicit FreshnessTracker(int64_t max_fix_age_ms = kDefaultMaxFixAgeMs,
-                              double max_speed_mps = kDefaultMaxSpeedMps);
+                              double max_speed_mps = kDefaultMaxSpeedMps,
+                              uint32_t frozen_run = kDefaultFrozenRun,
+                              uint64_t frozen_span_ticks = kDefaultFrozenSpanTicks);
 
     // Judge one log-code-stripped 0x1476 payload, then fold it in. Same
     // contract as fix_verdict(): *reason (may be nullptr) is kNone iff valid.
     GpsFix judge(const std::string& payload, Decline* reason);
+    // The same, with the record's raw DIAG log_time (the LOG_F header ts64),
+    // which arms the span arm. The 2-argument form is log_time 0: count arm only.
+    GpsFix judge(const std::string& payload, Decline* reason, uint64_t log_time);
 
     // Forget the reference and the warm-up count (a source restart).
     void reset();
@@ -218,6 +248,14 @@ class FreshnessTracker {
     bool has_anchor() const { return has_anchor_; }
     const Anchor& anchor() const { return anchor_; }   // zeros until has_anchor()
     double max_speed_mps() const { return max_speed_mps_; }
+    // Consecutive clock-bearing records, the last one included, that carried
+    // its own clock; 0 until a record with a clock arrives.
+    uint32_t clock_run() const { return clock_run_; }
+    uint32_t frozen_run() const { return frozen_run_; }
+    uint64_t frozen_span_ticks() const { return frozen_span_ticks_; }
+    // The current run's first timestamped log_time; 0 until there is one.
+    bool has_run_start() const { return has_run_start_; }
+    uint64_t run_start_ticks() const { return run_start_ticks_; }
 
  private:
     int64_t max_fix_age_ms_;
@@ -227,6 +265,13 @@ class FreshnessTracker {
     uint64_t unjudged_;
     bool has_anchor_;
     Anchor anchor_;
+    uint32_t frozen_run_;
+    bool has_last_clock_;
+    int64_t last_clock_;
+    uint32_t clock_run_;
+    uint64_t frozen_span_ticks_;
+    bool has_run_start_;
+    uint64_t run_start_ticks_;
 };
 
 }  // namespace diag_0x1476_gpsfix
