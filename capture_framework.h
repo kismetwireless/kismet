@@ -756,6 +756,22 @@ int cf_jail_filesystem_keep(kis_capture_handler_t *caph, const char **writable);
  */
 int cf_drop_most_caps(kis_capture_handler_t *caph);
 
+/* As cf_drop_most_caps, keeping only the listed capabilities (CAP_* values from
+ * linux/capability.h, at most 8), for a source which needs fewer than both.  Unlike
+ * it, this runs whatever the uid, since lowering needs no privilege: it clears the
+ * ambient and inheritable sets, and cuts the permitted and effective sets to the
+ * listed capabilities the process holds (a file capability's, or root's).  It
+ * doesn't set keep-caps, so it works under a locked SECBIT_KEEP_CAPS, and doesn't
+ * change the uid; a root caller which switches uid afterwards sets keep-caps itself.
+ *
+ * Returns:
+ * -1   Error dropping capabilities, or none or too many listed
+ *  0   Capability support not compiled in (the ambient set is still cleared)
+ *  1   Success
+ *  2   Success, but none of the listed capabilities was held, so none is left
+ */
+int cf_drop_caps_keep(kis_capture_handler_t *caph, const int *keep, size_t n_keep);
+
 /* Assign a channel hopping list processed by a capture binary */
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
         void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing,
