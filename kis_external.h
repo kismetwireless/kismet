@@ -170,13 +170,13 @@ public:
 class kis_external_ipc : public kis_external_io {
 public:
     kis_external_ipc(std::shared_ptr<kis_external_interface> iface,
-            kis_ipc_record& ipc,
+            const kis_ipc_record& ipc,
             boost::asio::posix::stream_descriptor &ipc_in,
             boost::asio::posix::stream_descriptor &ipc_out) :
         kis_external_io{iface},
         ipc_in_{std::move(ipc_in)},
         ipc_out_{std::move(ipc_out)},
-        ipc_{ipc},
+        pid_{ipc.pid},
         ipctracker_{Globalreg::fetch_mandatory_global_as<ipc_tracker_v2>()} { }
 
     virtual ~kis_external_ipc() override;
@@ -199,7 +199,8 @@ public:
 
     boost::asio::posix::stream_descriptor ipc_in_, ipc_out_;
 
-    kis_ipc_record &ipc_;
+    // This io's own helper; the interface's record moves on to the next one it launches
+    const pid_t pid_;
 
     std::shared_ptr<ipc_tracker_v2> ipctracker_;
 };
@@ -341,6 +342,10 @@ public:
 protected:
     // Internal implementation of closing
     virtual void close_external_impl();
+
+    // With only_io, closes nothing unless that is still the connection, checked under
+    // the ext_mutex hold that detaches it
+    void close_external_io(const std::shared_ptr<kis_external_io> *only_io);
 
     std::function<void (void)> closure_cb;
 

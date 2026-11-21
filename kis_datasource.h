@@ -23,6 +23,7 @@
 
 #include <atomic>
 #include <functional>
+#include <optional>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -503,6 +504,15 @@ public:
     // stay closed, and remote reconnects are refused, until the source is re-opened.
     virtual void disable_source();
 
+    // A source that failed before its capture tool reported a UUID gets a time UUID, as
+    // passive sources do, so two of them don't both take the zero UUID.  It is provisional:
+    // the UUID the capture tool reports on the next successful open replaces it.
+    void assign_provisional_uuid();
+
+    // How long a capture tool gets to answer the first ping before the list, probe or
+    // open waiting on it fails
+    static constexpr unsigned int handshake_timeout_s = 15;
+
     // Graceful close.  A capture binary that advertises a close grace in
     // its OPENREPORT is closed with a CLOSEREQ instead of a pipe close + SIGTERM:
     // it finishes its own teardown and exits, and anything it sends meanwhile
@@ -787,6 +797,10 @@ protected:
     // With only_gen, abort only the graceful close that grace timer belongs to
     void abort_graceful_close(const std::string& in_reason, const uint64_t *only_gen);
 
+    // With only_io, close only if that is still the connection; a close posted to
+    // the strand of a failed connection must leave a newer open's connection alone
+    void close_external_impl(const std::shared_ptr<kis_external_io> *only_io);
+
     // An open requested while a graceful close was still finishing -- the web
     // UI's close -> open restart.  It runs once the close completes, so the old
     // capture binary's end-of-capture records are not cut off and a late event
@@ -888,6 +902,19 @@ protected:
     // Kill any pending commands - we're entering error state or closing, so
     // any pending callbacks get cleared out
     virtual void cancel_all_commands(std::string in_error);
+
+    // Runs a command callback, or posts it to the io context when a caller up the stack
+    // still holds ext_mutex: handle_error from an OPENREPORT, a SHUTDOWN, an invalid PONG
+    // or the ping timer.  The tracker's callbacks take dst_lock and probe_lock, which
+    // order before ext_mutex.
+    void run_command_callback(std::function<void ()> in_cb);
+
+    // End of a successful OPENREPORT, with its lock held.  A provisional UUID is replaced
+    // by the one the capture tool reported, unless another listed source already has it:
+    // then the open fails and the source is stopped, in error.  False when the open must
+    // not be completed.
+    bool settle_provisional_uuid(const std::optional<uuid>& in_reported, uint32_t in_seqno,
+            kis_unique_lock<kis_mutex>& lock);
 
     // common send functions that pick based on protocol version and compile time options
     virtual unsigned int send_configure_channel(const std::string& in_channel, unsigned int in_transaction,
@@ -1053,6 +1080,8 @@ protected:
     std::shared_ptr<tracker_element_string> source_name;
     std::shared_ptr<tracker_element_uuid> source_uuid;
     bool local_uuid;
+    // Set by assign_provisional_uuid; under ext_mutex
+    bool provisional_uuid{false};
     std::shared_ptr<tracker_element_uint32> source_key;
 
     // Read-only tracked element states
@@ -1242,7 +1271,29 @@ protected:
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
     virtual void handle_v2_pong_event() override;
+
+    // The rest of a list, probe or open, run when the capture tool answers the
+    // v2 probe ping, and the failure for its callback when the tool goes away
+    // first or misses the deadline.  Both under ext_mutex and taken together,
+    // so exactly one runs.
     std::function<void ()> deferred_event;
+    std::function<void (const std::string&)> deferred_fail;
+
+    // Deadline of the pending handshake; the generation tells a stale timer from the current one
+    int handshake_timer_id{-1};
+    uint64_t handshake_gen{0};
+
+    // Arms a handshake with its deadline, failing any one it replaces
+    void arm_deferred_handshake(std::function<void ()> in_event,
+            std::function<void (const std::string&)> in_fail, const std::string& in_replaced_reason);
+
+    // Clears a pending handshake and posts its failure to the io context.  Safe
+    // with ext_mutex held: the callbacks take dst_lock and probe_lock, which
+    // order before ext_mutex.
+    void fail_deferred_handshake(const std::string& in_reason);
+
+    void expire_deferred_handshake(uint64_t in_gen);
+    void cancel_handshake_timer();
 
 };
 

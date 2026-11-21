@@ -979,9 +979,9 @@ void datasource_tracker::trigger_deferred_startup() {
                     if (ds == nullptr)
                         throw std::runtime_error("no such datasource");
 
-                    bool set_success = false;
-                    auto set_promise = std::promise<void>();
-                    auto set_ft = set_promise.get_future();
+                    // Shared with the callback, which can run after a timed-out wait returns
+                    auto set_promise = std::make_shared<std::promise<bool>>();
+                    auto set_ft = set_promise->get_future();
 
                     if (ds->get_source_running())
                         throw std::runtime_error("source already running");
@@ -991,18 +991,22 @@ void datasource_tracker::trigger_deferred_startup() {
                     ds->clear_source_disabled();
 
                     ds->open_interface(ds->get_source_definition(), 0,
-                            [ds, &set_success, &set_promise](unsigned int, bool success, std::string) mutable {
+                            [ds, set_promise](unsigned int, bool success, std::string) mutable {
                             // The new capture tool starts on one channel; hop or tune it as before,
                             // ahead of any restore a source does after this callback
                             if (success)
                                 ds->reapply_channel_config();
-                            set_success = success;
-                            set_promise.set_value();
+                            set_promise->set_value(success);
                             });
 
-                    set_ft.wait();
+                    // This endpoint's mutex is held while waiting, so the wait is bounded: the
+                    // handshake deadline, the 30 s timeout of the open command, and a margin
+                    constexpr auto open_wait = std::chrono::seconds(kis_datasource::handshake_timeout_s + 30 + 15);
 
-                    if (set_success) {
+                    if (set_ft.wait_for(open_wait) != std::future_status::ready)
+                        throw std::runtime_error("timed out waiting for the source to open");
+
+                    if (set_ft.get()) {
                         return ds;
                     } else {
                         con->set_status(500);
@@ -1833,7 +1837,10 @@ void datasource_tracker::open_datasource(const std::string& in_source,
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) mutable {
             // Always merge it so that it gets scheduled for re-opening; when we
             // know the type we know how to keep trying.  A source whose UUID is
-            // already taken is closed and not merged.
+            // already taken is stopped and not merged.
+            if (!success)
+                ds->assign_provisional_uuid();
+
             if (!merge_source(ds)) {
                 in_cb(false, fmt::format("another datasource already uses UUID {}",
                             ds->get_source_uuid()), ds);
@@ -1880,7 +1887,8 @@ bool datasource_tracker::merge_source(shared_datasource in_source) {
                     "for the datasources you are using, and ensure that any manually defined "
                     "UUIDs are unique.",
                     in_source->get_source_name(), u, ds->get_source_name());
-            in_source->close_source();
+            // Stopped, not just closed: its error retry would re-open it unlisted
+            in_source->stop_source();
             return false;
         }
     }
@@ -1916,6 +1924,57 @@ bool datasource_tracker::merge_source(shared_datasource in_source) {
     datasource_vec->push_back(in_source);
 
     return true;
+}
+
+std::string datasource_tracker::replace_source_uuid(shared_datasource in_source, const uuid& in_prev_uuid) {
+    kis_unique_lock<kis_mutex> lk(dst_lock, "dst replace_source_uuid");
+
+    const uuid u = in_source->get_source_uuid();
+    bool listed = false;
+
+    for (const auto& dsi : *datasource_vec) {
+        auto ds = std::static_pointer_cast<kis_datasource>(dsi);
+
+        if (ds == in_source) {
+            listed = true;
+            continue;
+        }
+
+        if (ds->get_source_uuid() == u) {
+            const auto other = ds->get_source_name();
+            lk.unlock();
+
+            _MSG_ERROR("Conflict of datasource {} and existing datasource {}: its capture tool reported "
+                    "UUID {}, which {} already uses.  Datasource UUIDs must be unique, check the Kismet "
+                    "documentation for the datasources you are using, and ensure that any manually "
+                    "defined UUIDs are unique.", in_source->get_source_name(), other, u, other);
+
+            return fmt::format("another datasource ({}) already uses UUID {}", other, u);
+        }
+    }
+
+    if (!listed)
+        return "";
+
+    // Same source number under the new UUID; nothing will report the provisional one again
+    auto pi = uuid_source_num_map.find(in_prev_uuid);
+    if (pi != uuid_source_num_map.end()) {
+        const auto num = pi->second;
+        uuid_source_num_map.erase(pi);
+        uuid_source_num_map[u] = num;
+    }
+
+    const bool log_it = database_log_enabled;
+    lk.unlock();
+
+    if (log_it) {
+        auto dbf = Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
+
+        if (dbf != nullptr)
+            dbf->log_datasource(in_source);
+    }
+
+    return "";
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {

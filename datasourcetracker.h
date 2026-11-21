@@ -419,8 +419,13 @@ public:
     std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
     // Merge a source into the source list, preserving UUID and source number.  Returns false,
-    // and closes the source, if another source already has its UUID
+    // and stops the source, if another source already has its UUID
     virtual bool merge_source(shared_datasource in_source);
+
+    // A listed source changed from its provisional UUID to the one its capture tool reported;
+    // it keeps its source number.  Returns why it can't keep the new UUID (another listed
+    // source has it), or an empty string.  Takes dst_lock: never call it with ext_mutex held.
+    std::string replace_source_uuid(shared_datasource in_source, const uuid& in_prev_uuid);
 
     // Remote capture info
     bool remote_enabled() const {
@@ -492,7 +497,7 @@ protected:
     std::vector<shared_datasource> broken_source_vec;
 
     // Cleanup task
-    std::atomic<int> completion_cleanup_id;
+    std::atomic<int> completion_cleanup_id{-1};
     void schedule_cleanup();
 
     // UUIDs to source numbers
@@ -507,9 +512,10 @@ protected:
 
     std::string hop_group_mismatch(shared_datasource leader, shared_datasource ds);
 
-    // Datasource logging
-    int database_log_timer;
-    bool database_log_enabled;
+    // Datasource logging; set in deferred startup, which a fatal startup error
+    // skips, and read by the destructor
+    int database_log_timer{-1};
+    bool database_log_enabled{false};
     // Writes the datasources into each kismetdb file as it opens
     unsigned long database_open_evt_id;
     std::atomic<bool> database_logging;
