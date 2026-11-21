@@ -30,6 +30,7 @@
 #include <stop_token>
 
 #include <string_view>
+#include <utility>
 
 #include "alertracker.h"
 #include "base64.h"
@@ -1274,14 +1275,21 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 ws->binary();
 
-                ds_bridge->bridged_ds =
+                // Weak, so the incoming source doesn't hold its own bridge and websocket
+                auto incoming =
                     std::make_shared<dst_incoming_remote>(
-                            [this, ds_bridge, ws] (dst_incoming_remote *initiator, std::string in_type,
+                            [this, bridge_w = std::weak_ptr(ds_bridge), ws_w = std::weak_ptr(ws)]
+                            (dst_incoming_remote *initiator, std::string in_type,
                                 std::string in_def, uuid in_uuid) {
+
+                            auto ds_bridge = bridge_w.lock();
+                            auto ws = ws_w.lock();
+
+                            if (ds_bridge == nullptr || ws == nullptr)
+                                return;
 
                             kis_lock_guard<kis_mutex> lk(ds_bridge->mutex, "dst websocket completion");
 
-                            // _MSG_DEBUG("Initiating opening full ds");
                             // Retain a reference to it until we exit this loop
                             auto initiatior_ds = ds_bridge->bridged_ds;
 
@@ -1289,21 +1297,16 @@ void datasource_tracker::trigger_deferred_startup() {
                                 datasourcetracker->open_remote_datasource(initiator, in_type, in_def,
                                     in_uuid, false);
 
+                            // Every refusal was logged, rate limited, by open_remote_datasource
                             if (new_ds == nullptr) {
                                 ws->close();
                                 return;
                             }
 
                             ds_bridge->bridged_ds = new_ds;
-
-                            if (new_ds == nullptr)
-                                _MSG_ERROR("Failed to map incoming websocket remote datasource");
-
-                            if (new_ds == nullptr && ws != nullptr) {
-                                // _MSG_DEBUG("remote ds failed, got null");
-                                ws->close();
-                            }
                         });
+
+                ds_bridge->bridged_ds = incoming;
 
                 // _MSG_DEBUG("made remote bridge");
 
@@ -1322,23 +1325,31 @@ void datasource_tracker::trigger_deferred_startup() {
                         ws->close();
                     };
 
-                auto ws_io = std::make_shared<kis_external_ws>(ds_bridge->bridged_ds, ws, write_cb);
+                auto ws_io = std::make_shared<kis_external_ws>(incoming, ws, write_cb);
 
-                ds_bridge->bridged_ds->set_closure_cb(closure_cb);
+                incoming->set_closure_cb(closure_cb);
 
-                ds_bridge->bridged_ds->attach_io(ws_io);
+                incoming->attach_io(ws_io);
 
                 // Blind-catch all errors b/c we must release our listeners at the end
                 try {
                     ws->handle_request(con);
                 } catch (...) { }
 
-                if (ds_bridge->bridged_ds != nullptr) {
+                // Not under the bridge lock, which the websocket rx handler holds while it calls
+                // into these sources.  A source that took this connection over is closed only
+                // while it still uses it, so a newer remote for the same source keeps running.
+                std::shared_ptr<kis_datasource> bridged;
+
+                {
                     kis_lock_guard<kis_mutex> lk(ds_bridge->mutex, "dst websocket bridge teardown");
-                    if (ds_bridge->bridged_ds->get_source_running()) {
-                        ds_bridge->bridged_ds->handle_error("websocket connection closed");
-                    }
+                    bridged = std::exchange(ds_bridge->bridged_ds, nullptr);
                 }
+
+                incoming->kill();
+
+                if (bridged != nullptr && bridged != incoming)
+                    bridged->trigger_error_if_io(ws_io, "websocket connection closed");
                 }));
 }
 
