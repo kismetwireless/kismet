@@ -135,6 +135,13 @@ const size_t kV35RsrqWordOff = 44;
 // bits0..9. Same-tick 0xB17F within 1 LSB / bit-exact on 551/551 (the
 // reference parser's v40 constants). SINGLE-CELL ONLY. The 132 B stride is the .ksy's
 // (`cell_stride` / `is_fixed_slots`), not restated here.
+//
+// v22, v35, v36 and v41 are the same family: four fixed slots of 120, 124, 128
+// and 140 B, the record 16 + 4 x slot whatever num_cells says, unused slots
+// zero-filled. A stride derived from num_cells reads cell[1] of a two-cell
+// v35 / v36 record from the zero fill (PCI 0) and lands mid-slot on a
+// three-cell v41. v35 / v36 / v41 hold on every multi-cell record seen; v22
+// has none, and its 120 B slot follows from the record size.
 const size_t kV40RsrpWordOff = 36;
 const size_t kV40RsrqWordOff = 48;
 
