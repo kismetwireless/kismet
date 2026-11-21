@@ -910,6 +910,9 @@ tr.highlighted .bar-graph { fill: currentColor; }
     border-radius: 6px;
 }
 .list-table-detail-close { position: absolute; top: 0.3rem; right: 0.3rem; }
+.list-table.fill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.list-table.fill > .list-table-scroll { flex: 1 1 auto; min-height: 6rem; }
+.list-table.fill > .list-table-detail { flex: none; max-height: 45%; overflow: auto; }
 
 /* Color scheme picker */
 .scheme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.5rem; }
@@ -1755,6 +1758,10 @@ body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
 .eth-wrap { overflow-wrap: anywhere; }
 .eth-flow-count { font-variant-numeric: tabular-nums; }
 .eth-flow-filter input { max-width: 100%; }
+.eth-flows-head { flex: none; display: flex; flex-direction: column; gap: 0.6rem; padding: 0.6rem 0.75rem 0.4rem; }
+.eth-flows-tab > .list-table { margin: 0 0.75rem 0.5rem; }
+.eth-flows-tab > .about-view { position: relative; bottom: auto; flex: none; margin: 0; padding: 0.3rem 0.75rem 0.4rem; }
+.eth-flows-tab > .about-view > .about-view-body { padding: 0.2rem 0.75rem 0.6rem; }
 a.eth-mac { color: var(--accent); text-decoration: none; }
 a.eth-mac:hover { text-decoration: underline; }
 .ds-hint { font-size: 0.85em; color: var(--muted); margin-top: 0.2rem; }

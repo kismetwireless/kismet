@@ -1,9 +1,10 @@
 // Ethernet (IEEE802.3): wired devices from Ethernet captures, with their
-// VLANs, addresses, names and DHCP details, and the Ethernet VLANs and Ethernet flows windows.
+// VLANs, addresses, names and DHCP details, the Ethernet flows tab and the
+// Ethernet VLANs window.
 //
 // The server names no UI module for this phy, so js/core/modules.js loads
-// this one when the server lists the IEEE802.3 phy.  The windows are offered
-// in the menu only once the server has Ethernet devices.  Wired devices have
+// this one when the server lists the IEEE802.3 phy.  The tab and the window's
+// menu entry are offered only once the server has Ethernet devices.  Wired devices have
 // no location, so there's no map source for them.
 
 import { protocolNames, roleNames, tcpFlagNames, ipProtocolName, vlanLabel, vlanTagText, vlanSortKey,
@@ -192,10 +193,10 @@ export function register(kismet) {
 
     // A table of flows from the server, most recent first.  query() gives the
     // filter and paging; onLoad gets the whole reply, and onDetail is called
-    // when a flow's details are drawn.
-    function flowTable(id, query, onLoad, onDetail) {
+    // when a flow's details are drawn.  fill makes it take its container's height.
+    function flowTable(id, query, onLoad, onDetail, fill = false) {
         return listTable({
-            id,
+            id, fill,
             load: async () => {
                 const r = await api.post('phy/ethernet/flows/flows.json', query());
                 onLoad?.(r);
@@ -217,8 +218,8 @@ export function register(kismet) {
     // ---- server status -----------------------------------------------------
 
     // The status endpoint is read every statusSeconds while the page is
-    // visible, to offer the windows once there are Ethernet devices and to
-    // warn about devices or flows that weren't kept
+    // visible, to offer the flows tab and VLANs window once there are
+    // Ethernet devices and to warn about devices or flows that weren't kept
     let status = null;
     const statusWatchers = new Set();
     let statusTimer = null;
@@ -229,10 +230,12 @@ export function register(kismet) {
             return;
         offered = on;
         if (on) {
-            ui.menuItems.add({ id: 'ethernet-flows', title: 'Ethernet flows', icon: 'ethernet', onClick: () => openFlows() });
+            // Right after the Map tab
+            ui.panes.add({ id: 'ethernet-flows', title: 'Ethernet flows', area: 'main', priority: 45,
+                create: (body) => flowsPane(body) });
             ui.menuItems.add({ id: 'ethernet-vlans', title: 'Ethernet VLANs', icon: 'ethernet', onClick: () => openVlans() });
         } else {
-            ui.menuItems.remove('ethernet-flows');
+            ui.panes.remove('ethernet-flows');
             ui.menuItems.remove('ethernet-vlans');
         }
     }
@@ -367,7 +370,11 @@ export function register(kismet) {
                 const label = vlanLabel(r[`${vl}.tags`], r[`${vl}.vid`], r[`${vl}.inner_vid`]);
                 dom.replace(node, el('div', { class: 'pk-bar' },
                     el('b', {}, `VLAN ${label}`),
-                    tagged ? el('button', { type: 'button', onclick: () => openFlows({ vlan: String(r[`${vl}.vid`]) }) },
+                    tagged ? el('button', { type: 'button', onclick: () => {
+                        // The window would cover the tab it switches to
+                        d?.close();
+                        openFlows({ vlan: String(r[`${vl}.vid`]) });
+                    } },
                         `Flows on VLAN ${r[`${vl}.vid`]}`) : muted('Flows can only be picked by a tagged VLAN ID.'),
                     tagged ? muted(`Devices on it: search the device list for vlan == ${r[`${vl}.vid`]}`) : null));
                 d?.fit();
@@ -397,17 +404,29 @@ export function register(kismet) {
             'wired_flow_udp_timeout in kismet_wired.conf).',
     ];
 
-    let flowWindow = null;
+    let flowView = null;        // the flows tab, once built
+    let flowPreset = null;      // a filter for the tab to start with
 
+    // Switch to the flows tab, with a filter when one is given (from a VLAN or
+    // a device).  Only Ethernet data links here, so the tab is offered at once
+    // if the status read hasn't caught up yet.
     function openFlows(preset = null) {
+        flowPreset = preset;
+        offerWindows(true);
+        // After the tab area has built a newly offered tab
+        queueMicrotask(() => {
+            if (flowPreset && flowView)
+                flowView.setFilter(flowPreset);
+            flowPreset = null;
+            kismet.widgets.panes.showPane('ethernet-flows');
+        });
+    }
+
+    // The Ethernet flows tab, after the Map tab
+    function flowsPane(body) {
         const saved = settings.get('ethernet.flows.filter', {}) ?? {};
-        const start = preset ?? { mac: saved.mac ?? '', ip: saved.ip ?? '', vlan: saved.vlan ?? '' };
-        if (flowWindow?.node.isConnected) {
-            if (preset)
-                flowWindow.setFilter(preset);
-            flowWindow.raise();
-            return flowWindow;
-        }
+        const start = flowPreset ?? { mac: saved.mac ?? '', ip: saved.ip ?? '', vlan: saved.vlan ?? '' };
+        flowPreset = null;
 
         const input = (name, placeholder, width, more = {}) => el('input', { type: 'text', name, placeholder,
             'aria-label': placeholder, spellcheck: false, autocomplete: 'off', style: { width }, ...more });
@@ -431,7 +450,6 @@ export function register(kismet) {
         let filter = {};
         let offset = 0;
         let total = null;
-        let d = null;
 
         const table = flowTable('ethernet-flows', () => ({ ...filter, start: offset, length: flowPage }), (r) => {
             total = r?.[`${fl}s.total`] ?? 0;
@@ -441,7 +459,7 @@ export function register(kismet) {
                 setTimeout(() => table.refresh(), 0);
             }
             showPage();
-        }, () => d?.fit());
+        }, null, true);
 
         function showPage() {
             const n = total ?? 0;
@@ -452,7 +470,6 @@ export function register(kismet) {
             prev.disabled = first.disabled = offset === 0;
             next.disabled = offset + flowPage >= n;
             off.hidden = (status?.['ethernet.status.max_flows'] ?? 1) !== 0;
-            d?.fit();
         }
 
         function page(dir) {
@@ -490,26 +507,32 @@ export function register(kismet) {
         el('button', { type: 'button', onclick: () => setFilter({}) }, 'Clear'),
         error);
         const bar = el('div', { class: 'pk-bar about-anchor' }, first, prev, next, summary, about.button);
-        const body = el('div', { class: 'mem-window' }, form, bar, notes.node, off, table.node, about.node);
+        body.classList.add('eth-flows-tab');
+        body.append(el('div', { class: 'eth-flows-head' }, form, bar, notes.node, off), table.node, about.node);
 
         const statusDraw = () => showPage();
         statusWatchers.add(statusDraw);
-        d = ethernetWindow({ title: 'Ethernet flows', body, width: 1000, onClose: () => {
-            table.destroy();
-            notes.destroy();
-            statusWatchers.delete(statusDraw);
-            about.destroy();
-            flowWindow = null;
-        } });
-        d.setFilter = setFilter;
-        flowWindow = d;
         macInput.value = start.mac ?? '';
         ipInput.value = start.ip ?? '';
         vlanInput.value = start.vlan ?? '';
         const f = flowFilter(start);
         filter = f.filter ?? {};
         showPage();
-        return d;
+        const view = { setFilter };
+        flowView = view;
+
+        return {
+            // Fresh flows at once on returning to the tab, not at the next refresh
+            show: () => table.refresh(),
+            destroy() {
+                table.destroy();
+                notes.destroy();
+                statusWatchers.delete(statusDraw);
+                about.destroy();
+                if (flowView === view)
+                    flowView = null;
+            },
+        };
     }
 
     // ---- device details ------------------------------------------------------
@@ -611,7 +634,7 @@ export function register(kismet) {
             },
             {
                 group: 'Flows',
-                help: `The device's newest IP flows (at most ${deviceFlows}), with either side's last MAC address its own.  The Ethernet flows window pages through all of them.`,
+                help: `The device's newest IP flows (at most ${deviceFlows}), with either side's last MAC address its own.  The Ethernet flows tab pages through all of them.`,
                 fields: [
                     { id: 'eth_flows', wide: true, field: `${base}.macaddr`,
                         draw: (cell, mac, _rec, state) => {
@@ -625,7 +648,11 @@ export function register(kismet) {
                                 note.textContent = n > deviceFlows ? `Newest ${deviceFlows} of ${n.toLocaleString()} flows` : '';
                             });
                             cell.replaceChildren(el('div', { class: 'pk-bar' }, note,
-                                el('button', { type: 'button', onclick: () => openFlows({ mac: state.mac }) }, 'Open in Ethernet flows')),
+                                el('button', { type: 'button', onclick: () => {
+                                    // Close the device panel, which would cover the tab
+                                    cell.closest('dialog')?.close();
+                                    openFlows({ mac: state.mac });
+                                } }, 'Open in Ethernet flows')),
                             state.table.node);
                         } },
                 ],
