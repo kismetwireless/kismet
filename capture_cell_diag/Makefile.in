@@ -190,6 +190,23 @@ $(MONITOR_BIN):	$(MONITOR_OBJS) $(NATIVE_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OB
 		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(NATIVE_OBJS) \
 		    ../libkismetdatasource.a $(DATASOURCE_LIBS) $(NATIVE_LIBS) $(MONITOR_LIBS)
 
+# A standalone helper build (`make` in this directory, MAKELEVEL 0) links the
+# parent's ../libkismetdatasource.a, but nothing here knows how to rebuild it.
+# When ../capture_framework.h changes (a field added to struct
+# kis_capture_handler), the helper compiles against the new header and links
+# the archive built from the old one: a silent ABI mismatch that segfaults at
+# open. So delegate the archive to the parent, whose rules (and depfiles)
+# decide whether it is stale; an up-to-date archive is left alone and forces no
+# relink. A top-level build already made the archive before recursing here
+# (MAKELEVEL >= 1), so it is not re-entered.
+ifeq ($(MAKELEVEL),0)
+../libkismetdatasource.a: FORCE
+	$(MAKE) -C .. libkismetdatasource.a
+
+FORCE:
+.PHONY: FORCE
+endif
+
 probe: $(PROBE_BIN)
 
 $(PROBE_BIN):	$(PROBE_OBJS) $(patsubst %c.o,%c.d,$(PROBE_OBJS))
@@ -482,21 +499,22 @@ clean:
 # -MP emits phony targets for the headers, so a header that is later deleted or
 # renamed does not turn into "no rule to make target" on the next build.
 #
-# Written as a separate .d rule that the object depends on, rather than the
-# shorter `-MMD` side effect during compilation. `-MMD` emits a depfile only when
-# an object recompiles, so an object make already believes is current never
-# produces one. Making the .d a prerequisite means a missing one is built first,
-# comes out newer than the stale object, and forces the rebuild.
-%.cpp.d : %.cpp
-	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -MT $*.cpp.o \
-	    $< > $@
+# The depfile is a prerequisite of its object, with an EMPTY rule. A missing
+# .d is then "remade" (nothing to do), which makes the object out of date, so
+# it recompiles and `-MMD -MP` writes the .d as a side effect. That keeps the
+# property that matters: an object make believes current but that has no
+# depfile still gets rebuilt (NATIVE_DEPS names the .d files explicitly, so
+# they are not intermediates). The rule must not name the source: every
+# depfile is included below as a makefile, make first tries to remake each
+# included makefile, and a `%.cpp.d : %.cpp` rule ties a leftover .d to a
+# source upstream has since deleted, which stops every build with
+# "No rule to make target 'X.cpp', needed by 'X.cpp.d'".
+%.cpp.d: ;
 
 %.cpp.o : %.cpp %.cpp.d
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
 
-%.cc.d : %.cc
-	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -MT $*.cc.o \
-	    $< > $@
+%.cc.d: ;
 
 %.cc.o : %.cc %.cc.d
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
