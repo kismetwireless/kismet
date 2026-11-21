@@ -20,6 +20,7 @@
 #include "kis_httpd_ssl.h"
 
 #include <boost/asio/post.hpp>
+#include <atomic>
 #include <exception>
 #include <future>
 
@@ -1708,6 +1709,119 @@ namespace {
         }
         return 0;
     }
+
+    // json errors a malformed request causes: a parse error (1xx), a wrong type (302),
+    // the wrong container for at/[]/value (304-306), an array index (401) or key (403)
+    // that isn't there, or a number that doesn't fit (406)
+    constexpr bool json_request_error(int id) {
+        return (id >= 100 && id < 200) || id == 302 || (id >= 304 && id <= 306) ||
+            id == 401 || id == 403 || id == 406;
+    }
+
+    static_assert(json_request_error(101) && json_request_error(302) && json_request_error(305) &&
+            json_request_error(401) && json_request_error(403) && json_request_error(406));
+    static_assert(!json_request_error(203) && !json_request_error(301) && !json_request_error(303) &&
+            !json_request_error(307) && !json_request_error(316) && !json_request_error(402) &&
+            !json_request_error(501));
+
+    struct endpoint_error {
+        std::string detail;
+        bool client = false;
+    };
+
+    // A malformed request is the client's error, 400; any other json error (such as 316,
+    // invalid UTF-8 on dump) is a server fault, 500.  Neither sends the exception text.
+    // Other exceptions are a 500 with their text, as before.  Returns the detail of a json
+    // error for the log, written once the caller holds no lock.
+    endpoint_error write_endpoint_error(kis_net_beast_httpd_connection& con, std::ostream& os,
+            const std::exception& e) {
+        const auto je = dynamic_cast<const nlohmann::json::exception *>(&e);
+        const bool bad_request = je != nullptr && json_request_error(je->id);
+
+        try {
+            con.set_status(bad_request ? 400 : 500);
+        } catch (const std::exception&) {
+            ;
+        }
+
+        if (je == nullptr) {
+            os << "ERROR: " << e.what() << "\n";
+            return {};
+        }
+
+        if (bad_request)
+            os << "ERROR: Invalid or missing field in request\n";
+        else
+            os << "ERROR: Internal error handling request\n";
+
+        constexpr size_t max_log_uri = 128;
+        constexpr size_t max_log_what = 256;
+        const auto uri = con.uri();
+        const auto what = std::string_view(e.what());
+        auto what_p = munge_to_printable(what.data(), std::min(what.size(), max_log_what));
+
+        if (what_p.size() > max_log_what)
+            what_p.resize(max_log_what);
+
+        return {fmt::format("{} {}: {}", bad_request ? 400 : 500,
+                munge_to_printable(uri.data(), std::min(uri.size(), max_log_uri)), what_p),
+                bad_request};
+    }
+
+    // At most one log line per interval per bucket, so a client can't flood the log; client
+    // errors have their own bucket so they can't hide server faults
+    struct endpoint_error_limiter {
+        static constexpr int64_t interval_s = 10;
+        std::atomic<int64_t> next_log{0};
+        std::atomic<unsigned int> suppressed{0};
+
+        // Whether to log now, and how many were suppressed since the last line
+        bool admit(unsigned int& n_suppressed) {
+            const int64_t now = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count();
+            auto next = next_log.load();
+
+            if (now < next || !next_log.compare_exchange_strong(next, now + interval_s)) {
+                suppressed++;
+                return false;
+            }
+
+            n_suppressed = suppressed.exchange(0);
+            return true;
+        }
+    };
+
+    endpoint_error_limiter endpoint_client_error_limit;
+    endpoint_error_limiter endpoint_server_error_limit;
+
+    void log_endpoint_error(const endpoint_error& err) {
+        if (err.detail.empty())
+            return;
+
+        unsigned int suppressed = 0;
+
+        if (err.client) {
+            if (!endpoint_client_error_limit.admit(suppressed))
+                return;
+
+            if (suppressed != 0)
+                _MSG_INFO("(HTTP) Invalid JSON request to an endpoint: {} ({} more since the last report)",
+                        err.detail, suppressed);
+            else
+                _MSG_INFO("(HTTP) Invalid JSON request to an endpoint: {}", err.detail);
+
+            return;
+        }
+
+        if (!endpoint_server_error_limit.admit(suppressed))
+            return;
+
+        if (suppressed != 0)
+            _MSG_ERROR("(HTTP) JSON error in an endpoint: {} ({} more since the last report)",
+                    err.detail, suppressed);
+        else
+            _MSG_ERROR("(HTTP) JSON error in an endpoint: {}", err.detail);
+    }
 }
 
 std::string kis_net_beast_httpd::static_content_stamp() {
@@ -2473,14 +2587,8 @@ bool kis_net_beast_httpd_connection::start() {
         try {
             route->invoke(self);
         } catch (const std::exception& e) {
-            try {
-                set_status(500);
-            } catch (...) {
-                ;
-            }
-
             std::ostream os(&response_stream_);
-            os << "ERROR: " << e.what();
+            log_endpoint_error(write_endpoint_error(*this, os, e));
         } catch (...) {
             // Anything else leaving this detached thread would end the server
             try {
@@ -2792,6 +2900,7 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
         lk.lock();
 
     std::ostream os(&con->response_stream());
+    endpoint_error error_detail;
 
     try {
         auto output_content = std::shared_ptr<tracker_element>();
@@ -2822,18 +2931,18 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
             post_func(output_content);
 
     } catch (const std::exception& e) {
-        try {
-            con->set_status(500);
-        } catch (const std::exception& e) {
-            ;
-        }
-
-        os << "ERROR: " << e.what() << "\n";
+        error_detail = write_endpoint_error(*con, os, e);
     }
+
+    if (use_mutex)
+        lk.unlock();
+
+    log_endpoint_error(error_detail);
 }
 
 void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     kis_unique_lock<kis_mutex> lk(mutex, std::defer_lock, "function endpoint");
+    endpoint_error error_detail;
 
     if (use_mutex)
         lk.lock();
@@ -2847,16 +2956,14 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
         if (post_func != nullptr)
             post_func();
     } catch (const std::exception& e) {
-        try {
-            con->set_status(500);
-        } catch (const std::exception& e) {
-            ;
-        }
-
         std::ostream os(&con->response_stream());
-        os << "ERROR: " << e.what() << "\n";
+        error_detail = write_endpoint_error(*con, os, e);
     }
 
+    if (use_mutex)
+        lk.unlock();
+
+    log_endpoint_error(error_detail);
 }
 
 namespace {
@@ -2996,6 +3103,7 @@ void kis_net_web_jsonable_endpoint::handle_request(std::shared_ptr<kis_net_beast
         lk.lock();
 
     std::ostream os(&con->response_stream());
+    endpoint_error error_detail;
 
     try {
         if (content == nullptr) {
@@ -3049,14 +3157,13 @@ void kis_net_web_jsonable_endpoint::handle_request(std::shared_ptr<kis_net_beast
             post_func(content);
 
     } catch (const std::exception& e) {
-        try {
-            con->set_status(500);
-        } catch (const std::exception& e) {
-            ;
-        }
-
-        os << "ERROR: " << e.what() << "\n";
+        error_detail = write_endpoint_error(*con, os, e);
     }
+
+    if (use_mutex)
+        lk.unlock();
+
+    log_endpoint_error(error_detail);
 }
 
 

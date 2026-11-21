@@ -44,8 +44,7 @@ clean:
 %.c.o : %.c %.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-%.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+%.c.d: ;
 
 .PRECIOUS: %.c.d
 

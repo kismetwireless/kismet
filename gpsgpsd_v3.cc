@@ -24,6 +24,7 @@
 #include <cmath>
 #include <future>
 
+#include "gpsgpsd_tpv.h"
 #include "gpsgpsd_v3.h"
 #include "gpstracker.h"
 #include "messagebus.h"
@@ -31,19 +32,6 @@
 #include "util.h"
 
 #include "fmt_asio.h"
-
-namespace {
-    // A finite number, without throwing on a missing or mistyped field
-    bool json_number(const nlohmann::json& j, const char *key, double& out) {
-        const auto it = j.find(key);
-
-        if (it == j.end() || !it->is_number())
-            return false;
-
-        out = it->get<double>();
-        return std::isfinite(out);
-    }
-}
 
 kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder, uint64_t in_id) :
     kis_gps(in_builder, in_id),
@@ -352,69 +340,69 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                 write_gpsd("?WATCH={\"json\":true};\n");
             } else if (msg_class == "TPV") {
-                new_location->fix = json.value("mode", 0);
-                set_fix = true;
+                const auto tpv = gpsd_json::parse_tpv(json);
 
-                // If we have a valid alt, use it
-                if (set_fix && new_location->fix > 2) {
-                    new_location->alt = json.value("alt", (double) 0);
+                if (tpv.has_fix) {
+                    new_location->fix = tpv.fix;
+                    set_fix = true;
+                }
+
+                if (set_fix && tpv.has_alt) {
+                    new_location->alt = tpv.alt;
                     set_alt = true;
-                } 
+                }
 
-                new_location->error_x = json.value("epx", (double) 0);
-                new_location->error_y = json.value("epy", (double) 0);
-                new_location->error_v = json.value("epv", (double) 0);
+                new_location->error_x = tpv.has_error_x ? tpv.error_x : 0;
+                new_location->error_y = tpv.has_error_y ? tpv.error_y : 0;
+                new_location->error_v = tpv.has_error_v ? tpv.error_v : 0;
 
                 // 95% confidence estimates, meters
-                double eph, epx, epy, epv;
-
-                if (json_number(json, "eph", eph) && eph > 0) {
+                if (tpv.has_error_h) {
                     quality.has_error_h = true;
-                    quality.error_h = eph;
-                } else if (json_number(json, "epx", epx) && json_number(json, "epy", epy) &&
-                        epx >= 0 && epy >= 0 && epx + epy > 0) {
+                    quality.error_h = tpv.error_h;
+                } else if (tpv.has_error_x && tpv.has_error_y && tpv.error_x + tpv.error_y > 0) {
                     quality.has_error_h = true;
-                    quality.error_h = std::sqrt(epx * epx + epy * epy);
+                    quality.error_h = std::sqrt(tpv.error_x * tpv.error_x + tpv.error_y * tpv.error_y);
                 }
 
-                if (json_number(json, "epv", epv) && epv > 0) {
+                if (tpv.has_error_v && tpv.error_v > 0) {
                     quality.has_error_v = true;
-                    quality.error_v = epv;
+                    quality.error_v = tpv.error_v;
                 }
 
+                if (tpv.has_position && tpv.lat != 0 && tpv.lon != 0) {
+                    new_location->lat = tpv.lat;
+                    new_location->lon = tpv.lon;
+                    set_lat_lon = true;
+                }
 
+                // A missing or invalid field is 0, as gpsd's clients read it
                 if (set_fix && new_location->fix >= 2) {
-                    new_location->lat = json.value("lat", (double) 0);
-                    new_location->lon = json.value("lon", (double) 0);
-
-                    if (new_location->lat != 0 && new_location->lon != 0)
-                        set_lat_lon = true;
-
-                    new_location->heading = json.value("track", (double) 0);
+                    new_location->heading = tpv.has_heading ? tpv.heading : 0;
                     if (new_location->heading != 0)
                         set_heading = true;
 
-                    new_location->magheading = json.value("magtrack", (double) 0);
+                    new_location->magheading = tpv.has_magheading ? tpv.magheading : 0;
                     if (new_location->magheading != 0)
                         set_magheading = true;
 
-                    new_location->speed = json.value("speed", (double) 0) * 3.6;
+                    new_location->speed = tpv.has_speed ? tpv.speed_kph : 0;
                 }
             } else if (msg_class == "ATT") {
-                auto heading_j = json["heading"];
-                if (heading_j.is_number()) {
+                double heading;
+                if (gpsd_json::number(json, "heading", heading) && gpsd_json::heading_valid(heading)) {
                     last_att_heading_time = time(0);
-                    last_att_heading = heading_j;
+                    last_att_heading = heading;
                 }
             } else if (msg_class == "SKY") {
                 double v;
 
-                if (json_number(json, "hdop", v) && v > 0) {
+                if (gpsd_json::number(json, "hdop", v) && v > 0) {
                     quality.has_hdop = true;
                     quality.hdop = v;
                 }
 
-                if (json_number(json, "vdop", v) && v > 0) {
+                if (gpsd_json::number(json, "vdop", v) && v > 0) {
                     quality.has_vdop = true;
                     quality.vdop = v;
                 }
@@ -438,7 +426,7 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                         gps_satellite gs;
 
-                        if (json_number(sat, "ss", v) && v > 0) {
+                        if (gpsd_json::number(sat, "ss", v) && v > 0) {
                             cn0[ncn0++] = v;
                             gs.cn0 = v;
                         }
@@ -452,18 +440,18 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
 
                         // Newer gpsd names the constellation; older numbers satellites across them
                         double gnss, svid, prn;
-                        if (json_number(sat, "gnssid", gnss) && json_number(sat, "svid", svid) &&
+                        if (gpsd_json::number(sat, "gnssid", gnss) && gpsd_json::number(sat, "svid", svid) &&
                                 gnss >= 0 && gnss < 256 && svid >= 0 && svid < 65536) {
                             gs.constellation = gps_constellation_from_gnss_id(static_cast<unsigned int>(gnss));
                             gs.id = static_cast<uint16_t>(svid);
-                        } else if (json_number(sat, "PRN", prn) && prn >= 0 && prn < 65536) {
+                        } else if (gpsd_json::number(sat, "PRN", prn) && prn >= 0 && prn < 65536) {
                             gs.constellation = gps_constellation_from_prn(static_cast<unsigned int>(prn));
                             gs.id = static_cast<uint16_t>(prn);
                         }
 
-                        if (json_number(sat, "el", v) && v >= -90 && v <= 90)
+                        if (gpsd_json::number(sat, "el", v) && v >= -90 && v <= 90)
                             gs.elevation = static_cast<int16_t>(std::max(0.0, v));
-                        if (json_number(sat, "az", v) && v >= 0 && v < 360)
+                        if (gpsd_json::number(sat, "az", v) && v >= 0 && v < 360)
                             gs.azimuth = static_cast<int16_t>(v);
 
                         quality.satellites.push_back(gs);
@@ -477,12 +465,12 @@ void kis_gps_gpsd_v3::handle_read(const boost::system::error_code& error, std::s
                     quality.has_cn0 = gps_quality_update::strongest_cn0(cn0.data(), ncn0, quality.cn0);
                 }
 
-                if (json_number(json, "nSat", v) && v >= 0 && v < 256) {
+                if (gpsd_json::number(json, "nSat", v) && v >= 0 && v < 256) {
                     quality.has_sats_visible = true;
                     quality.sats_visible = static_cast<unsigned int>(v);
                 }
 
-                if (json_number(json, "uSat", v) && v >= 0 && v < 256) {
+                if (gpsd_json::number(json, "uSat", v) && v >= 0 && v < 256) {
                     quality.has_sats_used = true;
                     quality.sats_used = static_cast<unsigned int>(v);
                 }

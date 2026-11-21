@@ -28,8 +28,7 @@ clean:
 %.c.o : %.c %.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBRTLCFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-%.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBRTLCFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+%.c.d: ;
 
 .PRECIOUS: %.c.d
 
