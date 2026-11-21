@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <chrono>
 #include <climits>
 #include <memory>
 #include <string>
@@ -42,6 +43,7 @@
 
 #include "kis_external.h"
 #include "kis_external_packet.h"
+#include "kis_external_policy.h"
 
 #include "endian_magic.h"
 
@@ -50,6 +52,7 @@
 #include "kis_mutex.h"
 #include "timetracker.h"
 #include "messagebus.h"
+#include "util.h"
 
 #include "mpack/mpack.h"
 #include "mpack/mpack_cpp.h"
@@ -59,6 +62,16 @@
 #include "protobuf_cpp/http.pb.h"
 #include "protobuf_cpp/eventbus.pb.h"
 #endif
+
+namespace {
+    constexpr std::string_view oversized_command_line = "Kismet external interface got an oversized "
+        "command frame.  You most likely need to upgrade the Kismet datasource binaries "
+        "(kismet_cap_...) to match your Kismet server version.";
+
+    constexpr std::string_view unknown_protocol_line = "Kismet external interface got an v2 command "
+        "frame, but this Kismet server was not compiled with protobufs support.  Either upgrade the "
+        "capture tool (kismet_cap_...) or install a build of the Kismet server with protobufs enabled.";
+}
 
 kis_external_ipc::~kis_external_ipc() {
     close_impl();
@@ -101,10 +114,7 @@ int kis_external_io::dispatch_frames() {
         const auto frame = static_cast<const kismet_external_frame_stub_t *>(rx_buf_.data().data());
 
         if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-            _MSG_ERROR("Kismet external interface got command frame with invalid "
-                    "signature; either lost position in the external stream or "
-                    "an unknown protocol was used");
-            interface_->trigger_error("invalid signature on frame");
+            interface_->handle_frame_error(kis_external_frame_error::bad_signature, 0);
             return -1;
         }
 
@@ -122,12 +132,7 @@ int kis_external_io::dispatch_frames() {
         if (data_sz > MAX_EXTERNAL_FRAME_LEN ||
                 total_length < sizeof(kismet_external_frame_stub_t) ||
                 total_length - sizeof(kismet_external_frame_stub_t) > MAX_EXTERNAL_FRAME_LEN) {
-            _MSG_ERROR("Kismet external interface got command frame which is "
-                    "too large to be processed ({}); either the frame is malformed "
-                    "or the connection is from a very old legacy Kismet version using "
-                    "a different protocol; make sure that you have updated to a "
-                    "current Kismet version on all systems.", data_sz);
-            interface_->trigger_error("external packet too large for buffer");
+            interface_->handle_frame_error(kis_external_frame_error::oversized, data_sz);
             return -1;
         }
 
@@ -277,10 +282,10 @@ kis_external_tcp::~kis_external_tcp() {
     close_impl();
 }
 
-std::string kis_external_tcp::remote_addresss() {
+std::string kis_external_tcp::endpoint_address(const tcp::socket& socket) {
     // A peer that reset before we got here makes the throwing overload end the server
     boost::system::error_code ec;
-    auto ep = tcpsocket_.remote_endpoint(ec);
+    auto ep = socket.remote_endpoint(ec);
     if (ec)
         return "";
     return ep.address().to_string();
@@ -343,8 +348,9 @@ void kis_external_tcp::write_impl() {
 
                     self->close();
 
-                    _MSG_ERROR("Kismet external interface got an error writing to external TCP: {}", ec.message());
-                    self->interface_->trigger_error("write failure");
+                    self->interface_->handle_peer_error(kis_external_peer_error::write_failed,
+                            fmt::format("Kismet external interface got an error writing to external TCP: {}",
+                                ec.message()), "write failure");
                     return;
                 }
 
@@ -356,11 +362,10 @@ void kis_external_tcp::write_impl() {
 }
 
 std::string kis_external_ws::remote_addresss() {
-    if (ws_ != nullptr) {
-        return fmt::format("WS {}", ws_->remote_address());
-    }
+    if (remote_address_.empty())
+        return "WS: n/a";
 
-    return "WS: n/a";
+    return fmt::format("WS {}", remote_address_);
 }
 
 void kis_external_ws::write_impl() {
@@ -391,8 +396,9 @@ void kis_external_ws::write_impl() {
 
                             // self->interface_->handle_packet(self->in_buf_);
 
-                            _MSG_ERROR("Kismet external interface got an error writing to ws callback: {}", errc.message());
-                            self->interface_->trigger_error("write failure");
+                            self->interface_->handle_peer_error(kis_external_peer_error::write_failed,
+                                    fmt::format("Kismet external interface got an error writing to ws callback: {}",
+                                        errc.message()), "write failure");
                             return;
                         }
 
@@ -423,13 +429,6 @@ kis_external_interface::kis_external_interface() :
     v2_probe_ack{false} {
 
     ext_mutex.set_name("kis_external_interface");
-
-    allow_remote_web_auth_ =
-        Globalreg::globalreg->kismet_config->fetch_opt_bool("remote_capture_allow_http_auth", false);
-
-    if (allow_remote_web_auth_) {
-        _MSG_INFO("Remote datasources can generate HTTP auth tokens");
-    }
 }
 
 kis_external_interface::~kis_external_interface() {
@@ -480,6 +479,7 @@ void kis_external_interface::close_external_impl() {
     // Kill any eventbus listeners
     for (const auto& ebid : eventbus_callback_map)
         eventbus->remove_listener(ebid.second);
+    eventbus_callback_map.clear();
 
     // Kill any active http sessions
     for (auto s : http_proxy_session_map) {
@@ -529,6 +529,82 @@ void kis_external_interface::trigger_error(const std::string& in_error) {
     handle_error(in_error);
 
     close_external();
+}
+
+std::string kis_external_interface::frame_error_reason(kis_external_frame_error in_error) {
+    if (in_error == kis_external_frame_error::bad_signature)
+        return "invalid signature on frame";
+
+    return "external packet too large for buffer";
+}
+
+void kis_external_interface::handle_frame_error(kis_external_frame_error in_error, size_t in_data_sz) {
+    if (in_error == kis_external_frame_error::bad_signature) {
+        _MSG_ERROR("Kismet external interface got command frame with invalid "
+                "signature; either lost position in the external stream or "
+                "an unknown protocol was used");
+    } else {
+        _MSG_ERROR("Kismet external interface got command frame which is "
+                "too large to be processed ({}); either the frame is malformed "
+                "or the connection is from a very old legacy Kismet version using "
+                "a different protocol; make sure that you have updated to a "
+                "current Kismet version on all systems.", in_data_sz);
+    }
+
+    trigger_error(frame_error_reason(in_error));
+}
+
+void kis_external_interface::handle_peer_error(kis_external_peer_error in_error, std::string_view in_line,
+        const std::string& in_reason) {
+    _MSG_ERROR("{}", in_line);
+    trigger_error(in_reason);
+}
+
+bool kis_external_interface::shutdown_reason_v3(std::string_view in_content,
+        std::optional<std::string>& out_reason) {
+    mpack_tree_raii tree;
+
+    out_reason.reset();
+
+    mpack_tree_init_data(&tree, in_content.data(), in_content.length());
+
+    if (!mpack_tree_try_parse(&tree))
+        return false;
+
+    auto reason_n = mpack_node_map_uint(mpack_tree_root(&tree), KIS_EXTERNAL_V3_SHUTDOWN_FIELD_REASON);
+    auto reason_s = mpack_node_str(reason_n);
+    auto reason_sz = mpack_node_data_len(reason_n);
+
+    // As the base handler: a missing or mistyped reason is no reason
+    if (mpack_tree_error(&tree) == mpack_ok && reason_s != nullptr)
+        out_reason = std::string(reason_s, reason_sz);
+
+    return true;
+}
+
+#ifdef HAVE_PROTOBUF_CPP
+bool kis_external_interface::shutdown_reason_v2(std::string_view in_content,
+        std::optional<std::string>& out_reason) {
+    KismetExternal::ExternalShutdown s;
+
+    out_reason.reset();
+
+    if (!s.ParseFromArray(in_content.data(), in_content.length()))
+        return false;
+
+    out_reason = s.reason();
+    return true;
+}
+#endif
+
+void kis_log_limited_inject(std::string_view who, const censor::marked_string& msg,
+        uint64_t suppressed, int flags) {
+    const auto note = kis_log_suppressed_note(suppressed);
+
+    if (who.empty())
+        Globalreg::globalreg->messagebus->inject_message(censor::format("{}{}", msg, note), flags);
+    else
+        Globalreg::globalreg->messagebus->inject_message(censor::format("{} {}{}", who, msg, note), flags);
 }
 
 
@@ -774,21 +850,20 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
     // See if we have enough to get a frame header
     size_t buffamt = buffer->size();
 
+    // Only a websocket message can be short; the stream reader waits for a whole frame
     if (buffamt < sizeof(kismet_external_frame_t)) {
-        _MSG_ERROR("Kismet external interface got command frame with invalid size");
-        return result_handle_packet_needbuf;
+        handle_peer_error(kis_external_peer_error::short_frame,
+                "Kismet external interface got command frame with invalid size", "short command frame");
+        return result_handle_packet_error;
     }
 
     frame = static_cast<const kismet_external_frame_t *>(buffer->data().data());
     frame_v2 = static_cast<const kismet_external_frame_v2_t *>(buffer->data().data());
     frame_v3 = static_cast<const kismet_external_frame_v3_t *>(buffer->data().data());
 
-    // Check the frame signature
+    // Check the frame signature; the stream reader checked it already, websocket messages not
     if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-        _MSG_ERROR("Kismet external interface got an unexpected command "
-                "frame.  You most likely need to upgrade the Kismet datasource "
-                "binaries (kismet_cap_...) to match your Kismet server version.");
-        trigger_error("invalid signature on command frame");
+        handle_frame_error(kis_external_frame_error::bad_signature, 0);
         return result_handle_packet_error;
     }
 
@@ -804,10 +879,8 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
         // Bound data_sz before adding the header so frame_sz can't wrap on 32-bit
         if (data_sz >= MAX_EXTERNAL_FRAME_LEN - sizeof(kismet_external_frame_v2)) {
-            _MSG_ERROR("Kismet external interface got an oversized command "
-                    "frame.  You most likely need to upgrade the Kismet datasource "
-                    "binaries (kismet_cap_...) to match your Kismet server version.");
-            trigger_error("command frame too large for buffer");
+            handle_peer_error(kis_external_peer_error::oversized_command, oversized_command_line,
+                    "command frame too large for buffer");
             return result_handle_packet_error;
         }
 
@@ -835,18 +908,15 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         try {
             dispatch_rx_packet(command, seqno, content);
         } catch (const std::exception& e) {
-            _MSG_ERROR("Kismet external interface could not handle a {} packet: {}",
-                    command, e.what());
-            trigger_error("invalid packet");
+            handle_peer_error(kis_external_peer_error::failed_command,
+                    fmt::format("Kismet external interface could not handle a {} packet: {}",
+                        munge_to_printable(command.data(), command.size()), e.what()), "invalid packet");
             return result_handle_packet_error;
         }
 
 #else
-        _MSG_ERROR("Kismet external interface got an v2 command frame, but this "
-                "Kismet server was not compiled with protobufs support.  Either "
-                "upgrade the capture tool (kismet_cap_...) or install a "
-                "build of the Kismet server with protobufs enabled.");
-        trigger_error("Unsupported Kismet protocol");
+        handle_peer_error(kis_external_peer_error::unknown_protocol, unknown_protocol_line,
+                "Unsupported Kismet protocol");
         return result_handle_packet_error;
 #endif
     } else if (kis_ntoh16(frame_v3->v3_sentinel) == KIS_EXTERNAL_V3_SIG &&
@@ -858,10 +928,8 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
         // Bound data_sz before adding the header so frame_sz can't wrap on 32-bit
         if (data_sz >= MAX_EXTERNAL_FRAME_LEN - sizeof(kismet_external_frame_v3)) {
-            _MSG_ERROR("Kismet external interface got an oversized command "
-                    "frame.  You most likely need to upgrade the Kismet datasource "
-                    "binaries (kismet_cap_...) to match your Kismet server version.");
-            trigger_error("command frame too large for buffer");
+            handle_peer_error(kis_external_peer_error::oversized_command, oversized_command_line,
+                    "command frame too large for buffer");
             return result_handle_packet_error;
         }
 
@@ -885,20 +953,17 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         try {
             dispatch_rx_packet_v3(buffer, command, code, seqno, content);
         } catch (const std::exception& e) {
-            _MSG_ERROR("Kismet external interface could not handle a type {} packet: {}",
-                    command, e.what());
-            trigger_error("invalid packet");
+            handle_peer_error(kis_external_peer_error::failed_command,
+                    fmt::format("Kismet external interface could not handle a type {} packet: {}",
+                        command, e.what()), "invalid packet");
             return result_handle_packet_error;
         }
 
         return result_handle_packet_ok;
     } else {
         // Unknown type of packet (or legacy v0 protocol which we're phasing out)
-        _MSG_ERROR("Kismet external interface got an v2 command frame, but this "
-                "Kismet server was not compiled with protobufs support.  Either "
-                "upgrade the capture tool (kismet_cap_...) or install a "
-                "build of the Kismet server with protobufs enabled.");
-        trigger_error("Unsupported Kismet protocol");
+        handle_peer_error(kis_external_peer_error::unknown_protocol, unknown_protocol_line,
+                "Unsupported Kismet protocol");
         return result_handle_packet_error;
     }
 
@@ -923,12 +988,93 @@ void kis_external_interface::start_write(const char *data, size_t len) {
     io->write(data, len);
 }
 
+std::string kis_external_interface::external_peer_name() {
+    auto io = get_io();
+    const auto addr = io != nullptr ? io->remote_addresss() : std::string("closed connection");
+
+    if (external_binary.empty())
+        return addr;
+
+    return fmt::format("{} ({})", external_binary, addr);
+}
+
+bool kis_external_interface::server_api_permitted(std::string_view command) {
+    // Plugins are launched over local IPC; never accept these from a network peer
+    auto io = get_io();
+    if (accepts_server_api() && io != nullptr && !io->is_remote())
+        return true;
+
+    kis_log_limited(server_api_refusal_log, MSGFLAG_ERROR, {}, "Refused {} from {}: only external "
+            "plugins Kismet launches itself may use web routes, web logins or the eventbus.",
+            command, munge_to_printable(external_peer_name()));
+
+    return false;
+}
+
+void kis_external_interface::log_refusal(kis_log_limiter& limiter, const std::string& problem) {
+    kis_log_limited(limiter, MSGFLAG_ERROR, {}, "Refused {} from {}", problem,
+            munge_to_printable(external_peer_name()));
+}
+
+std::string kis_external_interface::register_proxy_route(const std::string& uri, const std::string& method,
+        std::shared_ptr<kis_net_web_endpoint> handler) {
+    std::string problem;
+
+    if (http_route_handlers.size() >= kis_external_max_routes) {
+        problem = fmt::format("more than {} routes", kis_external_max_routes);
+    } else {
+        const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+        problem = httpd->register_external_route(uri, method, http_route_owner, handler);
+    }
+
+    if (!problem.empty())
+        return fmt::format("web route '{}' ({})",
+                munge_to_printable(uri.substr(0, kis_external_max_route_len)), problem);
+
+    http_route_handlers.push_back(handler);
+    return {};
+}
+
+std::string kis_external_interface::append_proxy_header(kis_external_http_session& session,
+        const std::string& name, const std::string& value) {
+    auto problem = external_header_problem(name, value);
+
+    if (problem.empty() && session.header_count >= kis_external_max_headers)
+        problem = fmt::format("more than {} headers", kis_external_max_headers);
+
+    if (!problem.empty())
+        return fmt::format("HTTP response header '{}' ({})",
+                munge_to_printable(name.substr(0, kis_external_max_header_name_len)), problem);
+
+    session.connection->append_header(name, value);
+    session.header_count++;
+    return {};
+}
+
+bool kis_external_interface::eventbus_subscription_ok(const std::string& event) {
+    return eventbus_callback_map.find(event) != eventbus_callback_map.end() ||
+        eventbus_callback_map.size() < kis_external_max_event_subs;
+}
+
+std::string kis_external_interface::eventbus_refusal(size_t refused, size_t requested) {
+    if (refused == 0)
+        return {};
+
+    return fmt::format("{} of {} eventbus subscriptions (more than {} events)",
+            refused, requested, kis_external_max_event_subs);
+}
+
 bool kis_external_interface::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer, uint16_t command,
         uint16_t code, uint32_t seqno, const std::string_view& content) {
     // V3 dispatcher based on packet type numbers, carrying msgpacked payloads.
 
     // Implementations should directly call this for automatic dispatch before implementing
     // their own dispatch if this returns false.
+
+    // Refused server API commands are consumed and dropped, as unknown commands are
+    const auto server_api_cmd = kis_external_v3_server_api_cmd(command);
+    if (!server_api_cmd.empty() && !server_api_permitted(server_api_cmd))
+        return true;
 
     switch (command) {
         case KIS_EXTERNAL_V3_CMD_MESSAGE:
@@ -978,8 +1124,8 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
     mpack_tree_init_data(&tree, in_content.data(), in_content.length());
 
     if (!mpack_tree_try_parse(&tree)) {
-        _MSG_ERROR("Kismet external interface got unparseable v3 MESSAGE");
-        trigger_error("invalid v3 MESSAGE");
+        handle_peer_error(kis_external_peer_error::bad_message,
+                "Kismet external interface got unparseable v3 MESSAGE", "invalid v3 MESSAGE");
         return;
     }
 
@@ -992,8 +1138,8 @@ void kis_external_interface::handle_packet_message_v3(uint32_t in_seqno,
     auto message_sz = mpack_node_data_len(message_n);
 
     if (mpack_tree_error(&tree) != mpack_ok) {
-        _MSG_ERROR("Kismet external interface got malformed v3 MESSAGE");
-        trigger_error("invalid v3 MESSAGE");
+        handle_peer_error(kis_external_peer_error::bad_message,
+                "Kismet external interface got malformed v3 MESSAGE", "invalid v3 MESSAGE");
 
         return;
     }
@@ -1063,11 +1209,11 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
         KismetEventBus::EventbusEvent ebe;
         ebe.set_event_json(ss.str());
 
-        if (protocol_version == 2) {
+        // Logging here for a v2 peer subscribed to MESSAGE events fed itself
+        if (protocol_version == 2)
             send_packet_v2("EVENT", 0, ebe);
-        }
 
-        _MSG_ERROR("unhandled legacy protocol version {}", protocol_version.load());
+        return;
     }
 #endif
 
@@ -1098,7 +1244,7 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
 
 void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register_v3");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register_v3");
 
     mpack_tree_raii tree;
     mpack_node_t root;
@@ -1121,6 +1267,7 @@ void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqn
     }
 
     auto events_sz = mpack_node_array_length(evtlist);
+    size_t n_refused = 0;
 
     for (size_t szi = 0; szi < events_sz; szi++) {
         auto evt_n = mpack_node_array_at(evtlist, szi);
@@ -1134,6 +1281,11 @@ void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqn
         }
 
         auto evt = std::string(evt_s, evt_sz);
+
+        if (!eventbus_subscription_ok(evt)) {
+            n_refused++;
+            continue;
+        }
 
         auto k = eventbus_callback_map.find(evt);
 
@@ -1151,6 +1303,12 @@ void kis_external_interface::handle_packet_eventbus_register_v3(uint32_t in_seqn
 
         eventbus_callback_map[evt] = eid;
     }
+
+    const auto problem = eventbus_refusal(n_refused, events_sz);
+    lk.unlock();
+
+    if (!problem.empty())
+        log_refusal(event_refusal_log, problem);
 }
 
 void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno,
@@ -1174,9 +1332,17 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
     auto evt_type_s = mpack_node_str(evt_type_n);
     auto evt_type_sz = mpack_node_data_len(evt_type_n);
 
-    auto evt_event_n = mpack_node_map_uint(root, KIS_EXTERNAL_V3_EVT_EVENTREGISTER_FIELD_EVENT);
-    auto evt_event_s = mpack_node_str(evt_event_n);
-    auto evt_event_sz = mpack_node_data_len(evt_event_n);
+    // Content is optional; without it the event carries an empty string
+    auto evt_event_n = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_EVT_EVENTPUBLISH_FIELD_EVENT);
+    std::string evt_event;
+
+    if (!mpack_node_is_missing(evt_event_n)) {
+        auto evt_event_s = mpack_node_str(evt_event_n);
+        auto evt_event_sz = mpack_node_data_len(evt_event_n);
+
+        if (mpack_tree_error(&tree) == mpack_ok)
+            evt_event = std::string(evt_event_s, evt_event_sz);
+    }
 
     if (mpack_tree_error(&tree) != mpack_ok) {
         _MSG_ERROR("Kismet external interface got unparseable v3 EVENTPUBLISH");
@@ -1185,7 +1351,6 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
         return;
     }
 
-    auto evt_event = std::string(evt_event_s, evt_event_sz);
     auto evt_type = std::string(evt_type_s, evt_type_sz);
 
     auto evt = eventbus->get_eventbus_event(evt_type);
@@ -1196,9 +1361,7 @@ void kis_external_interface::handle_packet_eventbus_publish_v3(uint32_t in_seqno
 
 void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register_v3");
-
-    const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register_v3");
 
     mpack_tree_raii tree;
     mpack_node_t root;
@@ -1275,15 +1438,19 @@ void kis_external_interface::handle_packet_http_register_v3(uint32_t in_seqno,
                     http_proxy_session_map.erase(mi);
                 });
 
-    http_route_handlers.push_back(handler);
-    httpd->register_route(uri, {method}, httpd->LOGON_ROLE, handler);
+    const auto problem = register_proxy_route(uri, method, handler);
+    lk.unlock();
+
+    if (!problem.empty())
+        log_refusal(route_refusal_log, problem);
 }
 
 void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response_v3");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response_v3");
 
-    const auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    // A refused header is dropped and the response goes on; logged once the lock is released
+    std::string header_problem;
 
     mpack_tree_raii tree;
     mpack_node_t root;
@@ -1342,7 +1509,9 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
             auto hdr_key = std::string(key_s, key_sz);
             auto hdr_val = std::string(hdr_s, hdr_sz);
 
-            session->connection->append_header(hdr_key, hdr_val);
+            auto problem = append_proxy_header(*session, hdr_key, hdr_val);
+            if (header_problem.empty())
+                header_problem = std::move(problem);
         }
     }
 
@@ -1386,26 +1555,20 @@ void kis_external_interface::handle_packet_http_response_v3(uint32_t in_seqno,
             session->locker->unlock();
         }
     }
+
+    lk.unlock();
+
+    if (!header_problem.empty())
+        log_refusal(header_refusal_log, header_problem);
 }
 
 void kis_external_interface::handle_packet_http_auth_request_v3(uint32_t in_seqno,
         uint16_t code, const std::string_view& in_content) {
-    auto io = get_io();
-    if (io == nullptr)
-        return;
+    // Only reached by plugins Kismet launched itself (server_api_permitted)
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
 
-    if (io->is_remote() && !allow_remote_web_auth_) {
-        _MSG_ERROR("Remote capture connection from {} requested a web auth token, which "
-                "is blocked by the current Kismet config (remote_capture_allow_http_auth)",
-                io->remote_addresss());
-        trigger_error("Remote capture connections can not request web auth tokens, check "
-                "your Kismet configuration");
-    } else {
-        auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
-        auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
-
-        send_http_auth_v3(token);
-    }
+    send_http_auth_v3(token);
 }
 
 unsigned int kis_external_interface::send_http_request_v3(uint32_t in_http_sequence,
@@ -1554,6 +1717,11 @@ bool kis_external_interface::dispatch_rx_packet(const std::string_view& command,
         uint32_t seqno, const std::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
+
+    // Refused server API commands are consumed and dropped, as unknown commands are
+    if (kis_external_v2_server_api_cmd(command) && !server_api_permitted(command))
+        return true;
+
     if (command.compare("MESSAGE") == 0) {
         handle_packet_message(seqno, content);
         return true;
@@ -1592,8 +1760,8 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno,
     KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromArray(in_content.data(), in_content.size())) {
-        _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
-        trigger_error("Invalid MESSAGE");
+        handle_peer_error(kis_external_peer_error::bad_message,
+                "Kismet external interface got an unparsable MESSAGE", "Invalid MESSAGE");
         return;
     }
 
@@ -1607,14 +1775,14 @@ void kis_external_interface::handle_packet_ping(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_pong(uint32_t in_seqno,
         const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong");
-
     KismetExternal::Pong p;
     if (!p.ParseFromArray(in_content.data(), in_content.size())) {
-        _MSG("Kismet external interface got an unparsable PONG packet", MSGFLAG_ERROR);
-        trigger_error("Invalid PONG");
+        handle_peer_error(kis_external_peer_error::bad_pong,
+                "Kismet external interface got an unparsable PONG packet", "Invalid PONG");
         return;
     }
+
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong");
 
     last_pong = time(0);
 
@@ -1641,7 +1809,7 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
         const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register");
 
     KismetEventBus::EventbusRegisterListener evtlisten;
 
@@ -1651,7 +1819,14 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
         return;
     }
 
+    size_t n_refused = 0;
+
     for (int e = 0; e < evtlisten.event_size(); e++) {
+        if (!eventbus_subscription_ok(evtlisten.event(e))) {
+            n_refused++;
+            continue;
+        }
+
         auto k = eventbus_callback_map.find(evtlisten.event(e));
 
         if (k != eventbus_callback_map.end())
@@ -1668,6 +1843,12 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
 
         eventbus_callback_map[evtlisten.event(e)] = eid;
     }
+
+    const auto problem = eventbus_refusal(n_refused, static_cast<size_t>(evtlisten.event_size()));
+    lk.unlock();
+
+    if (!problem.empty())
+        log_refusal(event_refusal_log, problem);
 }
 
 void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
@@ -1690,7 +1871,7 @@ void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
         const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register");
 
     KismetExternalHttp::HttpRegisterUri uri;
 
@@ -1699,8 +1880,6 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
         trigger_error("Invalid HTTPREGISTERURI");
         return;
     }
-
-    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     auto handler = std::make_shared<kis_net_web_function_endpoint>(
                 [this, weak = weak_from_this()](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -1746,13 +1925,19 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
                         http_proxy_session_map.erase(mi);
             });
 
-    http_route_handlers.push_back(handler);
-    httpd->register_route(uri.uri(), {uri.method()}, httpd->LOGON_ROLE, handler);
+    const auto problem = register_proxy_route(uri.uri(), uri.method(), handler);
+    lk.unlock();
+
+    if (!problem.empty())
+        log_refusal(route_refusal_log, problem);
 }
 
 void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
         const std::string_view& in_content) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response");
+
+    // A refused header is dropped and the response goes on; logged once the lock is released
+    std::string header_problem;
 
     KismetExternalHttp::HttpResponse resp;
 
@@ -1777,7 +1962,9 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
     try {
         for (int hi = 0; hi < resp.header_content_size() && resp.header_content_size() > 0; hi++) {
             KismetExternalHttp::SubHttpHeader hh = resp.header_content(hi);
-            session->connection->append_header(hh.header(), hh.content());
+            auto problem = append_proxy_header(*session, hh.header(), hh.content());
+            if (header_problem.empty())
+                header_problem = std::move(problem);
         }
     } catch (const std::runtime_error& e) {
         _MSG_ERROR("Kismet external interface failed setting HTTPRESPONSE headers - {}", e.what());
@@ -1806,6 +1993,11 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
         session->connection->response_stream().complete();
         session->locker->unlock();
     }
+
+    lk.unlock();
+
+    if (!header_problem.empty())
+        log_refusal(header_refusal_log, header_problem);
 }
 
 void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
@@ -1818,19 +2010,7 @@ void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
         return;
     }
 
-    auto io = get_io();
-    if (io == nullptr)
-        return;
-
-    if (io->is_remote() && !allow_remote_web_auth_) {
-        _MSG_ERROR("Remote capture connection from {} requested a web auth token, which "
-                "is blocked by the current Kismet config (remote_capture_allow_http_auth)",
-                io->remote_addresss());
-        trigger_error("Remote capture connections can not request web auth tokens, check "
-                "your Kismet configuration");
-        return;
-    }
-
+    // Only reached by plugins Kismet launched itself (server_api_permitted)
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
     auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
 

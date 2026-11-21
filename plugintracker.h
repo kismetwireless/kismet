@@ -335,6 +335,9 @@ public:
     }
 
 protected:
+    // The only peer that may register web routes, request web logins and use the eventbus
+    virtual bool accepts_server_api() override { return true; }
+
     std::string plugin_name;
 };
 

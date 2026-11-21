@@ -556,18 +556,38 @@ public:
     virtual bool dispatch_rx_packet(const std::string_view& command,
             uint32_t seqno, const std::string_view& content) override;
     virtual void handle_packet_newsource(uint32_t in_seqno, std::string_view in_packet);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string_view& in_content) override;
 #endif
 
     virtual bool dispatch_rx_packet_v3(std::shared_ptr<boost::asio::streambuf> buffer,
             uint16_t command, uint16_t code, uint32_t seqno,
             const std::string_view& content) override;
     virtual void handle_packet_newsource_v3(uint32_t in_seqno, uint16_t in_code, std::string_view in_packet);
+    virtual void handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_content) override;
 
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
-        _MSG(fmt::format("(Remote) - {}", msg), msgtype);
-    }
+    // Before NEWSOURCE anyone can connect, so every line the base interface would log about
+    // what the peer sends is rate limited here across all connections, one limiter per kind,
+    // and the connection is closed without a second line from handle_error
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override;
+    virtual void handle_frame_error(kis_external_frame_error in_error, size_t in_data_sz) override;
+    virtual void handle_peer_error(kis_external_peer_error in_error, std::string_view in_line,
+            const std::string& in_reason) override;
 
     virtual void kill();
+
+    // "Remote capture connection from <address>", to start log lines about this connection;
+    // the transport read the address when the connection was accepted
+    std::string remote_log_prefix();
+
+    // Log a line through its limiter with that prefix; the prefix and text are only built
+    // when the line is due, so pass arguments that cost nothing to evaluate
+    template <typename... A>
+    void log_limited(kis_log_limiter& limiter, int flags,
+            fmt::format_string<censor::detail::adapt_t<A>...> f, const A&... a) {
+        if (const auto suppressed = limiter.due())
+            kis_log_limited_inject(remote_log_prefix(), censor::format(f, a...), *suppressed, flags);
+    }
 
     virtual void handshake_rb(std::thread t) {
         std::swap(handshake_thread, t);
@@ -582,6 +602,13 @@ protected:
     callback_t cb;
 
     std::thread handshake_thread;
+
+    // Only the handshake may come before NEWSOURCE; anything else closes the connection
+    void refuse_handshake(std::string_view v2_command);
+    void refuse_handshake(uint16_t v3_command);
+
+    // A peer asked to close before NEWSOURCE, with its reason if it gave one
+    void handle_remote_shutdown(bool in_parsed, const std::optional<std::string>& in_reason);
 };
 
 

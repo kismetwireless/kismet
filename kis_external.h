@@ -43,6 +43,7 @@
 #include "globalregistry.h"
 #include "ipctracker_v2.h"
 #include "kis_external_packet.h"
+#include "kis_external_policy.h"
 #include "kis_net_beast_httpd.h"
 
 #include "boost/asio.hpp"
@@ -69,6 +70,39 @@ namespace KismetExternal {
 struct kis_external_http_session {
     std::shared_ptr<kis_net_beast_httpd_connection> connection;
     std::shared_ptr<conditional_locker<int> > locker;
+    size_t header_count = 0;
+};
+
+// Log a line a peer can cause through its limiter, with the count of lines held back since the
+// last one; the text isn't formatted when the line is held back.  A non-empty who goes first,
+// as in "Remote capture connection from 192.0.2.1 sent ..."
+void kis_log_limited_inject(std::string_view who, const censor::marked_string& msg,
+        uint64_t suppressed, int flags);
+
+template <typename... A>
+void kis_log_limited(kis_log_limiter& limiter, int flags, std::string_view who,
+        fmt::format_string<censor::detail::adapt_t<A>...> f, const A&... a) {
+    const auto suppressed = limiter.due();
+
+    if (suppressed)
+        kis_log_limited_inject(who, censor::format(f, a...), *suppressed, flags);
+}
+
+// Frames kis_external_io can't read; the connection is closed
+enum class kis_external_frame_error : uint8_t {
+    bad_signature,
+    oversized,
+};
+
+// Other things a peer can send or do that close its connection
+enum class kis_external_peer_error : uint8_t {
+    short_frame,
+    unknown_protocol,
+    oversized_command,
+    failed_command,
+    bad_message,
+    bad_pong,
+    write_failed,
 };
 
 class kis_external_interface;
@@ -209,7 +243,8 @@ public:
     kis_external_tcp(std::shared_ptr<kis_external_interface> iface,
             tcp::socket& socket) :
         kis_external_io{iface},
-        tcpsocket_{std::move(socket)} { }
+        tcpsocket_{std::move(socket)},
+        remote_address_{endpoint_address(tcpsocket_)} { }
 
     virtual ~kis_external_tcp() override;
 
@@ -225,9 +260,17 @@ public:
     virtual void close() override;
     void close_impl();
 
-    virtual std::string remote_addresss() override;
+    // The peer address, or empty if it is already gone
+    static std::string endpoint_address(const tcp::socket& socket);
+
+    virtual std::string remote_addresss() override {
+        return remote_address_;
+    }
 
     tcp::socket tcpsocket_;
+
+    // Read once from the accepted socket; asking it later races the strand closing it
+    const std::string remote_address_;
 };
 
 class kis_external_ws : public kis_external_io {
@@ -240,7 +283,8 @@ public:
         kis_external_io(iface),
         ws_{ws},
         ws_strand_{ws->strand()},
-        write_cb_{write_cb} { }
+        write_cb_{write_cb},
+        remote_address_{ws->remote_address()} { }
 
     virtual boost::asio::io_context::strand &strand() override {
         return ws_strand_;
@@ -262,6 +306,9 @@ public:
     std::shared_ptr<kis_net_web_websocket_endpoint> ws_;
     boost::asio::io_context::strand ws_strand_;
     cb_func_t write_cb_;
+
+    // Read once, before the websocket runs; asking it later races the strand closing it
+    const std::string remote_address_;
 };
 
 // External interface API bridge;
@@ -320,6 +367,21 @@ public:
         protocol_version.store(version);
     }
 
+    // The peer sent a frame that can't be read; log it and close the connection
+    virtual void handle_frame_error(kis_external_frame_error in_error, size_t in_data_sz);
+    static std::string frame_error_reason(kis_external_frame_error in_error);
+
+    // The peer sent something else that can't be handled, or its connection failed: log
+    // in_line and close with in_reason.  Not called with ext_mutex held.
+    virtual void handle_peer_error(kis_external_peer_error in_error, std::string_view in_line,
+            const std::string& in_reason);
+
+    // The reason in a SHUTDOWN, as sent (nullopt when it gives none); false when it can't be parsed
+    static bool shutdown_reason_v3(std::string_view in_content, std::optional<std::string>& out_reason);
+#ifdef HAVE_PROTOBUF_CPP
+    static bool shutdown_reason_v2(std::string_view in_content, std::optional<std::string>& out_reason);
+#endif
+
     // We use the raw http server APIs instead of the newer endpoint handlers because we
     // potentially mess with the headers and other internals
 
@@ -346,6 +408,27 @@ protected:
 
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
+
+    // Web routes, web logins and the eventbus are only for external plugins Kismet launches
+    // itself (external_http_plugin_harness); capture helpers, remote captures and anything
+    // else never get them
+    virtual bool accepts_server_api() { return false; }
+
+    // Who is on the other end, for log lines; not under ext_mutex (datasources take data_mutex)
+    virtual std::string external_peer_name();
+
+    // Whether this peer may use a web or eventbus command; logs a refusal at most once a minute
+    bool server_api_permitted(std::string_view command);
+
+    // Refusals a peer can repeat per request or per command, one limiter per kind
+    static constexpr int64_t refusal_log_interval_s = 60;
+    kis_log_limiter server_api_refusal_log{refusal_log_interval_s};
+    kis_log_limiter route_refusal_log{refusal_log_interval_s};
+    kis_log_limiter header_refusal_log{refusal_log_interval_s};
+    kis_log_limiter event_refusal_log{refusal_log_interval_s};
+
+    // Log a refusal from the helpers below, with the peer name; ext_mutex must not be held
+    void log_refusal(kis_log_limiter& limiter, const std::string& problem);
 
     // Metafunction to send a packet.  If Protobufs is enabled and our version is
     // <= 2, use the protobufs v2 generation, translating the v3 packet type
@@ -581,17 +664,25 @@ protected:
             std::map<std::string, std::string> in_postdata);
     unsigned int send_http_auth_v3(const std::string& in_session);
 
+    // Shared by the v2 and v3 handlers; caller holds ext_mutex.  The string ones return what
+    // was refused, for log_refusal once the lock is released, or empty when it was taken
+    std::string register_proxy_route(const std::string& uri, const std::string& method,
+            std::shared_ptr<kis_net_web_endpoint> handler);
+    std::string append_proxy_header(kis_external_http_session& session, const std::string& name,
+            const std::string& value);
+    bool eventbus_subscription_ok(const std::string& event);
+    static std::string eventbus_refusal(size_t refused, size_t requested);
+
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
     std::vector<std::shared_ptr<kis_net_web_endpoint>> http_route_handlers;
+    const uint64_t http_route_owner{next_external_route_owner()};
 
     // send a specially hand-crafted ping to determine if we have a legacy v2 datasource
     unsigned int send_v2_probe_ping();
     bool v2_probe_ack;
     virtual void handle_v2_pong_event() { }
-
-    bool allow_remote_web_auth_;
 
 public:
     static const int result_handle_packet_cancelled = -2;

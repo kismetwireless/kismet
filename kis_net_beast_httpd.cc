@@ -40,6 +40,7 @@
 #include "alertracker.h"
 #include "base64.h"
 #include "configfile.h"
+#include "kis_external_policy.h"
 #include "messagebus.h"
 #include "util.h"
 
@@ -111,6 +112,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
     conn_mutex.set_name("kis_net_beast_httpd connections");
+    static_dir_mutex.set_name("kis_net_beast_httpd static dirs");
 
     // Reported by fetch_port() and fetch_using_ssl(), for the server announcement and the console
     port = endpoint.port();
@@ -1334,10 +1336,53 @@ void kis_net_beast_httpd::remove_route(const std::string& route) {
 void kis_net_beast_httpd::remove_route(const std::shared_ptr<kis_net_web_endpoint>& handler) {
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd remove_route handler");
 
-    route_vec.erase(std::remove_if(route_vec.begin(), route_vec.end(),
-                [&handler](const std::shared_ptr<kis_net_beast_route>& r) {
-                    return r->get_handler() == handler;
-                }), route_vec.end());
+    const auto owned = [&handler](const std::shared_ptr<kis_net_beast_route>& r) {
+        return r->get_handler() == handler;
+    };
+
+    route_vec.erase(std::remove_if(route_vec.begin(), route_vec.end(), owned), route_vec.end());
+    std::erase_if(external_route_vec, [&owned](const external_route& e) { return owned(e.route); });
+}
+
+std::string kis_net_beast_httpd::register_external_route(const std::string& path, const std::string& verb,
+        uint64_t owner, std::shared_ptr<kis_net_web_endpoint> handler) {
+    auto problem = external_route_problem(path);
+    if (!problem.empty())
+        return problem;
+
+    if (!external_route_verb_ok(verb))
+        return "method must be GET, POST, PUT or DELETE";
+
+    // Files and built-in routes win at request time anyway; refusing here tells the plugin
+    if (static_file_exists(path))
+        return "path is a static file";
+
+    // Every route regex is built and matched under route_mutex, as std::regex's locale use races
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_external_route");
+
+    kis_net_beast_httpd_connection::uri_param_t params;
+    http_var_map_t vars;
+
+    for (const auto& r : route_vec)
+        if (r->match_url(path, params, vars))
+            return "path is served by a built-in route";
+
+    // Plugin routes are literal, so the same request path is the same string
+    for (const auto& e : external_route_vec) {
+        if (e.path != path)
+            continue;
+
+        auto clash = external_route_clash(owner, verb, e.owner, e.verb);
+        if (!clash.empty())
+            return clash;
+    }
+
+    // No peer-chosen regex: the pattern is the escaped literal path
+    external_route_vec.emplace_back(external_route{owner, path, verb,
+            std::make_shared<kis_net_beast_route>(external_route_pattern(path),
+                std::list<boost::beast::http::verb>{boost::beast::http::string_to_verb(verb)},
+                true, std::list<std::string>{LOGON_ROLE}, handler)});
+    return {};
 }
 
 void kis_net_beast_httpd::register_unauth_route(const std::string& route,
@@ -1593,14 +1638,46 @@ void kis_net_beast_httpd::load_auth() {
 }
 
 std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd find_endpoint");
+    const auto uri = static_cast<const std::string>(con->uri());
+    std::shared_ptr<kis_net_beast_route> external;
 
-    for (const auto& r : route_vec) {
-        if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_))
-            return r;
+    {
+        kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd find_endpoint");
+
+        for (const auto& r : route_vec) {
+            if (r->match_url(uri, con->uri_params_, con->http_variables_))
+                return r;
+        }
+
+        // One route per verb on a plugin path; take the request's verb, or any route on the
+        // path so the request gets a 405
+        const external_route *path_match = nullptr;
+
+        for (const auto& e : external_route_vec) {
+            if (path_match == nullptr) {
+                if (!e.route->match_url(uri, con->uri_params_, con->http_variables_))
+                    continue;
+                path_match = &e;
+            } else if (e.path != path_match->path) {
+                continue;
+            }
+
+            if (e.route->match_verb(con->verb())) {
+                external = e.route;
+                break;
+            }
+        }
+
+        if (external == nullptr && path_match != nullptr)
+            external = path_match->route;
     }
 
-    return nullptr;
+    // Plugin routes come after static files too; only a matched one costs a file check, and
+    // that stays outside the route lock
+    if (external != nullptr && static_file_exists(uri.substr(0, uri.find('?'))))
+        return nullptr;
+
+    return external;
 }
 
 std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -1636,15 +1713,27 @@ namespace {
 std::string kis_net_beast_httpd::static_content_stamp() {
     stamp_acc = {0, 0, 0};
 
+    const auto dirs = static_dirs();
+
     // Physical walk; symlinked directories aren't followed
-    for (const auto& sd : static_dir_vec)
+    for (const auto& sd : *dirs)
         nftw(sd.path.c_str(), content_stamp_walk, 16, FTW_PHYS);
 
     return fmt::format("{}:{}:{}", stamp_acc.newest, stamp_acc.count, stamp_acc.bytes);
 }
 
+std::shared_ptr<const kis_net_beast_httpd::static_dir_list> kis_net_beast_httpd::static_dirs() {
+    kis_lock_guard<kis_mutex> lk(static_dir_mutex, "beast_httpd static_dirs");
+    return static_dir_vec;
+}
+
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
-    static_dir_vec.emplace_back(static_content_dir(prefix, path));
+    kis_lock_guard<kis_mutex> lk(static_dir_mutex, "beast_httpd register_static_dir");
+
+    // Copied, so a snapshot a request is walking never changes under it
+    auto dirs = std::make_shared<static_dir_list>(*static_dir_vec);
+    dirs->emplace_back(prefix, path);
+    static_dir_vec = std::move(dirs);
 }
 
 std::string kis_net_beast_httpd::escape_html(const boost::beast::string_view& html) {
@@ -1675,44 +1764,75 @@ std::string kis_net_beast_httpd::escape_html(const boost::beast::string_view& ht
     return ss.str();
 }
 
-bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con,
-                                     std::string uri) {
-    boost::beast::error_code ec;
-
+std::string kis_net_beast_httpd::static_file_uri(std::string uri) {
     if (uri.length() == 0)
         uri = "/index.html";
     else if (uri.back() == '/')
         uri += "index.html";
 
-    for (auto sd : static_dir_vec) {
+    return uri;
+}
+
+std::optional<std::string> kis_net_beast_httpd::static_dir_file(const static_content_dir& sd,
+        const std::string& uri) {
+    if (uri.size() < sd.prefix.size())
+        return std::nullopt;
+
+    if (uri.find(sd.prefix) != 0)
+        return std::nullopt;
+
+    auto modified_fpath = sd.path + "/" + uri.substr(sd.prefix.length(), uri.length());
+
+    const auto base_realpath = realpath_string(sd.path);
+    const auto modified_realpath = realpath_string(modified_fpath);
+
+    if (!base_realpath || !modified_realpath)
+        return std::nullopt;
+
+    // A matching path prefix alone can also match a sibling directory.
+    const auto& base = *base_realpath;
+    const auto& modified = *modified_realpath;
+    if (!modified.starts_with(base) ||
+            (base.back() != '/' && modified.size() > base.size() &&
+             modified[base.size()] != '/'))
+        return std::nullopt;
+
+    // Only regular files; a directory opens, but reading it fails and the request hangs
+    struct stat st;
+    if (stat(modified.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
+        return std::nullopt;
+
+    return modified;
+}
+
+bool kis_net_beast_httpd::static_file_exists(const std::string& uri) {
+    const auto file_uri = static_file_uri(uri);
+
+    const auto dirs = static_dirs();
+
+    for (const auto& sd : *dirs)
+        if (static_dir_file(sd, file_uri))
+            return true;
+
+    return false;
+}
+
+bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con,
+                                     std::string uri) {
+    boost::beast::error_code ec;
+
+    uri = static_file_uri(uri);
+
+    const auto dirs = static_dirs();
+
+    for (const auto& sd : *dirs) {
         ec = {};
 
-        if (uri.size() < sd.prefix.size())
+        const auto file = static_dir_file(sd, uri);
+        if (!file)
             continue;
 
-        if (uri.find(sd.prefix) != 0)
-            continue;
-
-        auto modified_fpath = sd.path + "/" + uri.substr(sd.prefix.length(), uri.length());
-
-        const auto base_realpath = realpath_string(sd.path);
-        const auto modified_realpath = realpath_string(modified_fpath);
-
-        if (!base_realpath || !modified_realpath)
-            continue;
-
-        // A matching path prefix alone can also match a sibling directory.
-        const auto& base = *base_realpath;
-        const auto& modified = *modified_realpath;
-        if (!modified.starts_with(base) ||
-                (base.back() != '/' && modified.size() > base.size() &&
-                 modified[base.size()] != '/'))
-            continue;
-
-        // Only regular files; a directory opens, but reading it fails and the request hangs
-        struct stat st;
-        if (stat(modified.c_str(), &st) != 0 || !S_ISREG(st.st_mode))
-            continue;
+        const auto& modified = *file;
 
         boost::beast::http::file_body::value_type body;
         body.open(modified.c_str(), boost::beast::file_mode::scan, ec);

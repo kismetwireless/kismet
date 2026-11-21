@@ -25,6 +25,7 @@
 #include <condition_variable>
 #include <future>
 #include <list>
+#include <optional>
 #include <regex>
 #include <string>
 #include <thread>
@@ -132,6 +133,13 @@ public:
     // owner's route on the same path
     void remove_route(const std::shared_ptr<kis_net_web_endpoint>& handler);
 
+    // A route for an external plugin helper: a literal path (external_route_problem), with a
+    // login.  It is only used when no built-in route and no static file match the request, so
+    // it can't shadow the server's own content.  A path belongs to the first owner to register
+    // it (external_route_clash).  Returns why it was refused, or empty
+    std::string register_external_route(const std::string& path, const std::string& verb,
+            uint64_t owner, std::shared_ptr<kis_net_web_endpoint> handler);
+
     // These routes do NOT require authentication; this is of course very dangerous and should
     // be limited to those endpoints used for logging in, etc
     void register_unauth_route(const std::string& route, const std::list<std::string>& verbs,
@@ -173,8 +181,7 @@ public:
     static std::string admin_login_problem(const std::string& value);
 
 
-    // Map a content directory into the virtual paths.  This is NOT THREAD SAFE and must not be
-    // called concurrently or while the webserver is serving content.
+    // Map a content directory into the virtual paths
     void register_static_dir(const std::string& prefix, const std::string& path);
 
     // The newest modification time, count, and size of the files in the static
@@ -232,6 +239,13 @@ protected:
     kis_mutex route_mutex;
     std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
     std::vector<std::shared_ptr<kis_net_beast_route>> websocket_route_vec;
+    struct external_route {
+        uint64_t owner = 0;
+        std::string path;
+        std::string verb;
+        std::shared_ptr<kis_net_beast_route> route;
+    };
+    std::vector<external_route> external_route_vec;
 
     kis_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
@@ -245,7 +259,19 @@ protected:
         std::string prefix;
         std::string path;
     };
-    std::vector<static_content_dir> static_dir_vec;
+
+    // Plugins add static dirs while requests are served; readers walk a snapshot taken under
+    // static_dir_mutex, which is never held across file access or another lock
+    using static_dir_list = std::vector<static_content_dir>;
+    kis_mutex static_dir_mutex;
+    std::shared_ptr<const static_dir_list> static_dir_vec = std::make_shared<const static_dir_list>();
+    std::shared_ptr<const static_dir_list> static_dirs();
+
+    // A request path as a file request (index.html for a directory), and the regular file a
+    // static dir serves for it, never outside the dir
+    static std::string static_file_uri(std::string uri);
+    static std::optional<std::string> static_dir_file(const static_content_dir& sd, const std::string& uri);
+    bool static_file_exists(const std::string& uri);
 
     // Directory of the legacy web UI's files, or empty
     std::string legacy_ui_dir;
