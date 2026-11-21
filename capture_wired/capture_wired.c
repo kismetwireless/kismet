@@ -29,6 +29,11 @@
  * also leaves root for the invoking user, or nobody, and gids 0 likewise, and
  * exits if it can't, or if it was built without libcap; see wired_priv.h.
  *
+ * Installed with cap_net_raw,cap_net_admin+ep and run as a user, it can also
+ * bring a down interface up (ifup=, default true): CAP_NET_ADMIN then lives only
+ * in a child forked first thing, which can do nothing but that; see
+ * wired_ifupd.h.
+ *
  * Built with -DWIRED_REPLAY (make -C capture_wired replay, never installed) it
  * reads a pcap file named by replay= instead of an interface, so the server
  * paths can be tested without privileges.
@@ -52,6 +57,7 @@
 
 #include "../capture_framework.h"
 
+#include "wired_ifupd.h"
 #include "wired_priv.h"
 #include "wired_sysfs.h"
 #include "wired_util.h"
@@ -95,6 +101,13 @@ typedef struct {
 
     /* What the privilege drop in main left */
     wired_priv_t priv;
+
+    /* The bring-up child, and whether this open brought the interface up */
+    wired_ifupd_t ifupd;
+    int brought_up;
+    /* The interface of a bring-up which timed out, reported as brought up when
+     * it's found up at the next open */
+    char late_ifname[WIRED_IFNAMSIZ];
 } local_wired_t;
 
 static uint64_t wired_mono_ms(void) {
@@ -399,9 +412,9 @@ static int wired_compile_selfprog(local_wired_t *lw, const char *selfexcl, char 
 }
 
 #ifndef WIRED_REPLAY
-static int wired_activate(local_wired_t *lw, char *msg) {
+/* The handle and its settings, which don't need the interface up */
+static int wired_create(local_wired_t *lw, char *msg) {
     char errstr[PCAP_ERRBUF_SIZE] = "";
-    int r;
 
     if ((lw->pd = pcap_create(lw->ifname, errstr)) == NULL) {
         snprintf(msg, STATUS_MAX, "Could not open '%s': %s", lw->ifname, errstr);
@@ -416,6 +429,12 @@ static int wired_activate(local_wired_t *lw, char *msg) {
                 pcap_geterr(lw->pd));
         return -1;
     }
+
+    return 1;
+}
+
+static int wired_activate(local_wired_t *lw, char *msg) {
+    int r;
 
     r = pcap_activate(lw->pd);
 
@@ -440,12 +459,17 @@ static int wired_activate(local_wired_t *lw, char *msg) {
 }
 #endif
 
-static int wired_apply_filter(kis_capture_handler_t *caph, local_wired_t *lw, char *msg) {
+/* The whole filter into filter (WIRED_FULL_FILTER_MAX), and *netmask for it,
+ * compiled once for Ethernet without the interface, so a mistake in it fails the
+ * open before the interface is brought up */
+static int wired_prepare_filter(kis_capture_handler_t *caph, local_wired_t *lw, char *filter,
+        bpf_u_int32 *netmask, char *msg) {
     char selfexcl[WIRED_SELFEXCL_MAX];
-    char filter[WIRED_FULL_FILTER_MAX];
     struct bpf_program prog;
-    bpf_u_int32 netmask = PCAP_NETMASK_UNKNOWN;
+    pcap_t *dead;
     int r;
+
+    *netmask = PCAP_NETMASK_UNKNOWN;
 
     if ((r = wired_remote_selfexcl(caph, lw, selfexcl, sizeof(selfexcl))) < 0) {
         snprintf(msg, STATUS_MAX, "Could not find the connection to the Kismet server to "
@@ -461,7 +485,7 @@ static int wired_apply_filter(kis_capture_handler_t *caph, local_wired_t *lw, ch
         return -1;
 
     if (wired_build_filter(lw->opts.has_filter ? lw->opts.filter : NULL, selfexcl,
-                filter, sizeof(filter)) < 0) {
+                filter, WIRED_FULL_FILTER_MAX) < 0) {
         snprintf(msg, STATUS_MAX, "Filter for '%s' is too long", lw->ifname);
         return -1;
     }
@@ -476,9 +500,36 @@ static int wired_apply_filter(kis_capture_handler_t *caph, local_wired_t *lw, ch
         bpf_u_int32 net = 0, mask = 0;
 
         if (pcap_lookupnet(lw->ifname, &net, &mask, errstr) == 0 && mask != 0)
-            netmask = mask;
+            *netmask = mask;
     }
 #endif
+
+    if ((dead = pcap_open_dead(DLT_EN10MB, (int) WIRED_SNAPLEN_MAX)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory filtering '%s'", lw->ifname);
+        return -1;
+    }
+
+    r = pcap_compile(dead, &prog, filter, 1, *netmask);
+
+    if (r < 0)
+        snprintf(msg, STATUS_MAX, "Could not compile the filter for '%s': %s", lw->ifname,
+                pcap_geterr(dead));
+    else
+        pcap_freecode(&prog);
+
+    pcap_close(dead);
+
+    return r < 0 ? -1 : 1;
+}
+
+/* The filter wired_prepare_filter made, on the open handle */
+static int wired_set_filter(local_wired_t *lw, const char *filter, bpf_u_int32 netmask,
+        char *msg) {
+    struct bpf_program prog;
+    int r;
+
+    if (filter[0] == 0)
+        return 1;
 
     if (pcap_compile(lw->pd, &prog, filter, 1, netmask) < 0) {
         snprintf(msg, STATUS_MAX, "Could not compile the filter for '%s': %s", lw->ifname,
@@ -498,7 +549,89 @@ static int wired_apply_filter(kis_capture_handler_t *caph, local_wired_t *lw, ch
     return 1;
 }
 
-int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+#ifndef WIRED_REPLAY
+/* A down interface is brought up, never taken down again: it stays up when the
+ * source closes, as linuxwifi leaves its interfaces.  Returns 1 when it was
+ * brought up, 0 when it was left alone, or -1 with msg set */
+static int wired_bring_up(local_wired_t *lw, char *msg) {
+    const char *n = lw->ifname;
+    int r, e = 0, up;
+
+    if ((up = wired_nl_read_up(n)) < 0) {
+        snprintf(msg, STATUS_MAX, "Couldn't read whether interface '%s' is up", n);
+        return -1;
+    }
+
+    switch (wired_ifup_action(up, lw->opts.ifup)) {
+        case WIRED_IFUP_KEEP:
+            /* A request which timed out may have brought it up after all */
+            if (lw->late_ifname[0] != 0 && strcmp(lw->late_ifname, n) == 0) {
+                lw->late_ifname[0] = 0;
+                return 1;
+            }
+
+            return 0;
+        case WIRED_IFUP_REFUSE:
+            snprintf(msg, STATUS_MAX, "Interface '%s' is down, and ifup=false; bring it up with "
+                    "'ip link set %s up'", n, n);
+            return -1;
+        case WIRED_IFUP_BRING:
+        default:
+            break;
+    }
+
+    r = lw->ifupd.fd >= 0 ? wired_ifupd_request(&lw->ifupd, n, &e) : -1;
+
+    if (r == WIRED_IFUP_ALREADY)
+        return 0;
+
+    if (r == WIRED_IFUP_DONE) {
+        if (wired_nl_read_up(n) != 1) {
+            snprintf(msg, STATUS_MAX, "Interface '%s' did not come up", n);
+            return -1;
+        }
+
+        return 1;
+    }
+
+    if (r < 0 && lw->ifupd.timed_out)
+        snprintf(lw->late_ifname, sizeof(lw->late_ifname), "%s", n);
+
+    if (lw->ifupd.netns_foreign && r == WIRED_IFUP_FAILED && e == EPERM)
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down, and its network namespace belongs to "
+                "another user namespace, so kismet_cap_wired can't bring it up from here; bring "
+                "it up with 'ip link set %s up' outside this user namespace", n, n);
+    else if (r == WIRED_IFUP_FAILED && e == ESTALE)
+        snprintf(msg, STATUS_MAX, "Interface '%s' was renamed or removed while kismet_cap_wired "
+                "brought it up; check 'ip link' and open it by its name now", n);
+    else if (r == WIRED_IFUP_FAILED && e == EXDEV)
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down, and the /sys kismet_cap_wired sees "
+                "isn't its network namespace's, so it can't be told from Wi-Fi and isn't brought "
+                "up; bring it up with 'ip link set %s up'", n, n);
+    else if (r == WIRED_IFUP_FAILED)
+        snprintf(msg, STATUS_MAX, "Could not bring up '%s': %s", n, strerror(e));
+    else if (lw->ifupd.state == WIRED_IFUPD_NO_CAP)
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down, and kismet_cap_wired can't bring it "
+                "up without CAP_NET_ADMIN; bring it up with 'ip link set %s up', or install the "
+                "helper with 'setcap cap_net_raw,cap_net_admin+ep kismet_cap_wired'", n, n);
+    else if (lw->ifupd.state == WIRED_IFUPD_ROOT)
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down; kismet_cap_wired started with %s "
+                "doesn't bring interfaces up; bring it up with 'ip link set %s up'", n,
+                (lw->ifupd.root_ids & WIRED_ROOT_UID) ? "root's uid" :
+                "root's group (a gid or supplementary group 0)", n);
+    else if (lw->ifupd.timed_out)
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down, and kismet_cap_wired's bring-up "
+                "process isn't responding; bring it up with 'ip link set %s up'", n, n);
+    else
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down, and kismet_cap_wired's bring-up "
+                "process didn't answer (%s); bring it up with 'ip link set %s up'", n,
+                strerror(e != 0 ? e : EPIPE), n);
+
+    return -1;
+}
+#endif
+
+static int wired_open(kis_capture_handler_t *caph, char *definition,
         char *msg, uint32_t *dlt, char **uuid,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
@@ -506,7 +639,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
     char offloads[256] = "";
     char unknown[256] = "";
+    char filter[WIRED_FULL_FILTER_MAX] = "";
+    bpf_u_int32 netmask = PCAP_NETMASK_UNKNOWN;
 
+    lw->brought_up = 0;
     *uuid = NULL;
     *dlt = 0;
     *ret_spectrum = NULL;
@@ -563,6 +699,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    /* Everything a mistake in the options can fail goes before the bring-up */
+    if (wired_create(lw, msg) < 0 ||
+            wired_prepare_filter(caph, lw, filter, &netmask, msg) < 0) {
+        wired_close(lw);
+        return -1;
+    }
+
+    if ((lw->brought_up = wired_bring_up(lw, msg)) < 0) {
+        lw->brought_up = 0;
+        wired_close(lw);
+        return -1;
+    }
+
     if (wired_activate(lw, msg) < 0) {
         wired_close(lw);
         return -1;
@@ -583,6 +732,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
     }
+
+    if (wired_prepare_filter(caph, lw, filter, &netmask, msg) < 0) {
+        wired_close(lw);
+        return -1;
+    }
 #endif
 
     if (pcap_datalink(lw->pd) != DLT_EN10MB) {
@@ -592,7 +746,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    if (wired_apply_filter(caph, lw, msg) < 0) {
+    if (wired_set_filter(lw, filter, netmask, msg) < 0) {
         wired_close(lw);
         return -1;
     }
@@ -631,6 +785,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
+    if (lw->brought_up) {
+        snprintf(errstr, sizeof(errstr), "Interface '%s' was down; kismet_cap_wired brought it "
+                "up, and it stays up when the source closes", lw->ifname);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+    }
+
     if (lw->has_selfprog)
         wired_remote_path_warning(caph, lw);
 
@@ -651,12 +811,31 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_message(caph, errstr, MSGFLAG_ERROR);
     }
 
-    snprintf(msg, STATUS_MAX, "Opened Ethernet interface '%s' (snaplen %u%s%s%s)", lw->ifname,
-            lw->caplen_max, lw->opts.promisc ? ", promiscuous" : "",
+    snprintf(msg, STATUS_MAX, "Opened Ethernet interface '%s' (snaplen %u%s%s%s%s)", lw->ifname,
+            lw->caplen_max, lw->brought_up ? ", brought up" : "",
+            lw->opts.promisc ? ", promiscuous" : "",
             lw->opts.sample > 1 ? ", sampled" : "",
             lw->status.remote_excluded ? ", without the connection to the server" : "");
 
     return 1;
+}
+
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, uint32_t *dlt, char **uuid,
+        cf_params_interface_t **ret_interface,
+        cf_params_spectrum_t **ret_spectrum) {
+    local_wired_t *lw = (local_wired_t *) caph->userdata;
+    char failed[STATUS_MAX];
+    int r = wired_open(caph, definition, msg, dlt, uuid, ret_interface, ret_spectrum);
+
+    /* A failure after the bring-up says the interface was left up */
+    if (r < 0 && lw->brought_up) {
+        snprintf(failed, sizeof(failed), "%s; kismet_cap_wired brought '%s' up, and it stays up",
+                msg, lw->ifname);
+        snprintf(msg, STATUS_MAX, "%s", failed);
+    }
+
+    return r;
 }
 
 static void wired_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
@@ -883,6 +1062,19 @@ int main(int argc, char *argv[]) {
         return 0;
     } else if (r < 0) {
         cf_print_help(caph, argv[0]);
+        return -1;
+    }
+
+    /* The daemon fork would leave the bring-up child behind its exiting parent, so
+     * it goes first */
+    cf_handler_daemonize(caph);
+
+    /* Before any thread or connection: from here on only the bring-up child holds
+     * CAP_NET_ADMIN, and no --retry monitor or capture process does */
+    if (wired_ifupd_start(&local_wired.ifupd) < 0) {
+        fprintf(stderr, "FATAL: kismet_cap_wired could not drop CAP_NET_ADMIN: %s\n",
+                strerror(errno));
+        cf_handler_free(caph);
         return -1;
     }
 

@@ -883,6 +883,11 @@ int cf_handler_ws_remote_connect(kis_capture_handler_t *caph);
  */
 void cf_handler_remote_capture(kis_capture_handler_t *caph);
 
+/* The daemon fork cf_handler_remote_capture starts with, for a capture tool which
+ * has to fork its own processes after it and before the remote capture; only the
+ * first call forks */
+void cf_handler_daemonize(kis_capture_handler_t *caph);
+
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.
  *

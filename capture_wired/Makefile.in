@@ -3,6 +3,7 @@ include ../Makefile.inc
 MONITOR_OBJS = \
 	wired_util.c.o \
 	wired_sysfs.c.o \
+	wired_ifupd.c.o \
 	wired_priv.c.o \
 	capture_wired.c.o
 
@@ -10,14 +11,26 @@ MONITOR_BIN = kismet_cap_wired
 
 # Built on request, not by 'all', and never installed:
 #   make -C capture_wired test     unit tests, and the privilege drop test (run it
-#                                  unprivileged, or as root for the uid switch)
+#                                  unprivileged, or as root for the uid switch);
+#                                  runs the bring-up test on a veth pair in a
+#                                  user and network namespace of its own
 #   make -C capture_wired replay   the helper reading a pcap file (replay=) instead of
 #                                  an interface, for testing the server paths unprivileged
 TEST_BIN = ../test/wired_helper/wired_test
 TEST_OBJS = \
 	../test/wired_helper/wired_test.c.o \
 	wired_util.c.o \
-	wired_sysfs.c.o
+	wired_sysfs.c.o \
+	wired_ifupd.c.o \
+	wired_priv.c.o
+
+IFUP_TEST_BIN = ../test/wired_helper/ifup_test
+IFUP_TEST_OBJS = \
+	../test/wired_helper/ifup_test.c.o \
+	wired_util.c.o \
+	wired_sysfs.c.o \
+	wired_ifupd.c.o \
+	wired_priv.c.o
 
 PRIV_TEST_BIN = ../test/wired_helper/priv_test
 PRIV_TEST_OBJS = \
@@ -27,7 +40,7 @@ PRIV_TEST_OBJS = \
 
 REPLAY_DIR = replay
 REPLAY_BIN = $(REPLAY_DIR)/kismet_cap_wired
-REPLAY_SRCS = wired_util.c wired_sysfs.c wired_priv.c capture_wired.c
+REPLAY_SRCS = wired_util.c wired_sysfs.c wired_ifupd.c wired_priv.c capture_wired.c
 
 PCAPLIBS=@PCAPLIBS@
 CFLAGS+=@PCAPCFLAGS@
@@ -37,23 +50,55 @@ all: $(MONITOR_BIN)
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
 
-test: $(TEST_BIN) $(PRIV_TEST_BIN)
+test: $(TEST_BIN) $(PRIV_TEST_BIN) $(IFUP_TEST_BIN)
+	$(TEST_BIN)
+	@# The framework never frees its handler, which an ASan build reports
+	@ASAN_OPTIONS=$${ASAN_OPTIONS:+$$ASAN_OPTIONS:}detect_leaks=0 $(PRIV_TEST_BIN); r=$$?; \
+	if [ $$r -eq 77 ]; then \
+		echo "priv_test: skipped"; \
+	elif [ $$r -ne 0 ]; then \
+		exit $$r; \
+	fi
+	@if ! command -v ip >/dev/null 2>&1; then \
+		echo "ifup_test: skipped, no 'ip' command"; \
+	elif ! unshare -r -n -m true 2>/dev/null; then \
+		echo "ifup_test: skipped, no unprivileged user and network namespaces"; \
+	else \
+		unshare -r -n -m sh -c 'mount -t sysfs sysfs /sys || exit 77; \
+			ip link add wtest0 type veth peer name wtest1 || exit 77; \
+			exec $(IFUP_TEST_BIN) wtest0 wtest1'; r=$$?; \
+		if [ $$r -eq 77 ]; then \
+			echo "ifup_test: skipped, no sysfs mount or veth pair in a namespace of its own"; \
+		elif [ $$r -ne 0 ]; then \
+			exit $$r; \
+		fi; \
+		unshare -r -n sh -c 'ip link add wtest0 type veth peer name wtest1 || exit 77; \
+			exec $(IFUP_TEST_BIN) --host-sysfs wtest0'; r=$$?; \
+		if [ $$r -eq 77 ]; then \
+			echo "ifup_test --host-sysfs: skipped"; \
+		elif [ $$r -ne 0 ]; then \
+			exit $$r; \
+		fi; \
+	fi
 
 $(TEST_BIN): $(TEST_OBJS) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $@ $(TEST_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
+
+$(IFUP_TEST_BIN): $(IFUP_TEST_OBJS) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $@ $(IFUP_TEST_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
 
 $(PRIV_TEST_BIN): $(PRIV_TEST_OBJS) ../libkismetdatasource.a
 		$(CCLD) $(LDFLAGS) -o $@ $(PRIV_TEST_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS)
 
 replay: $(REPLAY_BIN)
 
-$(REPLAY_BIN): $(REPLAY_SRCS) wired_util.h wired_sysfs.h wired_priv.h ../libkismetdatasource.a
+$(REPLAY_BIN): $(REPLAY_SRCS) wired_util.h wired_sysfs.h wired_ifupd.h wired_priv.h ../libkismetdatasource.a
 		mkdir -p $(REPLAY_DIR)
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DWIRED_REPLAY $(LDFLAGS) -o $@ $(REPLAY_SRCS) \
 			../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
 
 clean:
-	@-rm -f $(MONITOR_BIN) $(TEST_BIN) $(PRIV_TEST_BIN) $(REPLAY_BIN)
+	@-rm -f $(MONITOR_BIN) $(TEST_BIN) $(PRIV_TEST_BIN) $(IFUP_TEST_BIN) $(REPLAY_BIN)
 	@-rm -f ../test/wired_helper/*.o ../test/wired_helper/*.d
 	@-rm -f *.o
 	@-rm -f *.d

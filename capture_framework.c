@@ -6944,9 +6944,7 @@ out:
 #endif
 }
 
-void cf_handler_remote_capture(kis_capture_handler_t *caph) {
-    int status;
-
+void cf_handler_daemonize(kis_capture_handler_t *caph) {
     /* If we're going into daemon mode, fork-exec and drop out here */
     if (caph->daemonize) {
         int pid = fork();
@@ -6960,7 +6958,16 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
             cf_handler_free(caph);
             exit(0);
         }
+
+        /* Once only, so cf_handler_remote_capture doesn't fork again */
+        caph->daemonize = 0;
     }
+}
+
+void cf_handler_remote_capture(kis_capture_handler_t *caph) {
+    int status;
+
+    cf_handler_daemonize(caph);
 
     /* Don't enter remote loop at all if we're not doing a remote connection */
     if (caph->use_ipc) {

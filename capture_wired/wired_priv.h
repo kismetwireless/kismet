@@ -66,4 +66,12 @@ typedef struct {
  * than CAP_NET_RAW */
 int wired_drop_privileges(kis_capture_handler_t *caph, wired_priv_t *p);
 
+/* Ids 0 held: a real, effective or saved uid or gid, or a supplementary group */
+#define WIRED_ROOT_UID          0x1
+#define WIRED_ROOT_GID          0x2
+#define WIRED_ROOT_GROUPS       0x4
+
+/* The WIRED_ROOT_* bits of the ids held, or -1 when they can't be read */
+int wired_root_ids(void);
+
 #endif

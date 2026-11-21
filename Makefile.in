@@ -727,11 +727,12 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
 	fi;
 
-	@# Not setuid: the wired helper needs CAP_NET_RAW only, as a file capability
+	@# Not setuid: the wired helper needs CAP_NET_RAW, as file capabilities with
+	@# CAP_NET_ADMIN, which only a child that can set an interface up keeps
 	@if test "$(BUILD_CAPTURE_WIRED)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 0750 $(CAPTURE_WIRED) $(BIN)/`basename $(CAPTURE_WIRED)` && \
-		if ! setcap cap_net_raw+ep $(BIN)/`basename $(CAPTURE_WIRED)`; then \
-			echo "WARNING: could not set cap_net_raw on $(BIN)/`basename $(CAPTURE_WIRED)`; wired capture needs 'setcap cap_net_raw+ep' on it, or root"; \
+		if ! setcap cap_net_raw,cap_net_admin+ep $(BIN)/`basename $(CAPTURE_WIRED)`; then \
+			echo "WARNING: could not set cap_net_raw,cap_net_admin on $(BIN)/`basename $(CAPTURE_WIRED)`; wired capture needs 'setcap cap_net_raw+ep' on it (cap_net_raw,cap_net_admin+ep to bring interfaces up), or root"; \
 		fi; \
 	fi;
 

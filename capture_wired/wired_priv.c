@@ -51,11 +51,6 @@
  * since 3.8 */
 #define WIRED_INIT_USERNS_INO   0xEFFFFFFDU
 
-/* Ids 0 held: a real, effective or saved uid or gid, or a supplementary group */
-#define WIRED_ROOT_UID          0x1
-#define WIRED_ROOT_GID          0x2
-#define WIRED_ROOT_GROUPS       0x4
-
 static void wired_why_append(wired_priv_t *p, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 
@@ -93,8 +88,7 @@ static int wired_get_groups(gid_t **groups) {
     return n;
 }
 
-/* The WIRED_ROOT_* bits of the ids held, or -1 when they can't be read */
-static int wired_root_ids(void) {
+int wired_root_ids(void) {
     uid_t ruid, euid, suid;
     gid_t rgid, egid, sgid;
     gid_t *groups;

@@ -18,6 +18,9 @@
  *   - 1 gives a kind of 1 to size - 1 characters of [A-Za-z0-9._-], found in the
  *     answer; anything else leaves kind empty
  *   - wired_kind_hop gives a defined hop for whatever was found
+ *   - wired_nl_link_parse gives -1, or 1 with a valid name, index above 0 and a
+ *     NUL-terminated kind
+ *   - wired_nl_ack, on the same answer, gives -1 or 1 with an errno of 0 to 4095
  */
 
 /* memmem */
@@ -45,7 +48,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     size_t kind_len, hdr, len, l, i;
     uint8_t *msg;
     wired_hop_t hop;
-    int r;
+    int r, ack_err;
 
     if (size < 1)
         return 0;
@@ -105,6 +108,35 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     } else if (l != 0) {
         abort();
     }
+
+    /* The bring-up child's link parser too: a name that's valid, a kind that's
+     * NUL-terminated, an index above 0 */
+    {
+        wired_nl_link_t link;
+
+        r = wired_nl_link_parse(msg, len, LK_SEQ, &link);
+
+        if (r != -1 && r != 1)
+            abort();
+
+        if (r == 1) {
+            l = strnlen(link.name, sizeof(link.name));
+
+            if (l == 0 || l >= sizeof(link.name) || !wired_ifname_valid(link.name, l) ||
+                    link.index < 1 || strnlen(link.kind, sizeof(link.kind)) >= sizeof(link.kind))
+                abort();
+        }
+    }
+
+    /* The bring-up's ack parser reads the same answers */
+    ack_err = -1;
+    r = wired_nl_ack(msg, len, LK_SEQ, &ack_err);
+
+    if (r != -1 && r != 1)
+        abort();
+
+    if (r == 1 && (ack_err < 0 || ack_err > 4095))
+        abort();
 
     free(msg);
 

@@ -29,10 +29,12 @@ test/util_utf8/utf8_test
 test/ethernet/l3_parse_test
 test/wired_helper/wired_test
 test/wired_helper/priv_test
+test/wired_helper/ifup_test
 test/wired_helper/status_test
 test/wired_helper/selfexcl_fuzz
 test/wired_helper/opts_fuzz
 test/wired_helper/linkkind_fuzz
+test/wired_helper/ifupreq_fuzz
 test/wired_helper/procids_fuzz
 test/external_policy/policy_test
 callgrind*
