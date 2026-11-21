@@ -606,7 +606,7 @@ bool kis_adsb_phy::process_adsb_hex(nlohmann::json& json, const std::shared_ptr<
     }
 
     auto icao = adsb_msg_get_icao(adsb_bin);
-    auto icao_s = fmt::format("{:x}", icao & 0x00FFFFFF);
+    auto icao_s = fmt::format("{:06x}", icao & 0x00FFFFFF);
     auto msgtype = adsb_msg_get_type(adsb_bin);
     auto msgsize = adsb_msg_len_by_type(msgtype);
 
