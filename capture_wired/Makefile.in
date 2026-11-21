@@ -52,8 +52,7 @@ $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkism
 
 test: $(TEST_BIN) $(PRIV_TEST_BIN) $(IFUP_TEST_BIN)
 	$(TEST_BIN)
-	@# The framework never frees its handler, which an ASan build reports
-	@ASAN_OPTIONS=$${ASAN_OPTIONS:+$$ASAN_OPTIONS:}detect_leaks=0 $(PRIV_TEST_BIN); r=$$?; \
+	@$(PRIV_TEST_BIN); r=$$?; \
 	if [ $$r -eq 77 ]; then \
 		echo "priv_test: skipped"; \
 	elif [ $$r -ne 0 ]; then \
@@ -92,7 +91,7 @@ $(PRIV_TEST_BIN): $(PRIV_TEST_OBJS) ../libkismetdatasource.a
 
 replay: $(REPLAY_BIN)
 
-$(REPLAY_BIN): $(REPLAY_SRCS) wired_util.h wired_sysfs.h wired_ifupd.h wired_priv.h ../libkismetdatasource.a
+$(REPLAY_BIN): $(REPLAY_SRCS) wired_util.h wired_sysfs.h wired_ifupd.h wired_priv.h wired_filter.h ../libkismetdatasource.a
 		mkdir -p $(REPLAY_DIR)
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DWIRED_REPLAY $(LDFLAGS) -o $@ $(REPLAY_SRCS) \
 			../libkismetdatasource.a $(PCAPLIBS) $(DATASOURCE_LIBS)
@@ -107,9 +106,12 @@ clean:
 %.c.o : %.c %.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-%.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+# Only the object rule writes each depfile (-MMD), with the object's own path,
+# ../test/ ones included, as its target; the empty %.c.d rule never writes one,
+# so a parallel make never runs two recipes writing one .d
+%.c.d: ;
 
 .PRECIOUS: %.c.d
 
-include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+include $(wildcard $(patsubst %c.o,%c.d,$(sort $(MONITOR_OBJS) $(TEST_OBJS) $(IFUP_TEST_OBJS) \
+	$(PRIV_TEST_OBJS))))

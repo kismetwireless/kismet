@@ -66,9 +66,6 @@ void wired_read_driver(const char *sysfs_root, const char *ifname, char *out, si
  * interface is down) */
 int wired_read_carrier(const char *sysfs_root, const char *ifname);
 
-/* 1 when the interface is administratively up (IFF_UP), 0 when down, -1 unknown */
-int wired_read_up(const char *sysfs_root, const char *ifname);
-
 /* Sets IFF_UP and nothing else on the link with index ifindex, with an RTM_NEWLINK
  * naming no interface; needs CAP_NET_ADMIN.  Returns 1, or -1 with errno set (EPERM
  * without the capability) */

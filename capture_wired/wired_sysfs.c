@@ -45,7 +45,6 @@
 #define WIRED_ARPHRD_ETHER      1
 #define WIRED_ARPHRD_LOOPBACK   772
 #define WIRED_IFF_LOOPBACK      0x8
-#define WIRED_IFF_UP            0x1
 
 /* Far more feature strings than any kernel has (about 70 in 6.x) */
 #define WIRED_FEATURES_MAX      1024
@@ -278,18 +277,6 @@ int wired_read_carrier(const char *sysfs_root, const char *ifname) {
         return 0;
 
     return -1;
-}
-
-int wired_read_up(const char *sysfs_root, const char *ifname) {
-    char buf[32];
-    long v;
-
-    if (ifname == NULL || !wired_ifname_valid(ifname, strlen(ifname)) ||
-            wired_read_attr(sysfs_root, ifname, "flags", buf, sizeof(buf)) < 0 ||
-            wired_parse_long(buf, 16, &v) < 0)
-        return -1;
-
-    return (v & WIRED_IFF_UP) != 0;
 }
 
 /* A NIC (it has a device), any other virtual interface, then the kinds a host makes
@@ -529,7 +516,7 @@ int wired_nl_read_up(const char *ifname) {
     if (wired_nl_getlink(ifname, 0, &link) < 0)
         return -1;
 
-    return (link.flags & WIRED_IFF_UP) != 0;
+    return (link.flags & IFF_UP) != 0;
 }
 
 wired_if_class_t wired_classify_link(const char *sysfs_root, const wired_nl_link_t *link) {
@@ -571,7 +558,7 @@ int wired_set_up(int ifindex) {
      * ifi_change limits the change to IFF_UP, so promiscuous and the other flags
      * stay as they are.  The ack comes once the driver's open returns; a USB NIC's
      * carrier may follow later */
-    if ((r = wired_nl_request(NULL, ifindex, RTM_NEWLINK, NLM_F_ACK, WIRED_IFF_UP, WIRED_IFF_UP,
+    if ((r = wired_nl_request(NULL, ifindex, RTM_NEWLINK, NLM_F_ACK, IFF_UP, IFF_UP,
                     buf, sizeof(buf))) < 0)
         return -1;
 

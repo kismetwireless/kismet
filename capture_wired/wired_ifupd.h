@@ -36,7 +36,7 @@ typedef enum {
     /* Started with a uid, gid or supplementary group 0, which it leaves later; no
      * child */
     WIRED_IFUPD_ROOT,
-    /* It couldn't be started, it has exited, or it stopped answering */
+    /* It couldn't be started, or it has exited */
     WIRED_IFUPD_GONE,
 } wired_ifupd_state_t;
 
@@ -44,19 +44,30 @@ typedef enum {
  * open timeout */
 #define WIRED_IFUPD_TIMEOUT_MS  5000
 
+/* When the capture process gives up waiting on an answer and sends the next
+ * request regardless, past what one answer takes the child at most when it works
+ * (three rtnetlink requests, each up to 8 reads of 1 s in wired_sysfs.c) */
+#define WIRED_IFUPD_STALL_MS    25000
+
 typedef struct {
     int fd;
     pid_t pid;
-    /* Requests are numbered per process, so a --retry capture process never takes
-     * an answer meant for the one before it */
+    /* Requests are numbered per process (wired_ifup_seq), the pid in the high 32
+     * bits and a count from a random start in the low, so a --retry capture
+     * process never takes an answer meant for the one before it */
     pid_t seq_owner;
     uint32_t seq;
     wired_ifupd_state_t state;
     /* The WIRED_ROOT_* ids (wired_priv.h) held at start */
     int root_ids;
-    /* GONE because a request timed out or couldn't be sent */
-    int timed_out;
     int timeout_ms;
+    int stall_ms;
+    /* A request which timed out, or a socket the child had stopped reading, at
+     * busy_since_ms; no other request is sent until the child answers busy_seq
+     * (0 for none) or stall_ms passes */
+    int busy;
+    uint64_t busy_seq;
+    uint64_t busy_since_ms;
     /* The network namespace belongs to a user namespace other than this one, so
      * CAP_NET_ADMIN here can't change its interfaces */
     int netns_foreign;
@@ -82,10 +93,16 @@ int wired_ifupd_drop_admin(void);
 
 /* Asks the child to bring ifname up and waits up to timeout_ms for the answer,
  * never blocking to send.  Returns the wired_ifup_status_t, with *err the errno
- * for WIRED_IFUP_FAILED, or -1 with *err set when there's no child or it didn't
- * answer; a timeout, or a request it can't take, marks it GONE and timed_out so
- * later requests fail at once with ENOTCONN */
+ * for WIRED_IFUP_FAILED, or -1 with *err set: ENOTCONN no child, ETIMEDOUT no
+ * answer in time, EBUSY still busy with an earlier request (nothing sent),
+ * EPROTO a malformed answer, poll's error, or the socket's error when the child
+ * has gone.  Only a timeout, or a socket the child has stopped reading, leaves it
+ * busy; the socket stays open */
 int wired_ifupd_request(wired_ifupd_t *d, const char *ifname, int *err);
+
+/* Reads the answers that came after their request timed out, without waiting,
+ * and ends busy when the child has answered or stall_ms has passed */
+void wired_ifupd_collect(wired_ifupd_t *d);
 
 /* What the child answers with; the tests replace them */
 typedef struct {

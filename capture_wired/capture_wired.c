@@ -57,6 +57,7 @@
 
 #include "../capture_framework.h"
 
+#include "wired_filter.h"
 #include "wired_ifupd.h"
 #include "wired_priv.h"
 #include "wired_sysfs.h"
@@ -85,6 +86,10 @@ typedef struct {
     struct bpf_program selfprog;
     int has_selfprog;
 
+    /* The interface's IPv4 netmask as read before the bring-up, for 'ip broadcast';
+     * PCAP_NETMASK_UNKNOWN when it has none */
+    bpf_u_int32 netmask;
+
     /* Where that connection runs, and the interface it leaves through */
     wired_path_t remote_path;
     char remote_via[WIRED_IFNAMSIZ];
@@ -105,17 +110,7 @@ typedef struct {
     /* The bring-up child, and whether this open brought the interface up */
     wired_ifupd_t ifupd;
     int brought_up;
-    /* The interface of a bring-up which timed out, reported as brought up when
-     * it's found up at the next open */
-    char late_ifname[WIRED_IFNAMSIZ];
 } local_wired_t;
-
-static uint64_t wired_mono_ms(void) {
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
-}
 
 /* The interface name from a definition, checked against the allowlist */
 static int wired_definition_ifname(char *definition, char *ifname, char *msg) {
@@ -269,6 +264,60 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 #endif
 }
 
+/* The server connection's socket and address.  Returns 0 when not remote, 1, or
+ * -1 when remote but it can't be read */
+static int wired_remote_peer(kis_capture_handler_t *caph, int *fd,
+        struct sockaddr_storage *peer) {
+    socklen_t peer_len = sizeof(*peer);
+
+    *fd = -1;
+
+    if (caph->use_ipc)
+        return 0;
+
+    if (caph->tcp_fd >= 0) {
+        *fd = caph->tcp_fd;
+#ifdef HAVE_LIBWEBSOCKETS
+    } else if (caph->lwsclientwsi != NULL) {
+        *fd = (int) lws_get_socket_fd(caph->lwsclientwsi);
+#endif
+    }
+
+    if (*fd < 0)
+        return caph->remote_host != NULL ? -1 : 0;
+
+    memset(peer, 0, sizeof(*peer));
+
+    if (getpeername(*fd, (struct sockaddr *) peer, &peer_len) < 0)
+        return -1;
+
+    return 1;
+}
+
+/* Where the connection on fd to peer runs, and into via the interface holding
+ * its local address */
+static wired_path_t wired_remote_where(local_wired_t *lw, int fd,
+        const struct sockaddr_storage *peer, char via[WIRED_IFNAMSIZ]) {
+    struct sockaddr_storage local;
+    socklen_t local_len = sizeof(local);
+    const char *local_if = NULL;
+    char peer_if[WIRED_IFNAMSIZ];
+    int peer_local;
+
+    via[0] = 0;
+    memset(&local, 0, sizeof(local));
+
+    if (getsockname(fd, (struct sockaddr *) &local, &local_len) == 0 &&
+            wired_addr_ifname((struct sockaddr *) &local, via, WIRED_IFNAMSIZ) > 0)
+        local_if = via;
+
+    peer_local = wired_addr_ifname((const struct sockaddr *) peer, peer_if,
+            sizeof(peer_if)) > 0;
+
+    return wired_remote_path(WIRED_SYSFS_NET, wired_if_kind, lw->ifname,
+            (const struct sockaddr *) peer, peer_local, local_if);
+}
+
 /* In remote capture, the expression that keeps all TCP to and from the server
  * out of the capture, and where the connection runs (lw->remote_path).  Returns
  * 0 when not remote, the length, or -1 when remote but the connection can't be
@@ -278,47 +327,17 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
  * over a tunnel, its real carrier isn't matched. */
 static int wired_remote_selfexcl(kis_capture_handler_t *caph, local_wired_t *lw,
         char *out, size_t out_len) {
-    struct sockaddr_storage peer, local;
-    socklen_t peer_len = sizeof(peer);
-    socklen_t local_len = sizeof(local);
-    const char *local_if = NULL;
-    char peer_if[WIRED_IFNAMSIZ];
-    int fd = -1, peer_local;
+    struct sockaddr_storage peer;
+    int fd, r;
 
     out[0] = 0;
     lw->remote_path = WIRED_PATH_UNKNOWN;
     lw->remote_via[0] = 0;
 
-    if (caph->use_ipc)
-        return 0;
+    if ((r = wired_remote_peer(caph, &fd, &peer)) <= 0)
+        return r;
 
-    if (caph->tcp_fd >= 0) {
-        fd = caph->tcp_fd;
-#ifdef HAVE_LIBWEBSOCKETS
-    } else if (caph->lwsclientwsi != NULL) {
-        fd = (int) lws_get_socket_fd(caph->lwsclientwsi);
-#endif
-    }
-
-    if (fd < 0)
-        return caph->remote_host != NULL ? -1 : 0;
-
-    memset(&peer, 0, sizeof(peer));
-
-    if (getpeername(fd, (struct sockaddr *) &peer, &peer_len) < 0)
-        return -1;
-
-    memset(&local, 0, sizeof(local));
-
-    if (getsockname(fd, (struct sockaddr *) &local, &local_len) == 0 &&
-            wired_addr_ifname((struct sockaddr *) &local, lw->remote_via,
-                sizeof(lw->remote_via)) > 0)
-        local_if = lw->remote_via;
-
-    peer_local = wired_addr_ifname((struct sockaddr *) &peer, peer_if, sizeof(peer_if)) > 0;
-
-    lw->remote_path = wired_remote_path(WIRED_SYSFS_NET, wired_if_kind, lw->ifname,
-            (struct sockaddr *) &peer, peer_local, local_if);
+    lw->remote_path = wired_remote_where(lw, fd, &peer, lw->remote_via);
 
     return wired_build_selfexcl((struct sockaddr *) &peer, out, out_len);
 }
@@ -459,17 +478,14 @@ static int wired_activate(local_wired_t *lw, char *msg) {
 }
 #endif
 
-/* The whole filter into filter (WIRED_FULL_FILTER_MAX), and *netmask for it,
- * compiled once for Ethernet without the interface, so a mistake in it fails the
- * open before the interface is brought up */
+/* The whole filter into filter (WIRED_FULL_FILTER_MAX), checked for Ethernet
+ * without the interface, so a mistake in it fails the open before the interface
+ * is brought up */
 static int wired_prepare_filter(kis_capture_handler_t *caph, local_wired_t *lw, char *filter,
-        bpf_u_int32 *netmask, char *msg) {
+        char *msg) {
     char selfexcl[WIRED_SELFEXCL_MAX];
-    struct bpf_program prog;
-    pcap_t *dead;
+    char err[PCAP_ERRBUF_SIZE] = "";
     int r;
-
-    *netmask = PCAP_NETMASK_UNKNOWN;
 
     if ((r = wired_remote_selfexcl(caph, lw, selfexcl, sizeof(selfexcl))) < 0) {
         snprintf(msg, STATUS_MAX, "Could not find the connection to the Kismet server to "
@@ -493,45 +509,70 @@ static int wired_prepare_filter(kis_capture_handler_t *caph, local_wired_t *lw, 
     if (filter[0] == 0)
         return 1;
 
-#ifndef WIRED_REPLAY
-    /* 'ip broadcast' needs the netmask; an interface without IPv4 has none */
-    {
-        char errstr[PCAP_ERRBUF_SIZE] = "";
-        bpf_u_int32 net = 0, mask = 0;
+    if ((r = wired_filter_check(filter, lw->netmask, err, sizeof(err))) > 0)
+        return 1;
 
-        if (pcap_lookupnet(lw->ifname, &net, &mask, errstr) == 0 && mask != 0)
-            *netmask = mask;
+#ifndef WIRED_REPLAY
+    /* Linux keeps a static IPv4 address on a down link, so one with none now has
+     * none after the bring-up either */
+    if (r == 0) {
+        snprintf(msg, STATUS_MAX, "Could not compile the filter for '%s': it needs an IPv4 "
+                "netmask, and the interface has no IPv4 address; give it one (or bring it up "
+                "and let it get one) before opening it: %s", lw->ifname, err);
+        return -1;
     }
 #endif
 
-    if ((dead = pcap_open_dead(DLT_EN10MB, (int) WIRED_SNAPLEN_MAX)) == NULL) {
-        snprintf(msg, STATUS_MAX, "Out of memory filtering '%s'", lw->ifname);
-        return -1;
-    }
-
-    r = pcap_compile(dead, &prog, filter, 1, *netmask);
-
-    if (r < 0)
-        snprintf(msg, STATUS_MAX, "Could not compile the filter for '%s': %s", lw->ifname,
-                pcap_geterr(dead));
-    else
-        pcap_freecode(&prog);
-
-    pcap_close(dead);
-
-    return r < 0 ? -1 : 1;
+    snprintf(msg, STATUS_MAX, "Could not compile the filter for '%s': %s", lw->ifname, err);
+    return -1;
 }
 
-/* The filter wired_prepare_filter made, on the open handle */
-static int wired_set_filter(local_wired_t *lw, const char *filter, bpf_u_int32 netmask,
-        char *msg) {
+#ifndef WIRED_REPLAY
+/* The netmask for wired_filter_check and wired_set_filter, read before the
+ * bring-up so the filter fails before it */
+static bpf_u_int32 wired_read_netmask(const char *ifname) {
+    char errstr[PCAP_ERRBUF_SIZE] = "";
+    bpf_u_int32 net = 0, mask = 0;
+
+    if (pcap_lookupnet(ifname, &net, &mask, errstr) == 0 && mask != 0)
+        return mask;
+
+    return PCAP_NETMASK_UNKNOWN;
+}
+
+/* Where the server connection runs, read again once the interface is up; the
+ * exclusion stays as compiled, and the earlier answer stands if the connection
+ * can't be read */
+static void wired_refresh_remote_path(kis_capture_handler_t *caph, local_wired_t *lw) {
+    struct sockaddr_storage peer;
+    char via[WIRED_IFNAMSIZ];
+    wired_path_t path;
+    int fd;
+
+    if (!lw->has_selfprog || wired_remote_peer(caph, &fd, &peer) <= 0)
+        return;
+
+    /* A passing lookup failure keeps the earlier answer */
+    if ((path = wired_remote_where(lw, fd, &peer, via)) == WIRED_PATH_UNKNOWN)
+        return;
+
+    lw->remote_path = path;
+    memcpy(lw->remote_via, via, sizeof(lw->remote_via));
+    lw->status.remote_excluded = lw->remote_path == WIRED_PATH_CAPTURED;
+}
+#endif
+
+/* The filter wired_prepare_filter made, compiled once on the open handle; a live
+ * Linux handle tests VLAN tags as the kernel hands them over, so the check's
+ * program can't stand in for it */
+static int wired_set_filter(local_wired_t *lw, const char *filter, char *msg) {
     struct bpf_program prog;
     int r;
 
     if (filter[0] == 0)
         return 1;
 
-    if (pcap_compile(lw->pd, &prog, filter, 1, netmask) < 0) {
+    if (pcap_compile(lw->pd, &prog, filter, 1, lw->netmask) < 0) {
         snprintf(msg, STATUS_MAX, "Could not compile the filter for '%s': %s", lw->ifname,
                 pcap_geterr(lw->pd));
         return -1;
@@ -564,12 +605,6 @@ static int wired_bring_up(local_wired_t *lw, char *msg) {
 
     switch (wired_ifup_action(up, lw->opts.ifup)) {
         case WIRED_IFUP_KEEP:
-            /* A request which timed out may have brought it up after all */
-            if (lw->late_ifname[0] != 0 && strcmp(lw->late_ifname, n) == 0) {
-                lw->late_ifname[0] = 0;
-                return 1;
-            }
-
             return 0;
         case WIRED_IFUP_REFUSE:
             snprintf(msg, STATUS_MAX, "Interface '%s' is down, and ifup=false; bring it up with "
@@ -594,9 +629,6 @@ static int wired_bring_up(local_wired_t *lw, char *msg) {
         return 1;
     }
 
-    if (r < 0 && lw->ifupd.timed_out)
-        snprintf(lw->late_ifname, sizeof(lw->late_ifname), "%s", n);
-
     if (lw->ifupd.netns_foreign && r == WIRED_IFUP_FAILED && e == EPERM)
         snprintf(msg, STATUS_MAX, "Interface '%s' is down, and its network namespace belongs to "
                 "another user namespace, so kismet_cap_wired can't bring it up from here; bring "
@@ -619,9 +651,17 @@ static int wired_bring_up(local_wired_t *lw, char *msg) {
                 "doesn't bring interfaces up; bring it up with 'ip link set %s up'", n,
                 (lw->ifupd.root_ids & WIRED_ROOT_UID) ? "root's uid" :
                 "root's group (a gid or supplementary group 0)", n);
-    else if (lw->ifupd.timed_out)
+    else if (r < 0 && e == ETIMEDOUT)
         snprintf(msg, STATUS_MAX, "Interface '%s' is down, and kismet_cap_wired's bring-up "
-                "process isn't responding; bring it up with 'ip link set %s up'", n, n);
+                "process didn't answer within %d s; it may still bring it up, and the next "
+                "open tries again once it answers, or bring it up with 'ip link set %s up'", n,
+                WIRED_IFUPD_TIMEOUT_MS / 1000, n);
+    else if (r < 0 && e == EBUSY)
+        snprintf(msg, STATUS_MAX, "Interface '%s' is down, and kismet_cap_wired's bring-up "
+                "process is still busy with an earlier request; the next open tries again once "
+                "it answers, or after %d s without an answer, or bring it up with "
+                "'ip link set %s up'", n,
+                WIRED_IFUPD_STALL_MS / 1000, n);
     else
         snprintf(msg, STATUS_MAX, "Interface '%s' is down, and kismet_cap_wired's bring-up "
                 "process didn't answer (%s); bring it up with 'ip link set %s up'", n,
@@ -640,7 +680,6 @@ static int wired_open(kis_capture_handler_t *caph, char *definition,
     char offloads[256] = "";
     char unknown[256] = "";
     char filter[WIRED_FULL_FILTER_MAX] = "";
-    bpf_u_int32 netmask = PCAP_NETMASK_UNKNOWN;
 
     lw->brought_up = 0;
     *uuid = NULL;
@@ -700,8 +739,10 @@ static int wired_open(kis_capture_handler_t *caph, char *definition,
     }
 
     /* Everything a mistake in the options can fail goes before the bring-up */
+    lw->netmask = wired_read_netmask(lw->ifname);
+
     if (wired_create(lw, msg) < 0 ||
-            wired_prepare_filter(caph, lw, filter, &netmask, msg) < 0) {
+            wired_prepare_filter(caph, lw, filter, msg) < 0) {
         wired_close(lw);
         return -1;
     }
@@ -711,6 +752,9 @@ static int wired_open(kis_capture_handler_t *caph, char *definition,
         wired_close(lw);
         return -1;
     }
+
+    if (lw->brought_up)
+        wired_refresh_remote_path(caph, lw);
 
     if (wired_activate(lw, msg) < 0) {
         wired_close(lw);
@@ -723,6 +767,7 @@ static int wired_open(kis_capture_handler_t *caph, char *definition,
     lw->status.carrier = wired_read_carrier(WIRED_SYSFS_NET, lw->ifname);
 #else
     lw->status.carrier = -1;
+    lw->netmask = PCAP_NETMASK_UNKNOWN;
 
     {
         char pcaperr[PCAP_ERRBUF_SIZE] = "";
@@ -733,7 +778,7 @@ static int wired_open(kis_capture_handler_t *caph, char *definition,
         }
     }
 
-    if (wired_prepare_filter(caph, lw, filter, &netmask, msg) < 0) {
+    if (wired_prepare_filter(caph, lw, filter, msg) < 0) {
         wired_close(lw);
         return -1;
     }
@@ -746,7 +791,7 @@ static int wired_open(kis_capture_handler_t *caph, char *definition,
         return -1;
     }
 
-    if (wired_set_filter(lw, filter, netmask, msg) < 0) {
+    if (wired_set_filter(lw, filter, msg) < 0) {
         wired_close(lw);
         return -1;
     }
