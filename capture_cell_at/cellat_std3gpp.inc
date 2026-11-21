@@ -24,6 +24,10 @@
  * test.
  */
 
+#include <strings.h>
+
+#include "cellat_generic.h"
+
 /* --- <AcT> / COPS access-technology code -> canonical RAT string (TS 27.007
  * §7.3 <AcT>). Returns a string normalize_rat() also returns, or NULL for a
  * code we do not model. Note this is a SUPERSET of cellat_qeng.inc's
@@ -388,20 +392,6 @@ static int parse_cops_scan(const char *response, char json_out[][JSON_BUF_MAX],
     return count;
 }
 
-/* --- Generic 3GPP serving-cell merge ---
- * The fallback for a modem with NO engineering command (no QENG/RFSTS/CPSI/...).
- * Merges the standard reads into ONE serving observation: cell identity + RAT
- * from the first registration command that camped (C5GREG->NR, else CEREG->LTE,
- * else CREG), the operator name from COPS?, and signal merged per-field from
- * CESQ (rsrp/rsrq, and rssi from its rxlev) with CSQ filling rssi when CESQ's
- * rxlev is unknown. A record is emitted ONLY when a cell
- * identity (TAC/CI) was obtained -- without it there is no tower to place.
- *
- * Every argument is a raw AT response, or NULL / "" when that command was not
- * run or errored. PURE over its inputs: the runtime gathers the responses and
- * calls this, so the merge is unit-tested (test_cellat_std3gpp) even though a
- * modem with a vendor engineering command never takes the runtime fallback:
- * the `else` branch that calls this fires only on a modem without one. */
 /* The generic fallback's reads, in poll order (the order of
  * parse_generic_serving's arguments), and the TS 27.007 test form that tells
  * whether the modem has the verb at all. A verb whose test form answers ERROR
@@ -417,14 +407,142 @@ static const char *const STDAT_GENERIC_TEST[STDAT_GENERIC_N] = {
     "AT+C5GREG=?", "AT+CEREG=?", "AT+CREG=?", NULL, "AT+CESQ=?", "AT+CSQ=?",
 };
 
-/* Did a test-form reply refuse the verb? Only an explicit ERROR (plain or
- * +CME ERROR) counts. An empty reply or a timeout is unknown, not a refusal,
- * so the verb stays in the poll. */
-static int stdat_test_refused(const char *resp) {
-    return resp != NULL && strstr(resp, "ERROR") != NULL &&
-           strstr(resp, "OK") == NULL;
+/* Test-form rounds a verb answering only transient errors gets before it is
+ * kept in the poll unprobed. */
+#define STDAT_GENERIC_PROBE_ROUNDS 8
+
+/* What a test-form reply says about the verb. */
+enum stdat_test_class {
+    STDAT_TEST_KEPT,        /* OK: the modem has it */
+    STDAT_TEST_REFUSED,     /* any error not known to be transient */
+    STDAT_TEST_TRANSIENT,   /* SIM busy / not ready / init, or no answer yet */
+};
+
+/* The body of a "+CME ERROR" line (colon optional, as at_serial.inc ends a
+ * reply on any "+CME ERROR" prefix), spaces skipped; *len is its length up
+ * to the line end, trailing spaces trimmed. NULL when the line is not one. */
+static const char *stdat_cme_body(const char *line, size_t line_len, size_t *len) {
+    static const char pfx[] = "+CME ERROR";
+    const size_t plen = sizeof(pfx) - 1;
+    if (line_len < plen || strncmp(line, pfx, plen) != 0)
+        return NULL;
+    size_t i = plen;
+    while (i < line_len && line[i] == ' ')
+        i++;
+    if (i < line_len && line[i] == ':')
+        i++;
+    while (i < line_len && line[i] == ' ')
+        i++;
+    size_t e = line_len;
+    while (e > i && line[e - 1] == ' ')
+        e--;
+    *len = e - i;
+    return line + i;
 }
 
+static int stdat_text_is(const char *s, size_t len, const char *word) {
+    return strlen(word) == len && strncasecmp(s, word, len) == 0;
+}
+
+/* Only a known transient CME error re-probes: 10 / 13 (SIM not inserted /
+ * SIM failure, while the SIM comes up), 14 (SIM busy), 515 (init in
+ * progress), and their verbose forms. Everything else refuses. */
+static int stdat_cme_transient(const char *body, size_t len) {
+    if (len > 0 && len <= 5 && body[0] >= '0' && body[0] <= '9') {
+        long code = 0;
+        for (size_t i = 0; i < len; i++) {
+            if (body[i] < '0' || body[i] > '9')
+                return 0;
+            code = code * 10 + (body[i] - '0');
+        }
+        return code == 10 || code == 13 || code == 14 || code == 515;
+    }
+    return stdat_text_is(body, len, "busy") ||
+           stdat_text_is(body, len, "SIM busy") ||
+           stdat_text_is(body, len, "SIM not ready") ||
+           stdat_text_is(body, len, "SIM not inserted") ||
+           stdat_text_is(body, len, "SIM failure");
+}
+
+/* Classify a test-form reply from its terminal line, in one pass. A reply
+ * with no OK / ERROR / +CME ERROR line ran out of time: transient, so the
+ * verb is probed again rather than settled on nothing. */
+static enum stdat_test_class stdat_test_classify(const char *resp) {
+    if (resp == NULL)
+        return STDAT_TEST_TRANSIENT;
+    const char *p = resp;
+    while (*p != '\0') {
+        const char *nl = strchr(p, '\n');
+        size_t ll = nl != NULL ? (size_t)(nl - p) : strlen(p);
+        const char *line = p;
+        p = nl != NULL ? nl + 1 : p + ll;
+        while (ll > 0 && (*line == ' ' || *line == '\r')) {
+            line++;
+            ll--;
+        }
+        while (ll > 0 && (line[ll - 1] == '\r' || line[ll - 1] == ' '))
+            ll--;
+
+        size_t blen;
+        const char *body = stdat_cme_body(line, ll, &blen);
+        if (body != NULL)
+            return stdat_cme_transient(body, blen) ? STDAT_TEST_TRANSIENT
+                                                   : STDAT_TEST_REFUSED;
+        if (ll == 2 && strncmp(line, "OK", 2) == 0)
+            return STDAT_TEST_KEPT;
+        if (ll == 5 && strncmp(line, "ERROR", 5) == 0)
+            return STDAT_TEST_REFUSED;
+    }
+    return STDAT_TEST_TRANSIENT;
+}
+
+/* Cleared on every open, so a re-opened (maybe different) modem is probed anew. */
+static void stdat_generic_reset(stdat_generic_t *g) {
+    memset(g, 0, sizeof(*g));
+}
+
+/* Record verb i's test-form reply (n is at_command_t's return; n <= 0, a
+ * timeout or serial error, is transient). A transient verb stays unsettled and
+ * is probed again, up to STDAT_GENERIC_PROBE_ROUNDS. Returns 1 when the verb
+ * is refused and now left out of the poll. */
+static int stdat_generic_note(stdat_generic_t *g, int i, int n, const char *resp) {
+    if (i < 0 || i >= STDAT_GENERIC_N)
+        return 0;
+    enum stdat_test_class c = n > 0 ? stdat_test_classify(resp) : STDAT_TEST_TRANSIENT;
+    if (c == STDAT_TEST_TRANSIENT)
+        return 0;
+    g->settled |= 1u << i;
+    if (c == STDAT_TEST_REFUSED) {
+        g->skip |= 1u << i;
+        return 1;
+    }
+    return 0;
+}
+
+/* End one probe round: done when every probed verb settled or the cap hit. */
+static void stdat_generic_round_done(stdat_generic_t *g) {
+    unsigned want = 0;
+    for (int i = 0; i < STDAT_GENERIC_N; i++)
+        if (STDAT_GENERIC_TEST[i] != NULL)
+            want |= 1u << i;
+    if (++g->rounds >= STDAT_GENERIC_PROBE_ROUNDS || (g->settled & want) == want)
+        g->probed = 1;
+}
+
+/* --- Generic 3GPP serving-cell merge ---
+ * The fallback for a modem with NO engineering command (no QENG/RFSTS/CPSI/...).
+ * Merges the standard reads into ONE serving observation: cell identity + RAT
+ * from the first registration command that camped (C5GREG->NR, else CEREG->LTE,
+ * else CREG), the operator name from COPS?, and signal merged per-field from
+ * CESQ (rsrp/rsrq, and rssi from its rxlev) with CSQ filling rssi when CESQ's
+ * rxlev is unknown. A record is emitted ONLY when a cell
+ * identity (TAC/CI) was obtained -- without it there is no tower to place.
+ *
+ * Every argument is a raw AT response, or NULL / "" when that command was not
+ * run or errored. PURE over its inputs: the runtime gathers the responses and
+ * calls this, so the merge is unit-tested (test_cellat_std3gpp) even though a
+ * modem with a vendor engineering command never takes the runtime fallback:
+ * the `else` branch that calls this fires only on a modem without one. */
 static int parse_generic_serving(const char *c5greg, const char *cereg,
                                  const char *creg, const char *cops_q,
                                  const char *cesq, const char *csq,

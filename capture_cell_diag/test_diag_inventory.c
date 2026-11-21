@@ -332,6 +332,30 @@ static void test_known_table(void) {
           "pick another unknown code for test_undecoded_native");
 }
 
+/* 0x14D8 (thermal): the shapes the census counts decoded. Synthetic bytes;
+ * only the version byte and the length matter. */
+static void test_accepts_0x14d8(void) {
+    uint8_t b[128];
+    memset(b, 0, sizeof(b));
+    CHECK(diag_inventory_accepts_0x14d8(b, 84), "v0 84-byte sensor record refused");
+    CHECK(diag_inventory_accepts_0x14d8(b, 72), "v0 72-byte sensor payload refused");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 71), "v0 71 bytes accepted");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 83), "v0 83 bytes accepted");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 85), "v0 85 bytes accepted");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 104), "v0 104 bytes accepted");
+    b[0] = 1;
+    CHECK(diag_inventory_accepts_0x14d8(b, 20), "v1 20 bytes refused");
+    CHECK(diag_inventory_accepts_0x14d8(b, 44), "v1 44 bytes refused");
+    CHECK(diag_inventory_accepts_0x14d8(b, 104), "v1 104 bytes refused");
+    CHECK(diag_inventory_accepts_0x14d8(b, 128), "v1 128 bytes refused");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 84), "v1 84 bytes accepted");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 19), "v1 19 bytes accepted");
+    b[0] = 2;
+    CHECK(!diag_inventory_accepts_0x14d8(b, 84), "v2 accepted");
+    CHECK(!diag_inventory_accepts_0x14d8(NULL, 84), "NULL accepted");
+    CHECK(!diag_inventory_accepts_0x14d8(b, 0), "empty accepted");
+}
+
 static int trace(void) {
     diag_inventory_t *inv = diag_inventory_new(0, 0);
     if (inv == NULL)
@@ -390,6 +414,7 @@ int main(int argc, char **argv) {
     test_undecoded_native();
     test_undecoded_native_is_bounded();
     test_known_table();
+    test_accepts_0x14d8();
     test_gated_is_not_silent();
 
     if (failures) {

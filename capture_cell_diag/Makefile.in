@@ -146,7 +146,7 @@ ifeq ($(CELL_USBSERIAL),1)
 MONITOR_OBJS += usbserial.c.o
 MONITOR_LIBS = $(LIBUSBLIBS)
 capture_cell_diag.c.o cell_usbport.c.o: CPPFLAGS += -DHAVE_CELL_USBSERIAL
-cell_usbport.c.o cell_usbport.c.d usbserial.c.o usbserial.c.d: CPPFLAGS += $(LIBUSBCFLAGS)
+cell_usbport.c.o usbserial.c.o: CPPFLAGS += $(LIBUSBCFLAGS)
 endif
 
 # Standalone hardware-probe helper (no Kismet dependency); shares the DIAG
@@ -168,12 +168,11 @@ LOGSTREAM_DUMP_BIN = diag_logstream_dump
 
 all: $(MONITOR_BIN) $(PROBE_BIN) $(LOGSTREAM_DUMP_BIN)
 
-usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h
+# The object rule alone writes the depfile (-MMD), so a parallel make never
+# has two recipes writing one .d. A missing usbserial.c.d counts as updated via
+# the empty %.c.d rule, which forces the .o to rebuild and write it.
+usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h usbserial.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@ -MMD -MP -MF $(@:.o=.d)
-
-usbserial.c.d:	../usbserial/usbserial.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../usbserial/usbserial.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
 
 # The C++ depfiles are listed HERE, beside the C ones, and that placement is the
 # working part. Making %.cpp.d a prerequisite of the %.cpp.o pattern rule
@@ -190,15 +189,9 @@ $(MONITOR_BIN):	$(MONITOR_OBJS) $(NATIVE_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OB
 		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(NATIVE_OBJS) \
 		    ../libkismetdatasource.a $(DATASOURCE_LIBS) $(NATIVE_LIBS) $(MONITOR_LIBS)
 
-# A standalone helper build (`make` in this directory, MAKELEVEL 0) links the
-# parent's ../libkismetdatasource.a, but nothing here knows how to rebuild it.
-# When ../capture_framework.h changes (a field added to struct
-# kis_capture_handler), the helper compiles against the new header and links
-# the archive built from the old one: a silent ABI mismatch that segfaults at
-# open. So delegate the archive to the parent, whose rules (and depfiles)
-# decide whether it is stale; an up-to-date archive is left alone and forces no
-# relink. A top-level build already made the archive before recursing here
-# (MAKELEVEL >= 1), so it is not re-entered.
+# A standalone build (MAKELEVEL 0) asks the parent to refresh the archive, so a
+# changed capture_framework.h never links against a stale one; a top-level
+# build has already made it.
 ifeq ($(MAKELEVEL),0)
 ../libkismetdatasource.a: FORCE
 	$(MAKE) -C .. libkismetdatasource.a
@@ -356,11 +349,11 @@ $(TEST_NATIVE_BIN):	test_diag_native_decode.c diag_native_decode.cpp diag_native
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c diag_inventory.c \
 		    -o test_diag_native_inventory.c.o
 		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -c diag_native_decode.cpp \
-		    -o diag_native_decode.cpp.o
+		    -o test_diag_native_decode.cpp.o
 		$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(DIAGSPEC_INC) -I.. \
 		    -o $(TEST_NATIVE_BIN) test_diag_native_decode.c.o \
 		    test_diag_native_inventory.c.o \
-		    diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS) -lm
+		    test_diag_native_decode.cpp.o $(DIAGSPEC_SRCS) $(LDFLAGS) -lm
 
 $(TEST_HDLC_BIN):	diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_HDLC_SELFTEST -o $(TEST_HDLC_BIN) \
@@ -452,7 +445,7 @@ $(TEST_LOGSTREAM_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
 endif
 
 clean:
-	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o test_diag_native_inventory.c.o diag_native_decode.cpp.o
+	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o test_diag_native_inventory.c.o test_diag_native_decode.cpp.o
 	@-rm -f $(MONITOR_BIN)
 	@-rm -f $(PROBE_BIN)
 	@-rm -f $(TEST_CLOCKANCHOR_BIN)
@@ -525,8 +518,7 @@ clean:
 %.c.o : %.c %.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-%.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+%.c.d: ;
 
 .PRECIOUS: %.c.d
 

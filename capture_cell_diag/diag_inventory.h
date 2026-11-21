@@ -70,13 +70,20 @@
 extern const uint16_t DIAG_INVENTORY_EMIT_CONTRACT_CODES[];
 extern const size_t   DIAG_INVENTORY_EMIT_CONTRACT_COUNT;
 
-/* The subset that structurally cannot emit on any capture: 0x14D8, whose record carries no usable lat/lon/alt (they read 0.0). Excluded from silent_actionable, which is
- * what the relay escalates on, and nowhere else. */
+/* The subset that structurally cannot emit on any capture: 0x14D8, the thermal
+ * monitor log, which carries no cell or position data. Excluded from
+ * silent_actionable, which is what the relay escalates on, and nowhere else. */
 extern const uint16_t DIAG_INVENTORY_NEVER_EMITS_CODES[];
 extern const size_t   DIAG_INVENTORY_NEVER_EMITS_COUNT;
 
 int diag_inventory_is_emit_contract(uint16_t code);
 int diag_inventory_is_never_emits(uint16_t code);
+
+/* Is a 0x14D8 (thermal) payload one of its known shapes, so the census counts
+ * it decoded? Version 1 at 20, 44 or 104+ bytes, or the SDX62/SDX72 version 0
+ * per-sensor record at 72 (payload) or 84 bytes; which of the two the census
+ * sees is unconfirmed, so both count. */
+int diag_inventory_accepts_0x14d8(const uint8_t *p, size_t n);
 
 typedef struct diag_inventory diag_inventory_t;
 

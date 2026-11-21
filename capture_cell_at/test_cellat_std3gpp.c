@@ -240,13 +240,97 @@ int main(void) {
 
     printf("== generic poll: which verbs a test-form reply drops ==\n");
     /* Replies are the shapes TS 27.007 gives a test command; not captures. */
-    check(stdat_test_refused("\r\nERROR\r\n"), "plain ERROR -> refused");
-    check(stdat_test_refused("\r\n+CME ERROR: 4\r\n"), "+CME ERROR -> refused");
-    check(!stdat_test_refused("\r\n+CESQ: (0-63,99),(0-7,99),(0-96,255),(0-49,255),(0-34,255),(0-97,255)\r\n\r\nOK\r\n"),
-          "test-form list + OK -> kept");
-    check(!stdat_test_refused("\r\nOK\r\n"), "bare OK -> kept");
-    check(!stdat_test_refused(""), "empty reply (timeout) -> kept: unknown is not a refusal");
-    check(!stdat_test_refused(NULL), "no reply -> kept");
+#define REFUSED(r, what)   check(stdat_test_classify(r) == STDAT_TEST_REFUSED, what)
+#define TRANSIENT(r, what) check(stdat_test_classify(r) == STDAT_TEST_TRANSIENT, what)
+#define KEPT(r, what)      check(stdat_test_classify(r) == STDAT_TEST_KEPT, what)
+    REFUSED("\r\nERROR\r\n", "plain ERROR -> refused");
+    REFUSED("\nERROR", "plain ERROR, no CR -> refused");
+    REFUSED("\r\n+CME ERROR: 4\r\n", "CME 4 -> refused");
+    REFUSED("\r\n+CME ERROR: 3\r\n", "CME 3 (not allowed) -> refused");
+    REFUSED("\r\n+CME ERROR: 100\r\n", "CME 100 (unknown) -> refused");
+    REFUSED("\r\n+CME ERROR: 40\r\n", "CME 40 -> refused");
+    REFUSED("\r\n+CME ERROR: 140\r\n", "CME 140 is not 14 -> refused");
+    REFUSED("\r\n+CME ERROR: 14x\r\n", "CME 14x -> refused");
+    REFUSED("\r\n+CME ERROR: 99999999999999999999\r\n", "huge code -> refused");
+    REFUSED("\r\n+CME ERROR: operation not supported\r\n", "verbose CME 4 -> refused");
+    REFUSED("\r\n+CME ERROR: unknown\r\n", "verbose unknown -> refused");
+    REFUSED("\r\n+CME ERROR: not supported\r\n", "verbose not supported -> refused");
+    REFUSED("\r\n+CME ERROR:\r\n", "empty CME body -> refused");
+    REFUSED("\r\n+CME ERROR: SIM busy now\r\n", "busy text with trailing words -> refused");
+    TRANSIENT("\r\n+CME ERROR: 14\r\n", "CME 14 (SIM busy) -> transient");
+    TRANSIENT("\r\n+CME ERROR: 515\r\n", "CME 515 (init) -> transient");
+    TRANSIENT("\r\n+CME ERROR: 10\r\n", "CME 10 (SIM not inserted) -> transient");
+    TRANSIENT("\r\n+CME ERROR: 13\r\n", "CME 13 (SIM failure) -> transient");
+    TRANSIENT("\r\n+CME ERROR 14\r\n", "colon-less +CME ERROR 14 -> transient");
+    TRANSIENT("\r\n+CME ERROR:515 \r\n", "no space, trailing space -> transient");
+    TRANSIENT("\r\n+CME ERROR : 14\r\n", "space before colon -> transient");
+    TRANSIENT("\r\n+CME ERROR: busy\r\n", "verbose busy -> transient");
+    TRANSIENT("\r\n+CME ERROR: SIM busy\r\n", "verbose SIM busy -> transient");
+    TRANSIENT("\r\n+CME ERROR: sim not ready\r\n", "verbose SIM not ready -> transient");
+    REFUSED("\r\n+CME ERROR 4\r\n", "colon-less CME 4 -> refused");
+    KEPT("\r\n+CESQ: (0-63,99),(0-7,99),(0-96,255),(0-49,255),(0-34,255),(0-97,255)\r\n\r\nOK\r\n",
+         "test-form list + OK -> kept");
+    KEPT("\r\nOK\r\n", "bare OK -> kept");
+    KEPT("\r\n+COPS: \"NOT OK\"\r\nOK\r\n", "OK inside a value does not end early");
+    TRANSIENT("", "empty reply (timeout) -> transient");
+    TRANSIENT(NULL, "no reply -> transient");
+    TRANSIENT("\r\n+CESQ: (0-63,99)\r\n", "no terminal line (timed out mid-reply) -> transient");
+    TRANSIENT("\r\nERRORS\r\n", "ERROR as a prefix is not a terminal line");
+#undef REFUSED
+#undef TRANSIENT
+#undef KEPT
+    {
+        /* CESQ (4) busy on round 1, refused on round 2; the rest answer OK. */
+        stdat_generic_t g;
+        stdat_generic_reset(&g);
+        const char *ok = "\r\nOK\r\n";
+        for (int i = 0; i < STDAT_GENERIC_N; i++)
+            if (STDAT_GENERIC_TEST[i] != NULL)
+                stdat_generic_note(&g, i, 6, i == 4 ? "\r\n+CME ERROR: 14\r\n" : ok);
+        stdat_generic_round_done(&g);
+        check(!g.probed, "transient CME: probe runs again next poll");
+        check(!(g.skip & (1u << 4)), "transient CME: verb stays in the poll");
+        check(!(g.settled & (1u << 4)), "transient CME: verb not settled");
+        check(stdat_generic_note(&g, 4, 6, "\r\n+CME ERROR: 4\r\n") == 1,
+              "re-probe: CME 4 refuses");
+        stdat_generic_round_done(&g);
+        check(g.probed && (g.skip == (1u << 4)), "re-probe settles; only CESQ left out");
+
+        stdat_generic_reset(&g);
+        check(!g.probed && g.skip == 0 && g.settled == 0 && g.rounds == 0,
+              "reset (open) clears probe state");
+
+        for (int r = 0; r < STDAT_GENERIC_PROBE_ROUNDS; r++) {
+            check(!g.probed, "busy forever: still probing under the cap");
+            stdat_generic_note(&g, 5, 6, "\r\n+CME ERROR: 515\r\n");
+            stdat_generic_round_done(&g);
+        }
+        check(g.probed && g.skip == 0, "busy forever: cap ends probing, verb kept");
+
+        stdat_generic_reset(&g);
+        check(stdat_generic_note(&g, 1, 0, "") == 0 && !(g.settled & (1u << 1)),
+              "timeout (n == 0): not settled, probed again");
+        check(stdat_generic_note(&g, 1, -1, "\r\nERROR\r\n") == 0 && !(g.settled & (1u << 1)),
+              "serial error (n < 0): transient even with stale ERROR text");
+        check(stdat_generic_note(&g, 2, 6, "\r\n+CME ERROR: 3\r\n") == 1 &&
+              (g.skip & (1u << 2)) && (g.settled & (1u << 2)),
+              "CME 3 refuses and settles");
+        check(stdat_generic_note(&g, 0, 7, "\r\nERROR\r\n") == 1 && (g.skip & 1u),
+              "plain ERROR refuses");
+        check(stdat_generic_note(&g, 4, 6, "\r\n+CME ERROR 14\r\n") == 0 &&
+              !(g.settled & (1u << 4)), "colon-less CME 14: not settled");
+        for (int r = 0; r < STDAT_GENERIC_PROBE_ROUNDS; r++) {
+            check(!g.probed, "timeout forever: still probing under the cap");
+            stdat_generic_note(&g, 1, 0, "");
+            stdat_generic_round_done(&g);
+        }
+        check(g.probed && !(g.skip & (1u << 1)), "timeout forever: cap ends probing, verb kept");
+
+        stdat_generic_reset(&g);
+        check(stdat_generic_note(&g, -1, 6, "ERROR") == 0 &&
+              stdat_generic_note(&g, STDAT_GENERIC_N, 6, "ERROR") == 0 && g.skip == 0,
+              "out-of-range index ignored");
+    }
     {
         int cops = -1, probed = 0;
         for (int i = 0; i < STDAT_GENERIC_N; i++) {

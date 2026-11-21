@@ -6,12 +6,9 @@
 // cf_send_json's `gps` param), so without this leg the capture helper would
 // have no position to tag any cell observation with.
 //
-// 0x14D8 is not a second source. The reference decoder's 0x14D8 parser sets
-// lat/lon/alt to a hardcoded 0.0: bytes [+20..+43] are unbound carryover from an
-// earlier RE pass and no observed firmware populates them. 0.0 fails the
-// `1 < |lat| < 90` coordinate gate, so a 0x14D8 position leg could never emit a
-// fix. There is deliberately no 0x14D8 leg here: it would be a decode path that
-// is provably always empty.
+// 0x14D8 is not a second source: it is the thermal monitor log (one
+// temperature-sensor reading per record) and carries no position, so there is
+// no 0x14D8 leg here.
 //
 // The layout regime is the hard part. 0x1476 lands the fix fields at four
 // different bases depending on (version, payload_size), and the reference
@@ -171,7 +168,7 @@ const double kJumpMinDtS = 1.0;
 // sample: runs of 2-3 are routine live repeats and runs of 4-7 are sub-second
 // bursts or two engines' live pairs, while every run of 8+ was a re-served
 // position frozen over 46-338 s.
-const uint32_t kDefaultFrozenRun = 8;
+inline constexpr uint32_t kDefaultFrozenRun = 8;
 // The span arm: the run has lasted MORE than this many raw DIAG log_time ticks
 // since its first record -- 3 s at the LOG_F ts64 rate (Q16, 1.25 ms units).
 // Measured, frozen re-serves span >= 7.1 s and live bursts <= 0.7 s, so it
@@ -179,7 +176,7 @@ const uint32_t kDefaultFrozenRun = 8;
 // re-serves in runs of 3 over >= 5 s). log_time 0 means "no timestamp" and
 // leaves the arm inert; a log_time BEHIND the run's start restarts the span
 // there, so a counter reset never reads as frozen.
-const uint64_t kDefaultFrozenSpanTicks = static_cast<uint64_t>(2400) << 16;
+inline constexpr uint64_t kDefaultFrozenSpanTicks = static_cast<uint64_t>(2400) << 16;
 
 // Great-circle metres between two (deg, deg) points, in a fixed operation order
 // (deg * (pi/180), squares as s * s, h clamped to 1, 2 * R * asin(sqrt(h))) so
