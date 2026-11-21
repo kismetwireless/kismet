@@ -253,6 +253,13 @@ typedef enum {
      * anchor fed by a source re-serving a parked position refuses the real
      * moving track. Never produced today; the value is reserved. */
     DIAG_NATIVE_GPS_DECLINE_JUMP,
+    /* A position re-served on a FROZEN own GNSS clock: the same clock on 8+
+     * consecutive clocked records, or a same-clock run lasting more than 3 s
+     * of DIAG time. A receiver with GPS time and no current fix repeats its
+     * last known position this way; with no live fix in the stream STALE has
+     * no newer clock to measure it against. Tracker-only, like STALE. The
+     * span arm needs the record's timestamp: diag_native_decode_gps_fix_at(). */
+    DIAG_NATIVE_GPS_DECLINE_FROZEN,
 } diag_native_gps_decline_t;
 
 /* One decoded GNSS position fix. `valid` false means the record carried no
@@ -309,8 +316,8 @@ void diag_native_gnss_tracker_reset(diag_native_gnss_tracker_t *tracker);
 uint64_t diag_native_gnss_tracker_unjudged(const diag_native_gnss_tracker_t *tracker);
 
 /* The decline reason's name: "no_position", "placeholder_position",
- * "no_time_solution", "stale_fix", "implausible_altitude", "implausible_jump"
- * -- and "unparseable" for a record the parser refused before any gate ran.
+ * "no_time_solution", "stale_fix", "implausible_altitude", "implausible_jump",
+ * "frozen_clock" -- and "unparseable" for a record the parser refused before any gate ran.
  * NULL for DIAG_NATIVE_GPS_DECLINE_NONE. The strings are the diagspec leg's. */
 const char *diag_native_gps_decline_name(diag_native_gps_decline_t reason);
 
@@ -329,6 +336,15 @@ const char *diag_native_gps_decline_name(diag_native_gps_decline_t reason);
  * out_fix is always fully written when the return value is >= 0. */
 int diag_native_decode_gps_fix(diag_native_gnss_tracker_t *tracker,
         uint16_t log_code, const uint8_t *payload,
+        size_t payload_len, diag_native_gps_fix_t *out_fix);
+
+/* diag_native_decode_gps_fix() with the record's raw DIAG timestamp, the
+ * LOG_F header ts64 (diag_log_record_t.ts64), which arms the frozen-clock span
+ * arm. log_time 0 means "no timestamp": exactly diag_native_decode_gps_fix(),
+ * which keeps the count arm only. A capture source that has the timestamp
+ * passes it here. */
+int diag_native_decode_gps_fix_at(diag_native_gnss_tracker_t *tracker,
+        uint16_t log_code, uint64_t log_time, const uint8_t *payload,
         size_t payload_len, diag_native_gps_fix_t *out_fix);
 
 /* True iff log_code has a native GNSS leg. */

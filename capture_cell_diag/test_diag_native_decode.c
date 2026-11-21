@@ -943,6 +943,163 @@ static bool check_gnss_tracker_contract(void) {
     return ok;
 }
 
+/* The frozen-clock contract: a receiver with GPS time and no current fix
+ * re-serves its last known position on ONE frozen clock. With no live fix in
+ * the stream the stale arm has no newer clock to compare with, so only the run
+ * itself can refuse it -- by its record count, or by how long it lasted in the
+ * record's own DIAG time.
+ *
+ * The fixture is its own, at round synthetic degrees (10, 20), not v13_record's
+ * position: same v13 layout and offsets. log_time is the raw LOG_F ts64 (Q16,
+ * 1.25 ms units), so one second is 800 << 16 ticks. */
+#define FZ_SEC ((uint64_t) 800 << 16)
+#define FZ_T0 ((uint64_t) 1000000 << 16)
+
+static uint8_t *frozen_fixture(uint16_t week, uint32_t tow_ms) {
+    uint8_t *b = (uint8_t *) calloc(1, 2477);
+    if (b == NULL) return NULL;
+    put_u8(b, 0, 13);
+    put_u16(b, 32, week);                     /* fix_gps_week, v13 base 32 */
+    put_u32(b, 34, tow_ms);                   /* fix_gps_tow_ms, base + 2  */
+    put_f64(b, 49, 10.0 * 3.14159265358979323846 / 180.0);
+    put_f64(b, 57, 20.0 * 3.14159265358979323846 / 180.0);
+    put_f32(b, 65, 100.0f);
+    return b;
+}
+
+/* One record into the tracker; returns the decline (NONE = accepted), or -1 on
+ * an allocation / contract failure. */
+static int fz(diag_native_gnss_tracker_t *t, uint16_t week, uint32_t tow_ms,
+              uint64_t log_time) {
+    diag_native_gps_fix_t fix;
+    uint8_t *b = frozen_fixture(week, tow_ms);
+    if (b == NULL) return -1;
+    int rc = diag_native_decode_gps_fix_at(t, 0x1476, log_time, b, 2477, &fix);
+    free(b);
+    if (rc < 0) return -1;
+    if ((rc == 1) != fix.valid) return -1;
+    return (int) fix.decline_reason;
+}
+
+static bool fz_expect(const char *what, int got, int want) {
+    if (got == want) return true;
+    printf("  FAIL frozen: %s: decline %d, want %d\n", what, got, want);
+    return false;
+}
+
+static bool check_gnss_frozen_clock(void) {
+    bool ok = true;
+    const int NONE = DIAG_NATIVE_GPS_DECLINE_NONE;
+    const int FROZEN = DIAG_NATIVE_GPS_DECLINE_FROZEN;
+    const uint32_t tow = 40000000u;
+    diag_native_gnss_tracker_t *t =
+        diag_native_gnss_tracker_new(diag_native_gnss_default_max_fix_age_ms());
+    if (t == NULL) {
+        printf("  FAIL frozen: _new returned NULL\n");
+        return false;
+    }
+
+    /* Count arm, untimed (log_time 0): copies 1..7 pass, the 8th is frozen. */
+    for (int i = 1; i <= 7; i++)
+        ok &= fz_expect("untimed copy 1..7 of one clock", fz(t, 2430, tow, 0), NONE);
+    ok &= fz_expect("untimed 8th copy of one clock", fz(t, 2430, tow, 0), FROZEN);
+    ok &= fz_expect("untimed 9th copy stays frozen", fz(t, 2430, tow, 0), FROZEN);
+    /* A new clock starts a new run. */
+    ok &= fz_expect("a new clock after a frozen run", fz(t, 2430, tow + 1000u, 0), NONE);
+
+    /* A live run of 7 (sub-second burst / two engines' pair repeats) survives. */
+    diag_native_gnss_tracker_reset(t);
+    for (int i = 0; i < 7; i++)
+        ok &= fz_expect("7 copies inside 0.7 s",
+                        fz(t, 2430, tow, FZ_T0 + (uint64_t) i * (FZ_SEC / 10)), NONE);
+
+    /* A clockless record (week 0xFFFF) neither extends nor breaks a run. */
+    diag_native_gnss_tracker_reset(t);
+    for (int i = 0; i < 4; i++)
+        ok &= fz_expect("4 copies before a clockless record", fz(t, 2430, tow, 0), NONE);
+    ok &= fz_expect("the clockless record", fz(t, 0xFFFF, tow, 0),
+                    DIAG_NATIVE_GPS_DECLINE_NO_TIME);
+    for (int i = 0; i < 3; i++)
+        ok &= fz_expect("copies 5..7 after it", fz(t, 2430, tow, 0), NONE);
+    ok &= fz_expect("copy 8 spans the clockless record", fz(t, 2430, tow, 0), FROZEN);
+
+    /* Span arm: three copies, the third > 3 s after the first, is frozen. */
+    diag_native_gnss_tracker_reset(t);
+    ok &= fz_expect("span: first copy", fz(t, 2430, tow, FZ_T0), NONE);
+    ok &= fz_expect("span: copy at +2.5 s", fz(t, 2430, tow, FZ_T0 + FZ_SEC * 5 / 2), NONE);
+    ok &= fz_expect("span: copy at +3.5 s", fz(t, 2430, tow, FZ_T0 + FZ_SEC * 7 / 2), FROZEN);
+
+    /* Exactly the bound is not over it; one tick more is. */
+    diag_native_gnss_tracker_reset(t);
+    ok &= fz_expect("bound: first copy", fz(t, 2430, tow, FZ_T0), NONE);
+    ok &= fz_expect("bound: copy at exactly +3 s", fz(t, 2430, tow, FZ_T0 + 3 * FZ_SEC), NONE);
+    ok &= fz_expect("bound: copy one tick past +3 s",
+                    fz(t, 2430, tow, FZ_T0 + 3 * FZ_SEC + 1), FROZEN);
+
+    /* A log_time BEHIND the run's start restarts the span there, so a counter
+     * reset never reads as frozen. */
+    diag_native_gnss_tracker_reset(t);
+    ok &= fz_expect("reset: first copy", fz(t, 2430, tow, FZ_T0), NONE);
+    ok &= fz_expect("reset: copy at +2.9 s", fz(t, 2430, tow, FZ_T0 + FZ_SEC * 29 / 10), NONE);
+    ok &= fz_expect("reset: copy 100 s BEHIND the start",
+                    fz(t, 2430, tow, FZ_T0 - 100 * FZ_SEC), NONE);
+    ok &= fz_expect("reset: copy 2.9 s after the restart",
+                    fz(t, 2430, tow, FZ_T0 - 100 * FZ_SEC + FZ_SEC * 29 / 10), NONE);
+
+    /* log_time 0 is "no timestamp": a long-lived run of 3 with no stamps passes. */
+    diag_native_gnss_tracker_reset(t);
+    for (int i = 0; i < 3; i++)
+        ok &= fz_expect("untimed run of 3", fz(t, 2430, tow, 0), NONE);
+
+    /* ...and an untimed record INSIDE a timed run neither starts nor moves its
+     * span: timed, untimed, timed +1 s is a 1 s run, not one from tick 0. */
+    diag_native_gnss_tracker_reset(t);
+    ok &= fz_expect("mixed: timed copy", fz(t, 2430, tow, FZ_T0), NONE);
+    ok &= fz_expect("mixed: untimed copy", fz(t, 2430, tow, 0), NONE);
+    ok &= fz_expect("mixed: timed copy +1 s", fz(t, 2430, tow, FZ_T0 + FZ_SEC), NONE);
+
+    /* A new clock forgets the old run's start. */
+    diag_native_gnss_tracker_reset(t);
+    ok &= fz_expect("new clock: first", fz(t, 2430, tow, FZ_T0), NONE);
+    ok &= fz_expect("new clock: second clock +5 s later",
+                    fz(t, 2430, tow + 5000u, FZ_T0 + 5 * FZ_SEC), NONE);
+    ok &= fz_expect("new clock: its copy +1 s later",
+                    fz(t, 2430, tow + 5000u, FZ_T0 + 6 * FZ_SEC), NONE);
+
+    /* reset forgets the run: 7 copies, reset, 7 more all pass. */
+    diag_native_gnss_tracker_reset(t);
+    for (int i = 0; i < 7; i++) (void) fz(t, 2430, tow, 0);
+    diag_native_gnss_tracker_reset(t);
+    for (int i = 0; i < 7; i++)
+        ok &= fz_expect("7 copies after a reset", fz(t, 2430, tow, 0), NONE);
+
+    /* The legacy entry point is log_time 0: the count arm still works there. */
+    diag_native_gnss_tracker_reset(t);
+    {
+        diag_native_gps_fix_t fix;
+        int last = -1;
+        for (int i = 0; i < 8; i++) {
+            uint8_t *b = frozen_fixture(2430, tow);
+            if (b == NULL) { ok = false; break; }
+            (void) diag_native_decode_gps_fix(t, 0x1476, b, 2477, &fix);
+            free(b);
+            last = (int) fix.decline_reason;
+        }
+        ok &= fz_expect("legacy entry point, 8th copy", last, FROZEN);
+    }
+    diag_native_gnss_tracker_free(t);
+
+    const char *name = diag_native_gps_decline_name(DIAG_NATIVE_GPS_DECLINE_FROZEN);
+    if (name == NULL || strcmp(name, "frozen_clock") != 0) {
+        printf("  FAIL frozen: FROZEN named %s, want frozen_clock\n", name ? name : "(null)");
+        ok = false;
+    }
+    if (ok)
+        printf("  ok   gnss frozen clock (count arm 8, span arm > 3 s, bound, reset, "
+               "clockless, untimed, name)\n");
+    return ok;
+}
+
 /* The cross-record SIB1 map contract.
  *
  * WHY THIS IS HERE AND NOT IN A REPLAY TEST. Changing diag_native_sib1_learn
@@ -2429,6 +2586,7 @@ int main(void) {
         ok &= check_gnss(&kGnssCases[i]);
     ok &= check_gnss_routing_contract();
     ok &= check_gnss_tracker_contract();
+    ok &= check_gnss_frozen_clock();
     ok &= check_sib1_map_contract();
     ok &= check_lte_meas_neighbours();
     ok &= check_b0c0_gated();
