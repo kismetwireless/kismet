@@ -126,6 +126,9 @@ BUILD_CAPTURE_OPENBSD_WIFI = @BUILD_CAPTURE_OPENBSD_WIFI@
 CAPTURE_LINUX_BLUETOOTH = capture_linux_bluetooth/kismet_cap_linux_bluetooth
 BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 
+CAPTURE_WIRED = capture_wired/kismet_cap_wired
+BUILD_CAPTURE_WIRED = @BUILD_CAPTURE_WIRED@
+
 CAPTURE_OSX_COREWLAN = capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 
@@ -279,6 +282,11 @@ TEST_ETHERNET_O = \
 	test/ethernet/l3_parse_test.cc.o \
 	kis_l3_parse.cc.o wired_flow_tracker.cc.o
 
+# The wired datasource status record tests; built on request
+TEST_WIRED_STATUS = test/wired_helper/status_test
+TEST_WIRED_STATUS_O = \
+	test/wired_helper/status_test.cc.o
+
 # The device rules baseline grammar tests; built on request
 TEST_DEVICE_RULES = test/device_rules/baseline_test
 TEST_DEVICE_RULES_O = \
@@ -408,6 +416,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	datasource_catsniffer_zigbee.cc.o datasource_cell_at.cc.o datasource_cell_diag.cc.o \
 	datasource_sniffle_ble.cc.o \
 	datasource_lorapipe.cc.o \
+	datasource_wired.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o kis_httpd_ssl.cc.o \
 	system_monitor.cc.o environment.cc.o environment_report.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea_v3.cc.o gpsubx_v1.cc.o gpssirf_v1.cc.o gpsframer_v1.cc.o gpsserial_v3.cc.o gpstcp_v2.cc.o \
@@ -523,6 +532,9 @@ $(TEST_UTIL_UTF8):	$(TEST_UTIL_UTF8_O)
 $(TEST_ETHERNET):	$(TEST_ETHERNET_O)
 	$(LD) $(LDFLAGS) -o $(TEST_ETHERNET) $(TEST_ETHERNET_O) $(CXXLIBS)
 
+$(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
+	$(LD) $(LDFLAGS) -o $(TEST_WIRED_STATUS) $(TEST_WIRED_STATUS_O) $(CXXLIBS)
+
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
 
@@ -589,6 +601,9 @@ $(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 
 $(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_bluetooth && $(MAKE))
+
+$(CAPTURE_WIRED):	$(DATASOURCE_COMMON_A) FORCE
+	(cd capture_wired && $(MAKE))
 
 $(CAPTURE_OPENBSD_WIFI):	$(DATASOURCE_COMMON_A) $(DATASOURCE_WIFI_C_O) FORCE
 	(cd capture_openbsd_wifi && $(MAKE))
@@ -702,6 +717,14 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
+	@# Not setuid: the wired helper needs CAP_NET_RAW only, as a file capability
+	@if test "$(BUILD_CAPTURE_WIRED)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 0750 $(CAPTURE_WIRED) $(BIN)/`basename $(CAPTURE_WIRED)` && \
+		if ! setcap cap_net_raw+ep $(BIN)/`basename $(CAPTURE_WIRED)`; then \
+			echo "WARNING: could not set cap_net_raw on $(BIN)/`basename $(CAPTURE_WIRED)`; wired capture needs 'setcap cap_net_raw+ep' on it, or root"; \
+		fi; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_OPENBSD_WIFI)"x = "1"x; then \
@@ -855,6 +878,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_WIRED)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_WIRED) $(BIN)/`basename $(CAPTURE_WIRED)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_OPENBSD_WIFI)"x = "1"x; then \
@@ -1159,6 +1186,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET)
+	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)
 	@-rm -f $(CAPTURE_KISMETDB)
@@ -1169,6 +1197,7 @@ clean: all-plugins-clean depclean
 	@-rm -f $(LOGTOOL_BINS)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
+	@(cd capture_wired && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_openbsd_wifi && make clean)
 	@(cd capture_freaklabs_zigbee_v2 &&  make clean)

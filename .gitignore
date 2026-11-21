@@ -27,6 +27,13 @@ test/httpd_login_conf/login_conf_test
 test/environment/env_test
 test/util_utf8/utf8_test
 test/ethernet/l3_parse_test
+test/wired_helper/wired_test
+test/wired_helper/priv_test
+test/wired_helper/status_test
+test/wired_helper/selfexcl_fuzz
+test/wired_helper/opts_fuzz
+test/wired_helper/linkkind_fuzz
+test/wired_helper/procids_fuzz
 callgrind*
 *.pcap
 *.pcapng
@@ -62,6 +69,8 @@ python_modules/*/dist/
 capture_nrf_mousejack/kismet_cap_nrf_mousejack
 capture_linux_bluetooth/kismet_cap_linux_bluetooth
 capture_linux_wifi/kismet_cap_linux_wifi
+capture_wired/kismet_cap_wired
+capture_wired/replay/
 capture_userspace_usb_wifi/userspace-wifi/uwifi
 capture_userspace_usb_wifi/libuwifi.a
 capture_userspace_usb_wifi/libuwifi_wifi.a

@@ -104,6 +104,7 @@
 #include "datasource_antsdr_droneid.h"
 #include "datasource_catsniffer_zigbee.h"
 #include "datasource_sniffle_ble.h"
+#include "datasource_wired.h"
 #include "datasource_wch_ble_analyzer_pro.h"
 #include "datasource_cell_at.h"
 #include "datasource_cell_diag.h"
@@ -1040,6 +1041,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_at_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_diag_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_lorapipe_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wired_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();

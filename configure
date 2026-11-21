@@ -658,6 +658,7 @@ BUILD_CAPTURE_SDR_RTLADSBV2
 BUILD_CAPTURE_SDR_RTL433V2
 BUILD_CAPTURE_OSX_COREWLAN
 BUILD_CAPTURE_OPENBSD_WIFI
+BUILD_CAPTURE_WIRED
 BUILD_CAPTURE_LINUX_BLUETOOTH
 BUILD_CAPTURE_LINUX_WIFI
 BUILD_CAPTURE_KISMETDB
@@ -838,6 +839,7 @@ enable_pcre
 enable_require_pcre2
 with_openssl
 enable_libwebsockets
+enable_wired
 with_protoc
 enable_bladerf
 enable_libnm
@@ -1547,6 +1549,8 @@ Optional Features:
   --disable-libwebsockets Disable C-based libwebsockets, this will only impact
                           building remote capture sources. The Kismet server
                           will still have websockets support.
+  --disable-wired         Disable the wired (Ethernet) capture source; built
+                          by default on Linux with libcap
   --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libnm         Disable libnm networkmanager support
   --disable-libusb        Disable libUSB support and any libUSB based data
@@ -11132,6 +11136,47 @@ then :
 
 fi
 
+# Ethernet capture with libpcap; Linux only for now
+want_wired="auto"
+# Check whether --enable-wired was given.
+if test ${enable_wired+y}
+then :
+  enableval=$enable_wired; case "${enableval}" in
+          no) want_wired=no ;;
+           *) want_wired=yes ;;
+	 esac
+else case e in #(
+  e) want_wired=auto
+ ;;
+esac
+fi
+
+
+BUILD_CAPTURE_WIRED=0
+wired_reason="disabled"
+if test x"$want_wired" = x"auto"; then
+    if test x"$linux" != x"yes"; then
+        want_wired=no
+        wired_reason="only supported on Linux"
+    elif test x"$havecap" != x"yes"; then
+        want_wired=no
+        wired_reason="libcap not found, or --disable-libcap; it drops root to CAP_NET_RAW"
+    else
+        want_wired=yes
+    fi
+fi
+
+if test x"$want_wired" = x"yes"; then
+    if test x"$linux" != x"yes"; then
+        as_fn_error $? "the wired capture source is only supported on Linux" "$LINENO" 5
+    fi
+    if test x"$havecap" != x"yes"; then
+        as_fn_error $? "libcap required for the wired capture source, to drop root to CAP_NET_RAW; configure with --disable-wired to turn it off" "$LINENO" 5
+    fi
+    BUILD_CAPTURE_WIRED=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WIRED)"
+fi
+
 BUILD_CAPTURE_OPENBSD_WIFI=0
 if test "$openbsd" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_OPENBSD_WIFI)"
@@ -13794,7 +13839,7 @@ sharedatadir=${sharedatadir}
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile usbserial/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_rtlais/Makefile capture_sdr_rtlaisadsb/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_cell_at/Makefile capture_cell_diag/Makefile capture_lorapipe/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_antsdr_droneid/Makefile capture_bladerf_wiphy/Makefile capture_catsniffer_zigbee/Makefile capture_freaklabs_zigbee_v2/Makefile capture_hak5_wifi_coconut/Makefile capture_userspace_usb_wifi/Makefile capture_morse_mm8108_usb_halow/Makefile usbserial/Makefile capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_nrf_mousejack/Makefile capture_nxp_kw41z/Makefile capture_openbsd_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_radiacode/Makefile capture_rz_killerbee/Makefile capture_sdr_rtl433_v2/Makefile capture_sdr_rtladsb_v2/Makefile capture_sdr_rtlais/Makefile capture_sdr_rtlaisadsb/Makefile capture_sdr_zigbee900/Makefile capture_serial_radview/Makefile capture_sniffle_ble/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_wch_ble_analyzer_pro/Makefile capture_wired/Makefile capture_cell_at/Makefile capture_cell_diag/Makefile capture_lorapipe/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -14478,6 +14523,7 @@ do
     "capture_ti_cc_2531/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ti_cc_2531/Makefile" ;;
     "capture_ubertooth_one/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ubertooth_one/Makefile" ;;
     "capture_wch_ble_analyzer_pro/Makefile") CONFIG_FILES="$CONFIG_FILES capture_wch_ble_analyzer_pro/Makefile" ;;
+    "capture_wired/Makefile") CONFIG_FILES="$CONFIG_FILES capture_wired/Makefile" ;;
     "capture_cell_at/Makefile") CONFIG_FILES="$CONFIG_FILES capture_cell_at/Makefile" ;;
     "capture_cell_diag/Makefile") CONFIG_FILES="$CONFIG_FILES capture_cell_diag/Makefile" ;;
     "capture_lorapipe/Makefile") CONFIG_FILES="$CONFIG_FILES capture_lorapipe/Makefile" ;;
@@ -15128,6 +15174,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no"
+fi
+
+printf "      Wired (Ethernet): "
+if test "$BUILD_CAPTURE_WIRED" = 1; then
+	echo "yes"
+else
+	echo "no ($wired_reason)"
 fi
 
 printf "         Linux Netlink: "

@@ -736,6 +736,11 @@ void cf_handler_free(kis_capture_handler_t *caph) {
     if (caph->cli_sourcedef)
         free(caph->cli_sourcedef);
 
+#ifdef HAVE_LIBWEBSOCKETS
+    free(caph->lwsuuid);
+    caph->lwsuuid = NULL;
+#endif
+
     if (caph->tcp_fd >= 0)
         close(caph->tcp_fd);
 
@@ -3875,6 +3880,9 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
         return;
     }
 
+    free(caph->lwsuuid);
+    caph->lwsuuid = NULL;
+
     cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr,
             &caph->lwsuuid, &cpi, &cps);
 
@@ -6542,6 +6550,62 @@ double cf_parse_frequency(const char *freq) {
     return v;
 }
 
+#ifdef HAVE_CAPABILITY
+/* cf_set_caps flags: keep-caps set first (which fails under a locked SECBIT_KEEP_CAPS),
+ * and cap_list in the inheritable set too */
+#define CF_SET_CAPS_KEEPCAPS    0x1
+#define CF_SET_CAPS_INHERIT     0x2
+
+/* The permitted and effective sets become exactly cap_list, and the inheritable set
+ * cap_list or nothing */
+static int cf_set_caps(kis_capture_handler_t *caph, cap_value_t *cap_list, int cl_len,
+        unsigned int flags) {
+    char errstr[STATUS_MAX];
+    cap_t caps;
+
+    if ((caps = cap_init()) == NULL)
+        return -1;
+
+    if ((flags & CF_SET_CAPS_KEEPCAPS) && prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to set keepcaps in prctl: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr);
+        cap_free(caps);
+        return -1;
+    }
+
+    if (cl_len > 0) {
+        cap_set_flag(caps, CAP_PERMITTED, cl_len, cap_list, CAP_SET);
+
+        if (flags & CF_SET_CAPS_INHERIT)
+            cap_set_flag(caps, CAP_INHERITABLE, cl_len, cap_list, CAP_SET);
+    }
+
+    if (cap_set_proc(caps)) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to set future process "
+                "capabilities: %s", strerror(errno));
+        cf_send_warning(caph, errstr);
+        cap_free(caps);
+        return -1;
+    }
+
+    if (cl_len > 0)
+        cap_set_flag(caps, CAP_EFFECTIVE, cl_len, cap_list, CAP_SET);
+
+    if (cap_set_proc(caps)) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to set effective capabilities: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr);
+        cap_free(caps);
+        return -1;
+    }
+
+    cap_free(caps);
+
+    return 1;
+}
+#endif
+
 int cf_drop_most_caps(kis_capture_handler_t *caph) {
     /* Modeled on the Wireshark Dumpcap priv dropping
      *
@@ -6557,47 +6621,75 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
         return 0;
 
 #ifdef HAVE_CAPABILITY
-    char errstr[STATUS_MAX];
-	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
-	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
-	cap_t caps = cap_init();
+    cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
 
-	if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
-        snprintf(errstr, STATUS_MAX, "datasource failed to set keepcaps in prctl: %s",
-                strerror(errno));
-        cf_send_warning(caph, errstr);
-        cap_free(caps);
-        return -1;
-	}
-
-	cap_set_flag(caps, CAP_PERMITTED, cl_len, cap_list, CAP_SET);
-	cap_set_flag(caps, CAP_INHERITABLE, cl_len, cap_list, CAP_SET);
-
-	if (cap_set_proc(caps)) {
-        snprintf(errstr, STATUS_MAX, "datasource failed to set future process "
-                "capabilities: %s", strerror(errno));
-        cf_send_warning(caph, errstr);
-        cap_free(caps);
-        return -1;
-	}
-
-	cap_set_flag(caps, CAP_EFFECTIVE, cl_len, cap_list, CAP_SET);
-	if (cap_set_proc(caps)) {
-        snprintf(errstr, STATUS_MAX, "datasource failed to set effective capabilities: %s",
-                strerror(errno));
-        cf_send_warning(caph, errstr);
-        cap_free(caps);
-        return -1;
-    }
-
-	cap_free(caps);
-
-    return 1;
+    return cf_set_caps(caph, cap_list, 2, CF_SET_CAPS_KEEPCAPS | CF_SET_CAPS_INHERIT);
 #else
     /*
     snprintf(errstr, STATUS_MAX, "datasource not compiled with libcap capabilities control");
     cf_send_warning(caph, errstr);
     */
+    return 0;
+#endif
+}
+
+#ifdef SYS_LINUX
+/* linux/prctl.h from 4.3 */
+#ifndef PR_CAP_AMBIENT
+#define PR_CAP_AMBIENT              47
+#endif
+#ifndef PR_CAP_AMBIENT_CLEAR_ALL
+#define PR_CAP_AMBIENT_CLEAR_ALL    4
+#endif
+#endif
+
+#define CF_CAPS_KEEP_MAX    8
+
+int cf_drop_caps_keep(kis_capture_handler_t *caph, const int *keep, size_t n_keep) {
+#ifdef HAVE_CAPABILITY
+    cap_value_t held[CF_CAPS_KEEP_MAX];
+    cap_flag_value_t v;
+    cap_t cur;
+    int n_held = 0;
+    size_t i;
+#endif
+
+    if (keep == NULL || n_keep == 0 || n_keep > CF_CAPS_KEEP_MAX)
+        return -1;
+
+    /* Lowering needs no privilege, so this runs whatever the uid.  An ambient set,
+     * which an unprivileged parent can hand down, goes first; EINVAL is a kernel
+     * before 4.3, which has none */
+#ifdef SYS_LINUX
+    if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) == -1 && errno != EINVAL) {
+        char errstr[STATUS_MAX];
+
+        snprintf(errstr, STATUS_MAX, "datasource failed to clear its ambient capabilities: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr);
+        return -1;
+    }
+#endif
+
+#ifdef HAVE_CAPABILITY
+    /* Only what is held can be kept; asking for more fails the whole change */
+    if ((cur = cap_get_proc()) == NULL)
+        return -1;
+
+    for (i = 0; i < n_keep; i++) {
+        if (cap_get_flag(cur, (cap_value_t) keep[i], CAP_PERMITTED, &v) == 0 && v == CAP_SET)
+            held[n_held++] = (cap_value_t) keep[i];
+    }
+
+    cap_free(cur);
+
+    /* Keep-caps only matters to a uid change, which is the caller's to arrange, and
+     * nothing kept is meant to pass to an exec'd program */
+    if (cf_set_caps(caph, held, n_held, 0) < 0)
+        return -1;
+
+    return n_held > 0 ? 1 : 2;
+#else
     return 0;
 #endif
 }

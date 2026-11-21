@@ -1218,6 +1218,42 @@ AS_IF([test "$linux"x = "yes"x],
       ], []
 )
 
+# Ethernet capture with libpcap; Linux only for now
+want_wired="auto"
+AC_ARG_ENABLE([wired],
+    AS_HELP_STRING([--disable-wired], [Disable the wired (Ethernet) capture source; built by default on Linux with libcap]),
+	[case "${enableval}" in
+          no) want_wired=no ;;
+           *) want_wired=yes ;;
+	 esac],
+         [want_wired=auto]
+)
+
+BUILD_CAPTURE_WIRED=0
+wired_reason="disabled"
+if test x"$want_wired" = x"auto"; then
+    if test x"$linux" != x"yes"; then
+        want_wired=no
+        wired_reason="only supported on Linux"
+    elif test x"$havecap" != x"yes"; then
+        want_wired=no
+        wired_reason="libcap not found, or --disable-libcap; it drops root to CAP_NET_RAW"
+    else
+        want_wired=yes
+    fi
+fi
+
+if test x"$want_wired" = x"yes"; then
+    if test x"$linux" != x"yes"; then
+        AC_MSG_ERROR([the wired capture source is only supported on Linux])
+    fi
+    if test x"$havecap" != x"yes"; then
+        AC_MSG_ERROR([libcap required for the wired capture source, to drop root to CAP_NET_RAW; configure with --disable-wired to turn it off])
+    fi
+    BUILD_CAPTURE_WIRED=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_WIRED)"
+fi
+
 BUILD_CAPTURE_OPENBSD_WIFI=0
 if test "$openbsd" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_OPENBSD_WIFI)"
@@ -2193,6 +2229,7 @@ AC_SUBST(BUILD_CAPTURE_PCAPFILE)
 AC_SUBST(BUILD_CAPTURE_KISMETDB)
 AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
+AC_SUBST(BUILD_CAPTURE_WIRED)
 AC_SUBST(BUILD_CAPTURE_OPENBSD_WIFI)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433V2)
@@ -2264,6 +2301,7 @@ AC_CONFIG_FILES([
     capture_ti_cc_2531/Makefile
     capture_ubertooth_one/Makefile
     capture_wch_ble_analyzer_pro/Makefile
+    capture_wired/Makefile
     capture_cell_at/Makefile
     capture_cell_diag/Makefile
     capture_lorapipe/Makefile
@@ -2319,6 +2357,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no"
+fi
+
+printf "      Wired (Ethernet): "
+if test "$BUILD_CAPTURE_WIRED" = 1; then
+	echo "yes"
+else
+	echo "no ($wired_reason)"
 fi
 
 printf "         Linux Netlink: "
