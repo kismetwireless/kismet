@@ -272,6 +272,29 @@ extern "C" int diag_native_decode_ex(uint16_t log_code, const uint8_t *payload,
                     out_obs[n].sinr = c.sinr;
                     n++;
                 }
+                // An NR SIB1 (BCCH-DL-SCH) carries no signal, but it names the
+                // cell. Emit an identity-only row for it, as the 0xB0C0 SIB1 leg
+                // does for LTE, so a mask with no NR measurement code (a rayhunter
+                // recording, for one) still yields its NR cells. The decode and
+                // its gate are the cross-record map's own
+                // (diag_0xb821_identity::identity), not a second implementation.
+                // A record is a MeasurementReport or a SIB1, never both.
+                if (cells.empty() && !diag_0xb821_observation::is_refusal(why) &&
+                        n < max_obs) {
+                    const diag_0xb821_identity::CellIdentity id =
+                        diag_0xb821_identity::identity(blob);
+                    if (id.valid && id.pci >= 0 && id.pci <= 1007) {
+                        init_obs(&out_obs[n], "NR", 0xB821);
+                        out_obs[n].pci = id.pci;
+                        out_obs[n].earfcn = id.arfcn;
+                        out_obs[n].has_identity = true;
+                        copy_plmn_field(out_obs[n].mcc, sizeof(out_obs[n].mcc), id.mcc);
+                        copy_plmn_field(out_obs[n].mnc, sizeof(out_obs[n].mnc), id.mnc);
+                        out_obs[n].tac = id.tac;
+                        out_obs[n].cell_id = id.cell_id;
+                        n++;
+                    }
+                }
                 break;
             }
             case 0xB97F: {

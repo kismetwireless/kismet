@@ -2825,15 +2825,12 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
     }
 
     if (!diag_native_has_leg(rec->log_code)) {
-        /* 0xB821 lands here, and that is correct, not an oversight: it seeds
-         * the map above but produces no cell_observation of its own, and the
-         * Exported-PDU framing it does feed
-         * still runs elsewhere. Counting it as a native cell record would
-         * overstate native coverage. identity_records is where its
-         * contribution shows up. */
+        /* A code with no cell leg lands here. (0xB821 no longer does: it has
+         * a leg, which emits a serving row per MeasurementReport and an
+         * identity row per SIB1; the map above is still seeded from it.) */
         local->native_tap.fallback_records++;
         /* For the census, a record the native path consumes without a cell
-         * leg is still decoded: an identity source (0xB821), the 0xB197
+         * leg is still decoded: an identity source, the 0xB197
          * config cache (cfg >= 0), or a well-formed 0x14D8 (a malformed one
          * is dropped). Of the rest, a code whose record layout is known is
          * undecoded_native -- the native-coverage to-do list -- and only a

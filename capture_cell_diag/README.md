@@ -135,8 +135,7 @@ so a full-mask stream never pushes a `silent` key off the 24 rows), and
 table of 1019 log codes. No build step generates it; add a code when its layout
 becomes known.
 
-A few codes are counted as decoded without a cell leg: identity sources
-(`0xB821`, which seeds the identity cache but emits no observation of its own),
+A few codes are counted as decoded without a cell leg: identity sources,
 the `0xB197` config cache, and a well-formed `0x14D8` (whose record carries no
 usable position and so can never emit; it is excluded from what `silent`
 escalates on).
