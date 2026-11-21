@@ -444,6 +444,10 @@ typedef struct {
                                              * The arm is DISARMED by
                                              * default, so this reads 0 until
                                              * it is redesigned and armed */
+        uint64_t gps_declined_frozen;       /* a position re-served on a
+                                             * frozen own GNSS clock (8+
+                                             * same-clock records, or a run
+                                             * over 3 s of DIAG time) */
         uint64_t gps_declined_unparseable;  /* short/malformed payload */
         uint64_t fallback_records;  /* no native leg reads these: the
                                      * native-coverage gap, by record */
@@ -2701,10 +2705,12 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
 
         diag_native_gps_fix_t fix;
         /* Judged against, then folded into, this source's freshness
-         * reference. */
-        int g = diag_native_decode_gps_fix(local->native_gnss_tracker,
-                                           rec->log_code, rec->payload,
-                                           rec->payload_len, &fix);
+         * reference. The record's own DIAG timestamp arms the frozen-clock
+         * span arm. */
+        int g = diag_native_decode_gps_fix_at(local->native_gnss_tracker,
+                                              rec->log_code, rec->ts64,
+                                              rec->payload, rec->payload_len,
+                                              &fix);
         /* g < 0 cannot happen here (has_gps_leg was true). Counting an
          * unexpected -1 as declined rather than asserting keeps a future
          * header/impl skew from killing a live capture over a counter. */
@@ -2760,6 +2766,8 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
                 local->native_tap.gps_declined_altitude++; break;
             case DIAG_NATIVE_GPS_DECLINE_JUMP:
                 local->native_tap.gps_declined_jump++; break;
+            case DIAG_NATIVE_GPS_DECLINE_FROZEN:
+                local->native_tap.gps_declined_frozen++; break;
             case DIAG_NATIVE_GPS_DECLINE_UNPARSEABLE:
                 local->native_tap.gps_declined_unparseable++; break;
             case DIAG_NATIVE_GPS_DECLINE_NONE:
@@ -2777,7 +2785,7 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
          * GATED: a receiver without sky view is not a decoder that went
          * silent, and counting them silent escalated every census line of
          * such a source to ERROR. The other verdicts (no time, stale,
-         * altitude, jump) can each hide a decode problem, so they still
+         * altitude, jump, frozen) can each hide a decode problem, so they still
          * count toward a silence. */
         if (g == 0 &&
             (fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_NO_POSITION ||
@@ -3123,7 +3131,8 @@ static int native_tap_format(const local_diag_t *local, char *out, size_t outsz)
                     "sib1=%llu keys=%llu (%zu live) | "
                     "gnss=%llu fixes=%llu nofix=%llu "
                     "(nopos=%llu placeholder=%llu notime=%llu stale=%llu "
-                    "altitude=%llu jump=%llu unparseable=%llu) unjudged=%llu | "
+                    "altitude=%llu jump=%llu frozen=%llu unparseable=%llu) "
+                    "unjudged=%llu | "
                     "no-leg=%llu | "
                     "frames=%llu crc_bad=%llu wrapped=%llu",
                     local->name ? local->name : "celldiag",
@@ -3171,6 +3180,9 @@ static int native_tap_format(const local_diag_t *local, char *out, size_t outsz)
                      * cannot be. */
                     (unsigned long long)local->native_tap.gps_declined_altitude,
                     (unsigned long long)local->native_tap.gps_declined_jump,
+                    /* frozen= is a re-serve the stale arm cannot see: no live
+                     * fix in the stream, so no newer clock to compare with. */
+                    (unsigned long long)local->native_tap.gps_declined_frozen,
                     (unsigned long long)local->native_tap.gps_declined_unparseable,
                     (unsigned long long)diag_native_gnss_tracker_unjudged(
                         local->native_gnss_tracker),

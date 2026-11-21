@@ -59,7 +59,7 @@ the census names the codes as `undecoded_native`.
 ```
 <name> nativedecode=only | records=… native=… (N%) obs=… declined=… enriched=… |
   sib1=… keys=… (N live) | gnss=… fixes=… nofix=… (nopos=… placeholder=… notime=…
-  stale=… altitude=… jump=… unparseable=…) unjudged=… | no-leg=N |
+  stale=… altitude=… jump=… frozen=… unparseable=…) unjudged=… | no-leg=N |
   frames=… crc_bad=… wrapped=… | emitted=… emit_declined=… emit_truncated=… gps_emitted=…
 ```
 
