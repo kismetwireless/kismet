@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <future>
+#include <optional>
 
 namespace {
     // Lines a remote source causes.  A remote can connect again and again, as the same source
@@ -113,6 +114,11 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     get_source_packet_size_rrd()->add_sample(0, Globalreg::globalreg->last_tv_sec);
 }
 
+void kis_datasource::make_packet_rrds() {
+    get_source_packet_rrd();
+    get_source_packet_size_rrd();
+}
+
 kis_datasource::~kis_datasource() {
     // Wait out any running timer callback, they hold this; elsewhere timers are only
     // cancelled since the callbacks take ext_mutex, which those callers hold
@@ -125,28 +131,83 @@ kis_datasource::~kis_datasource() {
     command_ack_map.clear();
 }
 
-std::vector<std::string> kis_datasource::get_source_channels_vec_copy() {
-    std::vector<std::string> ret;
+void kis_datasource::sync_field_copies() {
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
 
-    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource get channel vec copy");
-
-    for (const auto& i : *source_channels_vec) {
-        ret.push_back(i);
+    {
+        std::unique_lock<std::shared_mutex> ul(source_uuid_copy_mutex);
+        source_uuid_copy = source_uuid->get();
     }
+
+    source_key_value.store(source_key->get(), std::memory_order_relaxed);
+    source_paused_value.store(source_paused->get() != 0, std::memory_order_relaxed);
+    source_override_linktype_value.store(source_override_linktype->get(), std::memory_order_relaxed);
+}
+
+void kis_datasource::set_source_uuid(const uuid& in) {
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+
+    // Devices read the tracked uuid through their seen-by records without this lock, so it
+    // is only written when it changes
+    const auto& cur = source_uuid->get();
+    if (!(cur == in) || cur.error != in.error)
+        source_uuid->set(in);
+
+    {
+        std::unique_lock<std::shared_mutex> ul(source_uuid_copy_mutex);
+        source_uuid_copy = in;
+    }
+
+    set_source_key(adler32_checksum(in.uuid_to_string()));
+}
+
+std::vector<std::string> kis_datasource::get_source_channels_vec_copy() {
+    kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, "datasource get channel vec copy");
+
+    return std::vector<std::string>(source_channels_vec->begin(), source_channels_vec->end());
+}
+
+std::vector<std::string> kis_datasource::get_source_hop_vec_copy() {
+    kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, "datasource get hop vec copy");
+
+    return std::vector<std::string>(source_hop_vec->begin(), source_hop_vec->end());
+}
+
+std::shared_ptr<tracker_element_vector_string> kis_datasource::get_source_hop_vec() {
+    auto ret = std::make_shared<tracker_element_vector_string>(source_hop_vec_id);
+
+    kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, "datasource get hop vec");
+
+    for (const auto& c : *source_hop_vec)
+        ret->push_back(c);
 
     return ret;
 }
 
-std::vector<std::string> kis_datasource::get_source_hop_vec_copy() {
-    std::vector<std::string> ret;
+void kis_datasource::set_int_source_channel(const std::string& in_channel) {
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+    source_channel->set(in_channel);
+    update_channel_spans();
+}
 
-    kis_unique_lock<kis_mutex> lock(ext_mutex, "datasource get hop vec copy");
+void kis_datasource::set_int_source_hop_list(const std::vector<std::string>& in_chans) {
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
 
-    for (const auto& i : *source_hop_vec) {
-        ret.push_back(i);
-    }
+    source_hop_vec->clear();
+    for (const auto& c : in_chans)
+        source_hop_vec->push_back(c);
 
-    return ret;
+    update_channel_spans();
+}
+
+void kis_datasource::set_int_source_channel_list(const std::vector<std::string>& in_chans) {
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+
+    source_channels_vec->clear();
+    for (const auto& c : in_chans)
+        source_channels_vec->push_back(c);
+
+    update_channel_spans();
 }
 
 void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
@@ -1424,7 +1485,7 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
     packet->insert(pack_comp_datasrc, datasrcinfo);
 
     // Counted as valid, error, filtered or dropped by the packet chain
-    get_source_packet_rrd()->add_sample(1, Globalreg::globalreg->last_tv_sec);
+    packet_rate_rrd->add_sample(1, Globalreg::globalreg->last_tv_sec);
 
     // Insert GPS data as soon as possible in the chain if there's no data
     // from the rest of the processing
@@ -1765,7 +1826,7 @@ void kis_datasource::handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t cod
             break;
     }
 
-    kis_lock_guard<kis_mutex> lk(data_mutex, "datasource handle_packet_hop_report_v3");
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "datasource handle_packet_hop_report_v3");
 
     if (hop_timing == nullptr) {
         hop_timing =
@@ -1872,7 +1933,7 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
                 return;
             }
 
-            source_hop_vec->clear();
+            std::vector<std::string> chans;
 
             for (size_t szi = 0; szi < chans_sz; szi++) {
                 auto ch_n = mpack_node_array_at(chanvec, szi);
@@ -1886,8 +1947,10 @@ void kis_datasource::handle_packet_probesource_report_v3(uint32_t seqno, uint16_
                     return;
                 }
 
-                source_hop_vec->push_back(std::string(mpack_node_data(ch_n), ch_sz));
+                chans.push_back(std::string(mpack_node_data(ch_n), ch_sz));
             }
+
+            set_int_source_hop_list(chans);
         }
 
         if (mpack_node_map_contains_uint(subif, KIS_EXTERNAL_V3_KDS_SUB_INTERFACE_FIELD_CHANNEL)) {
@@ -2293,7 +2356,7 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
                 return;
             }
 
-            source_hop_vec->clear();
+            std::vector<std::string> chans;
 
             for (size_t szi = 0; szi < chans_sz; szi++) {
                 auto chan_n = mpack_node_array_at(chanvec, szi);
@@ -2307,8 +2370,10 @@ void kis_datasource::handle_packet_configure_report_v3(uint32_t seqno, uint16_t 
                     return;
                 }
 
-                source_hop_vec->push_back(std::string(chan_s, chan_sz));
+                chans.push_back(std::string(chan_s, chan_sz));
             }
+
+            set_int_source_hop_list(chans);
         }
     }
 
@@ -2566,6 +2631,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     }
 
     // populate the supplied source channels list, these are auto-detected by the datasource
+    std::optional<std::vector<std::string>> reported_chans;
     auto chanvec = mpack_node_map_uint_optional(root, KIS_EXTERNAL_V3_KDS_OPENREPORT_FIELD_CHAN_LIST);
     if (!mpack_node_is_missing(chanvec)) {
         auto chans_sz = mpack_node_array_length(chanvec);
@@ -2576,7 +2642,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
             return;
         }
 
-        source_channels_vec->clear();
+        reported_chans.emplace();
 
         for (size_t szi = 0; szi < chans_sz; szi++) {
             auto chan_n = mpack_node_array_at(chanvec, szi);
@@ -2591,7 +2657,7 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
                 return;
             }
 
-            source_channels_vec->push_back(std::string(chan_s, chan_sz));
+            reported_chans->push_back(std::string(chan_s, chan_sz));
         }
     }
 
@@ -2611,21 +2677,30 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
     // many of the insert patterns are not very efficient, but it's a drop in the bucket
     // compared to operational code so a simple setup is fine
 
+    const auto def_chan_v = definition_channel_list(get_definition_opt("channel"));
+    const auto def_chan = def_chan_v.empty() ? std::string{} : def_chan_v[0];
+
+    const std::vector<std::string> def_vec = definition_channel_list(get_definition_opt("channels"));
+    const std::vector<std::string> add_vec = definition_channel_list(get_definition_opt("add_channels"));
+    const std::vector<std::string> block_vec = definition_channel_list(get_definition_opt("block_channels"));
+
+    kis_unique_lock<kis_recursive_shared_mutex> data_lk(data_mutex, "datasource opensource v3 channels");
+
+    if (reported_chans.has_value()) {
+        source_channels_vec->clear();
+        for (const auto& c : *reported_chans)
+            source_channels_vec->push_back(c);
+    }
+
     source_hop_vec->clear();
 
     // add the channel= to the source channels list
-    const auto def_chan_v = definition_channel_list(get_definition_opt("channel"));
-    const auto def_chan = def_chan_v.empty() ? std::string{} : def_chan_v[0];
     if (def_chan != "") {
         string_vector_merge<std::vector<std::string>, tracker_element_vector_string>({def_chan}, source_channels_vec.get(),
                 [](const std::string& a, const std::string& b) -> bool {
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
     }
-
-    const std::vector<std::string> def_vec = definition_channel_list(get_definition_opt("channels"));
-    const std::vector<std::string> add_vec = definition_channel_list(get_definition_opt("add_channels"));
-    const std::vector<std::string> block_vec = definition_channel_list(get_definition_opt("block_channels"));
 
     // handle the channel list merge
 
@@ -2667,6 +2742,9 @@ void kis_datasource::handle_packet_opensource_report_v3(uint32_t seqno, uint16_t
                     return strcasecmp(a.c_str(), b.c_str()) != 0;
                 });
     }
+
+    update_channel_spans();
+    data_lk.unlock();
 
     set_int_source_running(code != 0);
     set_source_paused(0);
@@ -2921,7 +2999,7 @@ kis_datasource::rx_content kis_datasource::handle_rx_datalayer_v3(std::shared_pt
 
     packet->insert(pack_comp_linkframe, datachunk);
 
-    get_source_packet_size_rrd()->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
+    packet_size_rrd->add_sample(content_sz, Globalreg::globalreg->last_tv_sec);
 
     return rx_content::frame;
 }
@@ -3456,11 +3534,8 @@ void kis_datasource::handle_packet_probesource_report_v2(uint32_t in_seqno,
     }
 
     if (report.has_channels()) {
-        source_channels_vec->clear();
-
-        for (int x = 0; x < report.channels().channels_size(); x++) {
-            source_channels_vec->push_back(report.channels().channels(x));
-        }
+        set_int_source_channel_list(std::vector<std::string>(report.channels().channels().begin(),
+                    report.channels().channels().end()));
     }
 
     if (report.has_channel()) {
@@ -3537,14 +3612,6 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
         set_int_source_error_reason(msg);
     }
 
-    if (report.has_channels()) {
-        source_channels_vec->clear();
-
-        for (int x = 0; x < report.channels().channels_size(); x++) {
-            source_channels_vec->push_back(report.channels().channels(x));
-        }
-    }
-
     if (report.has_channel()) {
         set_int_source_channel(report.channel().channel());
     }
@@ -3592,11 +3659,26 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
     // If we have a 'block_channels=' in the source, use the list to mask
     // out any channels we think we support that are otherwise blocked
 
+    const auto def_chan_v = definition_channel_list(get_definition_opt("channel"));
+    const auto def_chan = def_chan_v.empty() ? std::string{} : def_chan_v[0];
+
+    std::vector<std::string> def_vec = definition_channel_list(get_definition_opt("channels"));
+    std::vector<std::string> add_vec = definition_channel_list(get_definition_opt("add_channels"));
+    std::vector<std::string> block_vec = definition_channel_list(get_definition_opt("block_channels"));
+
+    kis_unique_lock<kis_recursive_shared_mutex> data_lk(data_mutex, "datasource opensource v2 channels");
+
+    if (report.has_channels()) {
+        source_channels_vec->clear();
+
+        for (int x = 0; x < report.channels().channels_size(); x++) {
+            source_channels_vec->push_back(report.channels().channels(x));
+        }
+    }
+
     source_hop_vec->clear();
 
     // Add the channel= to the channels list
-    const auto def_chan_v = definition_channel_list(get_definition_opt("channel"));
-    const auto def_chan = def_chan_v.empty() ? std::string{} : def_chan_v[0];
     if (def_chan != "") {
         bool append = true;
         for (const auto& sci : *source_channels_vec) {
@@ -3610,10 +3692,6 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
             source_channels_vec->push_back(def_chan);
         }
     }
-
-    std::vector<std::string> def_vec = definition_channel_list(get_definition_opt("channels"));
-    std::vector<std::string> add_vec = definition_channel_list(get_definition_opt("add_channels"));
-    std::vector<std::string> block_vec = definition_channel_list(get_definition_opt("block_channels"));
 
     if (def_vec.size() != 0) {
         // If we override the channels, use our supplied list entirely, and we don't
@@ -3680,6 +3758,9 @@ void kis_datasource::handle_packet_opensource_report_v2(uint32_t in_seqno,
                 source_hop_vec->push_back(c);
         }
     }
+
+    update_channel_spans();
+    data_lk.unlock();
 
     if (report.success().success())
         set_int_source_retry_attempts(0);
@@ -3857,11 +3938,8 @@ void kis_datasource::handle_packet_configure_report_v2(uint32_t in_seqno,
         if (report.hopping().has_offset())
             set_int_source_hop_offset(report.hopping().offset());
 
-        source_hop_vec->clear();
-
-        for (auto c : report.hopping().channels()) {
-            source_hop_vec->push_back(c);
-        }
+        set_int_source_hop_list(std::vector<std::string>(report.hopping().channels().begin(),
+                    report.hopping().channels().end()));
     }
 
     // Get the sequence number and look up our command
@@ -4018,7 +4096,7 @@ kis_datasource::rx_content kis_datasource::handle_rx_datalayer_v2(std::shared_pt
     packet->set_data(report.data());
     datachunk->set_data(packet->data);
 
-    get_source_packet_size_rrd()->add_sample(report.data().length(), Globalreg::globalreg->last_tv_sec);
+    packet_size_rrd->add_sample(report.data().length(), Globalreg::globalreg->last_tv_sec);
 
     packet->insert(pack_comp_linkframe, datachunk);
 
@@ -4366,7 +4444,8 @@ double kis_datasource::channel_frequency_khz(const std::string& in_channel) {
 }
 
 void kis_datasource::update_channel_spans() {
-    // Called with data_mutex held, from pre_serialize
+    // Called with data_mutex held exclusively, by everything which changes the channel or a
+    // channel list
     std::vector<std::string> seen;
 
     auto check = [&](const std::string& chan) {

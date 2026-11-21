@@ -79,7 +79,8 @@ void kis_datasource_linux_bluetooth::apply_probe_status(const std::string& json_
     if (j.is_discarded() || !j.is_object())
         return;
 
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kis_datasource_linux_bluetooth apply_probe_status");
+    // Tracked fields are written under data_mutex, which serializers hold shared
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "kis_datasource_linux_bluetooth apply_probe_status");
 
     auto mode = j.find("probe");
     if (mode != j.end() && mode->is_string()) {

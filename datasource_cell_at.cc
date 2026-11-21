@@ -37,7 +37,7 @@ kis_datasource_cell_at::kis_datasource_cell_at(shared_datasource_builder in_buil
 
     // Base construction is complete, so insert() targets this source's own map.
     register_cellat_fields();
-    modemident.register_into(this);
+    modemident.register_into(this, &data_mutex);
 }
 
 // ── The cellat_stats fields ─────────────────────────────────────────────────
@@ -168,6 +168,9 @@ void kis_datasource_cell_at::apply_cellat_stats_json(const std::string& json_str
     if (!j.is_object())
         return;
 
+    // Serializers read the fields holding data_mutex shared
+    kis_unique_lock<kis_recursive_shared_mutex> data_lk(data_mutex, "cellat stats fields");
+
     for (const auto& spec : CELLAT_FIELDS) {
         const char *key = spec.field + (sizeof(CELLAT_FIELD_PREFIX) - 1);
         auto it = j.find(key);
@@ -202,6 +205,8 @@ void kis_datasource_cell_at::apply_cellat_stats_json(const std::string& json_str
                 break;
         }
     }
+
+    data_lk.unlock();
 
     // Remember what a CAPTURING session ran. Only a surveying/full-scan
     // line counts: the whole-modem switch's "off" is itself a session (an

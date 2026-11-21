@@ -21,6 +21,8 @@
 
 #include "config.h"
 
+#include <optional>
+
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "devicetracker_component.h"
@@ -72,13 +74,20 @@ void pack(std::ostream &stream, shared_tracker_element e,
 
     float_numerical_string<double> dblstr;
 
-    // If we're serializing an alias, remap as the aliased element
+    // If we're serializing an alias, remap as the aliased element.  It belongs to another
+    // object, such as the datasource behind a device's seen-by record, which guards its
+    // fields with its own lock; its pre_serialize takes that lock.  Lock order is the
+    // device, then the aliased object, so its lock must never be held while taking a device.
+    std::optional<serializer_scope> alias_scope;
+
     if (e->get_type() == tracker_type::tracker_alias) {
         e = static_cast<tracker_element_alias *>(e.get())->get();
 
         if (e == nullptr) {
             return;
         }
+
+        alias_scope.emplace(e, nullptr);
     }
 
     if (e->is_stringable()) {

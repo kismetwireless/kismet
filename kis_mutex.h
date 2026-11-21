@@ -31,6 +31,8 @@
 #include <shared_mutex>
 #include <string_view>
 #include <thread>
+#include <type_traits>
+#include <vector>
 
 #include <limits.h>
 
@@ -215,6 +217,138 @@ public:
     }
 };
 
+// A reader/writer mutex a thread may lock again while it holds it: shared or exclusive
+// requests nest inside an exclusive hold, and shared requests inside a shared one, so
+// nested serializers and accessors called under the lock are safe.  Upgrading a shared
+// hold to exclusive can't be done and throws.
+//
+// Writers go first: a waiting writer holds the gate, so new readers queue behind it and
+// a steady stream of readers can't starve it.  Never wait for one of these while holding
+// another one, in any mode, or two threads can deadlock against two waiting writers.
+class kis_recursive_shared_mutex {
+public:
+    std::string name;
+    bool debug;
+
+    kis_recursive_shared_mutex() :
+        name{"UNNAMED"}, debug{false} { }
+    kis_recursive_shared_mutex(const std::string& in_name) :
+        name{in_name}, debug{false} { }
+
+    kis_recursive_shared_mutex(const kis_recursive_shared_mutex&) = delete;
+    kis_recursive_shared_mutex& operator=(const kis_recursive_shared_mutex&) = delete;
+
+    ~kis_recursive_shared_mutex() = default;
+
+    void set_name(const std::string& in_name) {
+        name = in_name;
+    }
+
+    const std::string& get_name() const {
+        return name;
+    }
+
+    void lock() {
+        auto h = held();
+
+        if (h != nullptr) {
+            if (h->shared) {
+                const auto e = fmt::format("invalid use: thread {} attempted to upgrade shared lock {} "
+                        "to exclusive", std::this_thread::get_id(), name);
+                throw std::runtime_error(e);
+            }
+
+            h->depth++;
+            return;
+        }
+
+        writers_waiting.fetch_add(1);
+        {
+            std::lock_guard<std::mutex> g(gate);
+            mutex.lock();
+        }
+        writers_waiting.fetch_sub(1);
+
+        held_locks.push_back({this, 1, false});
+    }
+
+    void unlock() {
+        release();
+    }
+
+    void lock_shared() {
+        auto h = held();
+
+        if (h != nullptr) {
+            h->depth++;
+            return;
+        }
+
+        // Queue behind a waiting writer; without one, skip the gate
+        if (writers_waiting.load() != 0) {
+            std::lock_guard<std::mutex> g(gate);
+        }
+
+        mutex.lock_shared();
+
+        held_locks.push_back({this, 1, true});
+    }
+
+    void unlock_shared() {
+        release();
+    }
+
+    bool owned_by_this_thread() const {
+        return held() != nullptr;
+    }
+
+protected:
+    struct held_entry {
+        const kis_recursive_shared_mutex *mutex;
+        unsigned int depth;
+        bool shared;
+    };
+
+    // The locks of this type the current thread holds, rarely more than one or two
+    static inline thread_local std::vector<held_entry> held_locks;
+
+    held_entry *held() const {
+        for (auto& e : held_locks) {
+            if (e.mutex == this)
+                return &e;
+        }
+
+        return nullptr;
+    }
+
+    void release() {
+        for (auto i = held_locks.begin(); i != held_locks.end(); ++i) {
+            if (i->mutex != this)
+                continue;
+
+            if (--i->depth == 0) {
+                const bool shared = i->shared;
+                held_locks.erase(i);
+
+                if (shared)
+                    mutex.unlock_shared();
+                else
+                    mutex.unlock();
+            }
+
+            return;
+        }
+
+        const auto e = fmt::format("invalid use: thread {} attempted to unlock {} which it does "
+                "not hold", std::this_thread::get_id(), name);
+        throw std::runtime_error(e);
+    }
+
+    std::atomic<unsigned int> writers_waiting{0};
+    std::mutex gate;
+    std::shared_mutex mutex;
+};
+
 namespace kismet {
     typedef struct { } retain_lock_t;
     constexpr retain_lock_t retain_lock;
@@ -391,6 +525,12 @@ protected:
     M& mutex;
     bool locked{false};
 };
+
+// The lock an accessor takes to read: shared on a kis_recursive_shared_mutex, exclusive on
+// any other mutex
+template<class M>
+using kis_read_lock = std::conditional_t<std::is_same_v<M, kis_recursive_shared_mutex>,
+      kis_shared_lock<M>, kis_lock_guard<M>>;
 
 #endif
 

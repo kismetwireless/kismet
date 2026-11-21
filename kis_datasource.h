@@ -23,6 +23,8 @@
 
 #include <atomic>
 #include <functional>
+#include <shared_mutex>
+#include <vector>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -322,6 +324,7 @@ public:
         ping_timer_id = -1;
         register_fields();
         reserve_fields(NULL);
+        make_packet_rrds();
     }
 
     kis_datasource(int in_id) :
@@ -331,6 +334,7 @@ public:
         ping_timer_id = -1;
         register_fields();
         reserve_fields(NULL);
+        make_packet_rrds();
     }
 
     kis_datasource(int in_id, std::shared_ptr<tracker_element_map> e) :
@@ -340,6 +344,8 @@ public:
         ping_timer_id = -1;
         register_fields();
         reserve_fields(e);
+        sync_field_copies();
+        make_packet_rrds();
     }
 
     virtual ~kis_datasource();
@@ -548,14 +554,30 @@ public:
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
     __ProxyM(source_name, std::string, std::string, std::string, source_name, data_mutex);
-    __ProxyLM(source_uuid, uuid, uuid, uuid, source_uuid, data_mutex,
-            [this](uuid u) -> bool {
-                set_source_key(adler32_checksum(u.uuid_to_string()));
-                return true;
-            });
 
-    // Source key is a checksum of the uuid for us to do fast indexing
-    __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, data_mutex);
+    // The packet path reads the uuid for every packet (logs, phys), so it reads a copy under
+    // its own lock, which is never held while the source is serialized.  Setting it also
+    // sets the source key.
+    uuid get_source_uuid() const {
+        std::shared_lock<std::shared_mutex> lk(source_uuid_copy_mutex);
+        return source_uuid_copy;
+    }
+    shared_tracker_element get_tracker_source_uuid() {
+        kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+        return source_uuid;
+    }
+    void set_source_uuid(const uuid& in);
+
+    // Source key is a checksum of the uuid for us to do fast indexing.  The packet path reads
+    // it for every device a packet updates, so it reads a copy without data_mutex.
+    uint32_t get_source_key() const {
+        return source_key_value.load(std::memory_order_relaxed);
+    }
+    void set_source_key(uint32_t in) {
+        kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+        set_tracker_value<uint32_t>(source_key, in);
+        source_key_value.store(in, std::memory_order_relaxed);
+    }
 
     // Prototype/driver definition
     __ProxyTrackableM(source_builder, kis_datasource_builder, source_builder, data_mutex);
@@ -566,11 +588,11 @@ public:
     // The full definition, secrets included, for opening the source.  The tracked
     // (exported) definition has password-like options redacted.
     std::string get_source_definition() {
-        kis_lock_guard<kis_mutex> lk(data_mutex);
+        kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, __func__);
         return source_definition_raw;
     }
     std::string get_source_definition_redacted() {
-        kis_lock_guard<kis_mutex> lk(data_mutex);
+        kis_shared_lock<kis_recursive_shared_mutex> lk(data_mutex, __func__);
         return get_tracker_value<std::string>(source_definition);
     }
 
@@ -597,10 +619,10 @@ public:
 
     __ProxyGetM(source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
 
-    // Don't allow raw access to the vec, we have to copy it under ext_mutex
-    // __ProxyTrackableM(source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
+    // Copies of the channel lists, which change under data_mutex
     std::vector<std::string> get_source_channels_vec_copy();
     std::vector<std::string> get_source_hop_vec_copy();
+    std::shared_ptr<tracker_element_vector_string> get_source_hop_vec();
 
 
     // Any alert state passed from the driver we want to be able to consistently
@@ -614,7 +636,6 @@ public:
     __ProxyGetM(source_hop_offset, uint32_t, uint32_t, source_hop_offset, data_mutex);
     __ProxyGetM(source_hop_shuffle, uint8_t, bool, source_hop_shuffle, data_mutex);
     __ProxyGetM(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, data_mutex);
-    __ProxyTrackableM(source_hop_vec, tracker_element_vector_string, source_hop_vec, data_mutex);
 
     __ProxyGetM(source_running, uint8_t, bool, source_running, data_mutex);
 
@@ -659,7 +680,15 @@ public:
 
     __Proxy(source_number, uint64_t, uint64_t, uint64_t, source_number);
 
-    __ProxyM(source_paused, uint8_t, bool, bool, source_paused, data_mutex);
+    // Checked for every packet; read from a copy without data_mutex, like source_key
+    bool get_source_paused() const {
+        return source_paused_value.load(std::memory_order_relaxed);
+    }
+    void set_source_paused(bool in) {
+        kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+        set_tracker_value<uint8_t>(source_paused, in);
+        source_paused_value.store(in, std::memory_order_relaxed);
+    }
 
 
     // Random metadata
@@ -670,9 +699,17 @@ public:
     __ProxyM(source_info_amp_type, std::string, std::string, std::string, source_info_amp_type, data_mutex);
     __ProxyM(source_info_amp_gain, double, double, double, source_info_amp_gain, data_mutex);
 
-    // Overridden linktype
-    __ProxyPrivSplitM(source_override_linktype, unsigned int, unsigned int, uint32_t,
-            source_override_linktype, data_mutex);
+    // Overridden linktype; checked for every packet, read from a copy like source_key
+    uint32_t get_source_override_linktype() const {
+        return source_override_linktype_value.load(std::memory_order_relaxed);
+    }
+protected:
+    void set_int_source_override_linktype(unsigned int in) {
+        kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
+        set_tracker_value<uint32_t>(source_override_linktype, in);
+        source_override_linktype_value.store(in, std::memory_order_relaxed);
+    }
+public:
 
     __ProxyGetM(source_error_reason, std::string, std::string, source_error_reason, data_mutex);
 
@@ -691,13 +728,14 @@ public:
             uint8_t *fcs_data __attribute__((unused)),
             size_t fcs_len __attribute__((unused))) { return; }
 
+    // Serializers read the source under data_mutex, shared, from pre_ to post_serialize; nothing
+    // is changed here, since several can serialize the source at once
     virtual void pre_serialize() override {
-        kis_lock_guard<kis_mutex> lk(data_mutex, kismet::retain_lock, "datasource preserialize");
-        update_channel_spans();
+        data_mutex.lock_shared();
     }
 
     virtual void post_serialize() override {
-        kis_lock_guard<kis_mutex> lk(data_mutex, std::adopt_lock);
+        data_mutex.unlock_shared();
     }
 
     static std::string event_datasource_error() { return "DATASOURCE_ERROR"; }
@@ -769,8 +807,13 @@ protected:
 
     std::shared_ptr<gps_tracker> gpstracker;
 
-    // Mutex for data elements
-    kis_mutex data_mutex;
+    // Mutex for the tracked fields: shared to read (serializers, getters), exclusive to change
+    // any of them, including through the field objects themselves.  Devices serialize the
+    // source through their seen-by alias while locked, so the order is device lock, then
+    // data_mutex; ext_mutex and the datasource tracker's lock also come before it.  With
+    // data_mutex held, never take a device, device list, ext_mutex or another source's
+    // data_mutex, and never log or deliver messages.
+    kis_recursive_shared_mutex data_mutex;
 
 
     virtual void close_external() override;
@@ -1041,7 +1084,7 @@ protected:
     // from the KV handlers
     void set_int_source_definition(const std::string& in) {
         auto redacted = redact_source_definition(in);
-        kis_lock_guard<kis_mutex> lk(data_mutex, __func__);
+        kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, __func__);
         source_definition_raw = in;
         set_tracker_value<std::string>(source_definition, redacted);
     }
@@ -1050,18 +1093,20 @@ protected:
     __ProxySetM(int_source_hardware, std::string, std::string, source_hardware, data_mutex);
     __ProxySetM(int_source_hop_group, std::string, std::string, source_hop_group, data_mutex);
     __ProxySetM(int_source_dlt, uint32_t, uint32_t, source_dlt, data_mutex);
-    __ProxyTrackableM(int_source_channels_vec, tracker_element_vector_string, source_channels_vec, data_mutex);
 
     __ProxySetM(int_source_warning, std::string, std::string, source_warning, data_mutex);
 
+    // The channel, hop list and supported channel list; each also refreshes the channel spans
+    void set_int_source_channel(const std::string& in_channel);
+    void set_int_source_hop_list(const std::vector<std::string>& in_chans);
+    void set_int_source_channel_list(const std::vector<std::string>& in_chans);
+
     __ProxySetM(int_source_hopping, uint8_t, bool, source_hopping, data_mutex);
-    __ProxySetM(int_source_channel, std::string, std::string, source_channel, data_mutex);
     __ProxySetM(int_source_hop_rate, double, double, source_hop_rate, data_mutex);
     __ProxySetM(int_source_hop_split, uint8_t, bool, source_hop_split, data_mutex);
     __ProxySetM(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle, data_mutex);
     __ProxySetM(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, data_mutex);
     __ProxySetM(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset, data_mutex);
-    __ProxyTrackableM(int_source_hop_vec, tracker_element_vector_string, source_hop_vec, data_mutex);
 
     // Prototype object which created us, defines our overall capabilities
     std::shared_ptr<kis_datasource_builder> source_builder;
@@ -1074,6 +1119,14 @@ protected:
     std::shared_ptr<tracker_element_uuid> source_uuid;
     bool local_uuid;
     std::shared_ptr<tracker_element_uint32> source_key;
+
+    // Copies of fields the packet path reads, written with the tracked field under data_mutex
+    mutable std::shared_mutex source_uuid_copy_mutex;
+    uuid source_uuid_copy;
+    std::atomic<uint32_t> source_key_value{0};
+
+    // Load the copies from the tracked fields, for a source built from an existing map
+    void sync_field_copies();
 
     // Read-only tracked element states
 
@@ -1128,13 +1181,18 @@ protected:
     int hop_timing_id;
     std::shared_ptr<kis_datasource_hop_timing> hop_timing;
 
+    // Both made by every constructor (make_packet_rrds) and never replaced; the RRDs have their
+    // own lock, so the packet path adds samples without data_mutex
+    void make_packet_rrds();
+
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
 
     int packet_size_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> packet_size_rrd;
 
-    // Channel to the [low, high] kHz it covers, only for sources whose type reports spans
+    // Channel to the [low, high] kHz it covers, only for sources whose type reports spans;
+    // updated with data_mutex held exclusively whenever the channel or a channel list changes
     void update_channel_spans();
     int channel_spans_id;
     int channel_span_entry_id;
@@ -1148,6 +1206,7 @@ protected:
 
     // Is the source paused?  If so, we throw out packets from it for now
     std::shared_ptr<tracker_element_uint8> source_paused;
+    std::atomic<bool> source_paused_value{false};
 
 
     // Retry API
@@ -1194,6 +1253,7 @@ protected:
     std::shared_ptr<tracker_element_double> source_info_amp_gain;
 
     std::shared_ptr<tracker_element_uint32> source_override_linktype;
+    std::atomic<uint32_t> source_override_linktype_value{0};
 
 
     // Do we clobber the remote timestamp?

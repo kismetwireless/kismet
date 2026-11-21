@@ -101,7 +101,7 @@ void kis_datasource_wired::apply_status(std::string_view json) {
     // The tracked fields are read under data_mutex (serialization), so they're
     // written under it like the base setters; called with ext_mutex held, and
     // ext_mutex -> data_mutex is the base class order
-    kis_lock_guard<kis_mutex> lk(data_mutex, "kis_datasource_wired apply_status");
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "kis_datasource_wired apply_status");
 
     apply_status_locked(r);
 
@@ -117,7 +117,7 @@ void kis_datasource_wired::close_external_impl() {
 
     // Callers may hold ext_mutex (handle_error), and ext_mutex -> data_mutex is the
     // base class order
-    kis_lock_guard<kis_mutex> lk(data_mutex, "kis_datasource_wired close_external_impl");
+    kis_lock_guard<kis_recursive_shared_mutex> lk(data_mutex, "kis_datasource_wired close_external_impl");
 
     if (wired_status::release_warning(source_warning->get(), status_warning))
         source_warning->set("");
