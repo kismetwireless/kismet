@@ -2078,6 +2078,9 @@ namespace {
     constinit kis_log_limiter remote_write_log{remote_log_interval_s};
     constinit kis_log_limiter remote_bad_shutdown_log{remote_log_interval_s};
     constinit kis_log_limiter remote_shutdown_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_bad_announcement_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_invalid_type_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_invalid_definition_log{remote_log_interval_s};
 
     constexpr int64_t remote_message_log_interval_s = 1;
     constinit kis_log_limiter remote_message_log{remote_message_log_interval_s};
@@ -2087,6 +2090,7 @@ namespace {
     // a few remotes connecting together.
     constexpr int64_t remote_source_log_interval_s = 10;
     constexpr uint64_t remote_source_log_burst = 10;
+    constinit kis_log_limiter remote_matched_log{remote_source_log_interval_s, remote_source_log_burst};
     constinit kis_log_limiter remote_connected_log{remote_source_log_interval_s, remote_source_log_burst};
     constinit kis_log_limiter remote_connect_failed_log{remote_source_log_interval_s, remote_source_log_burst};
 
@@ -2113,9 +2117,6 @@ namespace {
 
     // A connection that hasn't sent NEWSOURCE by then is closed
     constexpr int64_t remote_announce_timeout_s = 5;
-
-    // Most of a SHUTDOWN reason that is logged; the C helpers build theirs in 1024 byte buffers
-    constexpr size_t remote_reason_log_max = 1024;
 }
 
 std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
@@ -2182,7 +2183,9 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
             return nullptr;
         }
 
-        if (merge_target_device->get_source_running()) {
+        const bool was_running = merge_target_device->get_source_running();
+
+        if (was_running) {
             lock.unlock();
             if (const auto suppressed = remote_running_log.due())
                 kis_log_limited_inject(incoming->remote_log_prefix(),
@@ -2196,13 +2199,19 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
                         *suppressed, MSGFLAG_ERROR);
             merge_target_device->close_source();
             lock.lock();
-        } else {
-            _MSG_INFO("Matching new remote source '{}' with known source with UUID '{}'",
-                    kis_datasource::redact_source_definition(in_definition), in_uuid.uuid_to_string());
         }
 
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
+
+        // Logged once the lock is released; the running case logged above
+        if (!was_running) {
+            if (const auto suppressed = remote_matched_log.due())
+                kis_log_limited_inject(incoming->remote_log_prefix(),
+                        censor::format("announced source '{}', matching known source with UUID '{}'",
+                            kis_datasource::redact_source_definition(in_definition), in_uuid.uuid_to_string()),
+                        *suppressed, MSGFLAG_INFO);
+        }
 
         merge_target_device->connect_remote(in_definition, incoming, in_uuid, connect_tcp,
                 [this, merge_target_device, peer = incoming->remote_log_prefix()]
@@ -2640,15 +2649,16 @@ namespace {
         if (in_type.empty() || in_type.length() > remote_type_max_len ||
                 in_type.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
                     "0123456789._-") != std::string::npos) {
-            _MSG_ERROR("Incoming remote capture connection from {} announced an invalid source "
-                    "type; closing it.", in_peer);
+            kis_log_limited(remote_invalid_type_log, MSGFLAG_ERROR, {}, "Remote capture connection "
+                    "from {} announced an invalid source type; closing it.", in_peer);
             return false;
         }
 
         if (in_definition.empty() || in_definition.length() > remote_definition_max_len ||
                 !is_printable_utf8(in_definition)) {
-            _MSG_ERROR("Incoming remote capture connection from {} for a '{}' source announced "
-                    "an invalid source definition; closing it.", in_peer, in_type);
+            kis_log_limited(remote_invalid_definition_log, MSGFLAG_ERROR, {}, "Remote capture connection "
+                    "from {} for a '{}' source announced an invalid source definition; closing it.",
+                    in_peer, in_type);
             return false;
         }
 
@@ -2684,10 +2694,7 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 std::string dst_incoming_remote::remote_log_prefix() {
-    auto io = get_io();
-    const auto addr = io != nullptr ? io->remote_addresss() : std::string();
-
-    return fmt::format("Remote capture connection from {}", addr.empty() ? "an unknown peer" : addr);
+    return "Remote capture connection from " + peer_address();
 }
 
 void dst_incoming_remote::handle_msg_proxy(const std::string& msg, const int msgtype) {
@@ -2727,8 +2734,7 @@ void dst_incoming_remote::handle_remote_shutdown(bool in_parsed, const std::opti
                 "closed before announcing a data source, giving no reason.");
     else if (const auto suppressed = remote_shutdown_log.due())
         kis_log_limited_inject(remote_log_prefix(), censor::format("closed before announcing a data source: {}",
-                    munge_to_printable(in_reason->data(), std::min(in_reason->size(), remote_reason_log_max))),
-                *suppressed, MSGFLAG_INFO);
+                    clean_capture_text(*in_reason)), *suppressed, MSGFLAG_INFO);
 
     kill();
 }
@@ -2795,7 +2801,8 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno,
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromArray(in_content.data(), in_content.length())) {
-        _MSG_ERROR("Could not process incoming remote datasource announcement from {}", peer_address());
+        log_limited(remote_bad_announcement_log, MSGFLAG_ERROR,
+                "sent a data source announcement that can't be processed; closing it.");
         kill();
         return;
     }
@@ -2837,8 +2844,9 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
 
     if (!mpack_tree_try_parse(&tree)) {
-        _MSG_ERROR("Kismet external interface got unparseable v3 NEWSOURCE");
-        trigger_error("invalid v3 NEWSOURCE");
+        log_limited(remote_bad_announcement_log, MSGFLAG_ERROR,
+                "sent a data source announcement that can't be parsed; closing it.");
+        kill();
         return;
     }
 
@@ -2866,7 +2874,8 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
     }
 
     if (mpack_tree_error(&tree)) {
-        _MSG_ERROR("Could not process incoming remote datasource announcement from {}", peer_address());
+        log_limited(remote_bad_announcement_log, MSGFLAG_ERROR,
+                "sent a data source announcement that can't be processed; closing it.");
         kill();
         return;
     }

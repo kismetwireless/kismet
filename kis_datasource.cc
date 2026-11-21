@@ -41,15 +41,13 @@ namespace {
     constinit kis_log_limiter remote_source_error_log{remote_source_log_interval_s, remote_source_log_burst};
     constinit kis_log_limiter remote_source_definition_log{remote_source_log_interval_s};
 
-    // The error a remote's SHUTDOWN leaves; the C helpers build reasons in 1024 byte buffers
-    constexpr size_t remote_reason_max_len = 1024;
-
+    // The error a remote's SHUTDOWN leaves
     std::string remote_shutdown_error(const std::optional<std::string>& in_reason) {
         if (!in_reason)
             return "remote connection triggered shutdown: no reason";
 
         return fmt::format("remote connection triggered shutdown: {}",
-                munge_to_printable(in_reason->data(), std::min(in_reason->size(), remote_reason_max_len)));
+                kis_external_interface::clean_capture_text(*in_reason));
     }
 }
 
@@ -2113,6 +2111,13 @@ void kis_datasource::handle_packet_interfaces_report_v3(uint32_t seqno, uint16_t
 
     if (n_refused > 0) {
         lock.unlock();
+
+        if (get_source_remote()) {
+            trigger_error(fmt::format("listed {} interface(s) whose name, flags or capture interface "
+                        "isn't printable text", n_refused));
+            return;
+        }
+
         _MSG_ERROR("A capture tool listed {} interface(s) whose name, flags or capture interface "
                 "isn't printable text; they can't be opened and aren't offered.", n_refused);
     }
