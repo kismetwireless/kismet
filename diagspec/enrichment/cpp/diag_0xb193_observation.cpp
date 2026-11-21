@@ -16,7 +16,7 @@
 //
 // DIVISION OF LABOUR WITH THE .ksy. The generated parser supplies every LAYOUT
 // quantity: the version bytes, earfcn, num_cells, the version-dependent cell base
-// (8 / 12 on v48 / 4 on v3), the DERIVED per-cell stride, and the v3/v18 inline
+// (8 / 12 on v48 / 4 on v3), the per-cell stride (fixed slot or derived), and the v3/v18 inline
 // serving PCIs. This file supplies the ENRICHMENT: which in-cell offset holds the
 // PCI on a given subpacket version, the v59-family bitpacked field extraction, the
 // per-version signal scales and their refutation gates, and the closed version
@@ -147,7 +147,7 @@ const size_t kV40RsrqWordOff = 48;
 
 // v41 (SDX50M + SM8150: Inseego M1000) is v35's layout with 4 bytes inserted
 // after the PCI word: RSRP u32 @cell+36 bits0..11, RSRQ u32 @cell+48 bits0..9,
-// on the DERIVED stride. Same-cycle 0xB17F within 1 LSB on 134/134 over two
+// in its fixed 140 B slot. Same-cycle 0xB17F within 1 LSB on 134/134 over two
 // units / two networks (the reference parser's v41 constants). SINGLE-CELL ONLY.
 const size_t kV41RsrpWordOff = 36;
 const size_t kV41RsrqWordOff = 48;
@@ -425,8 +425,8 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
 
         // The count and the stride are LAYOUT, so they come from the generated
         // parser: `cell_count` carries v60's bits0..2 mask, and
-        // `cell_stride` is v40's fixed 132 B slot or the derived
-        // (len(sp) - cell_base) / cell_count. The .ksy's body runs to end of
+        // `cell_stride` is the fixed slot of v22/v35/v36/v40/v41
+        // (is_fixed_slots) or the derived (len(sp) - cell_base) / cell_count. The .ksy's body runs to end of
         // payload (size-eos), so its _io.size is this leg's sp_len. cell_stride
         // is null exactly when cell_count == 0 or the body ends at cell_base,
         // the case that yields no entries.
@@ -438,12 +438,12 @@ std::vector<CellObservation> observations(const std::string& payload, Decline* w
         const uint16_t num_cells = static_cast<uint16_t>(cell_count);
         const size_t cell_base = static_cast<size_t>(body->cell_base());
 
-        // The stride is DERIVED (the wire carries no stride field), so a garbage
-        // num_cells floor-divides toward 0 and every "cell" would re-read offset 0,
+        // A DERIVED stride (the wire carries no stride field) floor-divides a
+        // garbage num_cells toward 0, and every "cell" would re-read offset 0,
         // emitting num_cells IDENTICAL duplicates. Reject below the 4-byte minimum
-        // rather than ship fabricated rows. v40's slots are FIXED, and the parser
-        // substitutes them BEFORE this floor, so v40 never trips it: a garbage
-        // count there is bounded by the per-cell length check below instead.
+        // rather than ship fabricated rows. The fixed-slot versions' strides are
+        // substituted BEFORE this floor and never trip it: a garbage count there
+        // is bounded by the per-cell length check below instead.
         // The floor stays HERE: the .ksy gates only its `cells` slices on it,
         // and cell_stride itself is non-null below 4.
         const size_t stride = static_cast<size_t>(body->cell_stride());

@@ -488,7 +488,7 @@ typedef struct {
      * means no security events this run. */
     diag_native_security_t *native_security;
 
-    /* Last DIAG GNSS fix: cached from the 0x1476/0x14D8 records so each
+    /* Last DIAG GNSS fix: cached from the 0x1476 records so each
      * outgoing cell_observation can be stamped with a GPS location, letting
      * Kismet geo-tag the resulting `Cellular` devices from the DIAG source.
      * valid=0 until the first real fix; ts gates out stale fixes.
@@ -2564,17 +2564,6 @@ static void emit_security(void *user, const char *json) {
 static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
                               const char *line);
 
-/* 0x14D8 has no native leg on purpose (diag_native_decode.h: it can never
- * emit a fix), yet a census calling it unrecognized would escalate to ERROR on
- * every GNSS-masked source. So the census counts it DECODED when it has one of
- * the record's three fixed shapes (20 or 44 bytes, or 104 and up) with version
- * byte 1, and nothing more: there is nothing else to decode. */
-static int native_census_accepts_0x14d8(const uint8_t *p, size_t n) {
-    if (p == NULL || n < 20 || (n > 20 && n < 44) || (n > 44 && n < 104))
-        return 0;
-    return p[0] == 1;
-}
-
 /* Render and relay the census line. Called from the capture thread; the relay's sends never wait on
  * the ring, so the DIAG reader is never the thread that blocks. */
 static void native_census_emit(kis_capture_handler_t *caph, local_diag_t *local,
@@ -2778,18 +2767,11 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
             }
         }
         /* An unparseable record is DROPPED in the census, not decoded. The
-         * gate verdicts (no position, placeholder, no time)
-         * are a parsed record that yields no fix, and stay decoded.
-         *
-         * The two benign ones -- the engine is on and has no fix yet -- are
-         * GATED: a receiver without sky view is not a decoder that went
-         * silent, and counting them silent escalated every census line of
-         * such a source to ERROR. The other verdicts (no time, stale,
-         * altitude, jump, frozen) can each hide a decode problem, so they still
-         * count toward a silence. */
-        if (g == 0 &&
-            (fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_NO_POSITION ||
-             fix.decline_reason == DIAG_NATIVE_GPS_DECLINE_PLACEHOLDER)) {
+         * gate verdicts are a parsed record that yields no fix, and stay
+         * decoded. The benign ones (diag_native_gps_decline_gated: no
+         * position, placeholder, frozen re-serve) are GATED, so a receiver
+         * without sky view does not escalate every census line to ERROR. */
+        if (g == 0 && diag_native_gps_decline_gated(fix.decline_reason)) {
             native_census_gated(ctx, rec);
             return;
         }
@@ -2839,8 +2821,10 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
         local->native_tap.fallback_records++;
         /* For the census, a record the native path consumes without a cell
          * leg is still decoded: an identity source, the 0xB197
-         * config cache (cfg >= 0), or a well-formed 0x14D8 (a malformed one
-         * is dropped). Of the rest, a code whose record layout is known is
+         * config cache (cfg >= 0), or a well-formed 0x14D8 thermal record (a
+         * malformed one is dropped; there is nothing in it to decode, and a
+         * census calling it unrecognized would escalate under mask=full).
+         * Of the rest, a code whose record layout is known is
          * undecoded_native -- the native-coverage to-do list -- and only a
          * code with no known layout is unrecognized. */
         if (cfg == DIAG_NATIVE_REFUSED)
@@ -2849,7 +2833,7 @@ static void native_tap_cb(const diag_log_record_t *rec, void *user) {
             native_census_tally(ctx, rec, 1, 0);
         else if (rec->log_code == 0x14D8)
             native_census_tally(ctx, rec,
-                native_census_accepts_0x14d8(rec->payload, rec->payload_len), 0);
+                diag_inventory_accepts_0x14d8(rec->payload, rec->payload_len), 0);
         else if (diag_inventory_code_known(rec->log_code))
             native_census_undecoded(ctx, rec);
         else
@@ -5402,8 +5386,8 @@ static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
      *
      * The alarm count is `silent_actionable_total`, not `silent_total`. They
      * differ by the codes that cannot emit on any capture -- currently just
-     * 0x14D8, whose lat/lon/alt read 0.0, so it parses 100% and emits 0% on
-     * every healthy source. Escalating on `silent_total` would escalate
+     * 0x14D8, the thermal log, which parses 100% and emits 0% on every
+     * healthy source. Escalating on `silent_total` would escalate
      * always, i.e. no signal at all. The census keeps printing the full
      * `silent[...]` list; this changes only what escalates. */
     uint64_t unrec_n = 0, silent_n = 0, enrich_n = 0;

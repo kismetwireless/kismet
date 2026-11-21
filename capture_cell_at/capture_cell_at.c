@@ -106,6 +106,7 @@
 #include "cellat_optset.h"
 #include "cellat_lock.h"
 #include "cellat_gnss.h"
+#include "cellat_generic.h"
 /* Shared with celldiag: one classifier owns both non-USB naming conventions, so
  * the DIAG source and the AT source can never disagree about a node. */
 /* The non-USB AT-node admission decision. cellat_portscan.c is what
@@ -329,8 +330,7 @@ typedef struct {
     pthread_t     gnss_thread;
     int           gnss_thread_live;
     int           gnss_stop;              /* __atomic: set by the capture thread */
-    int           generic_probed;         /* the generic poll's test forms were sent */
-    unsigned      generic_skip;           /* bit i: STDAT_GENERIC_READ[i] refused, not polled */
+    stdat_generic_t generic;              /* the generic poll's test-form probe state */
 } local_cell_t;
 
 /* -----------------------------------------------------------------------
@@ -3428,6 +3428,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     /* Detect vendor and capabilities */
+    stdat_generic_reset(&local->generic);
     local->has_qeng = 0;
     local->has_qscan = 0;
     local->has_rfsts = 0;
@@ -4584,28 +4585,30 @@ static void cellat_send_session_log(local_cell_t *local) {
         cellat_log_send(local, &tv, rec);
 }
 
-/* Once, on the first generic poll: send each optional verb's test form and
- * leave out of every later poll the ones the modem refuses, naming them in one
- * status line so a verb does not just vanish. Lazy rather than at open, so a
- * modem with a vendor survey command never sees these probes. */
+/* On the first generic poll: send each optional verb's test form and leave
+ * out of every later poll the ones the modem refuses, naming them in one
+ * status line so a verb does not just vanish. A transient CME error (SIM busy,
+ * init) or a timeout leaves the verb in and probes it again on the next poll
+ * (stdat_generic_note). Lazy
+ * rather than at open, so a modem with a vendor survey command never sees
+ * these probes. */
 static void generic_poll_probe(kis_capture_handler_t *caph, local_cell_t *local) {
     char r[512], dropped[160] = "";
     size_t off = 0;
 
-    local->generic_probed = 1;
     for (int i = 0; i < STDAT_GENERIC_N; i++) {
-        if (STDAT_GENERIC_TEST[i] == NULL)
+        if (STDAT_GENERIC_TEST[i] == NULL || (local->generic.settled & (1u << i)))
             continue;
         r[0] = '\0';
         int n = at_command_t(local, STDAT_GENERIC_TEST[i], r, sizeof(r), 3000);
-        if (n > 0 && stdat_test_refused(r)) {
-            local->generic_skip |= 1u << i;
+        if (stdat_generic_note(&local->generic, i, n, r)) {
             int w = snprintf(dropped + off, sizeof(dropped) - off, "%s%s",
                              off ? ", " : "", STDAT_GENERIC_READ[i]);
             if (w > 0 && (size_t)w < sizeof(dropped) - off)
                 off += (size_t)w;
         }
     }
+    stdat_generic_round_done(&local->generic);
     if (off > 0) {
         char m[STATUS_MAX];
         snprintf(m, sizeof(m),
@@ -4767,11 +4770,11 @@ void capture_thread(kis_capture_handler_t *caph) {
                  * the shared 128 KB `resp`). */
                 char g[STDAT_GENERIC_N][512];
                 int gerr = 0, gn;
-                if (!local->generic_probed)
+                if (!local->generic.probed)
                     generic_poll_probe(caph, local);
                 for (int gi = 0; gi < STDAT_GENERIC_N; gi++) {
                     g[gi][0] = '\0';
-                    if (local->generic_skip & (1u << gi))
+                    if (local->generic.skip & (1u << gi))
                         continue;
                     gn = at_command_t(local, STDAT_GENERIC_READ[gi], g[gi],
                                       sizeof(g[gi]), 3000);

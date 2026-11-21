@@ -217,12 +217,10 @@ bool diag_native_has_leg(uint16_t log_code);
  * WHY THIS MATTERS AT ALL. Kismet geo-tags every DIAG cell observation from
  * these fixes (local->last_gps, cf_send_json's `gps` param).
  *
- * THERE IS NO 0x14D8 LEG, DELIBERATELY, although 0x14D8 is often described as
- * the backup GNSS position code. Its lat/lon/alt bytes [+20..+43] are unbound
- * carryover that no firmware populates, so they read 0.0, which fails the
- * position validity gate: a 0x14D8 record can never yield a fix. On an
- * RM520N-GL capture that is 53 of its 69 GNSS records producing nothing. A
- * 0x14D8 leg would be a decode path that is provably always empty.
+ * THERE IS NO 0x14D8 LEG, although 0x14D8 is often described as the backup
+ * GNSS position code. It is the thermal monitor log (one temperature-sensor
+ * reading per record) and carries no position; the census only checks its
+ * shape (diag_inventory_accepts_0x14d8).
  */
 
 /* Why a GNSS record produced no usable fix, so a caller counting declines can distinguish the four findings instead of
@@ -320,6 +318,13 @@ uint64_t diag_native_gnss_tracker_unjudged(const diag_native_gnss_tracker_t *tra
  * "frozen_clock" -- and "unparseable" for a record the parser refused before any gate ran.
  * NULL for DIAG_NATIVE_GPS_DECLINE_NONE. The strings are the diagspec leg's. */
 const char *diag_native_gps_decline_name(diag_native_gps_decline_t reason);
+
+/* 1 for the declines of an engine that is on but has no current fix: no
+ * position, a placeholder, or its last fix re-served on a frozen clock. The
+ * census counts these gated, not silent, so a receiver without sky view does
+ * not escalate to ERROR. The others (no time, stale, altitude, jump) can hide
+ * a decode problem. */
+int diag_native_gps_decline_gated(diag_native_gps_decline_t reason);
 
 /* Decode one log-code-stripped DIAG LOG_F payload into a position fix.
  *

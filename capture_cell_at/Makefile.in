@@ -47,7 +47,7 @@ ifeq ($(CELL_USBSERIAL),1)
 MONITOR_OBJS += usbserial.c.o
 MONITOR_LIBS = $(LIBUSBLIBS)
 capture_cell_at.c.o cell_usbport.c.o: CPPFLAGS += -DHAVE_CELL_USBSERIAL
-cell_usbport.c.o cell_usbport.c.d usbserial.c.o usbserial.c.d: CPPFLAGS += $(LIBUSBCFLAGS)
+cell_usbport.c.o usbserial.c.o: CPPFLAGS += $(LIBUSBCFLAGS)
 endif
 
 # Standalone AT probe (no Kismet link) + selftest for the shared serial core.
@@ -118,15 +118,9 @@ TEST_TACFIX_BIN = test_cellat_tacfix
 
 all: $(MONITOR_BIN) $(PROBE_BIN)
 
-# A standalone helper build (`make` in this directory, MAKELEVEL 0) links the
-# parent's ../libkismetdatasource.a, but nothing here knows how to rebuild it.
-# When ../capture_framework.h changes (a field added to struct
-# kis_capture_handler), the helper compiles against the new header and links
-# the archive built from the old one: a silent ABI mismatch that segfaults at
-# open. So delegate the archive to the parent, whose rules (and depfiles)
-# decide whether it is stale; an up-to-date archive is left alone and forces no
-# relink. A top-level build already made the archive before recursing here
-# (MAKELEVEL >= 1), so it is not re-entered.
+# A standalone build (MAKELEVEL 0) asks the parent to refresh the archive, so a
+# changed capture_framework.h never links against a stale one; a top-level
+# build has already made it.
 ifeq ($(MAKELEVEL),0)
 ../libkismetdatasource.a: FORCE
 	$(MAKE) -C .. libkismetdatasource.a
@@ -171,69 +165,35 @@ TEST_SERIAL_PORT_BIN = test_at_serial_portability
 
 # Explicit rules for the cross-directory object: the %.c.o pattern below matches
 # only sources in THIS directory, so without these the link fails on a missing
-# prerequisite it does not know how to build.
-diag_wwanport.c.o:	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h
+# prerequisite it does not know how to build. Only the object rule writes each
+# depfile (-MMD); the .d is a prerequisite remade by the empty %.c.d rule, so a
+# parallel make never runs two recipes writing one .d.
+diag_wwanport.c.o:	../capture_cell_diag/diag_wwanport.c ../capture_cell_diag/diag_wwanport.h diag_wwanport.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_wwanport.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-diag_wwanport.c.d:	../capture_cell_diag/diag_wwanport.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_wwanport.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-diag_modemident.c.o:	../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h
+diag_modemident.c.o:	../capture_cell_diag/diag_modemident.c ../capture_cell_diag/diag_modemident.h diag_modemident.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_modemident.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-diag_modemident.c.d:	../capture_cell_diag/diag_modemident.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_modemident.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.h
+diag_identvouch.c.o:	../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_identvouch.h ../capture_cell_diag/diag_modemident.h diag_identvouch.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_identvouch.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-diag_identvouch.c.d:	../capture_cell_diag/diag_identvouch.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_identvouch.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-cell_discover.c.o:	../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
+cell_discover.c.o:	../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h cell_discover.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_discover.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-cell_discover.c.d:	../capture_cell_diag/cell_discover.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_discover.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-cell_log.c.o:	../capture_cell_diag/cell_log.c ../capture_cell_diag/cell_log.h
+cell_log.c.o:	../capture_cell_diag/cell_log.c ../capture_cell_diag/cell_log.h cell_log.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_log.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-cell_log.c.d:	../capture_cell_diag/cell_log.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_log.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h
+diag_portadmit.c.o:	../capture_cell_diag/diag_portadmit.c ../capture_cell_diag/diag_portadmit.h diag_portadmit.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_portadmit.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-diag_portadmit.c.d:	../capture_cell_diag/diag_portadmit.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_portadmit.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h
+diag_probeclose.c.o:	../capture_cell_diag/diag_probeclose.c ../capture_cell_diag/diag_probeclose.h diag_probeclose.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/diag_probeclose.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-diag_probeclose.c.d:	../capture_cell_diag/diag_probeclose.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/diag_probeclose.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-cell_usbport.c.o:	../capture_cell_diag/cell_usbport.c ../capture_cell_diag/cell_usbport.h
+cell_usbport.c.o:	../capture_cell_diag/cell_usbport.c ../capture_cell_diag/cell_usbport.h cell_usbport.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../capture_cell_diag/cell_usbport.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-cell_usbport.c.d:	../capture_cell_diag/cell_usbport.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../capture_cell_diag/cell_usbport.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
-
-usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h
+usbserial.c.o:	../usbserial/usbserial.c ../usbserial/usbserial.h usbserial.c.d
 		$(CC) $(CFLAGS) $(CPPFLAGS) -c ../usbserial/usbserial.c -o $@ -MMD -MP -MF $(@:.o=.d)
-
-usbserial.c.d:	../usbserial/usbserial.c
-		$(CC) -MM $(CFLAGS) $(CPPFLAGS) ../usbserial/usbserial.c | \
-		    sed -e "s/\.o/\.c.o/" > $@
 
 # Selftests, built only by ./configure --enable-cell-selftest.  Run each
 # binary directly; every one exits non-zero on a failure.
@@ -347,7 +307,7 @@ $(TEST_IDENTVOUCH_BIN):	../capture_cell_diag/test_diag_identvouch.c ../capture_c
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_IDENTVOUCH_BIN) \
 		    ../capture_cell_diag/test_diag_identvouch.c ../capture_cell_diag/diag_identvouch.c ../capture_cell_diag/diag_modemident.c
 
-$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_qeng.inc cellat_selftest_json.h
+$(TEST_STD3GPP_BIN):	test_cellat_std3gpp.c cellat_std3gpp.inc cellat_generic.h cellat_qeng.inc cellat_selftest_json.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_STD3GPP_BIN) test_cellat_std3gpp.c
 endif
 
@@ -383,8 +343,7 @@ clean:
 %.c.o : %.c %.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@ -MMD -MP -MF $(@:.o=.d)
 
-%.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+%.c.d: ;
 
 .PRECIOUS: %.c.d
 

@@ -707,9 +707,7 @@ static const gnss_case_t kGnssCases[] = {
     /* (0,0): the generic "value unavailable" sentinel. It fails the coordinate
      * magnitude gate (|0| is not > 1) BEFORE the placeholder gate, so its reason
      * is NO_POSITION, matching gps_gate_verdict's ordering -- not PLACEHOLDER,
-     * even though is_placeholder_position would also catch it. This is also what
-     * a 0x14D8 record would look like if it carried position -- it does not,
-     * which is why there is no 0x14D8 leg (diag_native_decode.h). */
+     * even though is_placeholder_position would also catch it. */
     {"reject_zero_v24", 24, 1575, 49, 57, 65, 0.0, 0.0, 0.0f, false, 0, 0, 0,
       0, DIAG_NATIVE_GPS_DECLINE_NO_POSITION},
     /* Seed position: plausible degrees but gps_week==0xFFFF, so ONLY the
@@ -789,9 +787,8 @@ static bool check_gnss_routing_contract(void) {
         printf("  FAIL routing: 0x1476 should have a GNSS leg\n"); ok = false;
     }
     if (diag_native_has_gps_leg(0x14D8)) {
-        printf("  FAIL routing: 0x14D8 must NOT have a GNSS leg -- its lat/lon/alt\n"
-               "       are hardcoded 0.0 in the reference parser, so a leg for it\n"
-               "       would be a decode path that is provably always empty\n");
+        printf("  FAIL routing: 0x14D8 must NOT have a GNSS leg -- it is the\n"
+               "       thermal log and carries no position\n");
         ok = false;
     }
     if (diag_native_has_gps_leg(0xB192) || diag_native_has_leg(0x1476)) {
@@ -816,6 +813,33 @@ static bool check_gnss_routing_contract(void) {
     }
     if (ok)
         printf("  ok   gnss routing contract (-1 no-leg vs 0 declined; 0x14D8 unclaimed)\n");
+    return ok;
+}
+
+/* Which declines the census gates rather than counts silent: the engine-on,
+ * no-current-fix ones, including a frozen re-serve of the last fix. */
+static bool check_gnss_decline_gated(void) {
+    static const struct { diag_native_gps_decline_t r; int gated; } k[] = {
+        {DIAG_NATIVE_GPS_DECLINE_NONE, 0},
+        {DIAG_NATIVE_GPS_DECLINE_UNPARSEABLE, 0},
+        {DIAG_NATIVE_GPS_DECLINE_NO_POSITION, 1},
+        {DIAG_NATIVE_GPS_DECLINE_PLACEHOLDER, 1},
+        {DIAG_NATIVE_GPS_DECLINE_NO_TIME, 0},
+        {DIAG_NATIVE_GPS_DECLINE_STALE, 0},
+        {DIAG_NATIVE_GPS_DECLINE_ALTITUDE, 0},
+        {DIAG_NATIVE_GPS_DECLINE_JUMP, 0},
+        {DIAG_NATIVE_GPS_DECLINE_FROZEN, 1},
+    };
+    bool ok = true;
+    for (size_t i = 0; i < sizeof(k) / sizeof(k[0]); i++) {
+        if (diag_native_gps_decline_gated(k[i].r) != k[i].gated) {
+            printf("  FAIL decline gated: reason %d gated=%d, want %d\n",
+                   (int) k[i].r, diag_native_gps_decline_gated(k[i].r), k[i].gated);
+            ok = false;
+        }
+    }
+    if (ok)
+        printf("  ok   gnss census gating (no_position, placeholder, frozen)\n");
     return ok;
 }
 
@@ -2585,6 +2609,7 @@ int main(void) {
     for (size_t i = 0; i < sizeof(kGnssCases) / sizeof(kGnssCases[0]); i++)
         ok &= check_gnss(&kGnssCases[i]);
     ok &= check_gnss_routing_contract();
+    ok &= check_gnss_decline_gated();
     ok &= check_gnss_tracker_contract();
     ok &= check_gnss_frozen_clock();
     ok &= check_sib1_map_contract();

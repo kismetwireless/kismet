@@ -56,6 +56,17 @@ int diag_inventory_is_never_emits(uint16_t code) {
     return 0;
 }
 
+int diag_inventory_accepts_0x14d8(const uint8_t *p, size_t n) {
+    if (p == NULL || n == 0)
+        return 0;
+    /* SDX62/72 thermal: 84 bytes per sensor, whole record or payload unconfirmed */
+    if (p[0] == 0)
+        return n == 72 || n == 84;
+    if (p[0] == 1)
+        return n == 20 || n == 44 || n >= 104;
+    return 0;
+}
+
 typedef struct {
     uint16_t code;
     int16_t  ver;            /* -1..255 */

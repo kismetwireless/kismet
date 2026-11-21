@@ -461,6 +461,17 @@ extern "C" const char *diag_native_gps_decline_name(diag_native_gps_decline_t re
     return diag_0x1476_gpsfix::decline_name(to_leg_decline(reason));
 }
 
+extern "C" int diag_native_gps_decline_gated(diag_native_gps_decline_t reason) {
+    switch (reason) {
+    case DIAG_NATIVE_GPS_DECLINE_NO_POSITION:
+    case DIAG_NATIVE_GPS_DECLINE_PLACEHOLDER:
+    case DIAG_NATIVE_GPS_DECLINE_FROZEN:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 /* ---- GNSS freshness ------------------------------------------------------ */
 
 // The opaque type the C header forward-declares: the leg's tracker, whole. The
