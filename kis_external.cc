@@ -540,6 +540,22 @@ void kis_external_interface::trigger_error(const std::string& in_error) {
     close_external();
 }
 
+void kis_external_interface::trigger_error_if_io(const std::shared_ptr<kis_external_io>& in_io,
+        const std::string& in_error) {
+    {
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "kei trigger_error_if_io");
+
+        if (cancelled || in_io == nullptr || get_io() != in_io)
+            return;
+
+        cancelled = true;
+    }
+
+    handle_error(in_error);
+
+    close_external();
+}
+
 std::string kis_external_interface::frame_error_reason(kis_external_frame_error in_error) {
     if (in_error == kis_external_frame_error::bad_signature)
         return "invalid signature on frame";

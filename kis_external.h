@@ -391,6 +391,11 @@ public:
     // Trigger an error
     virtual void trigger_error(const std::string& in_error);
 
+    // trigger_error only while in_io is still the connection, checked under ext_mutex
+    // with cancelled, so a remote that took the source over isn't failed
+    void trigger_error_if_io(const std::shared_ptr<kis_external_io>& in_io,
+            const std::string& in_error);
+
     // Text from a capture tool or remote peer is cut and cleaned before it reaches logs,
     // messages or tracked fields; the C helpers build theirs in STATUS_MAX (1024) buffers
     static constexpr size_t capture_text_max_len = 1024;
