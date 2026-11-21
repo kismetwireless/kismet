@@ -23,10 +23,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <linux/if_link.h>
@@ -35,6 +37,8 @@
 
 #include <pcap.h>
 
+#include "../../capture_wired/wired_ifupd.h"
+#include "../../capture_wired/wired_priv.h"
 #include "../../capture_wired/wired_sysfs.h"
 #include "../../capture_wired/wired_util.h"
 
@@ -117,7 +121,8 @@ static void test_parse_opts(void) {
 
     CHECK(parse("eth0", &o, err, sizeof(err)) == 1, "no options: %s", err);
     CHECK(o.snaplen == WIRED_SNAPLEN_DEFAULT && o.buffer_mb == WIRED_BUFFER_MB_DEFAULT &&
-            o.sample == 1 && o.promisc == 1 && !o.has_filter && !o.has_uuid, "defaults");
+            o.sample == 1 && o.promisc == 1 && o.ifup == 1 && !o.has_filter && !o.has_uuid,
+            "defaults");
 
     CHECK(parse("eth0:name=foo,mode=full,snaplen=128,buffer_mb=8,sample=10,promisc=false",
                 &o, err, sizeof(err)) == 1, "all options: %s", err);
@@ -150,6 +155,12 @@ static void test_parse_opts(void) {
     CHECK(parse("eth0:sample=0", &o, err, sizeof(err)) < 0, "sample 0");
     CHECK(parse("eth0:sample=1000001", &o, err, sizeof(err)) < 0, "sample high");
     CHECK(parse("eth0:promisc=yes", &o, err, sizeof(err)) < 0, "promisc yes");
+    CHECK(parse("eth0:ifup=false", &o, err, sizeof(err)) == 1 && o.ifup == 0 && o.promisc == 1,
+            "ifup false: %s", err);
+    CHECK(parse("eth0:ifup=TRUE", &o, err, sizeof(err)) == 1 && o.ifup == 1, "ifup TRUE");
+    CHECK(parse("eth0:ifup=no", &o, err, sizeof(err)) < 0 && strstr(err, "ifup") != NULL,
+            "ifup no: %s", err);
+    CHECK(parse("eth0:ifup", &o, err, sizeof(err)) < 0, "ifup without value");
     CHECK(parse("eth0:snaplen", &o, err, sizeof(err)) < 0, "flag without value");
     CHECK(parse("eth0:filter=\"unterminated", &o, err, sizeof(err)) < 0, "open quote");
 
@@ -220,6 +231,7 @@ static void test_unknown_options(void) {
             "all known, quoted comma: '%s'", out);
     CHECK(wired_unknown_options("eth0:NAME=x,SnapLen=128,channel_hop=false,"
                 "info_antenna_type=omni", out, sizeof(out)) == 0, "case and server options '%s'", out);
+    CHECK(wired_unknown_options("eth0:ifup=false", out, sizeof(out)) == 0, "ifup known '%s'", out);
     CHECK(wired_unknown_options("eth0:snaplem=128,name=x,promiscuous=true", out, sizeof(out)) == 2 &&
             strcmp(out, "snaplem,promiscuous") == 0, "two unknown '%s'", out);
     /* Echoed into a message: allowlisted and cut */
@@ -1098,6 +1110,14 @@ static void test_sysfs(const char *root) {
     CHECK(wired_classify(root, "eth1") == WIRED_IF_OK, "eth1");
     CHECK(wired_classify(root, "lo") == WIRED_IF_LOOPBACK, "lo");
     CHECK(wired_classify(root, "loflag") == WIRED_IF_LOOPBACK, "IFF_LOOPBACK");
+
+    CHECK(wired_read_up(root, "eth0") == 1, "eth0 up");
+    CHECK(wired_read_up(root, "eth1") == 0, "eth1 down");
+    CHECK(wired_read_up(root, "notype") == -1, "no flags");
+    CHECK(wired_read_up(root, "missing") == -1, "missing");
+    CHECK(wired_read_up(root, "../eth0") == -1, "bad name");
+    mkiface(root, "badflags", NULL, "0xzz\n", NULL);
+    CHECK(wired_read_up(root, "badflags") == -1, "bad flags");
     CHECK(wired_classify(root, "tun0") == WIRED_IF_NOT_ETHERNET, "tun0");
     CHECK(wired_classify(root, "wlan0") == WIRED_IF_WIRELESS, "wireless dir");
     CHECK(wired_classify(root, "wlan1") == WIRED_IF_WIRELESS, "phy80211 link");
@@ -1667,6 +1687,426 @@ static void nl_set_rta_len(uint8_t *buf, size_t off, unsigned short len) {
 #define NL_FIRST_ATTR   (NLMSG_HDRLEN + NLMSG_ALIGN(sizeof(struct ifinfomsg)))
 #define NL_LINKINFO     (NL_FIRST_ATTR + RTA_SPACE(9))
 
+static size_t nl_ack(uint8_t *buf, uint32_t seq, uint16_t type, int32_t error) {
+    struct nlmsghdr nh;
+    struct nlmsgerr e;
+
+    memset(buf, 0, 1024);
+    memset(&e, 0, sizeof(e));
+    e.error = error;
+    e.msg.nlmsg_type = RTM_NEWLINK;
+    e.msg.nlmsg_seq = seq;
+    memcpy(buf + NLMSG_HDRLEN, &e, sizeof(e));
+
+    memset(&nh, 0, sizeof(nh));
+    nh.nlmsg_len = (uint32_t) NLMSG_LENGTH(sizeof(e));
+    nh.nlmsg_type = type;
+    nh.nlmsg_seq = seq;
+    memcpy(buf, &nh, sizeof(nh));
+
+    return nh.nlmsg_len;
+}
+
+static void test_nl_ack(void) {
+    uint8_t buf[1024];
+    size_t l;
+    int err;
+
+    l = nl_ack(buf, 7, NLMSG_ERROR, 0);
+    CHECK(wired_nl_ack(buf, l, 7, &err) == 1 && err == 0, "ack");
+    CHECK(wired_nl_ack(buf, l + 64, 7, &err) == 1 && err == 0, "read longer than message");
+    CHECK(wired_nl_ack(buf, l, 8, &err) < 0, "another seq");
+    CHECK(wired_nl_ack(buf, l - 1, 7, &err) < 0, "message longer than read");
+    CHECK(wired_nl_ack(buf, NLMSG_LENGTH(sizeof(int)), 7, &err) < 0, "read cut after the error");
+
+    /* The kernel may cap the echoed request to its header; only the error is read */
+    nl_set_len(buf, (uint32_t) NLMSG_LENGTH(sizeof(int)));
+    CHECK(wired_nl_ack(buf, NLMSG_LENGTH(sizeof(int)), 7, &err) == 1 && err == 0,
+            "error without the request");
+    nl_set_len(buf, (uint32_t) NLMSG_LENGTH(sizeof(int)) - 1);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "too short for the error");
+    nl_set_len(buf, 4);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "shorter than its header");
+
+    l = nl_ack(buf, 7, NLMSG_ERROR, -1);
+    CHECK(wired_nl_ack(buf, l, 7, &err) == 1 && err == 1, "EPERM %d", err);
+    l = nl_ack(buf, 7, NLMSG_ERROR, -19);
+    CHECK(wired_nl_ack(buf, l, 7, &err) == 1 && err == 19, "ENODEV %d", err);
+    l = nl_ack(buf, 7, NLMSG_ERROR, 5);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "positive error");
+    l = nl_ack(buf, 7, NLMSG_ERROR, INT32_MIN);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "INT_MIN error");
+    l = nl_ack(buf, 7, NLMSG_ERROR, -4096);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "error past the errno range");
+    l = nl_ack(buf, 7, RTM_NEWLINK, 0);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "not an error message");
+    l = nl_ack(buf, 7, NLMSG_DONE, 0);
+    CHECK(wired_nl_ack(buf, l, 7, &err) < 0, "done");
+
+    CHECK(wired_nl_ack(NULL, 64, 7, &err) < 0, "NULL");
+    CHECK(wired_nl_ack(buf, 0, 7, &err) < 0, "empty");
+    CHECK(wired_nl_ack(buf, l, 7, NULL) < 0, "NULL err");
+}
+
+static void test_ifup(void) {
+    CHECK(wired_ifup_action(1, 1) == WIRED_IFUP_KEEP, "up");
+    CHECK(wired_ifup_action(1, 0) == WIRED_IFUP_KEEP, "up, ifup=false");
+    CHECK(wired_ifup_action(0, 1) == WIRED_IFUP_BRING, "down");
+    CHECK(wired_ifup_action(0, 0) == WIRED_IFUP_REFUSE, "down, ifup=false");
+    /* Unknown flags: libpcap reports a down interface itself */
+    CHECK(wired_ifup_action(-1, 1) == WIRED_IFUP_KEEP, "unknown");
+    CHECK(wired_ifup_action(-1, 0) == WIRED_IFUP_KEEP, "unknown, ifup=false");
+}
+
+static void test_ifup_proto(void) {
+    wired_ifup_req_t req;
+    wired_ifup_reply_t rep;
+    wired_ifup_status_t st;
+    char name[WIRED_IFNAMSIZ];
+    uint8_t buf[sizeof(req) + 4];
+    uint32_t seq = 0;
+    int err = 0;
+
+    CHECK(sizeof(req) == 24 && sizeof(rep) == 16, "fixed sizes %zu %zu", sizeof(req), sizeof(rep));
+
+    CHECK(wired_ifup_req_build("eth0", 5, &req) == 1, "build");
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) == 1 && seq == 5 &&
+            strcmp(name, "eth0") == 0, "round trip");
+    CHECK(wired_ifup_req_build("abcdefghijklmno", 6, &req) == 1 &&
+            wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) == 1 &&
+            strcmp(name, "abcdefghijklmno") == 0, "15 characters");
+    CHECK(wired_ifup_req_build("abcdefghijklmnop", 6, &req) < 0, "16 characters");
+    CHECK(wired_ifup_req_build("", 6, &req) < 0, "empty name");
+    CHECK(wired_ifup_req_build("../x", 6, &req) < 0, "path name");
+    CHECK(wired_ifup_req_build(NULL, 6, &req) < 0 && wired_ifup_req_build("eth0", 6, NULL) < 0,
+            "NULL");
+
+    wired_ifup_req_build("eth0", 7, &req);
+    memcpy(buf, &req, sizeof(req));
+    CHECK(wired_ifup_req_parse(buf, sizeof(req) - 1, &seq, name) < 0, "short");
+    CHECK(wired_ifup_req_parse(buf, sizeof(req) + 1, &seq, name) < 0, "long");
+    CHECK(wired_ifup_req_parse(buf, 0, &seq, name) < 0, "empty");
+    CHECK(wired_ifup_req_parse(NULL, sizeof(req), &seq, name) < 0, "NULL buffer");
+
+    req.magic = 0;
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "magic");
+
+    wired_ifup_req_build("eth0", 7, &req);
+    memset(req.ifname, 'e', sizeof(req.ifname));
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "no NUL");
+
+    wired_ifup_req_build("eth0", 7, &req);
+    req.ifname[6] = 'x';
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "after the NUL");
+
+    wired_ifup_req_build("eth0", 7, &req);
+    req.ifname[0] = 0;
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "empty field");
+
+    wired_ifup_req_build("eth0", 7, &req);
+    memcpy(req.ifname, "a/b", 4);
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "slash");
+    memcpy(req.ifname, ".x\0", 3);
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "leading dot");
+    memcpy(req.ifname, "e\nb", 4);
+    CHECK(wired_ifup_req_parse((uint8_t *) &req, sizeof(req), &seq, name) < 0, "newline");
+
+    wired_ifup_reply_build(9, WIRED_IFUP_DONE, 0, &rep);
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) == 1 &&
+            st == WIRED_IFUP_DONE && err == 0, "done");
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 10, &st, &err) == 0, "stale");
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep) - 1, 9, &st, &err) < 0, "short");
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep) + 1, 9, &st, &err) < 0, "long");
+    wired_ifup_reply_build(9, WIRED_IFUP_ALREADY, 5, &rep);
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) == 1 &&
+            st == WIRED_IFUP_ALREADY && err == 0, "already, errno dropped");
+    wired_ifup_reply_build(9, WIRED_IFUP_FAILED, EPERM, &rep);
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) == 1 &&
+            st == WIRED_IFUP_FAILED && err == EPERM, "failed");
+
+    rep.err = 0;
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) < 0, "failed, no errno");
+    rep.err = 4096;
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) < 0, "errno high");
+    rep.err = -1;
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) < 0, "errno negative");
+    wired_ifup_reply_build(9, WIRED_IFUP_DONE, 0, &rep);
+    rep.err = 1;
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) < 0, "done with errno");
+    rep.err = 0;
+    rep.status = 3;
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) < 0, "status");
+    rep.status = 0;
+    rep.magic = 1;
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 9, &st, &err) < 0, "magic");
+}
+
+static void test_nl_link_parse(void) {
+    uint8_t buf[1024];
+    wired_nl_link_t link;
+    struct ifinfomsg ifi;
+    size_t l;
+
+    l = nl_link(buf, 7, (const uint8_t *) "vlan", 5, 0, 0);
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) == 1 && link.index == 9 &&
+            strcmp(link.name, "snic0.12") == 0 && strcmp(link.kind, "vlan") == 0 &&
+            !link.wireless, "link '%s' '%s' %d", link.name, link.kind, (int) link.index);
+    CHECK(wired_nl_link_parse(buf, l, 8, &link) < 0 && link.name[0] == 0, "wrong seq");
+    CHECK(wired_nl_link_parse(buf, l - 1, 7, &link) < 0, "cut");
+
+    l = nl_link(buf, 7, NULL, 0, 0, 0);
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) == 1 && link.kind[0] == 0, "no kind");
+
+    /* IFLA_WIRELESS, and the type and flags */
+    memset(&ifi, 0, sizeof(ifi));
+    ifi.ifi_index = 4;
+    ifi.ifi_type = 1;
+    ifi.ifi_flags = 0x1003;
+    memcpy(buf + NLMSG_HDRLEN, &ifi, sizeof(ifi));
+    l = nl_attr(buf, l, IFLA_WIRELESS, "x", 1);
+    nl_set_len(buf, (uint32_t) l);
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) == 1 && link.wireless && link.index == 4 &&
+            link.type == 1 && link.flags == 0x1003, "wireless");
+
+    ifi.ifi_index = 0;
+    memcpy(buf + NLMSG_HDRLEN, &ifi, sizeof(ifi));
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) < 0, "index 0");
+
+    /* No IFLA_IFNAME */
+    l = nl_link(buf, 7, NULL, 0, 0, 0);
+    nl_set_len(buf, (uint32_t) NL_FIRST_ATTR);
+    CHECK(wired_nl_link_parse(buf, NL_FIRST_ATTR, 7, &link) < 0, "no name");
+
+    /* A name without its NUL, and a path */
+    l = nl_link(buf, 7, NULL, 0, 0, 0);
+    buf[NL_FIRST_ATTR + RTA_LENGTH(8)] = 'x';
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) < 0, "name without NUL");
+    l = nl_link(buf, 7, NULL, 0, 0, 0);
+    memcpy(buf + NL_FIRST_ATTR + RTA_LENGTH(0), "../x", 5);
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) < 0, "path name");
+
+    l = nl_link(buf, 7, (const uint8_t *) "v lan", 6, 0, 0);
+    CHECK(wired_nl_link_parse(buf, l, 7, &link) < 0, "bad kind");
+    CHECK(wired_nl_link_parse(NULL, l, 7, &link) < 0 && wired_nl_link_parse(buf, l, 7, NULL) < 0,
+            "NULL");
+}
+
+/* Links as a made-up rtnetlink shows them, beside test_sysfs's tree */
+static const struct {
+    const char *name;
+    int32_t index;
+    uint16_t type;
+    uint32_t flags;
+    int wireless;
+} fake_links[] = {
+    { "lo", 1, 772, 0x9, 0 },
+    { "eth0", 2, 1, 0x1003, 0 },
+    { "eth1", 3, 1, 0x1002, 0 },
+    { "loflag", 4, 1, 0x8, 0 },
+    { "wlan0", 5, 1, 0x1002, 0 },
+    { "wlan1", 6, 1, 0x1002, 0 },
+    { "tun0", 8, 65534, 0x1090, 0 },
+    { "wext0", 9, 1, 0x1002, 1 },
+    /* Its /sys directory has another index: another namespace's /sys */
+    { "otherns", 10, 1, 0x1002, 0 },
+    /* No /sys directory at all */
+    { "nosys0", 11, 1, 0x1002, 0 },
+};
+
+static int32_t ifup_called = 0;
+static int ifup_errno = 0;
+/* Set: the link is renamed (or with "" removed) between the check and the set */
+static const char *ifup_rename = NULL;
+
+static int fake_getlink(const char *ifname, int ifindex, wired_nl_link_t *link) {
+    size_t i;
+
+    memset(link, 0, sizeof(*link));
+
+    for (i = 0; i < sizeof(fake_links) / sizeof(fake_links[0]); i++) {
+        if (ifname != NULL ? strcmp(fake_links[i].name, ifname) != 0 :
+                fake_links[i].index != ifindex)
+            continue;
+
+        if (ifname == NULL && ifup_rename != NULL && ifup_rename[0] == 0)
+            break;
+
+        link->index = fake_links[i].index;
+        link->type = fake_links[i].type;
+        link->flags = fake_links[i].flags;
+        link->wireless = fake_links[i].wireless;
+        snprintf(link->name, sizeof(link->name), "%s",
+                ifname == NULL && ifup_rename != NULL ? ifup_rename : fake_links[i].name);
+        return 1;
+    }
+
+    errno = ENODEV;
+    return -1;
+}
+
+static int fake_set_up(int ifindex) {
+    ifup_called = ifindex;
+
+    if (ifup_errno != 0) {
+        errno = ifup_errno;
+        return -1;
+    }
+
+    return 1;
+}
+
+static int answer(const char *root, const char *ifname, int *err) {
+    const wired_ifupd_ops_t ops = { root, fake_getlink, fake_set_up };
+    wired_ifup_req_t req;
+    wired_ifup_reply_t rep;
+    wired_ifup_status_t st;
+
+    ifup_called = 0;
+    wired_ifup_req_build(ifname, 3, &req);
+    wired_ifupd_answer((uint8_t *) &req, sizeof(req), &ops, &rep);
+
+    return wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 3, &st, err) == 1 ? (int) st : -1;
+}
+
+/* The child re-checks every name with its own rtnetlink, and sysfs only where its
+ * index matches; uses test_sysfs's tree */
+static void test_ifupd_answer(const char *root) {
+    const wired_ifupd_ops_t ops = { root, fake_getlink, fake_set_up };
+    wired_ifup_req_t req;
+    wired_ifup_reply_t rep;
+    wired_ifup_status_t st;
+    char path[1024];
+    int err = 0;
+
+    snprintf(path, sizeof(path), "%s/eth0", root);
+    mkfile(path, "ifindex", "2\n");
+    snprintf(path, sizeof(path), "%s/eth1", root);
+    mkfile(path, "ifindex", "3\n");
+    snprintf(path, sizeof(path), "%s/wlan0", root);
+    mkfile(path, "ifindex", "5\n");
+    snprintf(path, sizeof(path), "%s/wlan1", root);
+    mkfile(path, "ifindex", "6\n");
+    mkiface(root, "wext0", "1\n", "0x1002\n", NULL);
+    snprintf(path, sizeof(path), "%s/wext0", root);
+    mkfile(path, "ifindex", "9\n");
+    mkiface(root, "otherns", "1\n", "0x1002\n", NULL);
+    snprintf(path, sizeof(path), "%s/otherns", root);
+    mkfile(path, "ifindex", "99\n");
+
+    CHECK(answer(root, "eth1", &err) == WIRED_IFUP_DONE && ifup_called == 3, "down ethernet");
+    CHECK(answer(root, "eth0", &err) == WIRED_IFUP_ALREADY && ifup_called == 0, "already up");
+    CHECK(answer(root, "lo", &err) == WIRED_IFUP_FAILED && err == EOPNOTSUPP &&
+            ifup_called == 0, "loopback");
+    CHECK(answer(root, "loflag", &err) == WIRED_IFUP_FAILED && err == EOPNOTSUPP &&
+            ifup_called == 0, "IFF_LOOPBACK");
+    CHECK(answer(root, "wlan0", &err) == WIRED_IFUP_FAILED && err == EOPNOTSUPP &&
+            ifup_called == 0, "wireless");
+    CHECK(answer(root, "wlan1", &err) == WIRED_IFUP_FAILED && err == EOPNOTSUPP &&
+            ifup_called == 0, "phy80211");
+    CHECK(answer(root, "wext0", &err) == WIRED_IFUP_FAILED && err == EOPNOTSUPP &&
+            ifup_called == 0, "IFLA_WIRELESS");
+    CHECK(answer(root, "tun0", &err) == WIRED_IFUP_FAILED && err == EOPNOTSUPP &&
+            ifup_called == 0, "not ethernet");
+    CHECK(answer(root, "missing", &err) == WIRED_IFUP_FAILED && err == ENODEV &&
+            ifup_called == 0, "missing");
+    CHECK(answer(root, "otherns", &err) == WIRED_IFUP_FAILED && err == EXDEV &&
+            ifup_called == 0, "another namespace's sysfs");
+    CHECK(answer(root, "nosys0", &err) == WIRED_IFUP_FAILED && err == EXDEV &&
+            ifup_called == 0, "not in sysfs");
+
+    /* Renamed or removed while it's brought up: the checked index was set, and
+     * the asker is told */
+    ifup_rename = "eth9";
+    CHECK(answer(root, "eth1", &err) == WIRED_IFUP_FAILED && err == ESTALE && ifup_called == 3,
+            "renamed: %d", err);
+    ifup_rename = "";
+    CHECK(answer(root, "eth1", &err) == WIRED_IFUP_FAILED && err == ESTALE && ifup_called == 3,
+            "removed: %d", err);
+    ifup_rename = NULL;
+
+    ifup_errno = EPERM;
+    CHECK(answer(root, "eth1", &err) == WIRED_IFUP_FAILED && err == EPERM, "EPERM");
+    ifup_errno = 0;
+
+    ifup_called = 0;
+    memset(&req, 0xff, sizeof(req));
+    wired_ifupd_answer((uint8_t *) &req, sizeof(req), &ops, &rep);
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 0, &st, &err) == 1 &&
+            st == WIRED_IFUP_FAILED && err == EINVAL && ifup_called == 0, "garbage");
+    wired_ifupd_answer((uint8_t *) &req, 3, &ops, &rep);
+    CHECK(wired_ifup_reply_parse((uint8_t *) &rep, sizeof(rep), 0, &st, &err) == 1 &&
+            st == WIRED_IFUP_FAILED && err == EINVAL && ifup_called == 0, "short");
+}
+
+/* Ids 0 of any kind, a supplementary group included, start no child */
+static void test_ifupd_decide(void) {
+    CHECK(wired_ifupd_decide(0, 0) == WIRED_IFUPD_NO_CAP, "no cap");
+    CHECK(wired_ifupd_decide(0, WIRED_ROOT_UID) == WIRED_IFUPD_NO_CAP, "root, no cap");
+    CHECK(wired_ifupd_decide(1, 0) == WIRED_IFUPD_RUNNING, "user with cap");
+    CHECK(wired_ifupd_decide(1, WIRED_ROOT_UID) == WIRED_IFUPD_ROOT, "uid 0");
+    CHECK(wired_ifupd_decide(1, WIRED_ROOT_GID) == WIRED_IFUPD_ROOT, "gid 0");
+    CHECK(wired_ifupd_decide(1, WIRED_ROOT_GROUPS) == WIRED_IFUPD_ROOT, "supplementary group 0");
+}
+
+static uint64_t test_mono_ms(void) {
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t) ts.tv_sec * 1000 + (uint64_t) ts.tv_nsec / 1000000;
+}
+
+/* A child which never reads nor answers: the request times out once, then
+ * fails at once; a socket it has stopped reading never blocks the send */
+static void test_ifupd_stalled(void) {
+    wired_ifup_req_t req;
+    wired_ifupd_t d;
+    uint64_t t0, t1;
+    int sv[2], err = 0, r, i, filled = 0;
+
+    CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sv) == 0, "socketpair");
+    memset(&d, 0, sizeof(d));
+    d.fd = sv[0];
+    d.pid = -1;
+    d.state = WIRED_IFUPD_RUNNING;
+    d.timeout_ms = 300;
+
+    t0 = test_mono_ms();
+    r = wired_ifupd_request(&d, "eth1", &err);
+    t1 = test_mono_ms();
+    CHECK(r < 0 && err == ETIMEDOUT && d.state == WIRED_IFUPD_GONE && d.timed_out && d.fd < 0,
+            "timed out: %d %d", r, err);
+    CHECK(t1 - t0 >= 250 && t1 - t0 < 2000, "waited %llu ms", (unsigned long long) (t1 - t0));
+
+    t0 = test_mono_ms();
+    CHECK(wired_ifupd_request(&d, "eth1", &err) < 0 && err == ENOTCONN, "then not connected");
+    CHECK(test_mono_ms() - t0 < 100, "at once");
+    close(sv[1]);
+
+    CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sv) == 0, "socketpair");
+    wired_ifup_req_build("eth1", 1, &req);
+
+    for (i = 0; i < 1000000; i++) {
+        if (send(sv[0], &req, sizeof(req), MSG_DONTWAIT | MSG_NOSIGNAL) < 0) {
+            filled = errno == EAGAIN || errno == EWOULDBLOCK;
+            break;
+        }
+    }
+
+    CHECK(filled, "filled the socket");
+    memset(&d, 0, sizeof(d));
+    d.fd = sv[0];
+    d.pid = -1;
+    d.state = WIRED_IFUPD_RUNNING;
+    d.timeout_ms = 3000;
+
+    t0 = test_mono_ms();
+    r = wired_ifupd_request(&d, "eth1", &err);
+    CHECK(r < 0 && (err == EAGAIN || err == EWOULDBLOCK) && d.timed_out && d.fd < 0,
+            "full socket: %d %d", r, err);
+    CHECK(test_mono_ms() - t0 < 100, "never blocked");
+    close(sv[1]);
+}
+
 static void test_nl_kind(void) {
     uint8_t buf[1024];
     char kind[WIRED_KIND_MAX];
@@ -1810,6 +2250,13 @@ int main(int argc, char *argv[]) {
     test_stacked(root);
     test_kind_hop();
     test_nl_kind();
+    test_nl_ack();
+    test_ifup();
+    test_ifup_proto();
+    test_nl_link_parse();
+    test_ifupd_answer(root);
+    test_ifupd_decide();
+    test_ifupd_stalled();
     test_ethtool();
 
     if (jout != NULL)

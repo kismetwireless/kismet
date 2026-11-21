@@ -45,6 +45,7 @@
 #define WIRED_ARPHRD_ETHER      1
 #define WIRED_ARPHRD_LOOPBACK   772
 #define WIRED_IFF_LOOPBACK      0x8
+#define WIRED_IFF_UP            0x1
 
 /* Far more feature strings than any kernel has (about 70 in 6.x) */
 #define WIRED_FEATURES_MAX      1024
@@ -185,6 +186,8 @@ const char *wired_class_reason(wired_if_class_t c) {
             return "a loopback interface";
         case WIRED_IF_WIRELESS:
             return "a Wi-Fi interface, use the linuxwifi source";
+        case WIRED_IF_UNVERIFIED:
+            return "not shown in this network namespace's /sys, so it can't be told from Wi-Fi";
     }
 
     return "unknown";
@@ -277,6 +280,18 @@ int wired_read_carrier(const char *sysfs_root, const char *ifname) {
     return -1;
 }
 
+int wired_read_up(const char *sysfs_root, const char *ifname) {
+    char buf[32];
+    long v;
+
+    if (ifname == NULL || !wired_ifname_valid(ifname, strlen(ifname)) ||
+            wired_read_attr(sysfs_root, ifname, "flags", buf, sizeof(buf)) < 0 ||
+            wired_parse_long(buf, 16, &v) < 0)
+        return -1;
+
+    return (v & WIRED_IFF_UP) != 0;
+}
+
 /* A NIC (it has a device), any other virtual interface, then the kinds a host makes
  * one of per container or VM */
 static int wired_list_rank(const char *sysfs_root, wired_kind_fn kind, const char *ifname) {
@@ -363,37 +378,44 @@ typedef struct {
     uint8_t attrs[RTA_SPACE(WIRED_IFNAMSIZ)];
 } wired_nl_getlink_t;
 
-int wired_if_kind(const char *ifname, char *kind, size_t kind_len) {
+/* One RTM_*LINK request for ifname, or with ifname NULL for the link with index
+ * ifindex alone, and the kernel's first answer to it into buf.  Returns the
+ * answer's length, or -1 with errno set */
+static ssize_t wired_nl_request(const char *ifname, int ifindex, uint16_t type, uint16_t flags,
+        unsigned int ifi_flags, unsigned int ifi_change, uint8_t *buf, size_t buf_len) {
     wired_nl_getlink_t req;
     struct sockaddr_nl kernel, from;
     struct rtattr rta;
     struct timeval tv = { 1, 0 };
     socklen_t from_len;
-    uint8_t *buf = NULL;
-    ssize_t r;
-    size_t l;
-    int fd, i, ret = -1;
+    ssize_t r, ret = -1;
+    size_t l = 0;
+    int fd, i, err = EIO;
 
-    if (kind == NULL || kind_len == 0)
+    if (buf == NULL || (ifname == NULL && ifindex < 1) ||
+            (ifname != NULL && !wired_ifname_valid(ifname, (l = strlen(ifname))))) {
+        errno = EINVAL;
         return -1;
-
-    kind[0] = 0;
-
-    if (ifname == NULL || !wired_ifname_valid(ifname, (l = strlen(ifname))))
-        return -1;
+    }
 
     memset(&req, 0, sizeof(req));
-    req.nh.nlmsg_type = RTM_GETLINK;
-    req.nh.nlmsg_flags = NLM_F_REQUEST;
+    req.nh.nlmsg_type = type;
+    req.nh.nlmsg_flags = NLM_F_REQUEST | flags;
     req.nh.nlmsg_seq = WIRED_NL_SEQ;
     req.ifi.ifi_family = AF_UNSPEC;
+    req.ifi.ifi_flags = ifi_flags;
+    req.ifi.ifi_change = ifi_change;
+    req.nh.nlmsg_len = (uint32_t) offsetof(wired_nl_getlink_t, attrs);
 
-    /* Asked by name, so there's no index to go stale between lookups */
-    rta.rta_type = IFLA_IFNAME;
-    rta.rta_len = (unsigned short) RTA_LENGTH(l + 1);
-    memcpy(req.attrs, &rta, sizeof(rta));
-    memcpy(req.attrs + RTA_LENGTH(0), ifname, l + 1);
-    req.nh.nlmsg_len = (uint32_t) (offsetof(wired_nl_getlink_t, attrs) + RTA_SPACE(l + 1));
+    if (ifname != NULL) {
+        rta.rta_type = IFLA_IFNAME;
+        rta.rta_len = (unsigned short) RTA_LENGTH(l + 1);
+        memcpy(req.attrs, &rta, sizeof(rta));
+        memcpy(req.attrs + RTA_LENGTH(0), ifname, l + 1);
+        req.nh.nlmsg_len += (uint32_t) RTA_SPACE(l + 1);
+    } else {
+        req.ifi.ifi_index = ifindex;
+    }
 
     if ((fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE)) < 0)
         return -1;
@@ -403,35 +425,167 @@ int wired_if_kind(const char *ifname, char *kind, size_t kind_len) {
 
     if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0 ||
             sendto(fd, &req, req.nh.nlmsg_len, 0, (struct sockaddr *) &kernel,
-                sizeof(kernel)) != (ssize_t) req.nh.nlmsg_len ||
-            (buf = malloc(WIRED_NL_REPLY_MAX)) == NULL)
+                sizeof(kernel)) != (ssize_t) req.nh.nlmsg_len) {
+        err = errno;
         goto out;
+    }
 
+    /* The socket timeout bounds each read */
     for (i = 0; i < WIRED_NL_READS; i++) {
         memset(&from, 0, sizeof(from));
         from_len = sizeof(from);
 
-        r = recvfrom(fd, buf, WIRED_NL_REPLY_MAX, MSG_TRUNC, (struct sockaddr *) &from, &from_len);
+        r = recvfrom(fd, buf, buf_len, MSG_TRUNC, (struct sockaddr *) &from, &from_len);
 
         if (r < 0 && errno == EINTR)
             continue;
 
-        if (r < 0 || (size_t) r > WIRED_NL_REPLY_MAX)
+        if (r < 0) {
+            err = errno;
+            break;
+        }
+
+        if ((size_t) r > buf_len)
             break;
 
         /* Another process can write to this socket too; only the kernel answers */
         if (from_len < sizeof(from) || from.nl_family != AF_NETLINK || from.nl_pid != 0)
             continue;
 
-        ret = wired_nl_link_kind(buf, (size_t) r, WIRED_NL_SEQ, kind, kind_len);
+        ret = r;
         break;
     }
 
 out:
-    free(buf);
     close(fd);
 
+    if (ret < 0)
+        errno = err;
+
     return ret;
+}
+
+int wired_if_kind(const char *ifname, char *kind, size_t kind_len) {
+    uint8_t *buf;
+    ssize_t r;
+    int ret = -1;
+
+    if (kind == NULL || kind_len == 0)
+        return -1;
+
+    kind[0] = 0;
+
+    if ((buf = malloc(WIRED_NL_REPLY_MAX)) == NULL)
+        return -1;
+
+    if ((r = wired_nl_request(ifname, 0, RTM_GETLINK, 0, 0, 0, buf, WIRED_NL_REPLY_MAX)) > 0)
+        ret = wired_nl_link_kind(buf, (size_t) r, WIRED_NL_SEQ, kind, kind_len);
+
+    free(buf);
+
+    return ret;
+}
+
+int wired_nl_getlink(const char *ifname, int ifindex, wired_nl_link_t *link) {
+    uint8_t *buf;
+    ssize_t r;
+    int ret = -1, e = EIO;
+
+    memset(link, 0, sizeof(*link));
+
+    if ((buf = malloc(WIRED_NL_REPLY_MAX)) == NULL)
+        return -1;
+
+    if ((r = wired_nl_request(ifname, ifindex, RTM_GETLINK, 0, 0, 0, buf,
+                    WIRED_NL_REPLY_MAX)) < 0) {
+        e = errno;
+    } else if (wired_nl_link_parse(buf, (size_t) r, WIRED_NL_SEQ, link) == 1) {
+        ret = 1;
+    } else if (wired_nl_ack(buf, (size_t) r, WIRED_NL_SEQ, &e) != 1 || e == 0) {
+        /* Not an answer, or an error answer without an error */
+        e = EIO;
+    }
+
+    free(buf);
+
+    /* The answer has to be for the link asked for */
+    if (ret == 1 && ((ifname != NULL && strcmp(link->name, ifname) != 0) ||
+                (ifname == NULL && link->index != ifindex))) {
+        ret = -1;
+        e = EIO;
+    }
+
+    if (ret < 0) {
+        memset(link, 0, sizeof(*link));
+        errno = e;
+    }
+
+    return ret;
+}
+
+int wired_nl_read_up(const char *ifname) {
+    wired_nl_link_t link;
+
+    if (wired_nl_getlink(ifname, 0, &link) < 0)
+        return -1;
+
+    return (link.flags & WIRED_IFF_UP) != 0;
+}
+
+wired_if_class_t wired_classify_link(const char *sysfs_root, const wired_nl_link_t *link) {
+    char buf[32];
+    long v;
+
+    if (link->type == WIRED_ARPHRD_LOOPBACK || (link->flags & WIRED_IFF_LOOPBACK))
+        return WIRED_IF_LOOPBACK;
+
+    if (link->type != WIRED_ARPHRD_ETHER)
+        return WIRED_IF_NOT_ETHERNET;
+
+    if (link->wireless)
+        return WIRED_IF_WIRELESS;
+
+    /* Wi-Fi shows only in sysfs, which may be another network namespace's: only a
+     * directory of the same name and index is this link's */
+    if (wired_read_attr(sysfs_root, link->name, "ifindex", buf, sizeof(buf)) < 0 ||
+            wired_parse_long(buf, 10, &v) < 0 || v != link->index)
+        return WIRED_IF_UNVERIFIED;
+
+    if (wired_exists(sysfs_root, link->name, "wireless") ||
+            wired_exists(sysfs_root, link->name, "phy80211") ||
+            wired_uevent_is_wlan(sysfs_root, link->name))
+        return WIRED_IF_WIRELESS;
+
+    return WIRED_IF_OK;
+}
+
+/* The ack echoes the request, which is small */
+#define WIRED_NL_ACK_MAX        1024
+
+int wired_set_up(int ifindex) {
+    uint8_t buf[WIRED_NL_ACK_MAX];
+    ssize_t r;
+    int e;
+
+    /* By index alone, the link that was checked whatever it's called now.
+     * ifi_change limits the change to IFF_UP, so promiscuous and the other flags
+     * stay as they are.  The ack comes once the driver's open returns; a USB NIC's
+     * carrier may follow later */
+    if ((r = wired_nl_request(NULL, ifindex, RTM_NEWLINK, NLM_F_ACK, WIRED_IFF_UP, WIRED_IFF_UP,
+                    buf, sizeof(buf))) < 0)
+        return -1;
+
+    if (wired_nl_ack(buf, (size_t) r, WIRED_NL_SEQ, &e) < 0) {
+        errno = EIO;
+        return -1;
+    }
+
+    if (e != 0) {
+        errno = e;
+        return -1;
+    }
+
+    return 1;
 }
 
 /* Directories read in one stacking check, so a wide bridge of bonds stays cheap */

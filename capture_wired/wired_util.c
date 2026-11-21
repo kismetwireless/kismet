@@ -209,7 +209,7 @@ int wired_filter_balanced(const char *filter, size_t len) {
 
 /* Read by the helper, then by the server (kis_datasource.cc) for every source */
 static const char *const wired_known_options[] = {
-    "mode", "snaplen", "buffer_mb", "sample", "promisc", "filter", "uuid",
+    "mode", "snaplen", "buffer_mb", "sample", "promisc", "ifup", "filter", "uuid",
 #ifdef WIRED_REPLAY
     "replay",
 #endif
@@ -353,6 +353,7 @@ int wired_parse_opts(char *definition, wired_opts_t *opts, char *errstr, size_t 
     opts->buffer_mb = WIRED_BUFFER_MB_DEFAULT;
     opts->sample = 1;
     opts->promisc = 1;
+    opts->ifup = 1;
 
     if ((len = wired_find(definition, "mode", &v, errstr, errstr_len)) < 0)
         return -1;
@@ -406,6 +407,13 @@ int wired_parse_opts(char *definition, wired_opts_t *opts, char *errstr, size_t 
         return -1;
     if (len > 0 && wired_parse_bool(v, (size_t) len, &opts->promisc) < 0) {
         snprintf(errstr, errstr_len, "promisc must be true or false");
+        return -1;
+    }
+
+    if ((len = wired_find(definition, "ifup", &v, errstr, errstr_len)) < 0)
+        return -1;
+    if (len > 0 && wired_parse_bool(v, (size_t) len, &opts->ifup) < 0) {
+        snprintf(errstr, errstr_len, "ifup must be true or false");
         return -1;
     }
 
@@ -745,6 +753,177 @@ int wired_nl_link_kind(const uint8_t *buf, size_t len, uint32_t seq, char *kind,
     }
 
     return r < 0 ? -1 : 0;
+}
+
+int wired_nl_link_parse(const uint8_t *buf, size_t len, uint32_t seq, wired_nl_link_t *link) {
+    struct nlmsghdr nh;
+    struct ifinfomsg ifi;
+    const uint8_t *data;
+    size_t off, dlen, l;
+    unsigned int type;
+    int r, named = 0;
+
+    if (link == NULL)
+        return -1;
+
+    memset(link, 0, sizeof(*link));
+
+    if (buf == NULL || len < sizeof(nh))
+        return -1;
+
+    memcpy(&nh, buf, sizeof(nh));
+
+    off = NLMSG_HDRLEN + NLMSG_ALIGN(sizeof(ifi));
+
+    if (nh.nlmsg_len < off || nh.nlmsg_len > len || nh.nlmsg_seq != seq ||
+            nh.nlmsg_type != RTM_NEWLINK)
+        return -1;
+
+    memcpy(&ifi, buf + NLMSG_HDRLEN, sizeof(ifi));
+
+    if (ifi.ifi_index < 1)
+        return -1;
+
+    link->index = ifi.ifi_index;
+    link->type = ifi.ifi_type;
+    link->flags = ifi.ifi_flags;
+
+    buf += off;
+    len = nh.nlmsg_len - off;
+    off = 0;
+
+    while ((r = wired_rta_next(buf, len, &off, &type, &data, &dlen)) > 0) {
+        if (type == IFLA_IFNAME) {
+            for (l = 0; l < dlen && data[l] != 0; l++)
+                ;
+
+            if (l == dlen || l >= sizeof(link->name) || !wired_ifname_valid((const char *) data, l))
+                return -1;
+
+            memcpy(link->name, data, l);
+            link->name[l] = 0;
+            named = 1;
+        } else if (type == IFLA_WIRELESS) {
+            link->wireless = 1;
+        } else if (type == IFLA_LINKINFO) {
+            if (wired_linkinfo_kind(data, dlen, link->kind, sizeof(link->kind)) < 0)
+                return -1;
+        }
+    }
+
+    return r < 0 || !named ? -1 : 1;
+}
+
+int wired_nl_ack(const uint8_t *buf, size_t len, uint32_t seq, int *err) {
+    struct nlmsghdr nh;
+    int32_t e;
+
+    if (buf == NULL || err == NULL || len < NLMSG_HDRLEN + sizeof(e))
+        return -1;
+
+    memcpy(&nh, buf, sizeof(nh));
+
+    /* Only the error is read; the request echoed after it may be cut */
+    if (nh.nlmsg_len < NLMSG_HDRLEN + sizeof(e) || nh.nlmsg_len > len || nh.nlmsg_seq != seq ||
+            nh.nlmsg_type != NLMSG_ERROR)
+        return -1;
+
+    memcpy(&e, buf + NLMSG_HDRLEN, sizeof(e));
+
+    if (e > 0 || e < -WIRED_ERRNO_MAX)
+        return -1;
+
+    *err = -e;
+    return 1;
+}
+
+wired_ifup_t wired_ifup_action(int up, int ifup) {
+    if (up != 0)
+        return WIRED_IFUP_KEEP;
+
+    return ifup ? WIRED_IFUP_BRING : WIRED_IFUP_REFUSE;
+}
+
+int wired_ifup_req_build(const char *ifname, uint32_t seq, wired_ifup_req_t *req) {
+    size_t l;
+
+    if (req == NULL || ifname == NULL || !wired_ifname_valid(ifname, (l = strlen(ifname))))
+        return -1;
+
+    memset(req, 0, sizeof(*req));
+    req->magic = WIRED_IFUP_MAGIC;
+    req->seq = seq;
+    memcpy(req->ifname, ifname, l);
+
+    return 1;
+}
+
+int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint32_t *seq,
+        char ifname[WIRED_IFNAMSIZ]) {
+    wired_ifup_req_t req;
+    size_t l, i;
+
+    if (buf == NULL || seq == NULL || ifname == NULL || len != sizeof(req))
+        return -1;
+
+    memcpy(&req, buf, sizeof(req));
+
+    if (req.magic != WIRED_IFUP_MAGIC)
+        return -1;
+
+    *seq = req.seq;
+
+    /* NUL-terminated inside the field, and nothing after the NUL */
+    for (l = 0; l < sizeof(req.ifname) && req.ifname[l] != 0; l++)
+        ;
+
+    if (l == sizeof(req.ifname))
+        return -1;
+
+    for (i = l; i < sizeof(req.ifname); i++) {
+        if (req.ifname[i] != 0)
+            return -1;
+    }
+
+    if (!wired_ifname_valid(req.ifname, l))
+        return -1;
+
+    memcpy(ifname, req.ifname, l + 1);
+    return 1;
+}
+
+void wired_ifup_reply_build(uint32_t seq, wired_ifup_status_t status, int err,
+        wired_ifup_reply_t *reply) {
+    memset(reply, 0, sizeof(*reply));
+    reply->magic = WIRED_IFUP_MAGIC;
+    reply->seq = seq;
+    reply->status = (uint32_t) status;
+    reply->err = status == WIRED_IFUP_FAILED ? err : 0;
+}
+
+int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint32_t seq,
+        wired_ifup_status_t *status, int *err) {
+    wired_ifup_reply_t reply;
+
+    if (buf == NULL || status == NULL || err == NULL || len != sizeof(reply))
+        return -1;
+
+    memcpy(&reply, buf, sizeof(reply));
+
+    if (reply.magic != WIRED_IFUP_MAGIC || reply.status > WIRED_IFUP_FAILED)
+        return -1;
+
+    if (reply.status == WIRED_IFUP_FAILED ? (reply.err <= 0 || reply.err > WIRED_ERRNO_MAX) :
+            reply.err != 0)
+        return -1;
+
+    /* An answer to an earlier request, one whose asker died waiting */
+    if (reply.seq != seq)
+        return 0;
+
+    *status = (wired_ifup_status_t) reply.status;
+    *err = reply.err;
+    return 1;
 }
 
 int wired_build_filter(const char *user, const char *selfexcl, char *out, size_t out_len) {

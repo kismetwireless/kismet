@@ -98,6 +98,8 @@ typedef struct {
     unsigned int buffer_mb;
     unsigned int sample;
     int promisc;
+    /* Bring a down interface up at open */
+    int ifup;
     int has_filter;
     char filter[WIRED_FILTER_MAX + 1];
     int has_uuid;
@@ -206,6 +208,83 @@ wired_hop_t wired_kind_hop(const char *kind);
  * one, or a kind outside [A-Za-z0-9._-] or longer than kind_len - 1 */
 int wired_nl_link_kind(const uint8_t *buf, size_t len, uint32_t seq, char *kind,
         size_t kind_len);
+
+/* One link as rtnetlink shows it, in the asking process's network namespace */
+typedef struct {
+    int32_t index;
+    uint16_t type;
+    uint32_t flags;
+    /* IFLA_WIRELESS was there (wext); cfg80211 interfaces may leave it out */
+    int wireless;
+    char name[WIRED_IFNAMSIZ];
+    /* Empty for a link without a kind */
+    char kind[WIRED_KIND_MAX];
+} wired_nl_link_t;
+
+/* The kernel's RTM_NEWLINK answer to an RTM_GETLINK request with sequence number
+ * seq.  Returns 1 with link set, or -1 for another message, a malformed one, an
+ * index below 1, a missing or invalid IFLA_IFNAME, or an invalid kind */
+int wired_nl_link_parse(const uint8_t *buf, size_t len, uint32_t seq, wired_nl_link_t *link);
+
+/* The kernel's NLMSG_ERROR answer to a request with sequence number seq sent with
+ * NLM_F_ACK.  Returns 1 with *err 0 for success or the errno it failed with, or -1
+ * for another message, a malformed one, or an error outside 0 to -4095 */
+int wired_nl_ack(const uint8_t *buf, size_t len, uint32_t seq, int *err);
+
+typedef enum {
+    /* Up, or its flags can't be read; libpcap reports a down one itself */
+    WIRED_IFUP_KEEP = 0,
+    WIRED_IFUP_BRING,
+    /* Down, and ifup=false */
+    WIRED_IFUP_REFUSE,
+} wired_ifup_t;
+
+/* What open does with an interface: up is 1 up, 0 down, -1 unknown
+ * (wired_read_up), ifup the source option */
+wired_ifup_t wired_ifup_action(int up, int ifup);
+
+/* The bring-up child's protocol (wired_ifupd.h), one fixed-size message each way
+ * over a SOCK_SEQPACKET socketpair */
+#define WIRED_IFUP_MAGIC        0x4b574955
+
+/* MAX_ERRNO in linux/err.h */
+#define WIRED_ERRNO_MAX         4095
+
+typedef struct {
+    uint32_t magic;
+    uint32_t seq;
+    /* NUL-terminated, zero after the NUL */
+    char ifname[WIRED_IFNAMSIZ];
+} wired_ifup_req_t;
+
+typedef enum {
+    WIRED_IFUP_DONE = 0,
+    WIRED_IFUP_ALREADY,
+    /* err is the errno, 1 to 4095 */
+    WIRED_IFUP_FAILED,
+} wired_ifup_status_t;
+
+typedef struct {
+    uint32_t magic;
+    uint32_t seq;
+    uint32_t status;
+    int32_t err;
+} wired_ifup_reply_t;
+
+/* Returns 1, or -1 for an invalid name */
+int wired_ifup_req_build(const char *ifname, uint32_t seq, wired_ifup_req_t *req);
+
+/* A request of exactly len bytes.  Returns 1 with seq and a valid ifname, or -1 */
+int wired_ifup_req_parse(const uint8_t *buf, size_t len, uint32_t *seq,
+        char ifname[WIRED_IFNAMSIZ]);
+
+void wired_ifup_reply_build(uint32_t seq, wired_ifup_status_t status, int err,
+        wired_ifup_reply_t *reply);
+
+/* A reply of exactly len bytes.  Returns 1 for the answer to seq, 0 for a valid
+ * answer to another request, -1 for a malformed one */
+int wired_ifup_reply_parse(const uint8_t *buf, size_t len, uint32_t seq,
+        wired_ifup_status_t *status, int *err);
 
 /* The user's filter and the self-exclusion together, "not (exclusion) and
  * (user)"; either may be NULL or empty.  The exclusion goes first: 'vlan',

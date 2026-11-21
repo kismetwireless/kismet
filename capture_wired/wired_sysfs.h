@@ -43,6 +43,8 @@ typedef enum {
     WIRED_IF_NOT_ETHERNET,
     WIRED_IF_LOOPBACK,
     WIRED_IF_WIRELESS,
+    /* Its /sys entry isn't this network namespace's (wired_classify_link) */
+    WIRED_IF_UNVERIFIED,
 } wired_if_class_t;
 
 /* Whether ifname is an Ethernet interface the helper captures from: ARPHRD_ETHER,
@@ -63,6 +65,28 @@ void wired_read_driver(const char *sysfs_root, const char *ifname, char *out, si
 /* 1 with a link, 0 without, -1 unknown (the kernel refuses the read while the
  * interface is down) */
 int wired_read_carrier(const char *sysfs_root, const char *ifname);
+
+/* 1 when the interface is administratively up (IFF_UP), 0 when down, -1 unknown */
+int wired_read_up(const char *sysfs_root, const char *ifname);
+
+/* Sets IFF_UP and nothing else on the link with index ifindex, with an RTM_NEWLINK
+ * naming no interface; needs CAP_NET_ADMIN.  Returns 1, or -1 with errno set (EPERM
+ * without the capability) */
+int wired_set_up(int ifindex);
+
+/* The link named ifname, or with ifname NULL the one with index ifindex, as
+ * rtnetlink in this process's network namespace shows it.  Returns 1, or -1 with
+ * errno set (ENODEV when there's no such link) */
+int wired_nl_getlink(const char *ifname, int ifindex, wired_nl_link_t *link);
+
+/* 1 when ifname is up (IFF_UP) in this network namespace, 0 when down, -1 unknown */
+int wired_nl_read_up(const char *ifname);
+
+/* wired_classify for a link rtnetlink showed: its type and flags decide, and
+ * WIRED_IF_UNVERIFIED when sysfs_root has no directory of its name with its index
+ * (a /sys mounted for another network namespace), so the Wi-Fi checks can't be
+ * made there */
+wired_if_class_t wired_classify_link(const char *sysfs_root, const wired_nl_link_t *link);
 
 /* Interfaces stacked between an address's interface and the captured one, the
  * kernel's own nesting limit (MAX_NEST_DEV): a bridge on a bond on a VLAN on the
