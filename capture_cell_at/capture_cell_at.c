@@ -329,6 +329,8 @@ typedef struct {
     pthread_t     gnss_thread;
     int           gnss_thread_live;
     int           gnss_stop;              /* __atomic: set by the capture thread */
+    int           generic_probed;         /* the generic poll's test forms were sent */
+    unsigned      generic_skip;           /* bit i: STDAT_GENERIC_READ[i] refused, not polled */
 } local_cell_t;
 
 /* -----------------------------------------------------------------------
@@ -4582,6 +4584,38 @@ static void cellat_send_session_log(local_cell_t *local) {
         cellat_log_send(local, &tv, rec);
 }
 
+/* Once, on the first generic poll: send each optional verb's test form and
+ * leave out of every later poll the ones the modem refuses, naming them in one
+ * status line so a verb does not just vanish. Lazy rather than at open, so a
+ * modem with a vendor survey command never sees these probes. */
+static void generic_poll_probe(kis_capture_handler_t *caph, local_cell_t *local) {
+    char r[512], dropped[160] = "";
+    size_t off = 0;
+
+    local->generic_probed = 1;
+    for (int i = 0; i < STDAT_GENERIC_N; i++) {
+        if (STDAT_GENERIC_TEST[i] == NULL)
+            continue;
+        r[0] = '\0';
+        int n = at_command_t(local, STDAT_GENERIC_TEST[i], r, sizeof(r), 3000);
+        if (n > 0 && stdat_test_refused(r)) {
+            local->generic_skip |= 1u << i;
+            int w = snprintf(dropped + off, sizeof(dropped) - off, "%s%s",
+                             off ? ", " : "", STDAT_GENERIC_READ[i]);
+            if (w > 0 && (size_t)w < sizeof(dropped) - off)
+                off += (size_t)w;
+        }
+    }
+    if (off > 0) {
+        char m[STATUS_MAX];
+        snprintf(m, sizeof(m),
+                 "%s generic 3GPP poll leaves out %s: the test form answered ERROR, "
+                 "so the modem does not have it",
+                 local->name, dropped);
+        cf_send_message(caph, m, MSGFLAG_INFO);
+    }
+}
+
 void capture_thread(kis_capture_handler_t *caph) {
     local_cell_t *local = (local_cell_t *)caph->userdata;
     char resp[AT_RESP_MAX];
@@ -4731,16 +4765,19 @@ void capture_thread(kis_capture_handler_t *caph) {
                  * parse_generic_serving(); this block only gathers + emits. The
                  * standard replies are small, so 512 B buffers suffice (unlike
                  * the shared 128 KB `resp`). */
-                char c5[512], ce[512], cr[512], cq[512], eq[512], sq[512];
+                char g[STDAT_GENERIC_N][512];
                 int gerr = 0, gn;
-                c5[0] = ce[0] = cr[0] = cq[0] = eq[0] = sq[0] = '\0';
-                gn = at_command_t(local, "AT+C5GREG?", c5, sizeof(c5), 3000); if (gn < 0) gerr = 1; else if (gn <= 0) c5[0] = '\0';
-                gn = at_command_t(local, "AT+CEREG?",  ce, sizeof(ce), 3000); if (gn < 0) gerr = 1; else if (gn <= 0) ce[0] = '\0';
-                gn = at_command_t(local, "AT+CREG?",   cr, sizeof(cr), 3000); if (gn < 0) gerr = 1; else if (gn <= 0) cr[0] = '\0';
-                gn = at_command_t(local, "AT+COPS?",   cq, sizeof(cq), 3000); if (gn < 0) gerr = 1; else if (gn <= 0) cq[0] = '\0';
-                gn = at_command_t(local, "AT+CESQ",    eq, sizeof(eq), 3000); if (gn < 0) gerr = 1; else if (gn <= 0) eq[0] = '\0';
-                gn = at_command_t(local, "AT+CSQ",     sq, sizeof(sq), 3000); if (gn < 0) gerr = 1; else if (gn <= 0) sq[0] = '\0';
-                obs_count = parse_generic_serving(c5, ce, cr, cq, eq, sq,
+                if (!local->generic_probed)
+                    generic_poll_probe(caph, local);
+                for (int gi = 0; gi < STDAT_GENERIC_N; gi++) {
+                    g[gi][0] = '\0';
+                    if (local->generic_skip & (1u << gi))
+                        continue;
+                    gn = at_command_t(local, STDAT_GENERIC_READ[gi], g[gi],
+                                      sizeof(g[gi]), 3000);
+                    if (gn < 0) gerr = 1; else if (gn <= 0) g[gi][0] = '\0';
+                }
+                obs_count = parse_generic_serving(g[0], g[1], g[2], g[3], g[4], g[5],
                                                   json_obs, MAX_OBS_PER_RESP);
                 n = gerr ? -1 : (obs_count > 0 ? 1 : 0);
                 used_generic = 1;

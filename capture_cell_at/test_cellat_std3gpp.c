@@ -238,6 +238,36 @@ int main(void) {
                                 obs, MAX_OBS) == 0,
           "generic merge: unregistered -> 0 records despite signal+operator");
 
+    printf("== generic poll: which verbs a test-form reply drops ==\n");
+    /* Replies are the shapes TS 27.007 gives a test command; not captures. */
+    check(stdat_test_refused("\r\nERROR\r\n"), "plain ERROR -> refused");
+    check(stdat_test_refused("\r\n+CME ERROR: 4\r\n"), "+CME ERROR -> refused");
+    check(!stdat_test_refused("\r\n+CESQ: (0-63,99),(0-7,99),(0-96,255),(0-49,255),(0-34,255),(0-97,255)\r\n\r\nOK\r\n"),
+          "test-form list + OK -> kept");
+    check(!stdat_test_refused("\r\nOK\r\n"), "bare OK -> kept");
+    check(!stdat_test_refused(""), "empty reply (timeout) -> kept: unknown is not a refusal");
+    check(!stdat_test_refused(NULL), "no reply -> kept");
+    {
+        int cops = -1, probed = 0;
+        for (int i = 0; i < STDAT_GENERIC_N; i++) {
+            if (streq(STDAT_GENERIC_READ[i], "AT+COPS?"))
+                cops = i;
+            if (STDAT_GENERIC_TEST[i] != NULL) {
+                probed++;
+                /* the test form is the read's verb + "=?", never a scan */
+                char want[32];
+                size_t vl = strcspn(STDAT_GENERIC_READ[i], "?");
+                snprintf(want, sizeof(want), "%.*s=?", (int)vl, STDAT_GENERIC_READ[i]);
+                check(streq(STDAT_GENERIC_TEST[i], want), "test form matches its read verb");
+            }
+        }
+        check(cops >= 0 && STDAT_GENERIC_TEST[cops] == NULL,
+              "AT+COPS? is never probed (AT+COPS=? is the PLMN scan)");
+        check(probed == STDAT_GENERIC_N - 1, "every other generic verb is probed");
+        check(streq(STDAT_GENERIC_READ[4], "AT+CESQ") && streq(STDAT_GENERIC_READ[5], "AT+CSQ"),
+              "read order matches parse_generic_serving's cesq, csq arguments");
+    }
+
     printf("\n%s: %d failure(s)\n", g_fails ? "FAIL" : "PASS", g_fails);
     return g_fails ? 1 : 0;
 }
