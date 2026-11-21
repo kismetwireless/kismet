@@ -39,6 +39,7 @@
 #include "endian_magic.h"
 #include "globalregistry.h"
 #include "kis_databaselogfile.h"
+#include "kis_external_policy.h"
 #include "kis_httpd_registry.h"
 #include "kis_mutex.h"
 #include "messagebus.h"
@@ -555,6 +556,12 @@ void datasource_tracker::trigger_deferred_startup() {
     } else {
         _MSG("Remote capture disabled via remote_capture_enabled; no remote capture will be enabled.", MSGFLAG_INFO);
     }
+
+    // Still read, so a config that sets it is told it no longer does anything
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("remote_capture_allow_http_auth", false))
+        _MSG_ERROR("remote_capture_allow_http_auth is no longer supported and is ignored: web login "
+                "tokens are only given to external plugins Kismet launches itself, never to capture "
+                "sources or remote captures.");
 
     config_defaults->set_remote_cap_listen(remotecap_listen);
     config_defaults->set_remote_cap_port(remotecap_port);
@@ -1252,7 +1259,9 @@ void datasource_tracker::trigger_deferred_startup() {
                         auto ret = cmd_ds->handle_packet(buf);
 
                         if (ret != kis_external_interface::result_handle_packet_ok) {
-                            cmd_ds->handle_error(fmt::format("unhandled websocket packet - {}", ret));
+                            // An error was reported and closed the interface already
+                            if (ret != kis_external_interface::result_handle_packet_error)
+                                cmd_ds->handle_error(fmt::format("unhandled websocket packet - {}", ret));
                             ws->close();
                             return;
                         }
@@ -2047,6 +2056,68 @@ void datasource_tracker::schedule_cleanup() {
 
 }
 
+namespace {
+    // Lines anyone who reaches the remote capture port can cause, one limiter per kind so a
+    // flood of one kind doesn't hide the others
+    constexpr int64_t remote_log_interval_s = 10;
+    constinit kis_log_limiter remote_local_uuid_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_type_mismatch_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_disabled_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_running_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_unknown_type_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_idle_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_command_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_bad_signature_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_oversized_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_setup_error_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_short_frame_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_protocol_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_failed_command_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_bad_message_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_bad_pong_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_write_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_bad_shutdown_log{remote_log_interval_s};
+    constinit kis_log_limiter remote_shutdown_log{remote_log_interval_s};
+
+    constexpr int64_t remote_message_log_interval_s = 1;
+    constinit kis_log_limiter remote_message_log{remote_message_log_interval_s};
+
+    // After NEWSOURCE: a remote can announce itself again and again, as the same source or a
+    // new one, so these are limited across all connections too.  A burst keeps the lines of
+    // a few remotes connecting together.
+    constexpr int64_t remote_source_log_interval_s = 10;
+    constexpr uint64_t remote_source_log_burst = 10;
+    constinit kis_log_limiter remote_connected_log{remote_source_log_interval_s, remote_source_log_burst};
+    constinit kis_log_limiter remote_connect_failed_log{remote_source_log_interval_s, remote_source_log_burst};
+
+    kis_log_limiter& remote_peer_error_log(kis_external_peer_error in_error) {
+        switch (in_error) {
+            case kis_external_peer_error::short_frame:
+                return remote_short_frame_log;
+            case kis_external_peer_error::unknown_protocol:
+                return remote_protocol_log;
+            case kis_external_peer_error::oversized_command:
+                return remote_oversized_log;
+            case kis_external_peer_error::failed_command:
+                return remote_failed_command_log;
+            case kis_external_peer_error::bad_message:
+                return remote_bad_message_log;
+            case kis_external_peer_error::bad_pong:
+                return remote_bad_pong_log;
+            case kis_external_peer_error::write_failed:
+                return remote_write_log;
+        }
+
+        return remote_setup_error_log;
+    }
+
+    // A connection that hasn't sent NEWSOURCE by then is closed
+    constexpr int64_t remote_announce_timeout_s = 5;
+
+    // Most of a SHUTDOWN reason that is logged; the C helpers build theirs in 1024 byte buffers
+    constexpr size_t remote_reason_log_max = 1024;
+}
+
 std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid,
         bool connect_tcp) {
@@ -2069,34 +2140,60 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
     }
 
     if (merge_target_device != NULL) {
+        // A remote capture may only take over a source that was itself remote
+        // The lines below name both sources, which is only worth building when they are logged
+        if (!merge_target_device->get_source_remote()) {
+            lock.unlock();
+            if (const auto suppressed = remote_local_uuid_log.due())
+                kis_log_limited_inject(incoming->remote_log_prefix(),
+                        censor::format("for source '{}' has the UUID of local source '{}'; refusing it.  "
+                            "Give the remote capture its own uuid= if it isn't a mistake.",
+                            in_uuid.uuid_to_string(), merge_target_device->get_source_name()),
+                        *suppressed, MSGFLAG_ERROR);
+            incoming->kill();
+            return nullptr;
+        }
+
         if (merge_target_device->get_source_builder()->get_source_type() != in_type) {
-            _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
-                    "but has a different source type.  Make sure that multiple remote captures are "
-                    "not running for the same device, and that each remote capture source has a "
-                    "unique UUID if manually assigned.  For some remote source types such as "
-                    "the rtlsdr family, you may need to manually set the uuid= source parameter.",
-                    in_uuid.uuid_to_string(), merge_target_device->get_source_name());
-            incoming->trigger_error("mismatch device type for this uuid");
+            lock.unlock();
+            if (const auto suppressed = remote_type_mismatch_log.due())
+                kis_log_limited_inject(incoming->remote_log_prefix(),
+                        censor::format("for source '{}' matches existing source '{}', but has a "
+                            "different source type; refusing it.  Make sure that multiple remote "
+                            "captures are not running for the same device, and that each remote "
+                            "capture source has a unique UUID if manually assigned.  For some remote "
+                            "source types such as the rtlsdr family, you may need to manually set the "
+                            "uuid= source parameter.",
+                            in_uuid.uuid_to_string(), merge_target_device->get_source_name()),
+                        *suppressed, MSGFLAG_ERROR);
+            incoming->kill();
             return nullptr;
         }
 
         if (merge_target_device->get_source_disabled()) {
-            _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
-                    "which has been disabled.  Re-open the source to accept the remote connection.",
-                    in_uuid.uuid_to_string(), merge_target_device->get_source_name());
-            incoming->trigger_error("source disabled");
+            lock.unlock();
+            if (const auto suppressed = remote_disabled_log.due())
+                kis_log_limited_inject(incoming->remote_log_prefix(),
+                        censor::format("for source '{}' matches existing source '{}', which has been "
+                            "disabled; refusing it.  Re-open the source to accept the remote connection.",
+                            in_uuid.uuid_to_string(), merge_target_device->get_source_name()),
+                        *suppressed, MSGFLAG_ERROR);
+            incoming->kill();
             return nullptr;
         }
 
         if (merge_target_device->get_source_running()) {
-            _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
-                    "which is still running.  The running instance will be closed; make sure "
-                    "that multiple remote captures are not running for the same source.  This may "
-                    "also indicate multiple remote sources with the same serial number or UUID, "
-                    "which may occur with rtlsdr and others.  You may need to set the uuid= "
-                    "parameter in your remote source definition.",
-                    in_uuid.uuid_to_string(), merge_target_device->get_source_name());
             lock.unlock();
+            if (const auto suppressed = remote_running_log.due())
+                kis_log_limited_inject(incoming->remote_log_prefix(),
+                        censor::format("for source '{}' matches existing source '{}', which is still "
+                            "running.  The running instance will be closed; make sure that multiple "
+                            "remote captures are not running for the same source.  This may also "
+                            "indicate multiple remote sources with the same serial number or UUID, "
+                            "which may occur with rtlsdr and others.  You may need to set the uuid= "
+                            "parameter in your remote source definition.",
+                            in_uuid.uuid_to_string(), merge_target_device->get_source_name()),
+                        *suppressed, MSGFLAG_ERROR);
             merge_target_device->close_source();
             lock.lock();
         } else {
@@ -2108,16 +2205,20 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         lock.unlock();
 
         merge_target_device->connect_remote(in_definition, incoming, in_uuid, connect_tcp,
-                [this, merge_target_device](unsigned int, bool success, std::string msg) {
+                [this, merge_target_device, peer = incoming->remote_log_prefix()]
+                (unsigned int, bool success, std::string msg) {
                     if (success) {
-                        _MSG_INFO("Remote source {} ({}) reconnected",
-                                merge_target_device->get_source_name(),
-                                merge_target_device->get_source_uuid());
+                        if (const auto suppressed = remote_connected_log.due())
+                            kis_log_limited_inject(peer, censor::format("reconnected remote source {} ({})",
+                                        merge_target_device->get_source_name(),
+                                        merge_target_device->get_source_uuid()),
+                                    *suppressed, MSGFLAG_INFO);
                         calculate_source_hopping(merge_target_device);
-                    } else {
-                        _MSG_ERROR("Error reconnecting remote source {} ({}) - {}",
-                                merge_target_device->get_source_name(),
-                                merge_target_device->get_source_uuid(), msg);
+                    } else if (const auto suppressed = remote_connect_failed_log.due()) {
+                        kis_log_limited_inject(peer, censor::format("could not reconnect remote source "
+                                    "{} ({}) - {}", merge_target_device->get_source_name(),
+                                    merge_target_device->get_source_uuid(), msg),
+                                *suppressed, MSGFLAG_ERROR);
                     }
                 });
 
@@ -2138,14 +2239,17 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
             ds->connect_remote(in_definition, incoming, in_uuid, connect_tcp,
-                [this, ds](unsigned int, bool success, std::string msg) {
+                [this, ds, peer = incoming->remote_log_prefix()](unsigned int, bool success, std::string msg) {
                     if (success) {
+                        // Each is a new source in the list, so it is always logged
                         _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(),
                                 ds->get_source_uuid());
                         merge_source(ds);
                     } else {
-                        _MSG_ERROR("Error connecting new remote source {} ({}) - {}",
-                                ds->get_source_name(), ds->get_source_uuid(), msg);
+                        if (const auto suppressed = remote_connect_failed_log.due())
+                            kis_log_limited_inject(peer, censor::format("could not connect new remote "
+                                        "source {} ({}) - {}", ds->get_source_name(), ds->get_source_uuid(),
+                                        msg), *suppressed, MSGFLAG_ERROR);
                         kis_lock_guard<kis_mutex> lk(dst_lock, "dst remote connect lambda broken");
                         broken_source_vec.push_back(ds);
                         schedule_cleanup();
@@ -2156,7 +2260,8 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         }
     }
 
-    _MSG_ERROR("Kismet could not find a datasource driver for incoming remote source "
+    lock.unlock();
+    incoming->log_limited(remote_unknown_type_log, MSGFLAG_ERROR, "asked for a source type Kismet has no driver for: "
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
             in_type, kis_datasource::redact_source_definition(in_definition));
@@ -2557,10 +2662,11 @@ dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
     cb = in_cb;
 
     timerid =
-        timetracker->register_timer(std::chrono::seconds(5), 0,
+        timetracker->register_timer(std::chrono::seconds(remote_announce_timeout_s), 0,
             [this] (int) -> int {
-            _MSG_ERROR("Incoming connection on remote capture socket, but remote side did "
-                    "not initiate a datasource connection.");
+                log_limited(remote_idle_log, MSGFLAG_ERROR,
+                        "did not announce a data source within {} seconds; closing it.",
+                        remote_announce_timeout_s);
                 close_external();
                 return 0;
             });
@@ -2577,12 +2683,104 @@ dst_incoming_remote::~dst_incoming_remote() {
         handshake_thread.join();
 }
 
+std::string dst_incoming_remote::remote_log_prefix() {
+    auto io = get_io();
+    const auto addr = io != nullptr ? io->remote_addresss() : std::string();
+
+    return fmt::format("Remote capture connection from {}", addr.empty() ? "an unknown peer" : addr);
+}
+
+void dst_incoming_remote::handle_msg_proxy(const std::string& msg, const int msgtype) {
+    log_limited(remote_message_log, msgtype, "reports: {}", msg);
+}
+
+// The handlers below log once and kill() rather than trigger_error(), which would log again
+// through handle_error
+void dst_incoming_remote::handle_frame_error(kis_external_frame_error in_error, size_t in_data_sz) {
+    if (in_error == kis_external_frame_error::bad_signature) {
+        log_limited(remote_bad_signature_log, MSGFLAG_ERROR,
+                "sent a frame with an invalid signature; it isn't a Kismet capture tool, or "
+                "uses an unknown protocol.  Closing it.");
+    } else {
+        log_limited(remote_oversized_log, MSGFLAG_ERROR,
+                "sent a {} byte frame, larger than Kismet accepts ({}); it may be a very old Kismet "
+                "version.  Closing it.", in_data_sz, MAX_EXTERNAL_FRAME_LEN);
+    }
+
+    kill();
+}
+
+void dst_incoming_remote::handle_peer_error(kis_external_peer_error in_error, std::string_view,
+        const std::string& in_reason) {
+    log_limited(remote_peer_error_log(in_error), MSGFLAG_ERROR,
+            "failed before announcing a data source: {}; closing it.", in_reason);
+
+    kill();
+}
+
+void dst_incoming_remote::handle_remote_shutdown(bool in_parsed, const std::optional<std::string>& in_reason) {
+    if (!in_parsed)
+        log_limited(remote_bad_shutdown_log, MSGFLAG_ERROR,
+                "sent a SHUTDOWN that can't be parsed before announcing a data source; closing it.");
+    else if (!in_reason)
+        log_limited(remote_shutdown_log, MSGFLAG_INFO,
+                "closed before announcing a data source, giving no reason.");
+    else if (const auto suppressed = remote_shutdown_log.due())
+        kis_log_limited_inject(remote_log_prefix(), censor::format("closed before announcing a data source: {}",
+                    munge_to_printable(in_reason->data(), std::min(in_reason->size(), remote_reason_log_max))),
+                *suppressed, MSGFLAG_INFO);
+
+    kill();
+}
+
+void dst_incoming_remote::handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code,
+        const std::string_view& in_content) {
+    std::optional<std::string> reason;
+    const auto parsed = shutdown_reason_v3(in_content, reason);
+
+    handle_remote_shutdown(parsed, reason);
+}
+
+void dst_incoming_remote::refuse_handshake(std::string_view v2_command) {
+    // The v2 frame's command field is 32 bytes
+    constexpr size_t command_log_max = 32;
+
+    if (const auto suppressed = remote_command_log.due())
+        kis_log_limited_inject(remote_log_prefix(),
+                censor::format("sent {} before announcing a data source; closing it.",
+                    munge_to_printable(v2_command.data(), std::min(v2_command.size(), command_log_max))),
+                *suppressed, MSGFLAG_ERROR);
+
+    kill();
+}
+
+void dst_incoming_remote::refuse_handshake(uint16_t v3_command) {
+    log_limited(remote_command_log, MSGFLAG_ERROR,
+            "sent command {} before announcing a data source; closing it.", v3_command);
+
+    kill();
+}
+
+#ifdef HAVE_PROTOBUF_CPP
+void dst_incoming_remote::handle_packet_shutdown(uint32_t in_seqno, const std::string_view& in_content) {
+    std::optional<std::string> reason;
+    const auto parsed = shutdown_reason_v2(in_content, reason);
+
+    handle_remote_shutdown(parsed, reason);
+}
+#endif
+
 #ifdef HAVE_PROTOBUF_CPP
 bool dst_incoming_remote::dispatch_rx_packet(const std::string_view& command,
         uint32_t seqno, const std::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
     if (command.compare("KDSNEWSOURCE") == 0) {
         handle_packet_newsource(seqno, content);
+        return true;
+    }
+
+    if (!kis_external_v2_remote_handshake_cmd(command)) {
+        refuse_handshake(command);
         return true;
     }
 
@@ -2615,6 +2813,11 @@ bool dst_incoming_remote::dispatch_rx_packet_v3(std::shared_ptr<boost::asio::str
     // override the new source command
     if (command == KIS_EXTERNAL_V3_KDS_NEWSOURCE) {
         handle_packet_newsource_v3(seqno, code, content);
+        return true;
+    }
+
+    if (!kis_external_v3_remote_handshake_cmd(command)) {
+        refuse_handshake(command);
         return true;
     }
 
@@ -2679,7 +2882,7 @@ void dst_incoming_remote::handle_packet_newsource_v3(uint32_t in_seqno, uint16_t
 }
 
 void dst_incoming_remote::handle_error(const std::string& error) {
-    _MSG_ERROR("(DST SETUP REMOTE ERROR) {}", error);
+    log_limited(remote_setup_error_log, MSGFLAG_ERROR, "failed before announcing a data source: {}", error);
 
     kill();
 }

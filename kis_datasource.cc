@@ -31,6 +31,28 @@
 #include <cstdlib>
 #include <future>
 
+namespace {
+    // Lines a remote source causes.  A remote can connect again and again, as the same source
+    // or as a new one, so each kind is limited across all remote sources; the burst keeps the
+    // lines of a few remotes starting together.
+    constexpr int64_t remote_source_log_interval_s = 10;
+    constexpr uint64_t remote_source_log_burst = 20;
+    constinit kis_log_limiter remote_source_message_log{remote_source_log_interval_s, remote_source_log_burst};
+    constinit kis_log_limiter remote_source_error_log{remote_source_log_interval_s, remote_source_log_burst};
+    constinit kis_log_limiter remote_source_definition_log{remote_source_log_interval_s};
+
+    // The error a remote's SHUTDOWN leaves; the C helpers build reasons in 1024 byte buffers
+    constexpr size_t remote_reason_max_len = 1024;
+
+    std::string remote_shutdown_error(const std::optional<std::string>& in_reason) {
+        if (!in_reason)
+            return "remote connection triggered shutdown: no reason";
+
+        return fmt::format("remote connection triggered shutdown: {}",
+                munge_to_printable(in_reason->data(), std::min(in_reason->size(), remote_reason_max_len)));
+    }
+}
+
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
 kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
@@ -585,7 +607,16 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         set_int_source_running(false);
         set_int_source_error(true);
         set_int_source_error_reason("Unable to parse interface definition of remote source");
-        _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
+
+        // The callback takes the tracker lock, which comes before ext_mutex
+        lk.unlock();
+
+        if (const auto suppressed = remote_source_definition_log.due()) {
+            auto io = in_remote->get_io();
+            kis_log_limited_inject(fmt::format("Remote capture connection from {}",
+                        io != nullptr ? io->remote_addresss() : "an unknown peer"),
+                    "sent a source definition Kismet can't parse.", *suppressed, MSGFLAG_ERROR);
+        }
 
         if (in_cb)
             in_cb(0, false, "Unable to parse definition of remote source");
@@ -734,7 +765,13 @@ void kis_datasource::handle_error(const std::string& in_error) {
 
     kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource handle_error");
 
-    if (!quiet_errors && in_error.length()) {
+    if (!quiet_errors && in_error.length() && get_source_remote()) {
+        if (const auto suppressed = remote_source_error_log.due())
+            kis_log_limited_inject({}, censor::format("Data source '{} / {}' ('{}') from {} encountered an error: {}",
+                        get_source_name(), redact_source_definition(generate_source_definition()),
+                        get_source_interface(), external_peer_address(), in_error),
+                    *suppressed, MSGFLAG_ERROR);
+    } else if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
                 get_source_name(), redact_source_definition(generate_source_definition()),
                 get_source_interface(), in_error);
@@ -1300,10 +1337,86 @@ void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
     if (mode_probing || mode_listing)
         return;
 
-    if (get_source_remote())
-        _MSG(fmt::format("{} - {}", get_source_name(), msg), type);
-    else
+    if (!get_source_remote()) {
         _MSG(msg, type);
+        return;
+    }
+
+    if (const auto suppressed = remote_source_message_log.due())
+        kis_log_limited_inject({}, censor::format("{} ({}) - {}", get_source_name(), external_peer_address(), msg),
+                *suppressed, type);
+}
+
+void kis_datasource::handle_frame_error(kis_external_frame_error in_error, size_t in_data_sz) {
+    if (!get_source_remote()) {
+        kis_external_interface::handle_frame_error(in_error, in_data_sz);
+        return;
+    }
+
+    trigger_error(frame_error_reason(in_error));
+}
+
+void kis_datasource::handle_peer_error(kis_external_peer_error in_error, std::string_view in_line,
+        const std::string& in_reason) {
+    if (!get_source_remote()) {
+        kis_external_interface::handle_peer_error(in_error, in_line, in_reason);
+        return;
+    }
+
+    trigger_error(in_reason);
+}
+
+void kis_datasource::handle_bad_report(const std::string& in_reason) {
+    if (!get_source_remote()) {
+        _MSG_ERROR("Kismet datasource got {}", in_reason);
+        return;
+    }
+
+    trigger_error(in_reason);
+}
+
+void kis_datasource::handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code,
+        const std::string_view& in_content) {
+    if (!get_source_remote()) {
+        kis_external_interface::handle_packet_shutdown_v3(in_seqno, code, in_content);
+        return;
+    }
+
+    std::optional<std::string> reason;
+    if (!shutdown_reason_v3(in_content, reason))
+        trigger_error("invalid v3 SHUTDOWN");
+    else
+        trigger_error(remote_shutdown_error(reason));
+}
+
+#ifdef HAVE_PROTOBUF_CPP
+void kis_datasource::handle_packet_shutdown(uint32_t in_seqno, const std::string_view& in_content) {
+    if (!get_source_remote()) {
+        kis_external_interface::handle_packet_shutdown(in_seqno, in_content);
+        return;
+    }
+
+    std::optional<std::string> reason;
+    if (!shutdown_reason_v2(in_content, reason))
+        trigger_error("invalid SHUTDOWN");
+    else
+        trigger_error(remote_shutdown_error(reason));
+}
+#endif
+
+std::string kis_datasource::external_peer_address() {
+    auto io = get_io();
+    return io != nullptr ? io->remote_addresss() : std::string("closed connection");
+}
+
+std::string kis_datasource::external_peer_name() {
+    const auto addr = external_peer_address();
+    const auto name = get_source_name();
+
+    if (name.empty())
+        return fmt::format("capture connection {}", addr);
+
+    return fmt::format("data source '{}' ({})", name, addr);
 }
 
 void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
@@ -1516,7 +1629,7 @@ void kis_datasource::handle_packet_timesync_req_v3(uint32_t in_seqno, uint64_t i
     mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
 
     if (!mpack_tree_try_parse(&tree)) {
-        _MSG_ERROR("Kismet datasource got unparseable v3 TIMESYNCREQ");
+        handle_bad_report("unparseable v3 TIMESYNCREQ");
         return;
     }
 
@@ -1525,7 +1638,7 @@ void kis_datasource::handle_packet_timesync_req_v3(uint32_t in_seqno, uint64_t i
     auto t1 = mpack_node_u64(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_TIMESYNCREQ_FIELD_T1));
 
     if (mpack_tree_error(&tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 TIMESYNCREQ");
+        handle_bad_report("malformed v3 TIMESYNCREQ");
         return;
     }
 
@@ -1566,7 +1679,7 @@ void kis_datasource::handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t cod
     mpack_tree_init_data(&tree, in_packet.data(), in_packet.length());
 
     if (!mpack_tree_try_parse(&tree)) {
-        _MSG_ERROR("Kismet datasource got unparseable v3 HOPREPORT");
+        handle_bad_report("unparseable v3 HOPREPORT");
         return;
     }
 
@@ -1637,7 +1750,7 @@ void kis_datasource::handle_packet_hop_report_v3(uint32_t in_seqno, uint16_t cod
         drift_ppb = mpack_node_i32(drift_n);
 
     if (mpack_tree_error(&tree) != mpack_ok) {
-        _MSG_ERROR("Kismet datasource got malformed v3 HOPREPORT");
+        handle_bad_report("malformed v3 HOPREPORT");
         return;
     }
 

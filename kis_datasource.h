@@ -757,7 +757,16 @@ public:
     virtual void set_device_gps(std::shared_ptr<kis_gps> in_gps);
     virtual void clear_device_gps();
 
+    // A remote source closes on these with the one rate limited line from handle_error;
+    // local helpers log as the base interface does
+    virtual void handle_frame_error(kis_external_frame_error in_error, size_t in_data_sz) override;
+    virtual void handle_peer_error(kis_external_peer_error in_error, std::string_view in_line,
+            const std::string& in_reason) override;
+
 protected:
+    // A bad report: closes a remote source the same way; a local helper's is logged and skipped
+    void handle_bad_report(const std::string& in_reason);
+
     std::shared_ptr<gps_tracker> gpstracker;
 
     // Mutex for data elements
@@ -766,6 +775,17 @@ protected:
 
     virtual void close_external() override;
     virtual void close_external_impl() override;
+
+    // The source name and address, for log lines about the peer
+    virtual std::string external_peer_name() override;
+    std::string external_peer_address();
+
+    // A remote source's SHUTDOWN closes it with the reason in the handle_error line alone
+    virtual void handle_packet_shutdown_v3(uint32_t in_seqno, uint16_t code,
+            const std::string_view& in_content) override;
+#ifdef HAVE_PROTOBUF_CPP
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string_view& in_content) override;
+#endif
 
     // Send the CLOSEREQ if the capture binary supports it; true if a graceful
     // close is now pending (including one that already was), false if the

@@ -458,12 +458,12 @@ int plugin_tracker::activate_plugins() {
             }
         }
 
-        // Activate external http if we have it
-        x->activate_external_http();
-
-        // Alias the plugin directory
+        // Alias the plugin directory before its helper can register routes against it
         httpd->register_static_dir("/plugin/" + x->get_plugin_dirname() + "/",
                 x->get_plugin_path() + "/httpd/");
+
+        // Activate external http if we have it
+        x->activate_external_http();
 
         // Device rules the plugin ships, built in once every plugin is loaded
         if (x->get_plugin_device_rules()->size() > 0) {

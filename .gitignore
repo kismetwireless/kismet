@@ -34,6 +34,7 @@ test/wired_helper/selfexcl_fuzz
 test/wired_helper/opts_fuzz
 test/wired_helper/linkkind_fuzz
 test/wired_helper/procids_fuzz
+test/external_policy/policy_test
 callgrind*
 *.pcap
 *.pcapng
