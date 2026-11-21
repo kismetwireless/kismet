@@ -62,6 +62,11 @@
 #include "adsb_demod.h"
 #include "ais_demod.h"
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
 #define BAND_AIS                0
 #define BAND_ADSB               1
 #define NUM_BANDS               2

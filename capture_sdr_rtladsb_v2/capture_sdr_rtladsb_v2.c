@@ -90,6 +90,11 @@
 /* Magnitude of a full scale sample, (128^2) */
 #define FULL_SCALE   16384.0f
 
+#if defined(SYS_OPENBSD)
+mode_t _permit_setugid = S_ISUID;
+#endif
+
+
 typedef struct {
     pthread_t demod_thread;
 
@@ -988,7 +993,6 @@ int main(int argc, char *argv[]) {
         .bias_tee = 0,
         .bias_tee_gpio = 0,
     };
-
 
     local_adsb.power = (uint32_t *) calloc((DEFAULT_BUF_LENGTH / 2) + 1, sizeof(uint32_t));
     if (local_adsb.power == NULL) {

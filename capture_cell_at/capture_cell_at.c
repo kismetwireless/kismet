@@ -130,6 +130,11 @@
 #include "../capture_cell_diag/cell_discover.h"
 #include <sys/wait.h>
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
 /* Maximum AT response size (128 KB should handle even AT+COPS=? floods) */
 #define AT_RESP_MAX         (128 * 1024)
 

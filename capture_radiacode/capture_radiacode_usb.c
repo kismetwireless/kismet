@@ -46,6 +46,11 @@
 
 #include <libusb-1.0/libusb.h>
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
 typedef struct {
     libusb_context *usb_ctx;
     libusb_device_handle *usb_handle;

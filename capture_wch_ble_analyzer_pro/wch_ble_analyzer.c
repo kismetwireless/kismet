@@ -34,6 +34,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
+
 /* ── Protocol constants ─────────────────────────────────────────────────── */
 
 #define WCH_MAGIC        0xAA   /* command magic byte */
