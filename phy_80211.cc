@@ -24,6 +24,8 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+#include <optional>
+#include <random>
 #include <string>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -450,9 +452,11 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                 "An access point answered probe requests for several networks it never "
                 "advertises in its beacons, often the networks nearby clients probed for.  "
                 "This is how karma and mana attacks (such as the Wi-Fi Pineapple) lure clients "
-                "into connecting to an impersonated network.  Hidden networks, Wi-Fi Direct "
-                "and multiple BSSID sets are allowed for; old access points serving several "
-                "hidden SSIDs from one BSSID can be listed in dot11_karma_ignore_bssids.",
+                "into connecting to an impersonated network; it is also raised for one BSSID "
+                "broadcast-beaconing many different networks (a pool of SSIDs).  Hidden "
+                "networks, Wi-Fi Direct and multiple BSSID sets are allowed for; old access "
+                "points serving several hidden SSIDs from one BSSID can be listed in "
+                "dot11_karma_ignore_bssids.",
                 phyid);
     alert_tooloud_ref =
         alertracker->activate_configured_alert("OVERPOWERED",
@@ -951,13 +955,21 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
         karma_params.min_unbeaconed =
             std::clamp(cfg->fetch_opt_uint("dot11_karma_min_unbeaconed", karma_params.min_unbeaconed),
                     1U, max_karma_ssids);
+        // One beaconed SSID is any AP
+        karma_params.min_pool =
+            std::clamp(cfg->fetch_opt_uint("dot11_karma_min_pool", karma_params.min_pool),
+                    2U, max_karma_ssids);
         karma_params.window = std::max(1U, cfg->fetch_opt_uint("dot11_karma_window", 600));
         karma_params.probe_window = cfg->fetch_opt_uint("dot11_karma_probe_window", 60);
 
-        const size_t min_karma_ssids = std::max(karma_params.min_matched, karma_params.min_unbeaconed);
+        const size_t min_karma_ssids =
+            std::max({karma_params.min_matched, karma_params.min_unbeaconed, karma_params.min_pool});
         karma_params.max_ssids =
             std::clamp<size_t>(cfg->fetch_opt_uint("dot11_karma_max_ssids", 64),
                     min_karma_ssids, max_karma_ssids);
+
+        std::random_device rd;
+        karma_params.sample_seed = rd();
 
         bool ignore_full = false;
 
@@ -3249,7 +3261,8 @@ void kis_80211_phy::handle_mbssid(const std::shared_ptr<kis_packet>& in_pack,
                 // Cached content only refreshes a BSS whose record matches it; otherwise the
                 // next frame with this content rebuilds it
                 if (pi == nullptr) {
-                    if (dot11->get_last_adv_ie_csum() == t.hosted.ietag_csum) {
+                    if ((dot11info->subtype == packet_sub_beacon ? dot11->get_last_adv_ie_csum() :
+                                dot11->get_last_resp_ie_csum()) == t.hosted.ietag_csum) {
                         pi = packetchain->new_packet_component<dot11_packinfo>();
                         pi->type = dot11info->type;
                         pi->subtype = dot11info->subtype;
@@ -4024,7 +4037,9 @@ static void set_airmax_devicename(const std::shared_ptr<kis_tracked_device_base>
     if (radioname.length() == 0)
         return;
 
-    const auto adv = dot11dev->get_last_adv_ssid();
+    // Probe responses cache their SSID apart
+    const auto adv = dot11dev->get_last_adv_ssid() != nullptr ? dot11dev->get_last_adv_ssid() :
+        dot11dev->get_last_resp_ssid();
     const bool ssid_known = adv != nullptr && !adv->get_ssid_cloaked() && adv->get_ssid().length() != 0;
     const auto devicename = basedev->get_devicename();
 
@@ -4246,20 +4261,23 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     }
 
     // If we've processed an identical set of beacon IE tags, don't waste time parsing again,
-    // just update the last-seen time and the number of beacons seen this second
-    if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
-        ssid = dot11dev->get_last_adv_ssid();
+    // just update the last-seen time and the number of beacons seen this second.  Beacons and
+    // probe responses go in different lists, and each has its own cached tags.
+    const bool beacon = dot11info->subtype == packet_sub_beacon;
+
+    if ((beacon ? dot11dev->get_last_adv_ie_csum() : dot11dev->get_last_resp_ie_csum()) == dot11info->ietag_csum) {
+        ssid = beacon ? dot11dev->get_last_adv_ssid() : dot11dev->get_last_resp_ssid();
 
         if (ssid != nullptr) {
             ssid->set_if_earlier_first_time(in_pack->ts.tv_sec);
             ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
 
-            if (dot11info->subtype == packet_sub_beacon) {
+            if (beacon) {
                 ssid->inc_beacons_sec();
             }
 
             // The QBSS load isn't in the checksum; like the full parse, only beacons record it
-            if (dot11info->subtype == packet_sub_beacon && dot11info->qbss_load.present) {
+            if (beacon && dot11info->qbss_load.present) {
                 ssid->set_dot11e_qbss(true);
                 ssid->set_dot11e_qbss_stations(dot11info->qbss_load.station_count);
                 ssid->set_dot11e_qbss_channel_load(
@@ -4268,9 +4286,16 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
 
             // The same tags carry the same SSID; a broadcast beacon for one counted for karma
             // detection means the BSSID does advertise it, whichever arrived first
-            if (dot11info->subtype == packet_sub_beacon && dot11dev->has_karma() &&
+            if (beacon && dot11dev->has_karma() &&
                     dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac))
-                karma_beaconed(dot11dev, static_cast<uint32_t>(ssid->get_ssid_hash()));
+                karma_broadcast_beacon(basedev, dot11dev, in_pack, dot11info,
+                        static_cast<uint32_t>(ssid->get_ssid_hash()), false);
+
+            // A repeated probe response is still an answer, matched against the probes near it
+            if (!beacon && karma_detect && dot11dev->has_karma() &&
+                    !dot11_karma::ignored_ssid(ssid->get_ssid(), ssid->get_ssid_len(), ssid->get_ssid_cloaked()))
+                karma_answer(basedev, dot11dev, in_pack, dot11info,
+                        static_cast<uint32_t>(ssid->get_ssid_hash()), false, 0);
 
             ssidtracker->update_ssid_time(ssid->get_ssid_hash(), in_pack->ts.tv_sec);
         }
@@ -4278,7 +4303,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         return;
     }
 
-    dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
+    if (beacon)
+        dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
+    else
+        dot11dev->set_last_resp_ie_csum(dot11info->ietag_csum);
 
     // Parse the new set of IE tags
     if (packet_dot11_ie_dissector(in_pack.get(), dot11info.get()) < 0) {
@@ -4340,7 +4368,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
             // Handled as new when it was left out of the full list; like a known SSID, it
             // isn't again
             if (!keep_ssid && dot11dev->ssid_recently_dropped(dot11info->ssid_csum)) {
-                dot11dev->set_last_adv_ie_csum(0);
+                dot11dev->set_last_resp_ie_csum(0);
                 if (karma_detect)
                     handle_karma(basedev, dot11dev, in_pack, dot11info, false, 0);
                 return;
@@ -4603,7 +4631,10 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
         ssid->set_if_lt_last_time(in_pack->ts.tv_sec);
     }
 
-    dot11dev->set_last_adv_ssid(ssid);
+    if (beacon)
+        dot11dev->set_last_adv_ssid(ssid);
+    else
+        dot11dev->set_last_resp_ssid(ssid);
 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
@@ -5122,11 +5153,8 @@ bool kis_80211_phy::trim_device_ssids(const std::shared_ptr<dot11_tracked_device
         if (oldest->second != nullptr && ts - oldest_time < min_idle)
             return false;
 
-        if (!probed && oldest->second != nullptr &&
-                dot11dev->get_last_adv_ssid().get() == oldest->second.get()) {
-            dot11dev->set_last_adv_ssid(nullptr);
-            dot11dev->set_last_adv_ie_csum(0);
-        }
+        if (!probed && oldest->second != nullptr)
+            dot11dev->forget_cached_ssid(static_cast<dot11_advertised_ssid *>(oldest->second.get()));
 
         ssid_map->erase(oldest);
     }
@@ -5134,17 +5162,147 @@ bool kis_80211_phy::trim_device_ssids(const std::shared_ptr<dot11_tracked_device
     return true;
 }
 
-void kis_80211_phy::karma_beaconed(const std::shared_ptr<dot11_tracked_device>& dot11dev,
-        uint32_t ssid_hash) {
+time_t kis_80211_phy::karma_answered_at(const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        uint32_t ssid_hash, time_t ts) const {
+    if (!dot11dev->has_responded_ssid_map())
+        return 0;
+
+    auto resp_map = dot11dev->get_responded_ssid_map();
+    auto r = resp_map->find(ssid_hash);
+
+    if (r == resp_map->end() || r->second == nullptr)
+        return 0;
+
+    const time_t last = static_cast<dot11_advertised_ssid *>(r->second.get())->get_last_time();
+
+    if (last <= 0 || !dot11_karma::within(ts, last, karma_params.window))
+        return 0;
+
+    return last;
+}
+
+bool kis_80211_phy::karma_ignored_bssid(const mac_addr& mac) const {
+    return std::find(karma_ignore_bssids.begin(), karma_ignore_bssids.end(), mac) !=
+        karma_ignore_bssids.end();
+}
+
+std::shared_ptr<dot11_tracked_karma> kis_80211_phy::karma_new_state(
+        const std::shared_ptr<dot11_tracked_device>& dot11dev, time_t ts, uint32_t ssid_hash) {
+    auto karma = dot11dev->get_karma();
+
+    ts = karma->state.frame_time(ts);
+
+    // The SSIDs it broadcast-beaconed before the state existed join its pool.  A new SSID from
+    // a unicast beacon creates the state, so earlier ones were broadcast; a hosted BSS has
+    // its SSIDs from the transmitter's frames, which never join a pool.
+    if (!dot11dev->has_advertised_ssid_map() || dot11dev->has_mbssid_transmitter())
+        return karma;
+
+    for (const auto& a : *dot11dev->get_advertised_ssid_map()) {
+        if (a.second == nullptr || static_cast<uint32_t>(a.first) == ssid_hash)
+            continue;
+
+        auto adv = static_cast<dot11_advertised_ssid *>(a.second.get());
+
+        if (adv->get_ssid_cloaked() || !adv->get_ssid_beacon())
+            continue;
+
+        const auto& ssid = adv->get_ssid();
+
+        if (dot11_karma::ignored_ssid(ssid, adv->get_ssid_len(), false))
+            continue;
+
+        // Answers for it before the state existed are kept as for one beaconed since
+        const auto hash = static_cast<uint32_t>(a.first);
+        const time_t answered = karma_answered_at(dot11dev, hash, ts);
+
+        karma->state.pool_seed(hash, adv->get_first_time(), adv->get_last_time(), ts, karma_params,
+                answered != 0);
+
+        // A new state has no answers yet, and the SSID map has each hash once
+        if (answered != 0)
+            karma->state.seen_at(hash, answered, dot11_karma::flag::beaconed, karma_params);
+    }
+
+    return karma;
+}
+
+void kis_80211_phy::karma_broadcast_beacon(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        uint32_t ssid_hash, bool parsed) {
     auto karma = dot11dev->get_tracker_karma();
 
-    if (karma == nullptr || !karma->state.beaconed(ssid_hash))
+    // Normal APs beacon one SSID, a renamed one two, and stay a null check
+    if (karma == nullptr && (!parsed || !dot11dev->has_advertised_ssid_map() ||
+                dot11dev->get_advertised_ssid_map()->size() <= dot11_karma::min_pool_beaconer))
         return;
 
-    const auto c = karma->state.count(karma_params.window);
-    karma->set_unbeaconed_ssids(c.unbeaconed);
-    karma->set_probe_matched_ssids(c.matched);
-    karma->set_directed_beacons(c.directed);
+    const time_t ts = dot11_karma::sane_time(in_pack->ts.tv_sec);
+    const bool add = parsed &&
+        !dot11_karma::ignored_ssid(dot11info->ssid, dot11info->ssid_len, dot11info->ssid_blank) &&
+        !karma_ignored_bssid(basedev->get_macaddr()) &&
+        // A hosted BSS of a multiple BSSID set, from the transmitter's frame
+        (dot11info->transmit_mac == Globalreg::globalreg->empty_mac ||
+         dot11info->transmit_mac == dot11info->bssid_mac);
+
+    if (karma == nullptr) {
+        if (!add || !karma_pool_evident(dot11dev, ts, ssid_hash))
+            return;
+        karma = karma_new_state(dot11dev, ts, ssid_hash);
+    }
+
+    auto& st = karma->state;
+    const auto r = st.broadcast_beacon(ssid_hash, ts, karma_params, add);
+
+    auto pool = r.pool;
+
+    // Nothing new: the counts are recomputed now and then, as SSIDs leave the window
+    if (!r.grew && !r.changed) {
+        if (!st.refresh_due())
+            return;
+
+        st.pool_expire(karma_params);
+        pool = st.pool_count(karma_params);
+    }
+
+    // Probes for the SSIDs it answered may have come after the answers
+    if (r.grew && pool.ssids >= karma_params.min_pool && !st.alerted && st.any_unmatched())
+        ssidtracker->karma_match_probes(st, karma_params.probe_window);
+
+    karma_evaluate(basedev, dot11dev, karma, in_pack, dot11info, ts, pool,
+            r.grew && pool.ssids >= dot11_karma::min_pool_beaconer);
+}
+
+bool kis_80211_phy::karma_pool_evident(const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        time_t ts, uint32_t ssid_hash) const {
+    if (!dot11dev->has_advertised_ssid_map() || dot11dev->has_mbssid_transmitter())
+        return false;
+
+    unsigned int twice = 0;
+    unsigned int distinct = 1;
+
+    for (const auto& a : *dot11dev->get_advertised_ssid_map()) {
+        if (a.second == nullptr || static_cast<uint32_t>(a.first) == ssid_hash)
+            continue;
+
+        auto adv = static_cast<dot11_advertised_ssid *>(a.second.get());
+
+        if (adv->get_ssid_cloaked() || !adv->get_ssid_beacon() ||
+                !dot11_karma::within(ts, adv->get_last_time(), karma_params.window) ||
+                dot11_karma::ignored_ssid(adv->get_ssid(), adv->get_ssid_len(), false))
+            continue;
+
+        if (adv->get_last_time() > adv->get_first_time() ||
+                karma_answered_at(dot11dev, static_cast<uint32_t>(a.first), ts) != 0)
+            twice++;
+
+        if (twice >= dot11_karma::pool_evident_twice || ++distinct >= 2 * karma_params.min_pool)
+            return true;
+    }
+
+    return false;
 }
 
 void kis_80211_phy::handle_karma(const std::shared_ptr<kis_tracked_device_base>& basedev,
@@ -5152,71 +5310,130 @@ void kis_80211_phy::handle_karma(const std::shared_ptr<kis_tracked_device_base>&
         const std::shared_ptr<kis_packet>& in_pack,
         const std::shared_ptr<dot11_packinfo>& dot11info,
         bool new_adv_ssid, time_t probe_ts) {
-    using dot11_karma::flag;
-
     const bool beacon = dot11info->subtype == packet_sub_beacon;
     const uint32_t hash = dot11info->ssid_csum;
 
     if (beacon && dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) {
-        karma_beaconed(dot11dev, hash);
+        karma_broadcast_beacon(basedev, dot11dev, in_pack, dot11info, hash, true);
         return;
     }
 
     if (dot11_karma::ignored_ssid(dot11info->ssid, dot11info->ssid_len, dot11info->ssid_blank))
         return;
 
+    karma_answer(basedev, dot11dev, in_pack, dot11info, hash, new_adv_ssid, probe_ts);
+}
+
+void kis_80211_phy::karma_answer(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        uint32_t hash, bool new_adv_ssid, time_t probe_ts) {
+    using dot11_karma::flag;
+
+    if (karma_ignored_bssid(basedev->get_macaddr()))
+        return;
+
+    const bool beacon = dot11info->subtype == packet_sub_beacon;
     auto karma = dot11dev->get_tracker_karma();
-    const bool listed = karma != nullptr && karma->state.find(hash) != nullptr;
+    time_t ts = dot11_karma::sane_time(in_pack->ts.tv_sec);
+
+    if (karma != nullptr)
+        ts = karma->state.frame_time(ts);
+
+    const auto listed = karma != nullptr ? karma->state.find(hash) : nullptr;
+    flag f = beacon ? flag::directed_beacon : flag::none;
+    bool grew = false;
+
+    // Counted once, when first needed
+    std::optional<dot11_karma::pool_size> pool;
+    auto pool_now = [&]() {
+        if (!pool)
+            pool = karma != nullptr ? karma->state.pool_count(karma_params) : dot11_karma::pool_size{};
+        return *pool;
+    };
 
     // Unicast beacons (beacon response mode) don't count as advertising: a new SSID from one,
     // or an SSID already counted, counts.  A probe response counts unless the BSSID
-    // broadcast-beacons the SSID.
+    // broadcast-beacons the SSID; while it beacons a pool, it counts as an answered pool SSID,
+    // refreshed once it leaves the window.  An answer for an SSID beaconed once is its second
+    // sighting, and it joins the pool.
     if (beacon) {
-        if (!new_adv_ssid && !listed)
+        if (!new_adv_ssid && listed == nullptr)
             return;
-    } else if (!listed) {
+    } else if (listed != nullptr) {
+        if (dot11_karma::has(listed->flags, flag::beaconed)) {
+            grew = karma->state.pool_answered(hash, karma_params.window) ==
+                dot11_karma::pool_result::grew;
+
+            if (!grew && (dot11_karma::in_window(karma->state.newest, listed->last, karma_params.window) ||
+                        pool_now().ssids < dot11_karma::min_pool_beaconer))
+                return;
+        }
+    } else {
         auto adv_map = dot11dev->get_tracker_advertised_ssid_map();
 
-        if (adv_map != nullptr && adv_map->find(dot11info->ssid_csum) != adv_map->end())
-            return;
-    }
-
-    if (!karma_ignore_bssids.empty()) {
-        const auto& mac = basedev->get_macaddr();
-
-        for (const auto& m : karma_ignore_bssids)
-            if (m == mac)
+        if (adv_map != nullptr && adv_map->find(hash) != adv_map->end()) {
+            if (karma != nullptr)
+                grew = karma->state.pool_answered(hash, karma_params.window) ==
+                    dot11_karma::pool_result::grew;
+            if (pool_now().ssids < dot11_karma::min_pool_beaconer)
                 return;
+            f = flag::beaconed;
+        }
     }
 
-    const time_t ts = in_pack->ts.tv_sec;
-
-    if (karma == nullptr)
-        karma = dot11dev->get_karma();
+    // A new state is seeded with the SSIDs beaconed before it
+    if (karma == nullptr) {
+        karma = karma_new_state(dot11dev, ts, hash);
+        pool.reset();
+    }
 
     auto& st = karma->state;
+    auto e = st.seen_at(hash, ts, f, karma_params);
 
-    {
-        auto& e = st.seen(hash, ts, beacon ? flag::directed_beacon : flag::none, karma_params.max_ssids);
+    if (dot11_karma::probe_matches(e->first, e->last, probe_ts, karma_params.probe_window))
+        e->flags = e->flags | flag::matched;
 
-        if (dot11_karma::probe_matches(e.first, e.last, probe_ts, karma_params.probe_window))
-            e.flags = e.flags | flag::matched;
-    }
+    const bool evidence = grew || !dot11_karma::has(e->flags, flag::beaconed);
 
     // Probes may arrive after the responses to them, or from another source
     if (st.any_unmatched())
         ssidtracker->karma_match_probes(st, karma_params.probe_window);
 
-    auto c = st.count(karma_params.window);
+    karma_evaluate(basedev, dot11dev, karma, in_pack, dot11info, ts, pool_now(), evidence);
+}
 
-    karma->set_unbeaconed_ssids(c.unbeaconed);
-    karma->set_probe_matched_ssids(c.matched);
-    karma->set_directed_beacons(c.directed);
+void kis_80211_phy::karma_evaluate(const std::shared_ptr<kis_tracked_device_base>& basedev,
+        const std::shared_ptr<dot11_tracked_device>& dot11dev,
+        const std::shared_ptr<dot11_tracked_karma>& karma,
+        const std::shared_ptr<kis_packet>& in_pack,
+        const std::shared_ptr<dot11_packinfo>& dot11info,
+        time_t ts, dot11_karma::pool_size pool, bool evidence) {
+    auto& st = karma->state;
 
-    if (karma->get_first_time() == 0 || ts < karma->get_first_time())
-        karma->set_first_time(ts);
-    if (ts > karma->get_last_time())
-        karma->set_last_time(ts);
+    auto set_counts = [this, &karma, &st](const dot11_karma::counts& c) {
+        karma->set_unbeaconed_ssids(c.unbeaconed);
+        karma->set_probe_matched_ssids(c.matched);
+        karma->set_directed_beacons(c.directed);
+        karma->set_pool_ssids(c.pool);
+        karma->set_answered_pool_ssids(c.answered_pool);
+        karma->set_pool_current(c.pool >= karma_params.min_pool || c.flood > 0);
+        karma->set_pool_estimated(c.estimated);
+        karma->set_flood_ssids(c.flood);
+        karma->set_counts_until(static_cast<uint64_t>(st.newest) + karma_params.window);
+    };
+
+    auto c = st.count(karma_params, pool);
+    set_counts(c);
+    st.last_eval = st.newest;
+
+    if (evidence) {
+        if (karma->get_first_time() == 0 || ts < karma->get_first_time())
+            karma->set_first_time(ts);
+        if (ts > karma->get_last_time())
+            karma->set_last_time(ts);
+    }
 
     if (st.alerted)
         return;
@@ -5231,10 +5448,10 @@ void kis_80211_phy::handle_karma(const std::shared_ptr<kis_tracked_device_base>&
         return;
 
     // A hidden network answers probes for the name its beacons leave out; should_fire caps
-    // the allowance
+    // the allowance.  Hidden SSIDs never join a pool.
     unsigned int hidden = 0;
 
-    if (dot11dev->has_advertised_ssid_map()) {
+    if (c.pool < karma_params.min_pool && dot11dev->has_advertised_ssid_map()) {
         for (const auto& a : *dot11dev->get_advertised_ssid_map()) {
             if (a.second != nullptr &&
                     static_cast<dot11_advertised_ssid *>(a.second.get())->get_ssid_cloaked() &&
@@ -5262,16 +5479,15 @@ void kis_80211_phy::handle_karma(const std::shared_ptr<kis_tracked_device_base>&
     if (!related.empty()) {
         ssidtracker->karma_exclude_related(st, related);
 
-        c = st.count(karma_params.window);
-        karma->set_unbeaconed_ssids(c.unbeaconed);
-        karma->set_probe_matched_ssids(c.matched);
-        karma->set_directed_beacons(c.directed);
+        c = st.count(karma_params);
+        set_counts(c);
 
         if (!dot11_karma::should_fire(c, hidden, karma_params))
             return;
     }
 
     karma->set_suspect(true);
+    karma->set_reason(static_cast<uint8_t>(dot11_karma::fire_reason(c, hidden, karma_params)));
 
     raise_karma_alert(basedev, karma, in_pack, dot11info, c);
 }
@@ -5284,16 +5500,18 @@ void kis_80211_phy::raise_karma_alert(const std::shared_ptr<kis_tracked_device_b
     if (!alertracker->potential_alert(alert_karma_ref))
         return;
 
-    auto al = censor::format("IEEE80211 frames from BSSID {} answered probes for {} networks it "
-            "does not advertise ({} probed for by clients, {} sent in unicast beacons), which may "
-            "indicate a karma or mana access point impersonating networks clients look for",
-            basedev->get_macaddr(), c.unbeaconed, c.matched, c.directed);
+    auto al = censor::format("IEEE80211 frames from BSSID {} {}", basedev->get_macaddr(),
+            dot11_karma::alert_text(c, c.pool >= karma_params.min_pool || c.flood > 0));
+
+    // A beacon with cached tags wasn't parsed again and has no channel; the device's is known
+    const std::string channel = dot11info->channel.empty() || dot11info->channel == "0" ?
+        basedev->get_channel() : dot11info->channel;
 
     // Only a raised alert counts; a rate limited one is tried again on a later frame
     if (alertracker->raise_alert(alert_karma_ref, in_pack,
                 dot11info->bssid_mac, dot11info->source_mac,
                 dot11info->dest_mac, dot11info->other_mac,
-                dot11info->channel, al) == 1)
+                channel, al) == 1)
         karma->state.alerted = true;
 }
 
@@ -6749,10 +6967,7 @@ public:
                 ssid = std::static_pointer_cast<dot11_advertised_ssid>(itr->second);
 
                 if (Globalreg::globalreg->last_tv_sec - ssid->get_last_time() > timeout && device->get_packets() < packets) {
-                    if (dot11dev->get_last_adv_ssid() == ssid) {
-                        dot11dev->set_last_adv_ssid(NULL);
-                        dot11dev->set_last_adv_ie_csum(0);
-                    }
+                    dot11dev->forget_cached_ssid(ssid.get());
 
                     itr = adv_ssid_map->erase(itr);
                     devicetracker->update_full_refresh();
@@ -6774,10 +6989,7 @@ public:
                 ssid = std::static_pointer_cast<dot11_advertised_ssid>(itr->second);
 
                 if (Globalreg::globalreg->last_tv_sec - ssid->get_last_time() > timeout && device->get_packets() < packets) {
-                    if (dot11dev->get_last_adv_ssid() == ssid) {
-                        dot11dev->set_last_adv_ssid(NULL);
-                        dot11dev->set_last_adv_ie_csum(0);
-                    }
+                    dot11dev->forget_cached_ssid(ssid.get());
 
                     itr = resp_ssid_map->erase(itr);
                     devicetracker->update_full_refresh();

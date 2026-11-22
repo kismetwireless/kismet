@@ -1433,8 +1433,8 @@ struct dot11_dropped_ssids {
 };
 
 // Karma / mana detection for a BSSID; added with the first SSID it answers probes for, or
-// sends only unicast beacons for, without broadcast-beaconing it.  The counts are as of the
-// last such SSID, within dot11_karma_window of it.
+// sends only unicast beacons for, without broadcast-beaconing it, or with the second SSID it
+// broadcast-beacons.  The counts are within dot11_karma_window of the newest frame counted.
 class dot11_tracked_karma : public tracker_component {
 public:
     dot11_tracked_karma() :
@@ -1460,9 +1460,16 @@ public:
         __ImportField(unbeaconed_ssids, p);
         __ImportField(probe_matched_ssids, p);
         __ImportField(directed_beacons, p);
+        __ImportField(pool_ssids, p);
+        __ImportField(answered_pool_ssids, p);
+        __ImportField(pool_current, p);
+        __ImportField(pool_estimated, p);
+        __ImportField(flood_ssids, p);
+        __ImportField(counts_until, p);
         __ImportField(first_time, p);
         __ImportField(last_time, p);
         __ImportField(suspect, p);
+        __ImportField(reason, p);
 
         reserve_fields(nullptr);
     }
@@ -1481,9 +1488,16 @@ public:
     __Proxy(unbeaconed_ssids, uint32_t, unsigned int, unsigned int, unbeaconed_ssids);
     __Proxy(probe_matched_ssids, uint32_t, unsigned int, unsigned int, probe_matched_ssids);
     __Proxy(directed_beacons, uint32_t, unsigned int, unsigned int, directed_beacons);
+    __Proxy(pool_ssids, uint32_t, unsigned int, unsigned int, pool_ssids);
+    __Proxy(answered_pool_ssids, uint32_t, unsigned int, unsigned int, answered_pool_ssids);
+    __Proxy(pool_current, uint8_t, bool, bool, pool_current);
+    __Proxy(pool_estimated, uint8_t, bool, bool, pool_estimated);
+    __Proxy(flood_ssids, uint32_t, unsigned int, unsigned int, flood_ssids);
+    __Proxy(counts_until, uint64_t, uint64_t, uint64_t, counts_until);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(suspect, uint8_t, bool, bool, suspect);
+    __Proxy(reason, uint8_t, uint8_t, uint8_t, reason);
 
     // Not serialized
     dot11_karma::state state;
@@ -1498,21 +1512,57 @@ protected:
                 &probe_matched_ssids);
         register_field("dot11.karma.directed_beacons",
                 "unbeaconed SSIDs seen in unicast beacons", &directed_beacons);
+        register_field("dot11.karma.pool_ssids",
+                "different SSIDs this BSSID broadcast-beaconed within dot11_karma_window, once "
+                "it beaconed more than one; about this many, estimated from a sample, when "
+                "pool_estimated is set.  An SSID counts once beaconed twice within the window, "
+                "so a slower pool (below the flood rate) isn't counted; capture times aren't "
+                "corrected for sensor clock skew", &pool_ssids);
+        register_field("dot11.karma.answered_pool_ssids",
+                "SSIDs this BSSID answered probes for and also broadcast-beacons, counted while "
+                "it beacons more than one", &answered_pool_ssids);
+        register_field("dot11.karma.pool_current",
+                "the BSSID beacons a pool now: pool_ssids reaches dot11_karma_min_pool, or a "
+                "beacon flood within dot11_karma_window; as of counts_until", &pool_current);
+        register_field("dot11.karma.pool_estimated",
+                "pool_ssids is an estimate from a sample of a pool too big for the SSID list",
+                &pool_estimated);
+        register_field("dot11.karma.flood_ssids",
+                "the most new broadcast SSIDs within 5 seconds, estimated from a sample once the "
+                "pool is sampled, while a beacon flood is within dot11_karma_window; 0 otherwise",
+                &flood_ssids);
+        register_field("dot11.karma.counts_until",
+                "capture time the counts hold until, the newest frame counted at their last "
+                "update plus dot11_karma_window (a pool's are updated while it beacons); past "
+                "it, the BSSID no longer has them",
+                &counts_until);
         register_field("dot11.karma.first_time",
-                "capture time of the first unbeaconed SSID", &first_time);
+                "capture time of the first unbeaconed SSID, or of the pool growing (clamped "
+                "to 1970-2100)", &first_time);
         register_field("dot11.karma.last_time",
-                "capture time of the last unbeaconed SSID", &last_time);
+                "capture time of the last unbeaconed SSID, or of the pool growing (clamped to "
+                "1970-2100)", &last_time);
         register_field("dot11.karma.suspect",
-                "the BSSID answered for enough networks it doesn't advertise to suggest a karma "
-                "or mana impersonation attack", &suspect);
+                "the BSSID answered for enough networks it doesn't advertise, or beaconed enough "
+                "different networks, to suggest a karma or mana impersonation attack", &suspect);
+        register_field("dot11.karma.reason",
+                "why the BSSID is suspect: 1 answers for networks it doesn't advertise, 2 a "
+                "beaconed pool of networks, 3 both", &reason);
     }
 
     std::shared_ptr<tracker_element_uint32> unbeaconed_ssids;
     std::shared_ptr<tracker_element_uint32> probe_matched_ssids;
     std::shared_ptr<tracker_element_uint32> directed_beacons;
+    std::shared_ptr<tracker_element_uint32> pool_ssids;
+    std::shared_ptr<tracker_element_uint32> answered_pool_ssids;
+    std::shared_ptr<tracker_element_uint8> pool_current;
+    std::shared_ptr<tracker_element_uint8> pool_estimated;
+    std::shared_ptr<tracker_element_uint32> flood_ssids;
+    std::shared_ptr<tracker_element_uint64> counts_until;
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint8> suspect;
+    std::shared_ptr<tracker_element_uint8> reason;
 };
 
 // Dot11 device
@@ -1837,6 +1887,30 @@ public:
     }
     void set_last_adv_ssid(std::shared_ptr<dot11_advertised_ssid> adv_ssid) {
         last_adv_ssid = adv_ssid;
+    }
+
+    // Probe responses cache their tags apart from beacons, so an AP sending both with the same
+    // tags is parsed once for each
+    uint32_t get_last_resp_ie_csum() { return last_resp_ie_csum; }
+    void set_last_resp_ie_csum(uint32_t csum) { last_resp_ie_csum = csum; }
+    std::shared_ptr<dot11_advertised_ssid> get_last_resp_ssid() {
+        return last_resp_ssid;
+    }
+    void set_last_resp_ssid(std::shared_ptr<dot11_advertised_ssid> resp_ssid) {
+        last_resp_ssid = resp_ssid;
+    }
+
+    // Forgets the cached tags of an SSID being removed
+    void forget_cached_ssid(const dot11_advertised_ssid *ssid) {
+        if (last_adv_ssid.get() == ssid) {
+            last_adv_ssid = nullptr;
+            last_adv_ie_csum = 0;
+        }
+
+        if (last_resp_ssid.get() == ssid) {
+            last_resp_ssid = nullptr;
+            last_resp_ie_csum = 0;
+        }
     }
 
     // Serializers share the device lock, so the maps can't change and concurrent serializers
@@ -2250,7 +2324,9 @@ protected:
 
     // Un-exposed internal tracking options
     uint32_t last_adv_ie_csum;
+    uint32_t last_resp_ie_csum = 0;
     std::shared_ptr<dot11_advertised_ssid> last_adv_ssid;
+    std::shared_ptr<dot11_advertised_ssid> last_resp_ssid;
 
     // Advertised in association requests but device-centric
     std::shared_ptr<tracker_element_uint8> min_tx_power;
