@@ -28,7 +28,8 @@ MONITOR_OBJS = \
 	diag_identvouch.c.o \
 	diag_inventory.c.o \
 	diag_gpsfix.c.o \
-	diag_gsmtap_sink.c.o
+	diag_gsmtap_sink.c.o \
+	diag_replayfifo.c.o
 
 # The helper's native-decode closure. capture_cell_diag.c calls
 # diag_native_decode() directly, so the legs must be in this binary -- not only
@@ -283,6 +284,9 @@ TEST_INVENTORY_BIN = test_diag_inventory
 TEST_GPSFIX_BIN = test_diag_gpsfix
 # The native live GSMTAP UDP sink, against a real loopback receiver. libc.
 TEST_GSMTAP_SINK_BIN = test_diag_gsmtap_sink
+# Replay FIFO writer-close detection, on a real FIFO, with a frame split
+# across two writers. libc.
+TEST_REPLAYFIFO_BIN = test_diag_replayfifo
 # The replay driver: runs the binary over a replay and prints canonical NDJSON
 # of what Kismet receives. Its canonical-form selftest (--selftest) needs no
 # capture. Pure libc.
@@ -300,9 +304,9 @@ $(LOGSTREAM_DUMP_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_DUMP \
 		    -o $(LOGSTREAM_DUMP_BIN) diag_logstream.c diag_hdlc.c
 
-# Selftests, built only by ./configure --enable-cell-selftest.  Run each
-# binary directly; every one exits non-zero on a failure.
-ifeq ($(CELL_SELFTEST),1)
+# Selftests, part of `all` only with ./configure --enable-cell-selftest (or
+# CELL_SELFTEST=1); any one can also be made by name.  Run each binary
+# directly; every one exits non-zero on a failure.
 SELFTEST_BINS = $(TEST_HDLC_BIN) \
 	$(TEST_CONFIG_BIN) \
 	$(TEST_CAPTURE_BIN) \
@@ -324,15 +328,20 @@ SELFTEST_BINS = $(TEST_HDLC_BIN) \
 	$(TEST_OPTSET_BIN) \
 	$(TEST_INVENTORY_BIN) \
 	$(TEST_GPSFIX_BIN) \
-	$(TEST_GSMTAP_SINK_BIN)
+	$(TEST_GSMTAP_SINK_BIN) \
+	$(TEST_REPLAYFIFO_BIN)
 
 ifeq ($(CELL_USBSERIAL),1)
 SELFTEST_BINS += $(TEST_USBSERIAL_BIN)
 endif
 
+ifeq ($(CELL_SELFTEST),1)
 all: $(SELFTEST_BINS)
+endif
 
-$(SELFTEST_BINS): CPPFLAGS += -DCELL_SELFTEST
+# Every test source is empty without -DCELL_SELFTEST, so a test made by name
+# must get it here, never from make's implicit rule.
+$(SELFTEST_BINS) $(TEST_USBSERIAL_BIN): CPPFLAGS += -DCELL_SELFTEST
 
 # The C caller compiles with $(CC); the shim and the legs it forwards to are C++,
 # so they compile with $(CXX) and the link needs $(CXXLIBS) (-lstdc++). This is
@@ -431,6 +440,11 @@ $(TEST_GSMTAP_SINK_BIN):	test_diag_gsmtap_sink.c diag_gsmtap_sink.c diag_gsmtap_
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_GSMTAP_SINK_BIN) \
 		    test_diag_gsmtap_sink.c diag_gsmtap_sink.c
 
+$(TEST_REPLAYFIFO_BIN):	test_diag_replayfifo.c diag_replayfifo.c diag_replayfifo.h \
+			diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
+		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(TEST_REPLAYFIFO_BIN) \
+		    test_diag_replayfifo.c diag_replayfifo.c diag_logstream.c diag_hdlc.c
+
 $(TEST_PORTADMIT_BIN):	diag_portadmit.c diag_portadmit.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_PORTADMIT_SELFTEST \
 		    -o $(TEST_PORTADMIT_BIN) diag_portadmit.c
@@ -442,7 +456,6 @@ $(TEST_DISCOVER_BIN):	cell_discover.c cell_discover.h
 $(TEST_LOGSTREAM_BIN):	diag_logstream.c diag_logstream.h diag_hdlc.c diag_hdlc.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DDIAG_LOGSTREAM_SELFTEST \
 		    -o $(TEST_LOGSTREAM_BIN) diag_logstream.c diag_hdlc.c
-endif
 
 clean:
 	@-rm -f $(TEST_NATIVE_BIN) test_diag_native_decode.c.o test_diag_native_inventory.c.o test_diag_native_decode.cpp.o
@@ -455,6 +468,7 @@ clean:
 	@-rm -f $(TEST_INVENTORY_BIN)
 	@-rm -f $(TEST_GPSFIX_BIN)
 	@-rm -f $(TEST_GSMTAP_SINK_BIN)
+	@-rm -f $(TEST_REPLAYFIFO_BIN)
 	@-rm -f $(TEST_STATS_BIN)
 	@-rm -f $(TEST_MODEMIDENT_BIN)
 	@-rm -f $(TEST_CELL_LOG_BIN)
