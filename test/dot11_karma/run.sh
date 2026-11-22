@@ -49,10 +49,49 @@ expect() {
         latebeacons)    echo 0 ;;   # answers heard before the beacons
         legit)          echo 0 ;;   # an AP answering for its own network
         rename)         echo 0 ;;   # a renamed AP answering for both names
+        bpool)          echo 1 ;;   # 40 SSIDs broadcast-beaconed in turn from one BSSID
+        bpool_hostile)  echo 1 ;;   # the same with hostile SSIDs
+        bpool_karma)    echo 1 ;;   # pool and karma from the start: answered SSIDs are beaconed
+        karma_bpool)    echo 1 ;;   # karma, then a pool beaconing the answered SSIDs
+        pool9)          echo 0 ;;   # 9 SSIDs from one BSSID, under dot11_karma_min_pool
+        threebss)       echo 0 ;;   # three BSSIDs, one SSID each
+        rename2)        echo 0 ;;   # an AP renamed twice
+        hiddenmix)      echo 0 ;;   # hidden and NUL padded SSIDs of every length
+        ciscomulti)     echo 0 ;;   # one SSID on each of 8 BSSIDs of one radio
+        mbssid8)        echo 0 ;;   # a transmitter hosting 8 nontransmitted BSSs
+        earlyresp)      echo 0 ;;   # an answer before the first beacon, then thousands more
+        mbssidresp)     echo 0 ;;   # repeated transmitter answers for a hosted BSS with karma state
+        bafter|bfirst)  echo 1 ;;   # 40 answered names each broadcast-beaconed once
+        bafter8|bfirst8) echo 0 ;;  # the same with 8 names: under dot11_karma_min_pool
+        corrupt)        echo 0 ;;   # 20 one-off bit-flipped copies of an AP's SSID
+        repeatresp)     echo 1 ;;   # repeated identical answers, probed for near the second
+        corrupt10)      echo 0 ;;   # a renamed AP and 10 one-off bit-flipped copies: no record
+        rr100|rr1000|rr1000long) echo 1 ;; # a pool bigger than the SSID lists, one SSID per beacon
+        norecord)       echo 0 ;;   # renamed, hidden + named, one corrupt SSID: no karma record
     esac
 }
 ORDER="karma loudmana beaconresp pool multisource hostile cisco evade burst fill_bcn fill_resp
-       cisco_ignored hidden hidden_nul mbssid p2p mesh responsesonly latebeacons legit rename"
+       cisco_ignored hidden hidden_nul mbssid p2p mesh responsesonly latebeacons legit rename
+       bpool bpool_hostile bpool_karma karma_bpool pool9 threebss rename2 hiddenmix ciscomulti mbssid8
+       earlyresp mbssidresp bafter bafter8 bfirst bfirst8 corrupt corrupt10 repeatresp rr100 rr1000 rr1000long norecord"
+
+# Least pool and answered SSID counts the suspect must keep at the end
+mincounts() {
+    case "$1" in
+        bpool|bpool_hostile)        echo "10 0" ;;
+        bpool_karma)                echo "10 4" ;;   # answered while one SSID counted: any AP's own
+        karma_bpool)                echo "10 4" ;;   # the first beaconed answer is any AP's own
+        bafter|bfirst)              echo "10 9" ;;
+        rr100|rr1000|rr1000long)    echo "10 0" ;;
+        *)                          echo "0 0" ;;
+    esac
+    case "$1" in
+        earlyresp)                  echo quiet ;;
+        norecord|rename2|corrupt10) echo norecord ;;
+        mbssidresp)                 echo hosted ;;
+        *)                          echo - ;;
+    esac
+}
 
 extra() {
     case "$1" in
@@ -119,10 +158,9 @@ for sc in ${@:-$ORDER}; do
         http://127.0.0.1:$PORT/devices/views/phydot11_karma/last-time/0/devices.json
     curl -s -u karmatest:karmatest -o "$WORK/$sc/devices.json" \
         http://127.0.0.1:$PORT/devices/views/all/last-time/0/devices.json
-
     kill $pid; wait $pid 2>/dev/null
 
-    got=$(python3 -I - "$WORK/$sc" "$(needalert "$sc")" <<'EOF'
+    got=$(python3 -I - "$WORK/$sc" "$(needalert "$sc")" $(mincounts "$sc") <<'EOF'
 import json, sys
 def load(p):
     with open(p, "rb") as f:
@@ -137,6 +175,40 @@ suspect = [v for v in view if v.get("dot11.device", {}).get("dot11.device.karma"
 flagged = [v for v in devs if v.get("dot11.device", {}).get("dot11.device.karma", {}).get("dot11.karma.suspect") == 1]
 wifi = [v for v in devs if "dot11.device" in v]
 missing = [h for h in sys.argv[2].split() if not any(a["kismet.alert.header"] == h for a in all_alerts)]
+minpool, minans, quiet = int(sys.argv[3]), int(sys.argv[4]), sys.argv[5] == "quiet"
+for v in flagged:
+    k = v["dot11.device"]["dot11.device.karma"]
+    if k["dot11.karma.pool_ssids"] < minpool or k["dot11.karma.answered_pool_ssids"] < minans:
+        missing.append("counts:pool=%d,answered_pool=%d" % (k["dot11.karma.pool_ssids"],
+            k["dot11.karma.answered_pool_ssids"]))
+import re
+if minpool and not flagged:
+    if not any((m := re.search(r"beaconed (?:about )?(\d+) different", a["kismet.alert.text"])) and
+            int(m.group(1)) >= minpool for a in alerts):
+        missing.append("pool-alert")
+# Quiet: karma state left from an answer before the first beacon, never counted again
+for v in wifi if quiet else []:
+    k = v["dot11.device"].get("dot11.device.karma")
+    if k and (k["dot11.karma.unbeaconed_ssids"] or k["dot11.karma.answered_pool_ssids"] or
+            k["dot11.karma.last_time"] > k["dot11.karma.first_time"]):
+        missing.append("quiet:" + json.dumps(k, sort_keys=True))
+# No karma record at all
+for v in wifi if sys.argv[5] == "norecord" else []:
+    if v["dot11.device"].get("dot11.device.karma"):
+        missing.append("record:" + v["kismet.device.base.macaddr"])
+# Hosted: the hosted BSS answers only for its names, with no SSID from a stub frame, and its
+# hosted SSID refreshed by the repeated transmitter answers
+def ssids(m):
+    return list(m.values()) if isinstance(m, dict) else m if isinstance(m, list) else []
+if sys.argv[5] == "hosted":
+    h = [v for v in wifi if v["kismet.device.base.macaddr"] == "02:00:00:00:4B:41"]
+    resp = ssids(h[0]["dot11.device"].get("dot11.device.responded_ssid_map")) if h else []
+    names = sorted(r["dot11.advertisedssid.ssid"] for r in resp)
+    if names != ["mbr-guest", "mbr-x-00", "mbr-x-01"]:
+        missing.append("hosted-ssids:" + json.dumps(names))
+    g = [r for r in resp if r["dot11.advertisedssid.ssid"] == "mbr-guest"]
+    if not g or g[0]["dot11.advertisedssid.last_time"] - g[0]["dot11.advertisedssid.first_time"] < 15:
+        missing.append("hosted-not-refreshed")
 print("%d %d %d %d %d %s" % (len(alerts), len(view), len(suspect), len(flagged), len(wifi),
         ",".join(missing) or "-"))
 EOF

@@ -244,7 +244,8 @@ public:
             uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device, time_t probe_ts);
 
     // Karma detection, under one lock for the whole list: marks the unmatched entries a client
-    // probed for within the probe window, and the entries one of the related devices advertises
+    // probed for within the probe window, and the entries (answered or pool) one of the related
+    // devices advertises
     void karma_match_probes(dot11_karma::state& st, time_t probe_window);
     void karma_exclude_related(dot11_karma::state& st, const std::vector<device_key>& related);
 

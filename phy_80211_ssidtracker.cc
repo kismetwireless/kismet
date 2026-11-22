@@ -517,11 +517,12 @@ void phy_80211_ssid_tracker::karma_match_probes(dot11_karma::state& st, time_t p
 
     for (auto& e : st.entries) {
         if (dot11_karma::has(e.flags, dot11_karma::flag::matched) ||
-                dot11_karma::has(e.flags, dot11_karma::flag::excluded))
+                dot11_karma::has(e.flags, dot11_karma::flag::excluded) ||
+                dot11_karma::has(e.flags, dot11_karma::flag::beaconed))
             continue;
 
         // Only probes near the newest response are still arriving
-        if (st.newest - e.last > probe_window)
+        if (!dot11_karma::in_window(st.newest, e.last, probe_window))
             continue;
 
         auto mapdev = ssid_map.find(e.hash);
@@ -544,17 +545,19 @@ void phy_80211_ssid_tracker::karma_exclude_related(dot11_karma::state& st,
     // Group device maps only change under this mutex as well as the group mutex
     kis_lock_guard<kis_mutex> lk(mutex);
 
-    for (auto& e : st.entries) {
-        if (dot11_karma::has(e.flags, dot11_karma::flag::excluded))
-            continue;
+    for (auto *list : {&st.entries, &st.pool}) {
+        for (auto& e : *list) {
+            if (dot11_karma::has(e.flags, dot11_karma::flag::excluded))
+                continue;
 
-        auto mapdev = ssid_map.find(e.hash);
+            auto mapdev = ssid_map.find(e.hash);
 
-        if (mapdev == ssid_map.end())
-            continue;
+            if (mapdev == ssid_map.end())
+                continue;
 
-        if (static_cast<dot11_tracked_ssid_group *>(mapdev->second.get())->advertised_by_any(related))
-            e.flags = e.flags | dot11_karma::flag::excluded;
+            if (static_cast<dot11_tracked_ssid_group *>(mapdev->second.get())->advertised_by_any(related))
+                e.flags = e.flags | dot11_karma::flag::excluded;
+        }
     }
 }
 

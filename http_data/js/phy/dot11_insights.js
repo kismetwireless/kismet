@@ -24,6 +24,8 @@ const fields = [
 // for the guess made when an older server has no karma detection
 const karmaMinMatched = 3;
 const karmaMinAnswered = 10;
+// dot11.karma.reason: bit 1 answers for networks it doesn't advertise, bit 2 a beaconed pool
+const karmaReasonPool = 2;
 
 const list = (v) => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
 const ssidId = (ssid) => `dot11-ssid:${ssid}`;
@@ -213,7 +215,7 @@ export function registerInsights(kismet) {
     insightFindings.add({
         id: 'dot11-karma',
         alerts: ['DOT11KARMA'],
-        find({ graph }) {
+        find({ graph, now }) {
             const nodes = [...graph.nodes.values()];
             if (nodes.some((n) => n.karma))
                 serverKarma = true;
@@ -241,16 +243,53 @@ export function registerInsights(kismet) {
                     const unbeaconed = karmaCount(n.karma, 'unbeaconed_ssids');
                     const matched = karmaCount(n.karma, 'probe_matched_ssids');
                     const directed = karmaCount(n.karma, 'directed_beacons');
+                    const pool = karmaCount(n.karma, 'pool_ssids');
+                    const answeredPool = Math.min(karmaCount(n.karma, 'answered_pool_ssids'), pool);
+                    // Why the server flagged it, as of the alert
+                    const isPool = (karmaCount(n.karma, 'reason') & karmaReasonPool) !== 0;
                     // The flag stays once set; the counts are of the recent names only
-                    title = unbeaconed ? `${n.mac} answered for ${plural(unbeaconed, 'network', 'networks')} it doesn't advertise` :
-                        `${n.mac} answered for networks it didn't advertise`;
-                    text = unbeaconed ?
-                        `Kismet saw it answer probe requests for ${plural(unbeaconed, 'network name', 'network names')} ` +
-                        'it never sent in broadcast beacons' +
-                        (matched ? `; devices nearby had just probed for ${matched === unbeaconed ? 'each' : matched} of them` : '') +
-                        (directed ? `; ${directed} of them only in beacons addressed to one device` : '') + '.' :
-                        'Kismet saw it answer probe requests for enough network names it didn\'t send in broadcast beacons ' +
-                        'to flag it.  It has since advertised them, or answered for them too long ago to count now.';
+                    if (isPool) {
+                        // The counts are of the recent names; a pool it stopped beaconing shrinks
+                        // below the server's dot11_karma_min_pool, and the counts of a BSSID
+                        // gone quiet hold only until counts_until
+                        const flood = karmaCount(n.karma, 'flood_ssids');
+                        const until = karmaCount(n.karma, 'counts_until');
+                        const fresh = !(until > 0 && Number.isFinite(now) && now > until);
+                        const current = fresh && karmaCount(n.karma, 'pool_current') !== 0 && (pool > 0 || flood > 0);
+                        // A pool too big for the server's lists is counted from a sample
+                        const estimated = karmaCount(n.karma, 'pool_estimated') !== 0;
+                        const poolCount = (one, many) =>
+                            `${estimated ? 'about ' : ''}${plural(pool, one, many)}${estimated ? ' (estimated)' : ''}`;
+                        // A flood of one-off names may leave no name beaconed twice to count
+                        const floodText = flood ? `${pool ? ', and ' : ''}${plural(flood, 'new network name', 'new network names')} ` +
+                            'within 5 seconds (a beacon flood)' : '';
+                        const poolText = current ?
+                            (pool ? `beaconed ${poolCount('different network', 'different networks')} from one BSSID` :
+                                `flooded beacons for ${plural(flood, 'new network', 'new networks')} within 5 seconds from one BSSID`) :
+                            'beaconed a pool of networks from one BSSID';
+                        title = unbeaconed ?
+                            `${n.mac} ${poolText} and answered for ${plural(unbeaconed, 'network', 'networks')} it doesn't advertise` :
+                            `${n.mac} ${poolText}`;
+                        text = (current ?
+                            'Kismet saw it send broadcast beacons for ' +
+                            (pool ? `${poolCount('network name', 'network names')} from one BSSID (an SSID pool)` : '') + floodText +
+                            (answeredPool ? `, and answer probe requests for ${answeredPool === pool ? 'each' : answeredPool} of them` : '') :
+                            'Kismet saw it send broadcast beacons for enough different network names from one BSSID ' +
+                            '(an SSID pool) to flag it.  It has since stopped beaconing most of them') +
+                            (unbeaconed ? `; it also answered for ${plural(unbeaconed, 'name', 'names')} it never sent in broadcast beacons` +
+                                (matched ? `, ${matched === unbeaconed ? 'each' : matched} of them just probed for by devices nearby` : '') : '') +
+                            '.  Most access points with several networks use a separate BSSID for each.';
+                    } else {
+                        title = unbeaconed ? `${n.mac} answered for ${plural(unbeaconed, 'network', 'networks')} it doesn't advertise` :
+                            `${n.mac} answered for networks it didn't advertise`;
+                        text = unbeaconed ?
+                            `Kismet saw it answer probe requests for ${plural(unbeaconed, 'network name', 'network names')} ` +
+                            'it never sent in broadcast beacons' +
+                            (matched ? `; devices nearby had just probed for ${matched === unbeaconed ? 'each' : matched} of them` : '') +
+                            (directed ? `; ${directed} of them only in beacons addressed to one device` : '') + '.' :
+                            'Kismet saw it answer probe requests for enough network names it didn\'t send in broadcast beacons ' +
+                            'to flag it.  It has since advertised them, or answered for them too long ago to count now.';
+                    }
                     text += `${answered}  ${karmaAdvice}`;
                 } else {
                     // The guess: names other than the one it beacons, less one

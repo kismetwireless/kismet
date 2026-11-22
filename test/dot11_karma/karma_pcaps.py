@@ -57,18 +57,23 @@ def karma(nets, ap=AP, start=0, own=b"karma-own"):
     return out
 
 # MBSSID element with nontransmitted profiles (ssid, index); probe responses carry no DTIM
-def mbssid(profiles, beacon_frame):
+def mbssid(profiles, beacon_frame, n=2):
     body = b""
     for ssid, idx in profiles:
         prof = b"\x53\x02\x11\x04" + ssid_ie(ssid) + (b"\x55\x03" + bytes([idx, 1, 0]) if beacon_frame else b"\x55\x01" + bytes([idx]))
         body += b"\x00" + bytes([len(prof)]) + prof
-    return b"\x47" + bytes([1 + len(body), 2]) + body
+    return b"\x47" + bytes([1 + len(body), n]) + body
 
-def hosted(bssid, idx):
-    # max BSSID indicator 2: the low 2 bits of the transmitter address plus the index
+def hosted(bssid, idx, n=2):
+    # max BSSID indicator n: the low n bits of the transmitter address plus the index
+    m = (1 << n) - 1
     b = bytearray(bssid)
-    b[5] = (b[5] & ~0x3) | ((b[5] + idx) & 0x3)
+    b[5] = (b[5] & ~m) | ((b[5] + idx) & m)
     return bytes(b)
+
+def pool_beacons(bssid, pool, start, count, step=100 * MS):
+    # one SSID per beacon, rotating through the pool (PineAP broadcast pool)
+    return [beacon(start + i * step, bssid, pool[i % len(pool)]) for i in range(count)]
 
 def build(name):
     cl = clients(20)
@@ -241,6 +246,152 @@ def build(name):
             else:
                 out.append(probe_resp(t + 1, AP, cl[0], b"rsp%s%s"))
         return [out]
+    if name == "bpool":
+        # 40 pool SSIDs broadcast-beaconed from one BSSID, nobody answered
+        return [pool_beacons(AP, names(b"bpool", 40), 0, 600)]
+    if name == "bpool_hostile":
+        nets = [b'q"uote', b"<script>", b"x]]>y", b"ctl\x01\x1f\x7f", b"bad\xff\xfeutf8",
+                b"A" * 32, b"back\\slash", b"amp&amp;", b"\xc0\x80over", b"\xf4\x90\x80\x80hi",
+                b"\xf5lead", b"pct%s%n"]
+        return [pool_beacons(AP, nets, 0, 240)]
+    if name == "bpool_karma":
+        # pool and karma from the start: each probed name is answered and joins the pool
+        # beacons right away, so every answered SSID is also beaconed
+        pool = names(b"bpk", 40)
+        homes = names(b"bpk-home", 5)
+        out = []
+        for i, (c, n) in enumerate(zip(clients(5), homes)):
+            t = 200 * MS + i * 300 * MS
+            out += [probe_req(t, c, n), probe_resp(t + 5 * MS, AP, c, n)]
+        out += pool_beacons(AP, homes + pool, 0, 600)
+        return [out]
+    if name == "karma_bpool":
+        # karma first, then the answered names and a pool beaconed: the answers still count
+        homes = names(b"kbp-home", 5)
+        out = karma(homes, own=None)
+        out += pool_beacons(AP, homes + names(b"kbp", 20), 5_000 * MS, 600)
+        return [out]
+    if name == "pool9":
+        # one BSSID beaconing 9 SSIDs: under dot11_karma_min_pool
+        return [pool_beacons(AP, names(b"nine", 9), 0, 600)]
+    if name == "threebss":
+        # three BSSIDs, one SSID each
+        out = []
+        for k, ap in enumerate((AP, AP2, AP3)):
+            out += beacons(ap, b"three-%d" % k, k * 7 * MS, 300)
+        return [out]
+    if name == "rename2":
+        # renamed twice, beacons changing their other tags too
+        out = beacons(AP, b"name-one", 0, 100)
+        out += beacons(AP, b"name-two", 20_000 * MS, 100, chan=11)
+        out += beacons(AP, b"name-three", 40_000 * MS, 100, chan=1)
+        return [out]
+    if name == "hiddenmix":
+        # zero length and NUL padded hidden SSIDs of 32 lengths from one BSSID
+        out = []
+        for i in range(330):
+            out.append(beacon(i * 100 * MS, AP, b"\x00" * (i % 33)))
+        return [out]
+    if name == "ciscomulti":
+        # one radio, 8 BSSIDs each beaconing its own SSID, with the same BSS timestamps
+        out = []
+        for k in range(8):
+            ap = dev(0x4b20 + k)
+            out += beacons(ap, b"site-ssid-%d" % k, k * MS, 200)
+        return [out]
+    if name == "mbssid8":
+        # a transmitter hosting 8 nontransmitted BSSs (max BSSID indicator 4), answering for
+        # its own network; the hosted BSSs answer for theirs
+        prof = [(b"mb8-prof-%d" % i, i) for i in range(1, 9)]
+        tx = mac("02:00:00:00:4b:30")
+        out = beacons(tx, b"mb8-main", 0, 300, extra=mbssid(prof, True, 4))
+        for i, (n, idx) in enumerate(prof):
+            t = 500 * MS + i * 200 * MS
+            out.append(probe_req(t, cl[i], n))
+            out.append(probe_resp(t + 2 * MS, tx, cl[i], b"mb8-main", extra=mbssid(prof, False, 4)))
+            out.append(probe_resp(t + 3 * MS, hosted(tx, idx, 4), cl[i], n))
+        return [out]
+    if name == "earlyresp":
+        # an AP answering for its own network before its first beacon is heard, then
+        # beaconing it and answering 2000 more probes for it
+        out = [probe_req(0, cl[0], b"early-own"), probe_resp(5 * MS, AP, cl[0], b"early-own")]
+        out += beacons(AP, b"early-own", 1_000 * MS, 300)
+        for i in range(2000):
+            t = 2_000 * MS + i * 10 * MS
+            out += [probe_req(t, cl[i % 20], b"early-own"), probe_resp(t + 2 * MS, AP, cl[i % 20], b"early-own")]
+        return [out]
+    if name == "mbssidresp":
+        # a hosted BSS with karma state (two names answered from its own address), then its
+        # transmitter answering 200 probes with the same tags: the repeats use the cached
+        # hosted record, which is refreshed and never parsed again
+        prof = [(b"mbr-guest", 1)]
+        tx = mac("02:00:00:00:4b:40")
+        out = beacons(tx, b"mbr-main", 0, 30, extra=mbssid(prof, True))
+        for i, n in enumerate(names(b"mbr-x", 2)):
+            out.append(probe_resp(500 * MS + i * 100 * MS, hosted(tx, 1), cl[i], n))
+        for i in range(200):
+            out.append(probe_resp(1_000 * MS + i * 100 * MS, tx, cl[i % 20], b"mbr-main",
+                extra=mbssid(prof, False)))
+        return [out]
+    if name in ("bafter", "bafter8", "bfirst", "bfirst8"):
+        # each probed name answered and broadcast-beaconed once, after the answer or before
+        # it: the beaconed names make a pool, which 40 reach and 8 don't
+        n = 8 if name.endswith("8") else 40
+        out = beacons(AP, b"karma-own", 0, 30)
+        for i, (c, s) in enumerate(zip(clients(n), names(b"home", n))):
+            t = 200 * MS + i * 300 * MS
+            out.append(probe_req(t, c, s))
+            if name.startswith("bfirst"):
+                out += [beacon(t + 2 * MS, AP, s), probe_resp(t + 5 * MS, AP, c, s)]
+            else:
+                out += [probe_resp(t + 5 * MS, AP, c, s), beacon(t + 6 * MS, AP, s)]
+        return [out]
+    if name == "corrupt":
+        # an AP's own SSID with a bit flipped in 20 of its beacons, each flip a different one
+        out = beacons(AP, b"corrupt-own", 0, 600)
+        for i in range(20):
+            s = bytearray(b"corrupt-own")
+            s[i % len(s)] ^= 1 << (i // len(s) + 1)
+            out.append(beacon(1_000 * MS + i * 1_500 * MS + 50 * MS, AP, bytes(s)))
+        return [out]
+    if name == "repeatresp":
+        # karma answering each name twice with the same tags, the client's probe only near the
+        # second answer: the repeated response, from the cached tags, still matches it
+        out = beacons(AP, b"karma-own", 0, 30)
+        for i, n in enumerate(names(b"home", 3)):
+            t = 1_000 * MS + i * 200_000 * MS
+            out += [probe_resp(t, AP, cl[10], n), probe_req(t + 100_000 * MS, cl[i], n),
+                    probe_resp(t + 100_005 * MS, AP, cl[i], n)]
+        return [out]
+    if name == "corrupt10":
+        # a renamed AP, its new SSID with a bit flipped in 10 beacons, each flip a different one
+        out = beacons(AP, b"first-name", 0, 100) + beacons(AP, b"corrupt-ten", 20_000 * MS, 600)
+        for i in range(10):
+            s = bytearray(b"corrupt-ten")
+            s[i] ^= 0x02
+            out.append(beacon(21_000 * MS + i * 1_500 * MS + 50 * MS, AP, bytes(s)))
+        return [out]
+    if name in ("rr100", "rr1000", "rr1000long"):
+        # a PineAP pool bigger than the SSID lists: one SSID per beacon at 10 beacons/s, each
+        # repeated only once the round robin comes back to it; the long one for 20 minutes
+        n = 100 if name == "rr100" else 1000
+        secs = {"rr100": 200, "rr1000": 500, "rr1000long": 1200}[name]
+        return [pool_beacons(AP, [b"rr-%04d" % i for i in range(n)], 0, secs * 10)]
+    if name == "norecord":
+        # normal APs: a renamed one, a hidden one beaconing its name too, and one SSID with a
+        # bit flipped once, each answering for its own name
+        out = beacons(AP, b"old-name", 0, 30) + beacons(AP, b"new-name", 4_000 * MS, 30)
+        for i in range(30):
+            out += [beacon(i * 102_400, AP2, b""), beacon(i * 102_400 + 50 * MS, AP2, b"named-net")]
+        out += beacons(AP3, b"plain-net", 0, 60)
+        out.append(beacon(2_000 * MS + 50 * MS, AP3, b"plain-nev"))
+        for i, (ap, n) in enumerate([(AP, b"new-name"), (AP2, b"named-net"), (AP3, b"plain-net")] * 2):
+            t = 5_000 * MS + i * 200 * MS
+            out += [probe_req(t, cl[i], n), probe_resp(t + 2 * MS, ap, cl[i], n)]
+        return [out]
+    if name == "perf_pool":
+        # a pool of 128 SSIDs at 10 beacons/s, 100k beacons
+        return [pool_beacons(AP, [b"perfpool-%03d" % i for i in range(128)], 0, 100_000)]
     if name == "perf":
         # loud mana worst case: 200 clients probing for 1000 networks, 100k directed probes
         # each answered, and 20 broadcast probes each answered with all 1000 networks
