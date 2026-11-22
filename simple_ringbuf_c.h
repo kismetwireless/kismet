@@ -38,6 +38,9 @@ struct kis_simple_ringbuf {
     int mid_peek, mid_commit; /* Are we in a peek or reserve? */
     int free_peek, free_commit; /* Do we need to free the peek or reserved buffers */
 
+    void *reserve_data; /* Current reserve and its size; a commit can't exceed it */
+    size_t reserve_sz;
+
 #ifdef USE_MMAP_RBUF
     void *mmap_region0;
     void *mmap_region1;

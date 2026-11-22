@@ -116,6 +116,8 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
     rb->mid_commit = 0;
     rb->free_peek = 0;
     rb->free_commit = 0;
+    rb->reserve_data = NULL;
+    rb->reserve_sz = 0;
 
     return rb;
 }
@@ -203,6 +205,17 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
     return 0;
 }
 
+/* End the current reserve, freeing a split-op buffer */
+static void kis_simple_ringbuf_reserve_end(kis_simple_ringbuf_t *ringbuf) {
+    if (ringbuf->free_commit)
+        free(ringbuf->reserve_data);
+
+    ringbuf->free_commit = 0;
+    ringbuf->reserve_data = NULL;
+    ringbuf->reserve_sz = 0;
+    ringbuf->mid_commit = 0;
+}
+
 size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, size_t size) {
     size_t copy_start;
 
@@ -211,35 +224,44 @@ size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, si
         return 0;
     }
 
-    if (kis_simple_ringbuf_available(ringbuf) < size) {
+    /* A 0 byte reserve would read as a failure to the caller, which then never
+     * commits or frees it */
+    if (size == 0 || kis_simple_ringbuf_available(ringbuf) < size) {
         return 0;
     }
 
     ringbuf->mid_commit = 1;
 
-    copy_start = 
+    copy_start =
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
 #ifdef USE_MMAP_RBUF
     ringbuf->mid_commit = 1;
     ringbuf->free_commit = 0;
     *data = ringbuf->buffer + copy_start;
+    ringbuf->reserve_data = *data;
+    ringbuf->reserve_sz = size;
     return size;
 #else
     /* Does the write op fit w/out looping? */
     if (copy_start + size <= ringbuf->buffer_sz) {
         ringbuf->free_commit = 0;
         *data = ringbuf->buffer + copy_start;
+        ringbuf->reserve_data = *data;
+        ringbuf->reserve_sz = size;
         return size;
     } else {
         *data = malloc(size);
 
         if (*data == NULL) {
             fprintf(stderr, "ERROR:  Could not allocate split-op sz write buffer\n");
+            ringbuf->mid_commit = 0;
             return 0;
         }
 
         ringbuf->free_commit = 1;
+        ringbuf->reserve_data = *data;
+        ringbuf->reserve_sz = size;
 
         return size;
     }
@@ -256,30 +278,36 @@ size_t kis_simple_ringbuf_reserve_zcopy(kis_simple_ringbuf_t *ringbuf, void **da
         return 0;
     }
 
-    if (kis_simple_ringbuf_available(ringbuf) < size) {
+    /* A 0 byte reserve would read as success to a caller that then reads 0 bytes */
+    if (size == 0 || kis_simple_ringbuf_available(ringbuf) < size) {
         return 0;
     }
 
     ringbuf->mid_commit = 1;
 
-    copy_start = 
+    copy_start =
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
 #ifdef USE_MMAP_RBUF
     ringbuf->mid_commit = 1;
     ringbuf->free_commit = 0;
     *data = ringbuf->buffer + copy_start;
+    ringbuf->reserve_data = *data;
+    ringbuf->reserve_sz = size;
     return size;
 #else
     ringbuf->free_commit = 0;
     *data = ringbuf->buffer + copy_start;
+    ringbuf->reserve_data = *data;
 
     /* Does the write op fit w/out looping? */
     if (copy_start + size <= ringbuf->buffer_sz) {
-        return size;
+        ringbuf->reserve_sz = size;
     } else {
-        return (ringbuf->buffer_sz - copy_start);
+        ringbuf->reserve_sz = ringbuf->buffer_sz - copy_start;
     }
+
+    return ringbuf->reserve_sz;
 #endif
 
     return 0;
@@ -291,28 +319,28 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
         return 0;
     }
 
+    /* More than was reserved would read past the reserve and overfill the ring */
+    if (data != ringbuf->reserve_data || size > ringbuf->reserve_sz) {
+        fprintf(stderr, "ERROR: kis_simple_ringbuf_t commit of %zu does not match the "
+                "reserve of %zu\n", size, ringbuf->reserve_sz);
+        kis_simple_ringbuf_reserve_end(ringbuf);
+        return 0;
+    }
+
 #ifdef USE_MMAP_RBUF
-    ringbuf->mid_commit = 0;
     ringbuf->length += size;
+    kis_simple_ringbuf_reserve_end(ringbuf);
     return size;
 #else
     size_t copy_start;
 
-    copy_start = 
+    copy_start =
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
-    ringbuf->mid_commit = 0;
-
-    if (!ringbuf->free_commit) {
-        ringbuf->length += size;
-        return size;
-    } else {
+    if (ringbuf->free_commit) {
         /* Does the write op fit w/out looping? */
         if (copy_start + size <= ringbuf->buffer_sz) {
             memcpy(ringbuf->buffer + copy_start, data, size);
-            ringbuf->length += size;
-
-            return size;
         } else {
             /* We have to split up, figure out the length of the two chunks */
             size_t chunk_a = ringbuf->buffer_sz - copy_start;
@@ -320,13 +348,16 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
 
             memcpy(ringbuf->buffer + copy_start, data, chunk_a);
             memcpy(ringbuf->buffer, (uint8_t *) data + chunk_a, chunk_b);
-
-            /* Increase the length of the buffer */
-            ringbuf->length += size;
-
-            return size;
         }
     }
+
+    /* Increase the length of the buffer */
+    ringbuf->length += size;
+
+    /* The split reserve was malloc'd by reserve; the commit owns it */
+    kis_simple_ringbuf_reserve_end(ringbuf);
+
+    return size;
 #endif
 
     return 0;
@@ -337,12 +368,13 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
 void kis_simple_ringbuf_reserve_free(kis_simple_ringbuf_t *ringbuf, void *data) {
     if (!ringbuf->mid_commit) {
         fprintf(stderr, "ERROR: kis_simple_ringbuf_t not in a commit when commit_reserve_free called\n");
+        return;
     }
 
-    if (ringbuf->free_commit)
-        free(data);
+    if (data != ringbuf->reserve_data)
+        fprintf(stderr, "ERROR: kis_simple_ringbuf_t reserve_free of a buffer it did not reserve\n");
 
-    ringbuf->mid_commit = 0;
+    kis_simple_ringbuf_reserve_end(ringbuf);
 }
 
 /* Copies data into provided buffer.  Advances ringbuf, clearing consumed data.

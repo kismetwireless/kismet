@@ -411,13 +411,41 @@ struct kis_capture_handler {
     /* Arbitrary data blob for capture specific content */
     void *userdata;
 
-    /* Capture thread */
+    /* Capture thread.  capture_running: still in the capture callback, so it may
+     * be cancelled */
     int capture_running;
     pthread_t capturethread;
 
     /* Signal reaping thread */
     pthread_t signalthread;
 	int signal_running;
+
+    /* Framework threads that haven't left yet (hop threads are counted, an old
+     * generation can still be finishing).  Atomic; each thread drops its count
+     * as its last touch of the handler, under thread_exit_lock with a signal on
+     * thread_exit_cond, except from a cancel's cleanup handler (waiters poll).
+     * *_exit_timed_out: a wait already gave up on that thread, later waits don't
+     * wait for it again.  exit_deadline_ns: one budget for every exit wait, from
+     * the first close or shutdown, 0 when unset (thread_exit_clock).  All under
+     * thread_exit_lock, a leaf: take nothing while holding it. */
+    pthread_mutex_t thread_exit_lock;
+    pthread_cond_t thread_exit_cond;
+    clockid_t thread_exit_clock;
+    unsigned int capture_live;
+    unsigned int signal_live;
+    unsigned int hop_live;
+    int capture_exit_timed_out;
+    int signal_exit_timed_out;
+    int hop_exit_timed_out;
+    uint64_t exit_deadline_ns;
+
+    /* cf_handler_shutdown has run; under handler_lock */
+    int shutdown_done;
+
+    /* A shutdown is still running in shutdown_thread, a later caller waits for it
+     * on thread_exit_cond; under thread_exit_lock */
+    int shutdown_busy;
+    pthread_t shutdown_thread;
 
     /* Services child programs while the websocket loop runs, which can't; stop is
      * set under the handler lock */
@@ -1236,7 +1264,10 @@ typedef int (*cf_callback_ipc_data)(kis_capture_handler_t *, cf_ipc_t *, uint32_
 
 /* IPC termination callback
  *
- * Called if a spawned process terminates
+ * Called if a spawned process terminates, with handler_lock held (and
+ * out_ringbuf_lock, from the reaper); it may send to Kismet, but must not wait
+ * on another thread that takes either lock.  The reaper doesn't call it once shutdown
+ * starts.
  */
 typedef void (*cf_callback_ipc_term)(kis_capture_handler_t *, cf_ipc_t *, int rc);
 
@@ -1245,6 +1276,10 @@ struct cf_ipc {
     pid_t pid;
 
     int running;
+
+    /* Reaped during shutdown, left on the list for it to free; never signal it.
+     * Under the handler's out_ringbuf_lock */
+    int reaped;
 
     int in_fd;
     int out_fd;

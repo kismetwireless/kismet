@@ -70,6 +70,10 @@
 /* Frames and driver messages waiting for the capture thread */
 #define MM8108_QUEUE_MAX (4 * 1024 * 1024)
 
+/* How long the idle capture thread sleeps before rechecking spindown; shutdown
+ * waits on it */
+#define MM8108_IDLE_WAIT_NS 100000000L
+
 struct mm8108_qent {
     struct mm8108_qent *next;
     struct timeval ts;
@@ -597,7 +601,11 @@ void capture_thread(kis_capture_handler_t *caph) {
         pthread_mutex_lock(&local->qlock);
         if (local->qhead == NULL && !local->cap_stop) {
             clock_gettime(CLOCK_REALTIME, &deadline);
-            deadline.tv_sec += 1;
+            deadline.tv_nsec += MM8108_IDLE_WAIT_NS;
+            if (deadline.tv_nsec >= 1000000000L) {
+                deadline.tv_sec++;
+                deadline.tv_nsec -= 1000000000L;
+            }
             pthread_cond_timedwait(&local->qcond, &local->qlock, &deadline);
         }
         if ((stop = local->cap_stop)) {
