@@ -527,10 +527,53 @@ struct cf_hop_clock {
     uint64_t hist_rtt[CF_SYNC_HISTORY];
 };
 
+/* Keeps SIGCHLD off SIG_DFL, which macOS discards at generation even when
+ * blocked, so sigwait never saw it; and off SIG_IGN */
+static void cf_sigchld_noop(int sig) {
+    (void) sig;
+}
+
+/* Written once, then only read (sigwait in the signal thread) */
+static sigset_t cf_core_signal_mask;
+static pthread_once_t cf_core_signal_once = PTHREAD_ONCE_INIT;
+
+static void cf_core_signal_mask_init(void) {
+    sigemptyset(&cf_core_signal_mask);
+    sigaddset(&cf_core_signal_mask, SIGALRM);
+    sigaddset(&cf_core_signal_mask, SIGQUIT);
+    sigaddset(&cf_core_signal_mask, SIGCHLD);
+    sigaddset(&cf_core_signal_mask, SIGPIPE);
+}
+
+/* Blocks the core set in the calling thread, so every thread it starts later
+ * leaves those signals to the signal thread's sigwait; a thread that didn't
+ * block them took every SIGCHLD and the reaper never ran.  SIGCHLD gets a
+ * handler unless the helper set its own: an inherited SIG_IGN reaps children
+ * itself, so waitpid fails with ECHILD.  SIGINT and SIGTERM keep their default
+ * action. */
+static void cf_block_core_signals(void) {
+    struct sigaction sa;
+
+    pthread_once(&cf_core_signal_once, cf_core_signal_mask_init);
+    pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
+
+    if (sigaction(SIGCHLD, NULL, &sa) == 0 && !(sa.sa_flags & SA_SIGINFO) &&
+            (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN)) {
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = cf_sigchld_noop;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_RESTART;
+        sigaction(SIGCHLD, &sa, NULL);
+    }
+}
+
 kis_capture_handler_t *cf_handler_init(const char *in_type) {
     kis_capture_handler_t *ch;
     pthread_mutexattr_t mutexattr;
     pthread_condattr_t condattr;
+
+    /* Before any helper or framework thread exists */
+    cf_block_core_signals();
 
     ch = (kis_capture_handler_t *) malloc(sizeof(kis_capture_handler_t));
 
@@ -1210,12 +1253,10 @@ void cf_handler_shutdown(kis_capture_handler_t *caph) {
     caph->shutdown_thread = pthread_self();
     pthread_mutex_unlock(&(caph->thread_exit_lock));
 
+    /* Cleared once reaped, so never a recycled pid.  IPC children are signalled
+     * from the list below, which knows which were reaped. */
     if (caph->monitor_pid > 0) {
 	    kill(caph->monitor_pid, SIGINT);
-    }
-
-    if (caph->child_pid > 0) {
-	    kill(caph->child_pid, SIGINT);
     }
 
     /* Capture threads that ignore cancels leave on spindown */
@@ -2042,22 +2083,23 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
     }
 }
 
-static sigset_t cf_core_signal_mask;
 void *cf_int_signal_thread(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
 
     int sig_caught, r;
 
-    /* Unblock signals, we handle them here; the core set stays blocked so
-     * sigwait gets them instead of the default handlers */
-    sigset_t unblock_mask;
-    sigfillset(&unblock_mask);
-    pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
-    pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
+    /* Exactly the core set blocked, in one step, so sigwait takes those signals
+     * and a core signal pending since init is never delivered with its default
+     * action; every other signal is unblocked */
+    pthread_sigmask(SIG_SETMASK, &cf_core_signal_mask, NULL);
 
     /* Never cancelled: cf_handler_free sets shutdown and wakes it with SIGALRM, and
      * it leaves through cf_handler_shutdown */
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    /* A child that exited before this thread started, while a helper had
+     * SIGCHLD unblocked or reset, may have left no signal to wait for */
+    cf_process_child_signals(caph);
 
     while (!caph->spindown && !caph->shutdown) {
         r = sigwait(&cf_core_signal_mask, &sig_caught);
@@ -2119,27 +2161,12 @@ static int cf_launch_capture_thread_msg(kis_capture_handler_t *caph, char *msg) 
         goto out;
     }
 
+    /* Done in cf_handler_init; again for this thread and in case the helper
+     * reset SIGCHLD since.  The capture thread inherits the block. */
+    cf_block_core_signals();
+
     /* Live before it starts: a thread that finishes at once clears it itself */
     if (!cf_thread_live(&caph->signal_live)) {
-        /* Only with no signal thread sigwaiting on the mask */
-        sigemptyset(&cf_core_signal_mask);
-
-        /*
-        sigaddset(&cf_core_signal_mask, SIGINT);
-        sigaddset(&cf_core_signal_mask, SIGQUIT);
-        sigaddset(&cf_core_signal_mask, SIGTERM);
-        sigaddset(&cf_core_signal_mask, SIGHUP);
-        sigaddset(&cf_core_signal_mask, SIGSEGV);
-         */
-
-        sigaddset(&cf_core_signal_mask, SIGALRM);
-        sigaddset(&cf_core_signal_mask, SIGQUIT);
-        sigaddset(&cf_core_signal_mask, SIGCHLD);
-        sigaddset(&cf_core_signal_mask, SIGPIPE);
-
-        /* Set thread mask for all new threads */
-        pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
-
         cf_thread_started(&caph->signal_live);
 
         if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) != 0) {
@@ -2150,9 +2177,6 @@ static int cf_launch_capture_thread_msg(kis_capture_handler_t *caph, char *msg) 
 
         caph->signal_running = 1;
     }
-
-    /* The capture thread inherits the blocked core set */
-    pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
 
     cf_thread_started(&caph->capture_live);
 
@@ -7642,6 +7666,7 @@ void cf_handler_daemonize(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_remote_capture(kis_capture_handler_t *caph) {
+    pid_t monitor_pid;
     int status;
 
     cf_handler_daemonize(caph);
@@ -7654,13 +7679,30 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
     while (1) {
         cf_handler_reset_shutdown(caph);
 
-        if (caph->remote_retry && ((caph->monitor_pid = fork()) > 0)) {
+        monitor_pid = caph->remote_retry ? fork() : 0;
+
+        if (monitor_pid > 0) {
+            pthread_mutex_lock(&(caph->handler_lock));
+            caph->monitor_pid = monitor_pid;
+            pthread_mutex_unlock(&(caph->handler_lock));
+
             while (1) {
                 /* Parent loop waiting for spaned process to exit, then restart */
                 pid_t wpid;
-                wpid = waitpid(caph->monitor_pid, &status, 0);
+                wpid = waitpid(monitor_pid, &status, 0);
 
-                if (wpid == caph->monitor_pid) {
+                if (wpid < 0 && errno == EINTR)
+                    continue;
+
+                /* Already reaped (SIGCHLD ignored behind our back); spinning on
+                 * ECHILD would never end */
+                if (wpid < 0) {
+                    fprintf(stderr, "INFO: lost track of capture process: %s\n",
+                            strerror(errno));
+                    break;
+                }
+
+                if (wpid == monitor_pid) {
                     if (WIFEXITED(status) || WIFSIGNALED(status)) {
                         fprintf(stderr, "INFO: capture process exited %d signal %d\n",
                                 WEXITSTATUS(status), WTERMSIG(status));
@@ -7668,6 +7710,11 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                     }
                 }
             }
+
+            /* Reaped, so its pid can be reused: shutdown must not signal it */
+            pthread_mutex_lock(&(caph->handler_lock));
+            caph->monitor_pid = 0;
+            pthread_mutex_unlock(&(caph->handler_lock));
         } else {
             if (caph->use_tcp) {
                 if (cf_handler_tcp_remote_connect(caph) < 1) {
@@ -7911,6 +7958,7 @@ static void cf_close_fds_from(int lowfd) {
 cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
     cf_ipc_t *ret = NULL;
     pthread_mutexattr_t mutexattr;
+    pid_t child_pid;
 #ifdef SYS_LINUX
     pid_t parent_pid = getpid();
 #endif
@@ -7937,9 +7985,9 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         return NULL;
     }
 
-    caph->child_pid = fork();
+    child_pid = fork();
 
-    if (caph->child_pid < 0) {
+    if (child_pid < 0) {
         fprintf(stderr, "FATAL: Failed to fork IPC process\n");
         close(inpair[0]);
         close(inpair[1]);
@@ -7948,7 +7996,7 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         close(errpair[0]);
         close(errpair[1]);
         return NULL;
-    } else if (caph->child_pid == 0) {
+    } else if (child_pid == 0) {
         sigset_t unblock_mask;
         sigfillset(&unblock_mask);
         pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
@@ -7994,7 +8042,7 @@ cf_ipc_t *cf_ipc_exec(kis_capture_handler_t *caph, int argc, char **argv) {
         ret->out_fd = outpair[0];
         ret->err_fd = errpair[0];
 
-        ret->pid = caph->child_pid;
+        ret->pid = child_pid;
 
         fcntl(ret->in_fd, F_SETFL, fcntl(ret->in_fd, F_GETFL, 0) | O_NONBLOCK);
         fcntl(ret->out_fd, F_SETFL, fcntl(ret->out_fd, F_GETFL, 0) | O_NONBLOCK);

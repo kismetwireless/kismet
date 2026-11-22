@@ -1,7 +1,7 @@
 /* Shutdown and free of a handler whose framework threads are still finishing.
  *
  *   tools/unit.sh <tree> test/capture_framework/capture_exit_test.c --set framework \
- *       --libs -llzma --flavor asan [-- ignored | late | stuck | double | openreq | sigfree]
+ *       --libs "-llzma -ldl" --flavor asan [-- ignored | late | stuck | double | openreq | sigfree]
  *
  * The capture callback turns cancels off, as the framework's tail does once the
  * callback returns, and sleeps through cf_handler_shutdown() and cf_handler_free().
@@ -32,9 +32,25 @@
  * may wait on the other.  "hopexit": a child exits while shutdown waits for the hop
  * thread; it is marked and freed with the list, no term callback runs.
  * "openfail": an open whose capture thread can't start answers with a failed open.
+ * "earlychild": a child that exits during the open, before the signal thread
+ * starts, is reaped once it does, with its SIGCHLD already taken, so only the
+ * signal thread's start-up sweep can find it; SIGCHLD is then handled (macOS
+ * drops it at SIG_DFL even when blocked) and not ignored.  "prethread": a thread
+ * started after init and before the first open (cf_ws_ipc_thread, a helper's
+ * reader) leaves every child exit to the reaper and sees no EINTR.  "sigign": the
+ * same with SIGCHLD inherited as SIG_IGN.  "sigquit": a process-directed SIGQUIT
+ * pending since init is taken by the signal thread's sigwait, not delivered with
+ * its default action when the signal thread starts.  "reapedchild": a child that
+ * exited and was reaped is not signalled by shutdown; its pid may belong to
+ * another process by then (kill() is stubbed for that pid only).
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <arpa/inet.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -57,9 +73,40 @@ static int failures = 0;
 
 #define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); failures++; } } while (0)
 
+/* Overrides libc's kill for the framework linked in here.  Signals to the
+ * watched (reaped) pid are counted and never sent: a reused pid is someone
+ * else's process.  Everything else goes to the next kill (a sanitizer's or libc's). */
+typedef int (*kill_fn)(pid_t, int);
+static kill_fn next_kill = NULL;
+static pid_t watched_pid = 0;
+static int watched_kills = 0;
+
+int kill(pid_t pid, int sig) {
+    kill_fn k;
+    pid_t w = __atomic_load_n(&watched_pid, __ATOMIC_ACQUIRE);
+
+    if (w > 0 && pid == w) {
+        __atomic_add_fetch(&watched_kills, 1, __ATOMIC_ACQ_REL);
+        return 0;
+    }
+
+    k = __atomic_load_n(&next_kill, __ATOMIC_ACQUIRE);
+    if (k == NULL) {
+        k = (kill_fn) dlsym(RTLD_NEXT, "kill");
+        if (k == NULL) {
+            errno = ENOSYS;
+            return -1;
+        }
+        __atomic_store_n(&next_kill, k, __ATOMIC_RELEASE);
+    }
+
+    return k(pid, sig);
+}
+
 enum { MODE_IGNORED, MODE_LATE, MODE_STUCK, MODE_DOUBLE, MODE_OPENREQ, MODE_SIGFREE,
     MODE_LATEADD, MODE_DEEPCANCEL, MODE_UWLIKE, MODE_RECONNECT, MODE_HOPSHUT,
-    MODE_FREECHILD, MODE_TERMLOCK, MODE_HOPEXIT, MODE_OPENFAIL };
+    MODE_FREECHILD, MODE_TERMLOCK, MODE_HOPEXIT, MODE_OPENFAIL, MODE_EARLYCHILD,
+    MODE_PRETHREAD, MODE_SIGIGN, MODE_SIGQUIT, MODE_REAPEDCHILD };
 
 static int mode = MODE_IGNORED;
 static int started = 0;
@@ -168,7 +215,9 @@ static void capture_cb(kis_capture_handler_t *caph) {
     }
 
     /* Until shutdown spins the source down */
-    if (mode == MODE_TERMLOCK || mode == MODE_HOPEXIT) {
+    if (mode == MODE_TERMLOCK || mode == MODE_HOPEXIT || mode == MODE_EARLYCHILD ||
+            mode == MODE_PRETHREAD || mode == MODE_SIGIGN || mode == MODE_SIGQUIT ||
+            mode == MODE_REAPEDCHILD) {
         int spin = 0;
 
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -442,7 +491,6 @@ static void term_cb(kis_capture_handler_t *caph, cf_ipc_t *ipc, int rc) {
 static void run_termlock(kis_capture_handler_t *caph) {
     char *argv[] = { (char *) "sleep", (char *) "0.1", NULL };
     cf_ipc_t *ipc = cf_ipc_exec(caph, 2, argv);
-    struct timespec ts;
     uint64_t until;
     int r;
 
@@ -458,9 +506,11 @@ static void run_termlock(kis_capture_handler_t *caph) {
      * handler_lock never lets go */
     pthread_mutex_lock(&caph->handler_lock);
     sleep_ms(400);
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 3;
-    r = pthread_mutex_timedlock(&caph->out_ringbuf_lock, &ts);
+
+    /* No pthread_mutex_timedlock on macOS */
+    until = now_ms() + 3000;
+    while ((r = pthread_mutex_trylock(&caph->out_ringbuf_lock)) == EBUSY && now_ms() < until)
+        usleep(1000);
     CHECK(r == 0);
     if (r == 0)
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
@@ -544,6 +594,223 @@ static void run_hopexit(kis_capture_handler_t *caph) {
     CHECK(r < 0 && errno == ECHILD);
 }
 
+/* Listed before the capture thread starts, as rtl433 and zigbee900 do in their
+ * open callback; it exits before there is a signal thread */
+static cf_ipc_t *early_ipc = NULL;
+
+static void start_earlychild(kis_capture_handler_t *caph) {
+    char *argv[] = { (char *) "sleep", (char *) "0", NULL };
+    sigset_t chld, pend;
+    uint64_t until;
+    int sig = 0;
+
+    early_ipc = cf_ipc_exec(caph, 2, argv);
+    CHECK(early_ipc != NULL);
+    if (early_ipc == NULL)
+        return;
+    double_child = early_ipc->pid;
+    cf_ipc_set_term(caph, early_ipc, term_cb);
+    cf_ipc_add_process(caph, early_ipc);
+
+    /* Take its SIGCHLD (blocked in every thread, so still pending) and leave the
+     * signal thread none to wait for; no sigtimedwait on macOS */
+    sigemptyset(&chld);
+    sigaddset(&chld, SIGCHLD);
+    sigemptyset(&pend);
+    until = now_ms() + 3000;
+    while (now_ms() < until) {
+        sigpending(&pend);
+        if (sigismember(&pend, SIGCHLD))
+            break;
+        usleep(1000);
+    }
+    CHECK(sigismember(&pend, SIGCHLD));
+    if (sigismember(&pend, SIGCHLD)) {
+        CHECK(sigwait(&chld, &sig) == 0 && sig == SIGCHLD);
+    }
+
+    sigpending(&pend);
+    CHECK(!sigismember(&pend, SIGCHLD));
+}
+
+static void run_earlychild(kis_capture_handler_t *caph) {
+    struct sigaction sa;
+    uint64_t until;
+    pid_t r;
+    int st;
+
+    CHECK(sigaction(SIGCHLD, NULL, &sa) == 0);
+    CHECK(sa.sa_handler != SIG_DFL && sa.sa_handler != SIG_IGN);
+    CHECK((sa.sa_flags & SA_RESTART) != 0);
+
+    if (early_ipc == NULL)
+        return;
+
+    until = now_ms() + 3000;
+    while (__atomic_load_n(&term_calls, __ATOMIC_ACQUIRE) == 0 && now_ms() < until)
+        usleep(1000);
+    CHECK(__atomic_load_n(&term_calls, __ATOMIC_ACQUIRE) == 1);
+
+    pthread_mutex_lock(&caph->handler_lock);
+    CHECK(caph->ipc_list == NULL);
+    pthread_mutex_unlock(&caph->handler_lock);
+
+    r = waitpid(double_child, &st, WNOHANG);
+    CHECK(r < 0 && errno == ECHILD);
+
+    if (__atomic_load_n(&term_calls, __ATOMIC_ACQUIRE) == 1)
+        cf_ipc_free(caph, early_ipc);
+
+    cf_handler_shutdown(caph);
+}
+
+/* A thread started after cf_handler_init and before the first open, as
+ * cf_ws_ipc_thread and helpers' own threads are; it takes no signal meant for
+ * the signal thread, so its sleeps are never cut short */
+static int pre_stop = 0, pre_loops = 0, pre_eintr = 0, pre_terms = 0;
+static pthread_t pre_thread;
+static int pre_thread_ok = 0;
+
+#define PRE_CHILDREN 20
+
+static void *prethread(void *arg) {
+    (void) arg;
+
+    while (!__atomic_load_n(&pre_stop, __ATOMIC_ACQUIRE)) {
+        struct timespec ts = { 0, 5 * 1000000L };
+
+        if (nanosleep(&ts, NULL) < 0 && errno == EINTR)
+            __atomic_add_fetch(&pre_eintr, 1, __ATOMIC_ACQ_REL);
+        __atomic_add_fetch(&pre_loops, 1, __ATOMIC_ACQ_REL);
+    }
+
+    return NULL;
+}
+
+static void start_prethread(void) {
+    pre_thread_ok = pthread_create(&pre_thread, NULL, prethread, NULL) == 0;
+    CHECK(pre_thread_ok);
+}
+
+/* Unlinked by the reaper before it runs; nothing else holds the record */
+static void pre_term_cb(kis_capture_handler_t *caph, cf_ipc_t *ipc, int rc) {
+    (void) rc;
+
+    __atomic_add_fetch(&pre_terms, 1, __ATOMIC_ACQ_REL);
+    cf_ipc_free(caph, ipc);
+}
+
+static void run_prethread(kis_capture_handler_t *caph) {
+    char *argv[] = { (char *) "sleep", (char *) "0.02", NULL };
+    struct sigaction sa;
+    int i, missed = 0;
+
+    /* An inherited SIG_IGN (sigign mode) is replaced too */
+    CHECK(sigaction(SIGCHLD, NULL, &sa) == 0);
+    CHECK(sa.sa_handler != SIG_DFL && sa.sa_handler != SIG_IGN);
+
+    for (i = 0; i < PRE_CHILDREN; i++) {
+        int before = __atomic_load_n(&pre_terms, __ATOMIC_ACQUIRE);
+        uint64_t until;
+        cf_ipc_t *ipc;
+
+        pthread_mutex_lock(&caph->handler_lock);
+        ipc = cf_ipc_exec(caph, 2, argv);
+        if (ipc != NULL) {
+            cf_ipc_set_term(caph, ipc, pre_term_cb);
+            cf_ipc_add_process(caph, ipc);
+        }
+        pthread_mutex_unlock(&caph->handler_lock);
+
+        CHECK(ipc != NULL);
+        if (ipc == NULL)
+            break;
+
+        until = now_ms() + 1000;
+        while (__atomic_load_n(&pre_terms, __ATOMIC_ACQUIRE) == before && now_ms() < until)
+            usleep(1000);
+
+        /* Lost exits stay listed for shutdown to free; a few show the failure */
+        if (__atomic_load_n(&pre_terms, __ATOMIC_ACQUIRE) == before && ++missed >= 3)
+            break;
+    }
+
+    CHECK(missed == 0);
+    CHECK(__atomic_load_n(&pre_terms, __ATOMIC_ACQUIRE) == PRE_CHILDREN);
+
+    __atomic_store_n(&pre_stop, 1, __ATOMIC_RELEASE);
+    if (pre_thread_ok)
+        pthread_join(pre_thread, NULL);
+
+    CHECK(__atomic_load_n(&pre_loops, __ATOMIC_ACQUIRE) > 0);
+    CHECK(__atomic_load_n(&pre_eintr, __ATOMIC_ACQUIRE) == 0);
+
+    if (missed || pre_eintr)
+        fprintf(stderr, "prethread: %d of %d exits missed, %d EINTR in %d sleeps\n",
+                missed, PRE_CHILDREN, pre_eintr, pre_loops);
+
+    cf_handler_shutdown(caph);
+}
+
+/* Process-directed, held by the core mask until the signal thread runs */
+static void start_sigquit(void) {
+    sigset_t pend;
+
+    CHECK(kill(getpid(), SIGQUIT) == 0);
+    sigpending(&pend);
+    CHECK(sigismember(&pend, SIGQUIT));
+}
+
+static void run_sigquit(kis_capture_handler_t *caph) {
+    sigset_t pend;
+    uint64_t until;
+
+    until = now_ms() + 2000;
+    do {
+        sigpending(&pend);
+        if (!sigismember(&pend, SIGQUIT))
+            break;
+        usleep(1000);
+    } while (now_ms() < until);
+    CHECK(!sigismember(&pend, SIGQUIT));
+
+    cf_handler_shutdown(caph);
+}
+
+/* rtl433's tool exits on its own and is reaped; a later shutdown and free must
+ * leave its pid alone */
+static void run_reapedchild(kis_capture_handler_t *caph) {
+    char *argv[] = { (char *) "sleep", (char *) "0", NULL };
+    cf_ipc_t *ipc = cf_ipc_exec(caph, 2, argv);
+    uint64_t until;
+    pid_t pid, r;
+    int st;
+
+    CHECK(ipc != NULL);
+    if (ipc == NULL)
+        return;
+    pid = ipc->pid;
+    cf_ipc_set_term(caph, ipc, pre_term_cb);
+    cf_ipc_add_process(caph, ipc);
+
+    until = now_ms() + 3000;
+    while (__atomic_load_n(&pre_terms, __ATOMIC_ACQUIRE) == 0 && now_ms() < until)
+        usleep(1000);
+    CHECK(__atomic_load_n(&pre_terms, __ATOMIC_ACQUIRE) == 1);
+
+    r = waitpid(pid, &st, WNOHANG);
+    CHECK(r < 0 && errno == ECHILD);
+
+    pthread_mutex_lock(&caph->handler_lock);
+    CHECK(caph->child_pid != pid);
+    pthread_mutex_unlock(&caph->handler_lock);
+
+    /* Stays watched through cf_handler_free */
+    __atomic_store_n(&watched_pid, pid, __ATOMIC_RELEASE);
+    cf_handler_shutdown(caph);
+    CHECK(__atomic_load_n(&watched_kills, __ATOMIC_ACQUIRE) == 0);
+}
+
 /* An open after the capture thread spun the source down: the open callback
  * succeeds, the capture thread is refused, and the answer is a failed open */
 static int open_cb(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -623,13 +890,7 @@ static void run_openfail(kis_capture_handler_t *caph) {
 }
 
 static void *watchdog(void *arg) {
-    sigset_t all;
-
     (void) arg;
-
-    /* Leave SIGCHLD and SIGALRM to the framework's signal thread */
-    sigfillset(&all);
-    pthread_sigmask(SIG_BLOCK, &all, NULL);
 
     sleep(20);
     fprintf(stderr, "FAIL: hung for 20 s\n");
@@ -656,6 +917,15 @@ static int run(void) {
             cf_ipc_add_process(caph, ipc);
     }
 
+    if (mode == MODE_EARLYCHILD)
+        start_earlychild(caph);
+
+    if (mode == MODE_PRETHREAD || mode == MODE_SIGIGN)
+        start_prethread();
+
+    if (mode == MODE_SIGQUIT)
+        start_sigquit();
+
     CHECK(cf_handler_launch_capture_thread(caph) == 1);
 
     while (!__atomic_load_n(&started, __ATOMIC_ACQUIRE))
@@ -677,6 +947,14 @@ static int run(void) {
         run_termlock(caph);
     } else if (mode == MODE_HOPEXIT) {
         run_hopexit(caph);
+    } else if (mode == MODE_EARLYCHILD) {
+        run_earlychild(caph);
+    } else if (mode == MODE_PRETHREAD || mode == MODE_SIGIGN) {
+        run_prethread(caph);
+    } else if (mode == MODE_SIGQUIT) {
+        run_sigquit(caph);
+    } else if (mode == MODE_REAPEDCHILD) {
+        run_reapedchild(caph);
     } else if (mode == MODE_OPENFAIL) {
         run_openfail(caph);
         cf_handler_shutdown(caph);
@@ -777,13 +1055,33 @@ int main(int argc, char **argv) {
         mode = MODE_HOPEXIT;
     } else if (argc > 1 && strcmp(argv[1], "openfail") == 0) {
         mode = MODE_OPENFAIL;
+    } else if (argc > 1 && strcmp(argv[1], "earlychild") == 0) {
+        mode = MODE_EARLYCHILD;
+    } else if (argc > 1 && strcmp(argv[1], "prethread") == 0) {
+        mode = MODE_PRETHREAD;
+    } else if (argc > 1 && strcmp(argv[1], "sigign") == 0) {
+        mode = MODE_SIGIGN;
+        signal(SIGCHLD, SIG_IGN);
+    } else if (argc > 1 && strcmp(argv[1], "sigquit") == 0) {
+        mode = MODE_SIGQUIT;
+    } else if (argc > 1 && strcmp(argv[1], "reapedchild") == 0) {
+        mode = MODE_REAPEDCHILD;
     }
 
     /* A deadlock is a failure, not a hang */
-    if (mode == MODE_TERMLOCK || mode == MODE_HOPEXIT) {
+    if (mode == MODE_TERMLOCK || mode == MODE_HOPEXIT || mode == MODE_EARLYCHILD ||
+            mode == MODE_PRETHREAD || mode == MODE_SIGIGN || mode == MODE_SIGQUIT ||
+            mode == MODE_REAPEDCHILD) {
         pthread_t wd;
+        sigset_t all, old;
+
+        /* Started with every signal blocked, so none reaches it before it runs;
+         * leaves SIGCHLD, SIGALRM and SIGQUIT to the framework's signal thread */
+        sigfillset(&all);
+        pthread_sigmask(SIG_BLOCK, &all, &old);
         if (pthread_create(&wd, NULL, watchdog, NULL) == 0)
             pthread_detach(wd);
+        pthread_sigmask(SIG_SETMASK, &old, NULL);
     }
 
     run();
