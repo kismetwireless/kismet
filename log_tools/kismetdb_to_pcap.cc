@@ -49,6 +49,7 @@
 #include "packet_ieee80211.h"
 #include "pcapng.h"
 #include "sqlite3_cpp11.h"
+#include "kis_database_journal.h"
 #include "version.h"
 
 extern "C" {
@@ -780,7 +781,6 @@ int main(int argc, char *argv[]) {
     std::map<std::string, bool> tag_filter_map;
 
     int sql_r = 0;
-    char *sql_errmsg = NULL;
     sqlite3 *db = NULL;
 
     // Derived interfaces
@@ -899,11 +899,15 @@ int main(int argc, char *argv[]) {
         if (verbose)
             fmt::print(stderr, "* Preparing input database '{}'...\n", in_fname);
 
-        sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
+        std::string skipped, vacuum_err;
+        sql_r = kismetdb_journal::vacuum_if_finished(db, skipped, vacuum_err);
+
+        if (!skipped.empty())
+            fmt::print(stderr, "* Not cleaning '{}': {}\n", in_fname, skipped);
 
         if (sql_r != SQLITE_OK) {
-            fmt::print(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: {}\n", 
-                    sql_errmsg);
+            fmt::print(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: {}\n",
+                    vacuum_err);
             sqlite3_close(db);
             exit(1);
         }

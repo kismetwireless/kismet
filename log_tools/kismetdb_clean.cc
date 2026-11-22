@@ -109,8 +109,10 @@ int main(int argc, char *argv[]) {
 
     /* A log from a Kismet that stopped without closing it is still in WAL mode; leave it as
      * one file, which tools can read without its -wal and -shm or a writable directory.
-     * This fails while another program has the log open, so a running Kismet's log isn't
-     * vacuumed either. */
+     * A running Kismet's WAL log can't leave WAL while Kismet has it open.  Its persist log
+     * is usually locked by Kismet's open transaction, so this or the vacuum fails; in the
+     * moment after Kismet saves it isn't, and a vacuum then holds the write lock Kismet's
+     * next insert needs, which can close Kismet's log. */
     std::string jmode;
     sql_r = sqlite3_exec(db, "PRAGMA journal_mode=DELETE",
             [] (void *aux, int ncols, char **data, char **) -> int {

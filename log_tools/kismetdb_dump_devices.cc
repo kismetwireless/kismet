@@ -39,6 +39,7 @@
 #include "fmt.h"
 #include "nlohmann/json.hpp"
 #include "sqlite3_cpp11.h"
+#include "kis_database_journal.h"
 
 void print_help(char *argv) {
     printf("Kismetdb to JSON\n");
@@ -117,7 +118,6 @@ int main(int argc, char *argv[]) {
     bool reformat = false;
 
     int sql_r = 0;
-    char *sql_errmsg = NULL;
     sqlite3 *db = NULL;
 
     FILE *ofile = NULL;
@@ -197,12 +197,15 @@ int main(int argc, char *argv[]) {
         if (verbose)
             fprintf(stderr, "* Preparing input database '%s'...\n", in_fname.c_str());
 
+        std::string skipped, vacuum_err;
+        sql_r = kismetdb_journal::vacuum_if_finished(db, skipped, vacuum_err);
 
-        sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
+        if (!skipped.empty())
+            fprintf(stderr, "* Not cleaning '%s': %s\n", in_fname.c_str(), skipped.c_str());
 
         if (sql_r != SQLITE_OK) {
             fprintf(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: %s\n",
-                    sql_errmsg);
+                    vacuum_err.c_str());
             sqlite3_close(db);
             exit(1);
         }

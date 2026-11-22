@@ -402,7 +402,7 @@ static void test_wal_download() {
 
         auto s = wal_state(cr, bulk);
         CHECK(!s.complete());
-        if (watch.update(s, page_size(h), t0 + seconds(t)) == wal_watch::verdict::warn)
+        if (watch.update(s, pragma_int(h, "PRAGMA page_size"), t0 + seconds(t)) == wal_watch::verdict::warn)
             warns++;
         CHECK(sqlite3_step(dl) == SQLITE_ROW);
     }
@@ -414,7 +414,7 @@ static void test_wal_download() {
     insert(h, 10);
     tick(h, c, &cr, &bulk);
     CHECK(cr.complete());
-    CHECK(watch.update(wal_state(cr, bulk), page_size(h), t0 + seconds(10)) ==
+    CHECK(watch.update(wal_state(cr, bulk), pragma_int(h, "PRAGMA page_size"), t0 + seconds(10)) ==
             wal_watch::verdict::cleared);
 
     sqlite3_close_v2(c);
@@ -457,9 +457,11 @@ static void test_step_retry() {
     sqlite3_stmt *s = nullptr;
     CHECK(sqlite3_prepare_v2(h, "INSERT INTO packets VALUES (1, x'00')", -1, &s, nullptr) == SQLITE_OK);
 
+    std::string step_err;
     auto t0 = steady_clock::now();
-    CHECK(step(s, milliseconds(0)) == SQLITE_BUSY);
+    CHECK(step(s, milliseconds(0), step_err) == SQLITE_BUSY);
     CHECK(steady_clock::now() - t0 < milliseconds(100));
+    CHECK(step_err == "database is locked");
     sqlite3_reset(s);
 
     // Released part way through the budget
@@ -467,7 +469,8 @@ static void test_step_retry() {
         std::this_thread::sleep_for(milliseconds(20));
         exec_ok(o, "COMMIT");
     });
-    CHECK(step(s, milliseconds(1000)) == SQLITE_DONE);
+    CHECK(step(s, milliseconds(1000), step_err) == SQLITE_DONE);
+    CHECK(step_err.empty());
     th.join();
     sqlite3_reset(s);
 
@@ -481,17 +484,313 @@ static void test_step_retry() {
     // Held past the budget: busy, after about the budget
     exec_ok(o, "BEGIN IMMEDIATE");
     t0 = steady_clock::now();
-    CHECK(step(s, milliseconds(50)) == SQLITE_BUSY);
+    CHECK(step(s, milliseconds(50), step_err) == SQLITE_BUSY);
     auto waited = steady_clock::now() - t0;
     CHECK(waited >= milliseconds(45) && waited < milliseconds(1000));
+    CHECK(step_err == "database is locked");
     sqlite3_reset(s);
     exec_ok(o, "COMMIT");
 
-    CHECK(step(s, milliseconds(0)) == SQLITE_DONE);
+    CHECK(step(s, milliseconds(0), step_err) == SQLITE_DONE);
     sqlite3_finalize(s);
     sqlite3_close_v2(o);
     CHECK(close_log(h));
     CHECK(count_rows(p) == 2);
+}
+
+// The same with a read open on the writer's connection (a pcapng download): sqlite skips the
+// busy handler then, so step() has to wait itself.  A snapshot another writer moved past
+// can't be written from at all, and isn't waited on.
+static void test_step_retry_reading() {
+    if (legacy)
+        return;
+
+    auto p = fresh("retryread.kismet");
+    inserted = 0;
+    auto h = make_log(p, journal_mode::wal);
+    insert(h, 10);
+    {
+        std::string err;
+        connection_lock lk(h);
+        CHECK(commit(h, milliseconds(0)).state == commit_state::committed);
+        CHECK(begin(h, err) == SQLITE_OK);
+    }
+
+    sqlite3_stmt *dl = nullptr;
+    CHECK(sqlite3_prepare_v2(h, "SELECT packet FROM packets", -1, &dl, nullptr) == SQLITE_OK);
+    CHECK(sqlite3_step(dl) == SQLITE_ROW);
+
+    auto o = open_rw(p);
+    exec_ok(o, "BEGIN IMMEDIATE");
+
+    sqlite3_stmt *s = nullptr;
+    CHECK(sqlite3_prepare_v2(h, "INSERT INTO packets VALUES (1, x'00')", -1, &s, nullptr) == SQLITE_OK);
+
+    std::thread th([o]() {
+        std::this_thread::sleep_for(milliseconds(30));
+        exec_ok(o, "ROLLBACK");
+    });
+    std::string step_err;
+    auto t0 = steady_clock::now();
+    const auto rc = step(s, milliseconds(1000), step_err);
+    const auto waited = steady_clock::now() - t0;
+    th.join();
+    CHECK(rc == SQLITE_DONE);
+    CHECK(waited >= milliseconds(20) && waited < milliseconds(1000));
+    if (rc != SQLITE_DONE)
+        fprintf(stderr, "  step with a read open: rc %d after %lld ms\n", rc,
+                static_cast<long long>(std::chrono::duration_cast<milliseconds>(waited).count()));
+    sqlite3_reset(s);
+
+    {
+        std::string err;
+        connection_lock lk(h);
+        CHECK(commit(h, milliseconds(0)).state == commit_state::committed);
+        CHECK(begin(h, err) == SQLITE_OK);
+    }
+
+    // The download's snapshot is older than another program's write
+    CHECK(sqlite3_step(dl) == SQLITE_ROW);
+    exec_ok(o, "INSERT INTO packets VALUES (2, x'00')");
+    t0 = steady_clock::now();
+    CHECK(step(s, milliseconds(1000), step_err) == SQLITE_BUSY);
+    CHECK(steady_clock::now() - t0 < milliseconds(500));
+    CHECK(!step_err.empty());
+    sqlite3_reset(s);
+
+    // The old snapshot is the transaction's until the next commit
+    sqlite3_finalize(dl);
+    {
+        std::string err;
+        connection_lock lk(h);
+        CHECK(commit(h, milliseconds(0)).state == commit_state::committed);
+        CHECK(begin(h, err) == SQLITE_OK);
+    }
+    CHECK(step(s, milliseconds(0), step_err) == SQLITE_DONE);
+    sqlite3_finalize(s);
+    sqlite3_close_v2(o);
+    CHECK(close_log(h));
+    CHECK(count_rows(p) == 13);
+}
+
+// A failed step's message is the one from that step, copied before another thread's statement
+// on the connection (a pcapng download) can replace it
+static void test_step_error() {
+    auto p = fresh("steperr.kismet");
+    auto h = open_rw(p);
+    exec_ok(h, "CREATE TABLE u (n INT UNIQUE)");
+
+    sqlite3_stmt *s = nullptr;
+    CHECK(sqlite3_prepare_v2(h, "INSERT INTO u VALUES (1)", -1, &s, nullptr) == SQLITE_OK);
+
+    std::string err = "stale";
+    CHECK(step(s, milliseconds(0), err) == SQLITE_DONE);
+    CHECK(err.empty());
+    sqlite3_reset(s);
+
+    CHECK((step(s, milliseconds(0), err) & 0xff) == SQLITE_CONSTRAINT);
+    CHECK(err.find("UNIQUE constraint failed") != std::string::npos);
+    sqlite3_reset(s);
+
+    // Another statement on the same handle sets its own message
+    CHECK(sqlite3_exec(h, "SELECT * FROM no_such_table", nullptr, nullptr, nullptr) == SQLITE_ERROR);
+    CHECK(std::string{sqlite3_errmsg(h)}.find("no_such_table") != std::string::npos);
+    CHECK(err.find("UNIQUE constraint failed") != std::string::npos);
+
+    sqlite3_finalize(s);
+    sqlite3_close_v2(h);
+}
+
+// A commit held by a persist reader keeps growing the page cache past its size; the hold is
+// bounded by time and by that memory, and rolling it back frees the memory and the log
+static void test_hold_budget() {
+    if (legacy)
+        return;
+
+    CHECK(!hold_exhausted(seconds(0), 0));
+    CHECK(!hold_exhausted(max_hold - seconds(1), max_hold_bytes - 1));
+    CHECK(hold_exhausted(max_hold, 0));
+    CHECK(hold_exhausted(seconds(0), max_hold_bytes));
+    CHECK(!hold_exhausted(seconds(-5), 0));
+
+    auto p = fresh("hold.kismet");
+    inserted = 0;
+    auto h = make_log(p, journal_mode::persist);
+    insert(h, 100);
+    CHECK(tick(h).state == commit_state::committed);
+    const auto idle = cache_bytes(h);
+
+    {
+        reader rd(p);
+
+        // 12 MB, against the default 2 MB cache
+        insert(h, 40000);
+        CHECK(tick(h).state == commit_state::held);
+        const auto held = cache_bytes(h);
+        CHECK(held > 8 * 1024 * 1024);
+        if (held <= 8 * 1024 * 1024)
+            fprintf(stderr, "  held cache %lld bytes, idle %lld\n", static_cast<long long>(held),
+                    static_cast<long long>(idle));
+
+        std::string err;
+        CHECK(rollback(h, err) == SQLITE_OK);
+        CHECK(cache_bytes(h) < held / 2);
+        CHECK(begin(h, err) == SQLITE_OK);
+
+        // A new reader can start again: the rollback gave up the pending lock
+        CHECK(count_rows(p) == 100);
+    }
+
+    insert(h, 10);
+    CHECK(tick(h).state == commit_state::committed);
+    CHECK(close_log(h));
+    CHECK(count_rows(p) == 110);
+}
+
+// The log tools' vacuum takes the write lock for as long as it runs; it's refused on a log
+// Kismet may still be writing (WAL, or a persist log with its -journal), not on a finished one
+static void test_vacuum_hazard() {
+    if (legacy)
+        return;
+
+    auto open_tool = [](const std::string& p) {
+        sqlite3 *t = nullptr;
+        CHECK(sqlite3_open(p.c_str(), &t) == SQLITE_OK);
+        return t;
+    };
+
+    for (auto m : {journal_mode::wal, journal_mode::persist}) {
+        auto p = fresh(m == journal_mode::wal ? "vac-wal.kismet" : "vac-persist.kismet");
+        inserted = 0;
+        auto h = make_log(p, m);
+        insert(h, 10);
+        CHECK(tick(h).state == commit_state::committed);
+        insert(h, 10);
+
+        auto t = open_tool(p);
+        const auto why = vacuum_hazard(t);
+        CHECK(!why.empty());
+        if (why.empty())
+            fprintf(stderr, "  no vacuum hazard on a running %s log\n", mode_name(m));
+        sqlite3_close_v2(t);
+
+        CHECK(close_log(h));
+
+        t = open_tool(p);
+        CHECK(vacuum_hazard(t).empty());
+        sqlite3_close_v2(t);
+        CHECK(count_rows(p) == 20);
+    }
+}
+
+// The tools' clean, between two of the log's ticks: skipped on a running log, which then
+// keeps logging, and run on a finished one
+static void test_vacuum_if_finished() {
+    if (legacy)
+        return;
+
+    for (auto m : {journal_mode::wal, journal_mode::persist}) {
+        auto p = fresh(m == journal_mode::wal ? "vacrun-wal.kismet" : "vacrun-persist.kismet");
+        inserted = 0;
+        auto h = make_log(p, m);
+        insert(h, 10);
+        CHECK(tick(h).state == commit_state::committed);
+
+        // Right after a tick, the log's transaction has no write lock yet
+        sqlite3 *t = nullptr;
+        CHECK(sqlite3_open(p.c_str(), &t) == SQLITE_OK);
+        std::string skipped, err;
+        CHECK(vacuum_if_finished(t, skipped, err) == SQLITE_OK);
+        CHECK(!skipped.empty() && err.empty());
+        sqlite3_close_v2(t);
+
+        insert(h, 10);
+        CHECK(tick(h).state == commit_state::committed);
+        CHECK(close_log(h));
+        CHECK(count_rows(p) == 20);
+
+        t = nullptr;
+        CHECK(sqlite3_open(p.c_str(), &t) == SQLITE_OK);
+        skipped.clear();
+        CHECK(vacuum_if_finished(t, skipped, err) == SQLITE_OK);
+        CHECK(skipped.empty() && err.empty());
+        sqlite3_close_v2(t);
+        CHECK(count_rows(p) == 20);
+    }
+
+    // A vacuum that fails says why
+    auto p = fresh("vacrun-ro.kismet");
+    auto h = make_log(p, journal_mode::persist);
+    CHECK(close_log(h));
+    sqlite3 *t = nullptr;
+    CHECK(sqlite3_open_v2(p.c_str(), &t, SQLITE_OPEN_READONLY, nullptr) == SQLITE_OK);
+    std::string skipped, err;
+    CHECK(vacuum_if_finished(t, skipped, err) != SQLITE_OK);
+    CHECK(skipped.empty() && !err.empty());
+    sqlite3_close_v2(t);
+}
+
+// Once a tick has dropped a hold, the rotation counts from when its file was due
+static void test_rotation_hold() {
+    CHECK(rotation_hold(seconds(30), seconds(200), false) == seconds(30));
+    CHECK(rotation_hold(seconds(30), seconds(200), true) == seconds(200));
+    CHECK(rotation_hold(seconds(130), seconds(20), true) == seconds(130));
+    CHECK(rotation_hold(seconds(0), seconds(0), true) == seconds(0));
+    CHECK(!hold_exhausted(rotation_hold(seconds(10), max_hold + seconds(60), false), 0));
+    CHECK(hold_exhausted(rotation_hold(seconds(10), max_hold, true), 0));
+}
+
+// A page size that couldn't be read when the file opened is read again
+static void test_known_page_size() {
+    auto p = fresh("pagesize.kismet");
+    auto h = make_log(p, journal_mode::persist);
+    const auto real = pragma_int(h, "PRAGMA page_size");
+    CHECK(real > 0);
+    CHECK(known_page_size(h, 0) == real);
+    CHECK(known_page_size(h, -1) == real);
+    CHECK(known_page_size(h, real * 2) == real * 2);
+    CHECK(close_log(h));
+}
+
+// A -wal left from before the log was created is removed by sqlite at the first read of the
+// empty file, before anything can switch the log to WAL; nothing in it is replayed
+static void test_leftover_wal() {
+    if (legacy)
+        return;
+
+    auto f = fresh("foreign.kismet");
+    auto fh = open_rw(f);
+    exec_ok(fh, "CREATE TABLE packets (n INT, packet BLOB)");
+    exec_ok(fh, "PRAGMA journal_mode=WAL");
+    exec_ok(fh, "PRAGMA wal_autocheckpoint=0");
+    exec_ok(fh, "CREATE TABLE foreign_table (x)");
+
+    auto p = fresh("leftover.kismet");
+    {
+        auto in = fopen(wal_path(f).c_str(), "rb");
+        auto out = fopen(wal_path(p).c_str(), "wb");
+        CHECK(in != nullptr && out != nullptr);
+        char buf[4096];
+        size_t n;
+        while (in != nullptr && out != nullptr && (n = fread(buf, 1, sizeof(buf), in)) > 0)
+            fwrite(buf, 1, n, out);
+        if (in != nullptr)
+            fclose(in);
+        if (out != nullptr)
+            fclose(out);
+    }
+    CHECK(file_size(p + "-wal") > 0);
+
+    // database_open()'s first query, then the schema, then the journal
+    auto h = open_rw(p);
+    CHECK(pragma(h, "SELECT count(*) FROM sqlite_master") == "0");
+    CHECK(!exists(p + "-wal"));
+    exec_ok(h, "CREATE TABLE packets (n INT, packet BLOB)");
+    std::string err;
+    CHECK(apply_mode(h, journal_mode::wal, log_file::created, err).mode == journal_mode::wal);
+    CHECK(pragma(h, "SELECT count(*) FROM sqlite_master WHERE name = 'foreign_table'") == "0");
+    CHECK(close_log(h));
+    sqlite3_close_v2(fh);
 }
 
 // The tick's two step checkpoint lets the WAL start over every tick, so it stays about one
@@ -549,30 +848,42 @@ static void test_wal_restart() {
     CHECK(close_log(h));
 }
 
-// An idle program holding the log open keeps it from leaving WAL mode; the -wal is reported
-// and still holds the data
+// Another program holding the log open keeps it from leaving WAL mode.  Idle, it lets the
+// final checkpoint empty the -wal, which then holds nothing; part way through a read, the
+// -wal keeps frames, is reported, and still holds the data.
 static void test_finish_held() {
     if (legacy)
         return;
 
-    auto p = fresh("held.kismet");
-    inserted = 0;
-    auto h = make_log(p, journal_mode::wal);
-    insert(h, 200);
+    for (const bool reading : {false, true}) {
+        auto p = fresh(reading ? "held-read.kismet" : "held.kismet");
+        inserted = 0;
+        auto h = make_log(p, journal_mode::wal);
+        insert(h, 200);
 
-    sqlite3 *idle = nullptr;
-    CHECK(sqlite3_open_v2(p.c_str(), &idle, SQLITE_OPEN_READONLY, nullptr) == SQLITE_OK);
-    sqlite3_stmt *s = nullptr;
-    CHECK(sqlite3_prepare_v2(idle, "SELECT count(*) FROM packets", -1, &s, nullptr) == SQLITE_OK);
-    CHECK(sqlite3_step(s) == SQLITE_ROW);
-    sqlite3_finalize(s);
+        sqlite3 *other = nullptr;
+        CHECK(sqlite3_open_v2(p.c_str(), &other, SQLITE_OPEN_READONLY, nullptr) == SQLITE_OK);
+        sqlite3_stmt *s = nullptr;
+        CHECK(sqlite3_prepare_v2(other, "SELECT count(*) FROM packets", -1, &s, nullptr) == SQLITE_OK);
+        CHECK(sqlite3_step(s) == SQLITE_ROW);
+        if (!reading) {
+            sqlite3_finalize(s);
+            s = nullptr;
+        }
 
-    finish_result f;
-    CHECK(close_log(h, &f));
-    CHECK(!f.single_file && f.wal_left && !f.err.empty());
-    CHECK(exists(p + "-wal"));
-    sqlite3_close_v2(idle);
-    CHECK(count_rows(p) == 200);
+        finish_result f;
+        CHECK(close_log(h, &f));
+        CHECK(!f.single_file && !f.err.empty());
+        CHECK(f.wal_left == reading);
+        CHECK(exists(p + "-wal"));
+        CHECK((file_size(p + "-wal") > 0) == reading);
+        if (f.wal_left != reading)
+            fprintf(stderr, "  %s: wal_left %d, -wal %lld bytes\n", reading ? "reading" : "idle",
+                    f.wal_left, static_cast<long long>(file_size(p + "-wal")));
+        sqlite3_finalize(s);
+        sqlite3_close_v2(other);
+        CHECK(count_rows(p) == 200);
+    }
 }
 
 // Another program that lets go of the log part way through the budget: the checkpoint has
@@ -1371,6 +1682,17 @@ static void test_wal_file() {
     auto sz = wal_file_size(p);
     CHECK(sz.has_value() && *sz == static_cast<uint64_t>(file_size(p + "-wal")) && *sz > 0);
 
+    // A link in place of the -wal isn't one, as everywhere else the journal looks
+    auto q = fresh("walfile-link.kismet");
+    CHECK(symlink(wal_path(p).c_str(), wal_path(q).c_str()) == 0);
+    CHECK(!wal_file_size(q).has_value());
+    unlink(wal_path(q).c_str());
+
+    CHECK(pragma_int(h, "PRAGMA page_size") == std::stoll(pragma(h, "PRAGMA page_size")));
+    CHECK(pragma_int(h, "PRAGMA page_size") > 0);
+    CHECK(pragma_int(h, "PRAGMA no_such_pragma") == 0);
+    CHECK(pragma_int(h, "PRAGMA journal_mode") == 0);
+
     wal_watch w(256 * 1024);
     const auto t0 = steady_clock::now();
     CHECK(w.held_back(256 * 1024, t0) == wal_watch::verdict::quiet);
@@ -1483,6 +1805,25 @@ static void test_helpers() {
     CHECK(rr.failed(t0 + seconds(62)) == 1);
     CHECK(rr.since() == t0 + seconds(62));
 
+    // Held failures are saved by the next commit that goes through; a lost one isn't, and the
+    // save after it doesn't say so, but the run's messages stay throttled across it
+    commit_failures cf(seconds(60));
+    CHECK(cf.held(t0) == 1);
+    auto sv = cf.saved();
+    CHECK(sv.failures == 1 && !sv.lost);
+    CHECK(cf.lost(t0) == 1);
+    CHECK(cf.held(t0 + seconds(10)) == 0);
+    CHECK(cf.lost(t0 + seconds(20)) == 0);
+    sv = cf.saved();
+    CHECK(sv.failures == 3 && sv.lost);
+    sv = cf.saved();
+    CHECK(sv.failures == 0 && !sv.lost);
+    CHECK(cf.held(t0 + seconds(30)) == 1);
+    CHECK(cf.lost(t0 + seconds(40)) == 0);
+    cf.reset();
+    sv = cf.saved();
+    CHECK(sv.failures == 0 && !sv.lost);
+
     // Not WAL, or a failed checkpoint, says nothing
     wal_watch w(1);
     CHECK(w.update(checkpoint_result{}, 4096, t0) == wal_watch::verdict::quiet);
@@ -1559,6 +1900,14 @@ int main(int argc, char **argv) {
         test_wal_download();
         test_wal_opened();
         test_step_retry();
+        test_step_retry_reading();
+        test_step_error();
+        test_hold_budget();
+        test_vacuum_hazard();
+        test_vacuum_if_finished();
+        test_rotation_hold();
+        test_known_page_size();
+        test_leftover_wal();
         test_wal_restart();
         test_finish_held();
         test_finish_retry();

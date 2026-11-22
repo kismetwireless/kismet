@@ -86,24 +86,17 @@ struct mode_result {
     int wal_rc = SQLITE_OK;
 };
 
-// How long setting up a WAL waits for another program that has the new file locked.  Opening
-// a WAL, building its index or a short read holds the lock for milliseconds; this covers that
-// many times over on slow storage.  Rotation sets up the new file with the log's writers held,
-// so they pause about this long while something else holds that file.  sqlite's own retries
-// on a WAL index another program keeps locked aren't bounded by it, and can take seconds.
+// How long setting up a WAL waits for another program that has the new file locked.  Rotation
+// does this with the writers held, so it's short; sqlite's own WAL index retries aren't
+// bounded by it.
 constexpr std::chrono::milliseconds mode_busy_budget{250};
 
 // Whether Kismet made the log file it's setting up
 enum class log_file : uint8_t { created, existing };
 
-// Set up the journal of a newly opened log and install the busy handler.  WAL falls back to
-// persist when sqlite doesn't switch to it, or can't open or write it (the filesystem can't
-// hold its shared memory index, or a -shm opens only read-only, say); not when another
-// program still has the log locked after mode_busy_budget, once it's in WAL mode (err says
-// so).  A log Kismet created that already has a -shm is another program's, which can hold
-// sqlite in its index retries, so it isn't tried as WAL; the -shm is left alone.  mode is the
-// journal the log has, WAL too when leaving it failed.  err says what else went wrong, if
-// anything.
+// Set up a newly opened log's journal and install the busy handler.  WAL falls back to persist
+// where sqlite can't open or write it, but not when the log is only locked by another program
+// (err says so).  A -shm next to a log Kismet created is another program's, and is left alone.
 mode_result apply_mode(sqlite3 *db, journal_mode want, log_file file, std::string& err);
 
 // Why a WAL fell back to persist, for the log message, from mode_result::wal_rc
@@ -126,6 +119,24 @@ struct commit_result {
 // COMMIT the open transaction, if there is one, waiting up to busy_budget for readers
 commit_result commit(sqlite3 *db, std::chrono::milliseconds busy_budget);
 
+// A held commit keeps its data in memory (a persist log can't spill it to the file while it's
+// read), so it's rolled back once it has been held this long or uses this much cache.  Both
+// are checked only when the commit is tried, every 10 s, so the cache can pass the limit
+// by what's logged in between.
+constexpr std::chrono::seconds max_hold{120};
+constexpr int64_t max_hold_bytes = 64 * 1024 * 1024;
+
+bool hold_exhausted(std::chrono::steady_clock::duration held, int64_t cache_bytes);
+
+// How long a rotation counts its old file's commit as held.  A tick that drops a hold starts
+// the next one from zero while the reader stays, so the rotation would never reach the limit
+// itself; once a tick has dropped, the time the file has been due counts too.
+std::chrono::steady_clock::duration rotation_hold(std::chrono::steady_clock::duration held,
+        std::chrono::steady_clock::duration due_for, bool tick_dropped);
+
+// Heap memory the connection's page cache uses
+int64_t cache_bytes(sqlite3 *db);
+
 // BEGIN a transaction unless one is still open (a held commit), so a failed commit never
 // leaves a nested BEGIN behind
 int begin(sqlite3 *db, std::string& err);
@@ -147,21 +158,22 @@ struct checkpoint_result {
 checkpoint_result checkpoint(sqlite3 *db, int mode, std::chrono::milliseconds busy_budget);
 
 // The WAL after a tick, from the writer's catch-up checkpoint and the second connection's
-// bulk one.  A read on the writer's own connection (a pcapng download) fails the catch-up
-// with SQLITE_LOCKED and no frame counts; the bulk checkpoint still counts the frames that
-// read holds back, and the result stays SQLITE_LOCKED, so it never counts as complete.
+// bulk one.  A read on the writer's connection fails the catch-up with SQLITE_LOCKED and no
+// frame counts; those come from the bulk checkpoint, and the result is never complete.
 checkpoint_result wal_state(const checkpoint_result& catchup,
         const std::optional<checkpoint_result>& bulk);
 
-// sqlite3_step, and once more within a short busy wait if another connection had the log
-// locked for a moment (one opening its WAL, say); writers off the commit tick otherwise
-// fail at once, and a failed insert closes the log
-int step(sqlite3_stmt *stmt, std::chrono::milliseconds retry_budget);
+// sqlite3_step, retried within retry_budget while another connection has the log locked for a
+// moment; a failed insert closes the log.  sqlite skips the busy handler when the connection
+// already has a read open (a pcapng download), so this sleeps between tries itself.  Each
+// try reads its error code and message (err, "" on success) under the connection mutex,
+// before another thread can replace them.
+int step(sqlite3_stmt *stmt, std::chrono::milliseconds retry_budget, std::string& err);
 
 struct finish_result {
     // The log is one .kismet file
     bool single_file = false;
-    // A -wal file is left, and is part of the log
+    // A -wal file holding frames is left, and is part of the log
     bool wal_left = false;
     std::string err;
 };
@@ -169,6 +181,15 @@ struct finish_result {
 // End a file as a single .kismet: a final checkpoint and journal_mode=DELETE, both within
 // busy_budget.  The caller commits first and is the only user of the handle.
 finish_result finish(sqlite3 *db, std::chrono::milliseconds busy_budget);
+
+// Why the log tools mustn't VACUUM this log, "" when they may.  A log in WAL mode, or a
+// persist log with its -journal, may be one Kismet is still writing; a vacuum holds the write
+// lock while it runs, and Kismet's next insert then fails and closes the log.
+std::string vacuum_hazard(sqlite3 *db);
+
+// The log tools' clean: VACUUM, unless vacuum_hazard() says not to, when skipped says why.
+// Returns the vacuum's sqlite result, SQLITE_OK when it's skipped; err has its message.
+int vacuum_if_finished(sqlite3 *db, std::string& skipped, std::string& err);
 
 // A second connection to a WAL log, for checkpoints that run without the writer's
 // connection mutex; nullptr with err set when it can't open
@@ -194,11 +215,52 @@ private:
     unsigned int pending = 0, total = 0;
 };
 
+// The commit failures since the log was last saved, reported as a repeat_report.  A held
+// commit's data is saved by the next one that goes through; a lost one's isn't.
+class commit_failures {
+public:
+    explicit commit_failures(std::chrono::seconds in_interval) :
+        report{in_interval} { }
+
+    // How many failures to report now, as repeat_report::failed
+    unsigned int held(std::chrono::steady_clock::time_point now) { return report.failed(now); }
+    unsigned int lost(std::chrono::steady_clock::time_point now) {
+        any_lost = true;
+        return report.failed(now);
+    }
+
+    struct saved_result {
+        unsigned int failures = 0;
+        // Some of them lost their data, which this save doesn't hold
+        bool lost = false;
+    };
+
+    // A commit went through, ending the run
+    saved_result saved() {
+        saved_result r{report.succeeded(), any_lost};
+        any_lost = false;
+        return r;
+    }
+
+    // The run ended without a save: what it held is gone, or was on another file
+    void reset() {
+        report.succeeded();
+        any_lost = false;
+    }
+
+private:
+    repeat_report report;
+    bool any_lost = false;
+};
+
 // Bytes of WAL file the frames take
 uint64_t wal_bytes(int frames, int64_t page_size);
 
-// The database's page size, 0 if it can't be read
-int64_t page_size(sqlite3 *db);
+// An integer pragma's value, such as page_size; 0 if it can't be read
+int64_t pragma_int(sqlite3 *db, const char *sql);
+
+// The page size cached when the file opened, or read again when that read failed (0)
+int64_t known_page_size(sqlite3 *db, int64_t cached);
 
 // Watches the WAL after each tick's checkpoint: something reading the log (another program,
 // or a pcapng download) keeps the checkpoint from finishing, and the WAL can't start over

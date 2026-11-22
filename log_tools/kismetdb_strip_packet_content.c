@@ -134,8 +134,11 @@ int main(int argc, char *argv[]) {
     }
 
     /* A log still in WAL mode keeps part of its data in its -wal file, which the copy below
-     * wouldn't take; bring it all into the one file first.  This fails while another
-     * program has the log open, so a running Kismet's log isn't vacuumed either. */
+     * wouldn't take; bring it all into the one file first.  A running Kismet's WAL log can't
+     * leave WAL while Kismet has it open.  Its persist log is usually locked by Kismet's open
+     * transaction, so this or the vacuum fails; in the moment after Kismet saves it isn't,
+     * and a vacuum then holds the write lock Kismet's next insert needs, which can close
+     * Kismet's log. */
     delete_mode = false;
     sql_r = sqlite3_exec(db, "PRAGMA journal_mode=DELETE", journal_delete_cb, &delete_mode,
             &sql_errmsg);

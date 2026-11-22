@@ -359,15 +359,12 @@ protected:
     kismetdb_journal::journal_mode journal_cfg;
     std::atomic<kismetdb_journal::journal_mode> journal_active;
 
-    // How long a commit may wait for another program's read.  The commit holds the connection
-    // every writer, the packet path included, waits on, so it's short; a busy commit keeps its
-    // data and is tried again next tick.  Closing, and finishing a file off the packet path,
-    // can wait longer.
+    // How long a commit may wait for another program's read; short, as every writer waits on
+    // the connection meanwhile.  Closing and finishing a file can wait longer.
     static constexpr std::chrono::milliseconds commit_busy_budget{100};
     static constexpr std::chrono::milliseconds close_busy_budget{2000};
-    // An insert that finds the log locked (another connection opening its WAL, or another
-    // program writing to it) tries once more within this; a lock that outlasts it fails the
-    // insert, as before.  Short, as the packet writer holds the connection while it waits.
+    // How long an insert retries while another connection has the log locked; the packet
+    // writer holds the connection while it waits
     static constexpr std::chrono::milliseconds write_busy_budget{25};
 
     // kis_log_journal_mode
@@ -379,26 +376,42 @@ protected:
     static void report_wal_unavailable(const std::string& path,
             const kismetdb_journal::mode_result& mode);
 
-    // WAL only: a second connection to the file copies the bulk of each tick's WAL into it
-    // without holding the writer's connection mutex.  The commit tick holds checkpoint_mutex
-    // across that checkpoint, which can take seconds, so it's never waited on with
-    // db_lifetime_mutex, the log tracker's mutex or the rotate gate held.  It is taken with
-    // them only where no checkpoint can hold it: closing (the log tracker's close_log and
-    // close API hold its mutex) takes the checkpointer after remove_timer() has drained any
-    // tick, and a rotation reopens it with the gate closed after taking the old one away, so
-    // a tick finds none and holds the mutex only for that check.
+    // The page size of the current file, read when its journal is set up
+    std::atomic<int64_t> journal_page_size;
+    // That page size, read again if it couldn't be then; the caller holds a writer guard
+    int64_t page_size();
+
+    // When the open transaction's commit was first held, zero when it isn't
+    std::atomic<std::chrono::steady_clock::time_point> commit_held_since;
+    // The held time so far, starting it at now when it wasn't held
+    std::chrono::steady_clock::duration note_held(std::chrono::steady_clock::time_point now);
+    // A tick dropped a held commit, and the reader holding it may still be there
+    std::atomic<bool> hold_dropped;
+    // A commit went through, or a new file started: no hold
+    void hold_ended();
+    // A rotation lost or dropped what the old file couldn't save; the tick's failure count
+    // isn't for the file it saves next
+    std::atomic<bool> commit_report_reset;
+    // A tick dropped devices logged in the held transaction; they're logged again once a
+    // commit goes through, not into a transaction that's still held
+    std::atomic<bool> devices_dropped;
+
+    // WAL only: a second connection copying the bulk of each tick's WAL into the file.  The
+    // tick holds checkpoint_mutex through that checkpoint, which can take seconds, so it's
+    // never waited on with db_lifetime_mutex, the log tracker's mutex or the rotate gate held.
     std::mutex checkpoint_mutex;
     sqlite3 *checkpoint_db;
+    // A rotation or close has taken it; the tick then skips its catch-up checkpoint
+    bool checkpoint_taken;
     // Opens one for the current file when it's in WAL mode; returns why it couldn't
     std::string open_checkpointer(const std::string& path);
-    // Takes the current one away from the commit tick, for the caller to close (it has to
-    // be gone before the file can leave WAL mode) or give back
+    // Takes it from the commit tick, for the caller to close or give back
     sqlite3 *take_checkpointer();
     void restore_checkpointer(sqlite3 *h);
 
     // Commits every 10 s; this state is only used by the commit timer
     void transaction_tick();
-    kismetdb_journal::repeat_report commit_report{std::chrono::seconds(60)};
+    kismetdb_journal::commit_failures commit_report{std::chrono::seconds(60)};
     std::string commit_fail_path;
     kismetdb_journal::repeat_report begin_report{std::chrono::seconds(60)};
     kismetdb_journal::wal_watch wal_growth;

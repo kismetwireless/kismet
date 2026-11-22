@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <thread>
 
 #include <sys/stat.h>
@@ -197,12 +198,14 @@ std::string wal_path(const std::string& db_path) {
 }
 
 std::optional<uint64_t> wal_file_size(const std::string& db_path) {
-    struct stat st;
-
-    if (db_path.empty() || stat(wal_path(db_path).c_str(), &st) != 0)
+    if (db_path.empty())
         return std::nullopt;
 
-    return static_cast<uint64_t>(st.st_size);
+    const auto sz = regular_size(wal_path(db_path));
+    if (!sz.has_value())
+        return std::nullopt;
+
+    return static_cast<uint64_t>(*sz);
 }
 
 busy_wait::busy_wait(std::chrono::milliseconds budget) :
@@ -386,6 +389,24 @@ commit_result commit(sqlite3 *db, std::chrono::milliseconds busy_budget) {
     return r;
 }
 
+bool hold_exhausted(std::chrono::steady_clock::duration held, int64_t cache_bytes) {
+    return held >= max_hold || cache_bytes >= max_hold_bytes;
+}
+
+std::chrono::steady_clock::duration rotation_hold(std::chrono::steady_clock::duration held,
+        std::chrono::steady_clock::duration due_for, bool tick_dropped) {
+    return tick_dropped ? std::max(held, due_for) : held;
+}
+
+int64_t cache_bytes(sqlite3 *db) {
+    int cur = 0, high = 0;
+
+    if (sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_USED, &cur, &high, 0) != SQLITE_OK)
+        return 0;
+
+    return cur;
+}
+
 int begin(sqlite3 *db, std::string& err) {
     if (!sqlite3_get_autocommit(db))
         return SQLITE_OK;
@@ -418,15 +439,52 @@ checkpoint_result wal_state(const checkpoint_result& catchup,
     return r;
 }
 
-int step(sqlite3_stmt *stmt, std::chrono::milliseconds retry_budget) {
-    auto rc = sqlite3_step(stmt);
+int step(sqlite3_stmt *stmt, std::chrono::milliseconds retry_budget, std::string& err) {
+    auto db = sqlite3_db_handle(stmt);
+    int extended_rc = SQLITE_OK;
+
+    // The connection mutex is recursive, and sqlite3_step holds it too
+    auto step_once = [stmt, db, &extended_rc, &err]() {
+        connection_lock clk(db);
+        const auto r = sqlite3_step(stmt);
+        extended_rc = sqlite3_extended_errcode(db);
+        if (r == SQLITE_DONE || r == SQLITE_ROW)
+            err.clear();
+        else
+            err = sqlite3_errmsg(db);
+        return r;
+    };
+
+    auto rc = step_once();
     if (rc != SQLITE_BUSY)
         return rc;
 
-    // A busy write hasn't changed anything; the statement runs again from the start
-    sqlite3_reset(stmt);
-    busy_wait w(retry_budget);
-    return sqlite3_step(stmt);
+    const auto deadline = std::chrono::steady_clock::now() + retry_budget;
+
+    while (true) {
+        // The connection's read is older than another writer's commit; it can't write until
+        // that read ends, so waiting won't help
+        if (extended_rc == SQLITE_BUSY_SNAPSHOT)
+            return rc;
+
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline)
+            return rc;
+
+        // A busy write hasn't changed anything; the statement runs again from the start
+        sqlite3_reset(stmt);
+
+        {
+            busy_wait w(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now));
+            rc = step_once();
+        }
+
+        if (rc != SQLITE_BUSY)
+            return rc;
+
+        std::this_thread::sleep_for(std::min<std::chrono::steady_clock::duration>(busy_sleep,
+                    deadline - std::chrono::steady_clock::now()));
+    }
 }
 
 finish_result finish(sqlite3 *db, std::chrono::milliseconds busy_budget) {
@@ -487,8 +545,9 @@ finish_result finish(sqlite3 *db, std::chrono::milliseconds busy_budget) {
     if (!delete_err.empty())
         append_err(f.err, delete_err);
 
+    // An empty -wal, as the final checkpoint leaves it, holds nothing of the log
     f.single_file = m == "delete";
-    f.wal_left = !f.single_file && (was_wal || wal_file_size(path).has_value());
+    f.wal_left = !f.single_file && wal_file_size(path).value_or(0) > 0;
 
     if (!f.single_file && f.err.empty())
         f.err = "the journal mode stayed " + m;
@@ -559,16 +618,50 @@ uint64_t wal_bytes(int frames, int64_t page_size) {
     return wal_header + static_cast<uint64_t>(frames) * (static_cast<uint64_t>(page_size) + frame_header);
 }
 
-int64_t page_size(sqlite3 *db) {
-    sqlite3_stmt *stmt = nullptr;
-    int64_t v = 0;
+int64_t pragma_int(sqlite3 *db, const char *sql) {
+    std::string v, e;
+    int64_t n = 0;
 
-    if (sqlite3_prepare_v2(db, "PRAGMA page_size", -1, &stmt, nullptr) == SQLITE_OK &&
-            sqlite3_step(stmt) == SQLITE_ROW)
-        v = sqlite3_column_int64(stmt, 0);
+    if (pragma_text(db, sql, v, e) != SQLITE_OK)
+        return 0;
 
-    sqlite3_finalize(stmt);
-    return v;
+    const auto [end, ec] = std::from_chars(v.data(), v.data() + v.size(), n);
+    if (ec != std::errc{} || end != v.data() + v.size())
+        return 0;
+
+    return n;
+}
+
+int64_t known_page_size(sqlite3 *db, int64_t cached) {
+    if (cached > 0)
+        return cached;
+
+    return pragma_int(db, "PRAGMA page_size");
+}
+
+std::string vacuum_hazard(sqlite3 *db) {
+    const auto fn = sqlite3_db_filename(db, "main");
+    const std::string path = fn != nullptr ? fn : "";
+
+    std::string m, e;
+    if (pragma_text(db, "PRAGMA journal_mode", m, e) != SQLITE_OK)
+        return "its journal mode can't be read (" + e + ")";
+
+    if (m == "wal")
+        return "it's in WAL mode, so a running Kismet may still be logging to it";
+
+    if (regular_size(path + "-journal").has_value())
+        return "it has a -journal file, so a running Kismet may still be logging to it";
+
+    return "";
+}
+
+int vacuum_if_finished(sqlite3 *db, std::string& skipped, std::string& err) {
+    skipped = vacuum_hazard(db);
+    if (!skipped.empty())
+        return SQLITE_OK;
+
+    return exec(db, "VACUUM", err);
 }
 
 wal_watch::verdict wal_watch::update(const checkpoint_result& c, int64_t page_size,
