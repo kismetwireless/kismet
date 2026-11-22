@@ -30,6 +30,8 @@
 #include <utility>
 #include <vector>
 
+#include "fmt.h"
+
 // Karma / mana access point detection: a BSSID answering probes for networks it never
 // broadcast-beacons, or broadcast-beaconing a pool of many networks (PineAP).  The state of
 // one BSSID is the SSIDs it answered for (or sent only unicast beacons for), and the SSIDs it
@@ -163,7 +165,7 @@ constexpr unsigned int flood_min(const params& p) {
 
 // Sampled new SSIDs a flood needs within flood_span_s, besides the weighted flood_min: at a
 // high sample level, a few one-offs (corrupted SSIDs) would otherwise weigh as a flood
-inline constexpr unsigned int min_flood_sampled = 16;
+inline constexpr unsigned int min_flood_sampled = 64;
 
 // Frame times count within 1970 to 2100 (2038 with a 32-bit time_t); a time outside it counts
 // at the nearest end.  Clocks
@@ -235,42 +237,49 @@ constexpr bool should_fire(const counts& c, unsigned int hidden_allowance, const
     return fire_reason(c, hidden_allowance, p) != reason::none;
 }
 
-// The alert text after the BSSID, leaving out the counts which are zero; pool for a BSSID
-// beaconing a pool (c.pool >= min_pool) or a flood
+// The alert is worded for a pool when the BSSID was flagged for one (reason r, as stored) or
+// its counts show a pool or a flood now; a rate limited alert raised later may have counts
+// which decayed, or grew since
+constexpr bool alert_pool(const counts& c, uint8_t r, const params& p) {
+    return (r & static_cast<uint8_t>(reason::pool)) != 0 || c.pool >= p.min_pool || c.flood > 0;
+}
+
+// The alert text after the BSSID, leaving out the counts which are zero; pool from alert_pool
 inline std::string alert_text(const counts& c, bool pool) {
     std::string paren;
 
-    auto add_paren = [&paren](unsigned int n, const char *what) {
-        if (n == 0)
-            return;
-        paren += paren.empty() ? " (" : ", ";
-        paren += std::to_string(n);
-        paren += what;
-    };
-
-    add_paren(c.matched, " probed for by clients");
-    add_paren(c.directed, " sent in unicast beacons");
-
+    if (c.matched > 0)
+        paren = fmt::format("{} probed for by clients", c.matched);
+    if (c.directed > 0)
+        paren += fmt::format("{}{} sent in unicast beacons", paren.empty() ? "" : ", ", c.directed);
     if (!paren.empty())
-        paren += ")";
+        paren = fmt::format(" ({})", paren);
 
-    if (!pool)
-        return "answered probes for " + std::to_string(c.unbeaconed) + " networks it does not advertise" +
-            paren + ", which may indicate a karma or mana access point impersonating networks clients look for";
+    if (!pool) {
+        const std::string n = c.unbeaconed > 0 ? fmt::format("{} networks", c.unbeaconed) : "networks";
+        return fmt::format("answered probes for {} it does not advertise{}, which may indicate a karma or "
+                "mana access point impersonating networks clients look for", n, paren);
+    }
 
-    std::string t = "beaconed " + std::string(c.estimated ? "about " : "") + std::to_string(c.pool) +
-        " different networks" + (c.estimated ? " (estimated)" : "");
+    std::string t;
+
+    if (c.pool > 0)
+        t = fmt::format("beaconed {}{} different networks{}", c.estimated ? "about " : "", c.pool,
+                c.estimated ? " (estimated)" : "");
 
     if (c.flood > 0)
-        t += ", " + std::to_string(c.flood) + " new ones within " + std::to_string(flood_span_s) +
-            " seconds (a beacon flood)";
+        t += fmt::format("{}{} new {} within {} seconds (a beacon flood)",
+                c.pool > 0 ? ", " : "flooded beacons for ", c.flood, c.pool > 0 ? "ones" : "networks", flood_span_s);
+
+    if (t.empty())
+        t = "beaconed a pool of different networks";
 
     if (c.answered_pool > 0)
-        t += ", answered probes for " + std::to_string(c.answered_pool) + " of them";
+        t += fmt::format(", answered probes for {} of them", c.answered_pool);
 
     if (c.unbeaconed > 0)
-        t += (c.answered_pool > 0 ? " and for " : ", answered probes for ") + std::to_string(c.unbeaconed) +
-            " networks it does not beacon" + paren;
+        t += fmt::format("{}{} networks it does not beacon{}", c.answered_pool > 0 ? " and for " : ", answered probes for ",
+                c.unbeaconed, paren);
 
     return t + ", which may indicate a karma access point beaconing a pool of impersonated networks";
 }
@@ -280,6 +289,15 @@ struct pool_size {
     unsigned int ssids = 0;
     // ssids was scaled up from a sample
     bool estimated = false;
+};
+
+// An SSID a BSSID broadcast-beaconed from first to last before its state existed, and when it
+// last answered probes for it within the window, or 0
+struct seed_ssid {
+    uint32_t hash = 0;
+    time_t first = 0;
+    time_t last = 0;
+    time_t answered = 0;
 };
 
 // What a broadcast beacon did to a state
@@ -334,6 +352,24 @@ public:
             if (e.hash == hash)
                 return &e;
         return nullptr;
+    }
+
+    // A repeated answer (a probe response with cached tags) at ts: for an SSID listed as one
+    // it doesn't beacon, already matched to a probe, inside the window and between refreshes,
+    // only the times move, and nothing is recounted.  Returns the time it counts at, or 0 if it
+    // needs the full path.
+    time_t repeat_answer(uint32_t hash, time_t ts, const params& p) {
+        ts = frame_time(ts);
+
+        auto e = find(hash);
+
+        if (e == nullptr || has(e->flags, flag::beaconed) || !has(e->flags, flag::matched) ||
+                !in_window(newest, e->last, p.window) || refresh_due())
+            return 0;
+
+        e->first = std::min(e->first, ts);
+        e->last = std::max(e->last, ts);
+        return ts;
     }
 
     // Unmatched entries which count as unbeaconed
@@ -423,24 +459,27 @@ public:
         return pool_result::same;
     }
 
-    // Seeds the pool of a new state with an SSID the BSSID beaconed before, from first to
-    // last, if last is within the window of ts (from frame_time); beaconed in two different
-    // seconds, or answered for too, it counts
-    void pool_seed(uint32_t hash, time_t first, time_t last, time_t ts, const params& p,
-            bool answered = false) {
-        first = sane_time(first);
-        last = sane_time(last);
+    // Seeds a new state with the SSIDs the BSSID beaconed before it, from first to last, those
+    // with last within the window of ts (from frame_time); beaconed in two different seconds,
+    // or answered for too, an SSID counts, and those which count go first so a full pool keeps
+    // them.  Answers for them are kept as for SSIDs beaconed
+    // since, once it beacons a pool, as broadcast_beacon does; hashes are unique.
+    void seed(std::vector<seed_ssid> ssids, time_t ts, const params& p) {
+        std::partition(ssids.begin(), ssids.end(),
+                [](const seed_ssid& s) { return s.last > s.first || s.answered != 0; });
 
-        if ((p.max_ssids > 0 && pool.size() >= p.max_ssids) || !within(ts, last, p.window))
+        pool.reserve(p.max_ssids > 0 ? std::min(ssids.size(), p.max_ssids) : ssids.size());
+
+        for (const auto& s : ssids)
+            pool_seed_new(s.hash, sane_time(s.first), sane_time(s.last), ts, p, s.answered != 0);
+
+        if (pool_count(p).ssids < min_pool_beaconer)
             return;
 
-        for (const auto& e : pool)
-            if (e.hash == hash)
-                return;
-
-        pool.push_back(entry{hash, answered ? flag::answered : flag::none,
-                static_cast<uint8_t>(last > first ? min_pool_beacons : 1), sample_level, first, last});
-        newest = std::max(newest, std::min(last, ts));
+        for (const auto& s : ssids) {
+            if (s.answered != 0)
+                seen_at(s.hash, sane_time(s.answered), flag::beaconed, p);
+        }
     }
 
     // A broadcast beacon for an SSID (see pool_seen): the BSSID beacons it, so an answer for it
@@ -612,6 +651,17 @@ public:
     time_t flood_last = 0;
 
 private:
+    // Adds an SSID seed() lists, first and last sane_times
+    void pool_seed_new(uint32_t hash, time_t first, time_t last, time_t ts, const params& p,
+            bool answered) {
+        if ((p.max_ssids > 0 && pool.size() >= p.max_ssids) || !within(ts, last, p.window))
+            return;
+
+        pool.push_back(entry{hash, answered ? flag::answered : flag::none,
+                static_cast<uint8_t>(last > first ? min_pool_beacons : 1), sample_level, first, last});
+        newest = std::max(newest, std::min(last, ts));
+    }
+
     // Sets the level of a pool SSID which started to count, and returns whether it did
     bool started(entry& e, bool was, time_t window) const {
         if (was || !pool_live(e, window))

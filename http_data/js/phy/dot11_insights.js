@@ -26,6 +26,11 @@ const karmaMinMatched = 3;
 const karmaMinAnswered = 10;
 // dot11.karma.reason: bit 1 answers for networks it doesn't advertise, bit 2 a beaconed pool
 const karmaReasonPool = 2;
+// The server's default dot11_karma_window: replayed device times further ahead of the
+// server's clock than this are a bad clock, not the capture's present
+const karmaWindow = 600;
+// How often to ask the server whether it replays a capture file
+const replayCheckSec = 30;
 
 const list = (v) => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
 const ssidId = (ssid) => `dot11-ssid:${ssid}`;
@@ -206,6 +211,34 @@ export function registerInsights(kismet) {
                 askedKarma = false;
             });
     };
+    // counts_until is in capture time.  Live, that's the server's clock; a replayed capture
+    // (a pcapfile source) is judged by the newest device heard in it instead.
+    let replaying = false;
+    let replayAskedAt = -Infinity;
+    const checkReplay = (now) => {
+        if (now - replayAskedAt < replayCheckSec)
+            return;
+        replayAskedAt = now;
+        kismet.api.post('datasource/all_sources.json', { fields: ['kismet.datasource.type_driver/kismet.datasource.driver.type'] })
+            .then((srcs) => {
+                replaying = Array.isArray(srcs) && srcs.some((s) =>
+                    (s?.['kismet.datasource.type_driver']?.['kismet.datasource.driver.type'] ??
+                        s?.['kismet.datasource.driver.type']) === 'pcapfile');
+            })
+            // Kept from the last answer, and asked again after replayCheckSec
+            .catch(() => {});
+    };
+    const captureTime = (nodes, now) => {
+        if (!replaying || !Number.isFinite(now))
+            return now;
+        let newest = 0;
+        for (const n of nodes) {
+            const t = n.rec?.[`${base}.last_time`];
+            if (Number.isFinite(t) && t > newest && t <= now + karmaWindow)
+                newest = t;
+        }
+        return newest > 0 ? newest : now;
+    };
     const karmaCount = (k, f) => (Number.isFinite(k[`dot11.karma.${f}`]) ? k[`dot11.karma.${f}`] : 0);
     const plural = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
     const karmaAdvice = 'An access point normally answers only for its own networks.  One that answers for the names ' +
@@ -231,6 +264,12 @@ export function registerInsights(kismet) {
                     for (const s of n.probes ?? [])
                         probers.set(s, (probers.get(s) ?? 0) + 1);
 
+            let captureNow = now;
+            if (serverKarma) {
+                checkReplay(now);
+                captureNow = captureTime(nodes, now);
+            }
+
             const out = [];
             for (const n of nodes) {
                 const other = [...(n.answers ?? [])].filter((s) => typeof s === 'string' && s !== n.ssid && !s.startsWith('DIRECT-'));
@@ -254,7 +293,7 @@ export function registerInsights(kismet) {
                         // gone quiet hold only until counts_until
                         const flood = karmaCount(n.karma, 'flood_ssids');
                         const until = karmaCount(n.karma, 'counts_until');
-                        const fresh = !(until > 0 && Number.isFinite(now) && now > until);
+                        const fresh = !(until > 0 && Number.isFinite(captureNow) && captureNow > until);
                         const current = fresh && karmaCount(n.karma, 'pool_current') !== 0 && (pool > 0 || flood > 0);
                         // A pool too big for the server's lists is counted from a sample
                         const estimated = karmaCount(n.karma, 'pool_estimated') !== 0;

@@ -30,6 +30,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -771,6 +772,14 @@ public:
             return "";
 
         return std::string(*(ssid->get()));
+    }
+
+    // The SSID without a copy, from the string cache, while the caller holds the device lock
+    std::string_view get_ssid_view() const {
+        if (ssid->get() == nullptr)
+            return {};
+
+        return *(ssid->get());
     }
 
     void set_ssid(const std::string& string) {
@@ -1516,8 +1525,11 @@ protected:
                 "different SSIDs this BSSID broadcast-beaconed within dot11_karma_window, once "
                 "it beaconed more than one; about this many, estimated from a sample, when "
                 "pool_estimated is set.  An SSID counts once beaconed twice within the window, "
-                "so a slower pool (below the flood rate) isn't counted; capture times aren't "
-                "corrected for sensor clock skew", &pool_ssids);
+                "so a slower pool (below the flood rate) isn't counted, and a pool mixed with "
+                "random one-off SSIDs can stay under dot11_karma_min_pool; once the pool is "
+                "sampled, a long run of one-off SSIDs below the flood rate can hide a later "
+                "flood (flood_ssids); capture times aren't corrected for sensor clock skew",
+                &pool_ssids);
         register_field("dot11.karma.answered_pool_ssids",
                 "SSIDs this BSSID answered probes for and also broadcast-beacons, counted while "
                 "it beacons more than one", &answered_pool_ssids);
@@ -1529,7 +1541,10 @@ protected:
                 &pool_estimated);
         register_field("dot11.karma.flood_ssids",
                 "the most new broadcast SSIDs within 5 seconds, estimated from a sample once the "
-                "pool is sampled, while a beacon flood is within dot11_karma_window; 0 otherwise",
+                "pool is sampled, while a beacon flood is within dot11_karma_window; 0 otherwise.  "
+                "Estimated, it can count a stream of one-off SSIDs somewhat below the flood rate "
+                "as a flood, and a long run of one-offs below the flood rate can hide a later one; "
+                "heavy SSID corruption from a source without FCS checks can look like a flood",
                 &flood_ssids);
         register_field("dot11.karma.counts_until",
                 "capture time the counts hold until, the newest frame counted at their last "

@@ -28,6 +28,7 @@
 #include <list>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
@@ -698,13 +699,23 @@ protected:
 
     // A broadcast beacon for the SSID: answers for it count as answered pool SSIDs while the
     // BSSID beacons a pool and are dropped otherwise, and it joins the BSSID's pool.  parsed
-    // is false for a beacon whose tags weren't parsed again, which only refreshes an SSID
-    // already in the pool.
+    // is false for a beacon whose tags weren't parsed again, which refreshes an SSID already
+    // in the pool, and adds one back only when its SSID record, cached, may join a pool.
     void karma_broadcast_beacon(const std::shared_ptr<kis_tracked_device_base>& basedev,
             const std::shared_ptr<dot11_tracked_device>& dot11dev,
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info,
-            uint32_t ssid_hash, bool parsed);
+            uint32_t ssid_hash, bool parsed, const dot11_advertised_ssid *cached = nullptr);
+
+    // An SSID record which may join a pool at ts: broadcast-beaconed within the window, not
+    // hidden or an ignored SSID
+    bool karma_pool_eligible(const dot11_advertised_ssid& adv, time_t ts) const;
+
+    // Calls fn(hash, record) for each advertised SSID of the BSSID which may join its pool at
+    // ts (none for a hosted BSS), until fn returns false; the caller holds the device lock
+    template<typename F>
+    void karma_walk_pool_ssids(const std::shared_ptr<dot11_tracked_device>& dot11dev, time_t ts,
+            F&& fn) const;
 
     // A BSSID without karma state beacons a pool: besides ssid_hash, three SSIDs beaconed in
     // two different seconds within the window of ts (a renamed AP has two), or 2 x min_pool
@@ -726,16 +737,19 @@ protected:
 
     bool karma_ignored_bssid(const mac_addr& mac) const;
 
+    // Widens the karma state's first and last times of evidence to ts
+    static void karma_mark_evidence(const std::shared_ptr<dot11_tracked_karma>& karma, time_t ts);
+
     // When the BSSID last answered probes for the SSID, if within the window of ts (a second
     // sighting of an SSID it beaconed once), or 0
     time_t karma_answered_at(const std::shared_ptr<dot11_tracked_device>& dot11dev,
             uint32_t ssid_hash, time_t ts) const;
 
     // Creates a BSSID's karma state, its pool seeded with the SSIDs it broadcast-beaconed
-    // within the window of ts (a sane_time), other than ssid_hash.  The caller holds the
-    // device lock.
+    // within the window of ts (a sane_time), other than skip_hash (the SSID of a unicast
+    // beacon, which isn't broadcast).  The caller holds the device lock.
     std::shared_ptr<dot11_tracked_karma> karma_new_state(const std::shared_ptr<dot11_tracked_device>& dot11dev,
-            time_t ts, uint32_t ssid_hash);
+            time_t ts, std::optional<uint32_t> skip_hash = std::nullopt);
 
     // Create and update the BSSs a transmitting AP advertises in its multiple BSSID
     // elements; called with no device locks held
