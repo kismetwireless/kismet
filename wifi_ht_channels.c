@@ -373,9 +373,10 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
         .freq80 = 5775
     },
     [165] = { 
+        /* 20MHz only; the 40MHz pairs end at 157/161, and 165/169 needs the 5.9GHz channels */
         .chan = 165, 
         .freq = 5825, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ
     },
 
     /* Do we support HT extension on any of these?  The only one that might 
