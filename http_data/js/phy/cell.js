@@ -553,6 +553,13 @@ export function register(kismet) {
             { title: 'Decoder', value: (s) => s, format: (s) => {
                 if (isDisabled(s))
                     return muted('Not running: capture is turned off (enabled=false), so no port is open and nothing is captured.');
+                // A replay that read its file to the end idles open: finished, not stopped.
+                // Only while it's still open; a lost helper reads as stopped.
+                const held = !!s[`${ds}.running`] && !s[`${ds}.error`];
+                if (held && diagField(s, 'replay_state') === 'complete')
+                    return span('ok-text', 'Replay finished: the file was read to the end.');
+                if (held && diagField(s, 'replay_state') === 'incomplete')
+                    return span('error-text', icons.icon('alert'), ' Replay finished, incomplete: rows were dropped.');
                 if (diagField(s, 'helper_alive'))
                     return span('ok-text', `Running${diagField(s, 'decode_mode') ? ` (${diagField(s, 'decode_mode')})` : ''}`);
                 if (diagField(s, 'bringup_error'))

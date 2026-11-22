@@ -278,7 +278,7 @@ TEST_GSMTAP_SINK_BIN = test_diag_gsmtap_sink
 # capture. Pure libc.
 REPLAY_NDJSON_BIN = celldiag_replay_ndjson
 
-$(REPLAY_NDJSON_BIN):	celldiag_replay_ndjson.c
+$(REPLAY_NDJSON_BIN):	celldiag_replay_ndjson.c diag_stats.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -o $(REPLAY_NDJSON_BIN) celldiag_replay_ndjson.c
 
 .PHONY: replay-ndjson

@@ -312,7 +312,12 @@ typedef struct {
     /* Teardown: the port is no longer read, so a full ring may be waited on
      * briefly (ring_send_json). */
     int   emit_finishing;
-    int   obs_drop_announced;   /* the first ring-full drop was reported */
+    /* The replay's hold: a close ends a ring-full wait again */
+    int   replay_holding;
+    /* Losses a replay's verdict counts besides obs_ring_dropped */
+    uint64_t security_dropped;  /* CellSecurity events not delivered */
+    uint64_t teardown_lost;     /* final stats / census lines not delivered */
+    int   obs_drop_announced;  /* the first ring-full drop was reported */
     int   obs_drop_pending;     /* ...or is owed, once the ring has room */
     const char *obs_drop_what;  /* the kind of record that dropped first */
     uint64_t anchor_ring_dropped;
@@ -343,6 +348,7 @@ typedef struct {
                              * no port open, no mask/f3 handshake, no decoder */
     int   replay_eof;       /* the replay read its file to the end (not an
                              * error path): hold the helper open at `done:` */
+    const char *replay_state; /* DIAG_REPLAY_STATE_*, for replay_state */
     int   debug;
 
     /* Health stats: "is the data flowing?" counters + status cadence. */
@@ -2404,21 +2410,59 @@ static int write_all(int fd, const uint8_t *buf, size_t len) {
  * Replay: a file can wait, so a full ring is retried for up to ~30 s.
  * Teardown: retried briefly. Never cf_handler_wait_ringbuffer(): it has no
  * timeout, and it can miss the wakeup.
+ * A close or shutdown ends the wait early, except in the teardown before a
+ * replay's hold: a graceful close is what brought it there, and its last
+ * rows are still owed.
  * Returns cf_send_json's 1 (queued), 0 (dropped) or -1 (error). */
 #define EMIT_RETRY_NS          2000000L
 #define EMIT_REPLAY_MAX_RETRIES 15000
 #define EMIT_FINISH_MAX_RETRIES 1000
+
+/* The one bounded wait for a send the full ring refused: sleeps and returns 1
+ * while this source's budget lasts, 0 when it is spent or the wait should end. */
+static int ring_retry_wait(kis_capture_handler_t *caph, const local_diag_t *local,
+                           int *tries) {
+    int budget = local->replay_path != NULL ? EMIT_REPLAY_MAX_RETRIES :
+                 local->emit_finishing ? EMIT_FINISH_MAX_RETRIES : 0;
+    int close_ends = !local->emit_finishing || local->replay_holding;
+    if (*tries >= budget || caph->shutdown ||
+            (close_ends && cf_handler_close_requested(caph)))
+        return 0;
+    (*tries)++;
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = EMIT_RETRY_NS };
+    nanosleep(&ts, NULL);
+    return 1;
+}
+
 static int ring_send_json(kis_capture_handler_t *caph, local_diag_t *local,
                           struct cf_params_gps *gps, struct timeval tv,
                           const char *type, const char *json) {
-    int budget = local->replay_path != NULL ? EMIT_REPLAY_MAX_RETRIES :
-                 local->emit_finishing ? EMIT_FINISH_MAX_RETRIES : 0;
+    int tries = 0;
     int r = cf_send_json(caph, NULL, 0, NULL, gps, tv, (char *)type, (char *)json);
-    for (int i = 0; r == 0 && i < budget; i++) {
-        struct timespec ts = { .tv_sec = 0, .tv_nsec = EMIT_RETRY_NS };
-        nanosleep(&ts, NULL);
+    while (r == 0 && ring_retry_wait(caph, local, &tries))
         r = cf_send_json(caph, NULL, 0, NULL, gps, tv, (char *)type, (char *)json);
-    }
+    return r;
+}
+
+/* A message under the same policy. */
+static int ring_send_message(kis_capture_handler_t *caph, local_diag_t *local,
+                             const char *msg, unsigned int flags) {
+    int tries = 0;
+    int r = cf_send_message(caph, msg, flags);
+    while (r == 0 && ring_retry_wait(caph, local, &tries))
+        r = cf_send_message(caph, msg, flags);
+    return r;
+}
+
+/* A teardown send (final stats, census, CRC census): any that does not land
+ * makes a replay's verdict incomplete. */
+static int teardown_send_json(kis_capture_handler_t *caph, local_diag_t *local,
+                              const char *type, const char *json) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    int r = ring_send_json(caph, local, NULL, tv, type, json);
+    if (r <= 0)
+        local->teardown_lost++;
     return r;
 }
 
@@ -2553,9 +2597,12 @@ static void emit_security(void *user, const char *json) {
     gettimeofday(&tv, NULL);
     int r = ring_send_json(ctx->caph, local, last_gps_params(local, &tv, &gps), tv,
                            DIAG_SECURITY_TYPE, json);
-    if (r > 0)
+    if (r > 0) {
         local->native_tap.security_events++;
-    else if (r == 0)
+        return;
+    }
+    local->security_dropped++;
+    if (r == 0)
         report_ring_drop(ctx->caph, local, "cell security event");
 }
 
@@ -3029,9 +3076,8 @@ static void crc_census_row(kis_capture_handler_t *caph, local_diag_t *local) {
              (unsigned long long)st->oversize_dropped,
              (unsigned long long)local->crc_watch.alerts,
              local->native_stream != NULL ? "native" : "census");
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    if (cf_send_json(caph, NULL, 0, NULL, NULL, now, DIAG_CRC_CENSUS_TYPE, rec) > 0)
+    /* Sent once, at teardown */
+    if (teardown_send_json(caph, local, DIAG_CRC_CENSUS_TYPE, rec) > 0)
         local->crc_watch.row_sent = 1;
 }
 
@@ -3039,6 +3085,7 @@ static void fill_stats_extra(const local_diag_t *local, diag_stats_extra_t *sx) 
     memset(sx, 0, sizeof(*sx));
     /* Which decoder produces what Kismet receives */
     sx->decode_mode = "native-only";
+    sx->replay_state = local->replay_path != NULL ? local->replay_state : NULL;
     /* Always known: the source either armed F3 or it did not. */
     /* Report the resolved preset name, not a boolean re-rendered as one.
      * `f3_relay ? "all" : "off"` would report every severity floor as "all"
@@ -3438,8 +3485,8 @@ static void rawpkt_finish(kis_capture_handler_t *caph, local_diag_t *local) {
              s->end_sent > 0 ? "delivered" : "DROPPED");
     cf_send_message(caph, m, (s->dropped_slices || s->end_sent < 0) ?
                                  MSGFLAG_ERROR : MSGFLAG_INFO);
-    free(s);
-    local->rawpkt.s = NULL;
+    /* s is kept for a replay's hold (its verdict and stats read it) and freed
+     * at spindown */
 }
 
 /* The single DIAG-read -> decode seam. Sends `buf` to the raw-packet stream,
@@ -4744,6 +4791,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
+    /* A previous open's end of file must not hold this one */
+    local->replay_eof = 0;
+    local->replay_state = DIAG_REPLAY_STATE_READING;
+    local->replay_holding = 0;
+    local->security_dropped = 0;
+    local->teardown_lost = 0;
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return -1;
@@ -5499,9 +5553,14 @@ static void relay_census_line(kis_capture_handler_t *caph, local_diag_t *local,
                                  "{\"type\":\"diag_census\","
                                  "\"table\":\"%s\"}", tbl);
                 if (n > 0 && (size_t)n < sizeof(cbuf)) {
-                    gettimeofday(&ctv, NULL);
-                    cf_send_json(caph, NULL, 0, NULL, NULL, ctv,
-                                 "diag_census", cbuf);
+                    /* The final census is the one a replay is judged on */
+                    if (local->emit_finishing) {
+                        teardown_send_json(caph, local, "diag_census", cbuf);
+                    } else {
+                        gettimeofday(&ctv, NULL);
+                        cf_send_json(caph, NULL, 0, NULL, NULL, ctv,
+                                     "diag_census", cbuf);
+                    }
                 }
             } else {
                 cf_send_message(caph,
@@ -5550,6 +5609,53 @@ static void send_disabled_stats(kis_capture_handler_t *caph) {
                          "\"mask_preset\":\"disabled\"}");
     if (r == 0)
         cf_handler_wait_ringbuffer(caph);
+}
+
+/* The health cadence tick, shared by the capture loop, the enabled=false idle
+ * loop and the replay hold. with_text=0 sends the structured line only (the
+ * hold: its totals text went out once at EOF). */
+static void emit_periodic_stats(kis_capture_handler_t *caph, local_diag_t *local,
+                                time_t snow, int with_text) {
+    if (with_text) {
+        char sbuf[STATUS_MAX];
+        diag_stats_format(&local->stats, snow, local->stats_interval,
+                          sbuf, sizeof(sbuf));
+        send_labelled(caph, local, sbuf, MSGFLAG_INFO);
+    }
+    if (local->disabled) {
+        send_disabled_stats(caph);
+        diag_stats_mark_status(&local->stats, snow);
+        return;
+    }
+    /* Structured companion: the machine-parseable counters the
+     * kis_datasource_cell_diag consumer sets into its tracker fields.
+     * Routed as its own mpack type ("diag_stats", not "CellModem"), so
+     * the datasource intercepts it and phy_cell never builds a device
+     * from it. Emitted before mark_status so obs_per_sec reflects this
+     * interval's throughput, matching the human line above. */
+    char jbuf[2048];   /* > STATUS_MAX (see DIAG_STATS_EXTRA_MAX) */
+    /* Config- and census-owned fields are layered in by the site
+     * that owns them -- diag_stats.c is pure libc and knows nothing
+     * of the f3 option or the helper's census. */
+    crc_damage_check(caph, local, snow);   /* before the JSON */
+    diag_stats_extra_t sx;
+    fill_stats_extra(local, &sx);
+    if (diag_stats_format_json_ex(&local->stats, &sx, snow,
+                                  jbuf, sizeof(jbuf)) > 0) {
+        struct timeval jtv;
+        gettimeofday(&jtv, NULL);
+        cf_send_json(caph, NULL, 0, NULL, NULL, jtv, "diag_stats", jbuf);
+    }
+    /* The decoder's readout, on the same cadence as the health line so
+     * the two are read together: "N observations flowed, and the
+     * native legs covered M% of the records that produced them". Its
+     * own line rather than a field on diag_stats, so the datasource's
+     * stats-field contract does not churn with it. Nothing once the
+     * decoder is gone (the hold). */
+    char ntbuf[STATUS_MAX];
+    if (with_text && native_tap_format(local, ntbuf, sizeof(ntbuf)) > 0)
+        cf_send_message(caph, ntbuf, MSGFLAG_INFO);
+    diag_stats_mark_status(&local->stats, snow);
 }
 
 /* One ModemIdentity record per open -- the modem the bring-up just
@@ -5664,20 +5770,146 @@ static void send_session_log(kis_capture_handler_t *caph, local_diag_t *local) {
  * source 5 s later -- and the re-open replays the whole file again, so every
  * row reaches the kismetdb once per re-open, for as long as the server runs.
  * Everything the file held has been delivered by now (final stats, the native
- * flush, the END raw slice), so say once that the replay is complete and idle
- * like an enabled=false source until the server closes us. */
+ * flush, the END raw slice), so say once whether the replay is complete and
+ * idle like an enabled=false source until the server closes us. The totals
+ * text went out once at EOF; the structured line keeps the server's liveness
+ * view fed on the stats cadence, with the final raw slice counts. The decoder
+ * is gone, so its native and CRC groups are omitted and keep their last
+ * values. */
+
+/* Repeats the hold marker this often, so one the ring refused, or one the
+ * server missed, still arrives; the driver and the server take repeats. */
+#define REPLAY_MARKER_RESEND_S 5
+
 static void replay_hold_at_eof(kis_capture_handler_t *caph, local_diag_t *local) {
     char m[STATUS_MAX];
+    const char *name = local->name ? local->name : "celldiag";
+    const diag_rawpkt_t *rs = local->rawpkt.s;
+    uint64_t raw_dropped = rs != NULL ? rs->dropped_slices : 0;
+    int end_lost = rs != NULL && rs->end_sent != 1;
+    /* Lost rows are not reread by a re-open either, so the hold stays; it
+     * says the kismetdb copy is short instead of complete. */
+    int lost = local->stats.obs_ring_dropped > 0 || local->security_dropped > 0 ||
+               local->teardown_lost > 0 || raw_dropped > 0 || end_lost;
 
-    snprintf(m, sizeof(m),
-             "%s REPLAY COMPLETE: %s was read to the end; the source stays open "
-             "and idle until it is closed",
-             local->name ? local->name : "celldiag", local->replay_path);
-    cf_send_message(caph, m, MSGFLAG_INFO);
+    /* The hold's sends are on the replay budget (~30 s) and end on a close */
+    local->replay_holding = 1;
+    if (lost) {
+        local->replay_state = DIAG_REPLAY_STATE_INCOMPLETE;
+        snprintf(m, sizeof(m),
+                 "%s REPLAY INCOMPLETE: %s was read to the end, but %llu "
+                 "observation(s), %llu security event(s), %llu raw slice(s) "
+                 "and %llu final stats/census line(s) were dropped%s; the "
+                 "kismetdb copy is incomplete. The source stays open and idle "
+                 "until it is closed",
+                 name, local->replay_path,
+                 (unsigned long long)local->stats.obs_ring_dropped,
+                 (unsigned long long)local->security_dropped,
+                 (unsigned long long)raw_dropped,
+                 (unsigned long long)local->teardown_lost,
+                 end_lost ? " and the END slice was not delivered" : "");
+    } else {
+        local->replay_state = DIAG_REPLAY_STATE_COMPLETE;
+        snprintf(m, sizeof(m),
+                 "%s REPLAY COMPLETE: %s was read to the end; the source stays open "
+                 "and idle until it is closed",
+                 name, local->replay_path);
+    }
+    ring_send_message(caph, local, m, lost ? MSGFLAG_ERROR : MSGFLAG_INFO);
+    /* The machine-readable form, after the text: a fixed diag_stats line
+     * that sets the server's replay_state, and that celldiag_replay_ndjson
+     * matches whole, so no name= or path text can stand in for it. */
+    const char *marker = lost ? DIAG_REPLAY_INCOMPLETE_JSON : DIAG_REPLAY_COMPLETE_JSON;
+    struct timeval mtv;
+    gettimeofday(&mtv, NULL);
+    ring_send_json(caph, local, NULL, mtv, "diag_stats", marker);
+    time_t marker_at = time(NULL);
+    /* The teardown just sent the totals; the next ones are one interval out. */
+    diag_stats_mark_status(&local->stats, marker_at);
     while (!caph->shutdown && !cf_handler_close_requested(caph)) {
+        time_t snow = time(NULL);
+        if (diag_stats_due(&local->stats, local->stats_interval, snow))
+            emit_periodic_stats(caph, local, snow, 0);
+        if (snow - marker_at >= REPLAY_MARKER_RESEND_S) {
+            gettimeofday(&mtv, NULL);
+            ring_send_json(caph, local, NULL, mtv, "diag_stats", marker);
+            marker_at = snow;
+        }
         struct timespec ts = { .tv_sec = 0, .tv_nsec = 250000000 };
         nanosleep(&ts, NULL);
     }
+}
+
+/* Whether an open replay fd is a FIFO: 1 or 0, or -1 with the error reported
+ * (fstat failed; the source spins down rather than guess). */
+static int replay_fd_is_fifo(kis_capture_handler_t *caph, local_diag_t *local, int fd) {
+    char errstr[ERRBUF_MAX];
+    struct stat st;
+    if (fstat(fd, &st) != 0) {
+        snprintf(errstr, ERRBUF_MAX, "%s cannot stat replay file %s: %s",
+                 local->name, local->replay_path, strerror(errno));
+        diag_report_error(caph, errstr);
+        return -1;
+    }
+    return S_ISFIFO(st.st_mode) ? 1 : 0;
+}
+
+/* A replay FIFO's writer closed. The FIFO is not finished: it waits for the
+ * next writer. A frame the writer left partial is flushed now (as a FIFO EOF),
+ * so the next writer's bytes never join onto it, in the decode or the raw
+ * stream.
+ *
+ * Linux reports POLLHUP on the read end until a new writer opens, so the read
+ * end is replaced: the new one is opened (non-blocking, so the wait for a
+ * writer is the read loop's poll) before the old one is closed, so the FIFO
+ * always has a reader. A fresh Linux read end reports no POLLHUP until a writer
+ * has come and gone. Elsewhere (macOS, the BSDs) a read end with no writer
+ * reports POLLHUP at once, fresh or not, so the fd is kept and the pass sleeps
+ * the read loop's poll interval instead of spinning.
+ * Returns the fd to read, or -1 with the error reported (the source spins
+ * down). */
+static int replay_fifo_writer_closed(kis_capture_handler_t *caph, local_diag_t *local,
+                                     int fd) {
+    if (local->native_stream != NULL) {
+        native_tap_ctx_t ctx = { .caph = caph, .local = local };
+        diag_logstream_flush(local->native_stream, native_tap_cb, &ctx);
+    }
+    if (local->rawpkt.s != NULL) {
+        rawpkt_ctx_t rctx = { .caph = caph, .local = local };
+        gettimeofday(&rctx.tv, NULL);
+        diag_rawpkt_flush(local->rawpkt.s, rawpkt_emit, &rctx);
+        rawpkt_report(caph, local);
+    }
+
+#ifdef __linux__
+    char errstr[ERRBUF_MAX];
+    int nfd = cell_safe_op(CELL_SAFE_OPEN, local->replay_path, NULL,
+                           O_RDONLY | O_NONBLOCK, 0, CELL_SAFE_FIFO_OK);
+    if (nfd < 0) {
+        snprintf(errstr, ERRBUF_MAX, "%s cannot re-open replay FIFO %s: %s",
+                 local->name, local->replay_path, strerror(errno));
+        diag_report_error(caph, errstr);
+        close(fd);
+        return -1;
+    }
+    int f = replay_fd_is_fifo(caph, local, nfd);
+    if (f != 1) {
+        if (f == 0) {
+            snprintf(errstr, ERRBUF_MAX, "%s replay FIFO %s was replaced by a "
+                     "non-FIFO while open", local->name, local->replay_path);
+            diag_report_error(caph, errstr);
+        }
+        close(nfd);
+        close(fd);
+        return -1;
+    }
+    close(fd);
+    return nfd;
+#else
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 250000000 };
+    nanosleep(&ts, NULL);
+    return fd;
+#endif
 }
 
 static void capture_thread_run(kis_capture_handler_t *caph) {
@@ -5694,14 +5926,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
         send_disabled_stats(caph);
         while (!caph->shutdown && !cf_handler_close_requested(caph)) {
             time_t snow = time(NULL);
-            if (diag_stats_due(&local->stats, local->stats_interval, snow)) {
-                char sbuf[STATUS_MAX];
-                diag_stats_format(&local->stats, snow, local->stats_interval,
-                                  sbuf, sizeof(sbuf));
-                send_labelled(caph, local, sbuf, MSGFLAG_INFO);
-                send_disabled_stats(caph);
-                diag_stats_mark_status(&local->stats, snow);
-            }
+            if (diag_stats_due(&local->stats, local->stats_interval, snow))
+                emit_periodic_stats(caph, local, snow, 1);
             struct timespec ts = { .tv_sec = 0, .tv_nsec = 250000000 };
             nanosleep(&ts, NULL);
         }
@@ -5717,6 +5943,7 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
      * bring-up failure. */
     int src_fd;
     int replay_fd = -1;
+    int replay_fifo = 0;
 
     if (local->bringup.pending) {
         char berr[STATUS_MAX];
@@ -5800,6 +6027,11 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
             goto done;
         }
         src_fd = replay_fd;
+        if ((replay_fifo = replay_fd_is_fifo(caph, local, replay_fd)) < 0) {
+            close(replay_fd);
+            replay_fd = -1;
+            goto done;
+        }
     }
 
     diag_stats_set_port_open(&local->stats, 1);
@@ -5992,40 +6224,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
          * - including idle (0-byte) ticks - so a stalled source is reported
          * within one interval, using the interval itself as the stall window. */
         time_t snow = time(NULL);
-        if (diag_stats_due(&local->stats, local->stats_interval, snow)) {
-            char sbuf[STATUS_MAX];
-            diag_stats_format(&local->stats, snow, local->stats_interval,
-                              sbuf, sizeof(sbuf));
-            send_labelled(caph, local, sbuf, MSGFLAG_INFO);
-            /* Structured companion: the machine-parseable counters the
-             * kis_datasource_cell_diag consumer sets into its tracker fields.
-             * Routed as its own mpack type ("diag_stats", not "CellModem"), so
-             * the datasource intercepts it and phy_cell never builds a device
-             * from it. Emitted before mark_status so obs_per_sec reflects this
-             * interval's throughput, matching the human line above. */
-            char jbuf[2048];   /* > STATUS_MAX (see DIAG_STATS_EXTRA_MAX) */
-            /* Config- and census-owned fields are layered in by the site
-             * that owns them -- diag_stats.c is pure libc and knows nothing
-             * of the f3 option or the helper's census. */
-            crc_damage_check(caph, local, snow);   /* before the JSON */
-            diag_stats_extra_t sx;
-            fill_stats_extra(local, &sx);
-            if (diag_stats_format_json_ex(&local->stats, &sx, snow,
-                                          jbuf, sizeof(jbuf)) > 0) {
-                struct timeval jtv;
-                gettimeofday(&jtv, NULL);
-                cf_send_json(caph, NULL, 0, NULL, NULL, jtv, "diag_stats", jbuf);
-            }
-            /* The decoder's readout, on the same cadence as the health line so
-             * the two are read together: "N observations flowed, and the
-             * native legs covered M% of the records that produced them". Its
-             * own line rather than a field on diag_stats, so the datasource's
-             * stats-field contract does not churn with it. */
-            char ntbuf[STATUS_MAX];
-            if (native_tap_format(local, ntbuf, sizeof(ntbuf)) > 0)
-                cf_send_message(caph, ntbuf, MSGFLAG_INFO);
-            diag_stats_mark_status(&local->stats, snow);
-        }
+        if (diag_stats_due(&local->stats, local->stats_interval, snow))
+            emit_periodic_stats(caph, local, snow, 1);
 
         /* Clock anchor: expire an unanswered request, issue the
          * periodic one when due. Every pass -- idle ones included -- so the
@@ -6058,9 +6258,16 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
             }
             if (n == 0) {
                 /* Replay: EOF, finish (the residual frame is flushed at
-                 * `done:`). Live: a 0-byte read is a VTIME idle tick, keep
-                 * going. */
+                 * `done:`); a FIFO waits for its next writer instead. Live: a
+                 * 0-byte read is a VTIME idle tick, keep going. */
                 if (local->replay_path) {
+                    if (replay_fifo) {
+                        if ((replay_fd = replay_fifo_writer_closed(caph, local,
+                                                                   replay_fd)) < 0)
+                            break;
+                        src_fd = replay_fd;
+                        continue;
+                    }
                     local->replay_eof = 1;
                     break;
                 }
@@ -6069,6 +6276,15 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
             feed_bytes(caph, local, rbuf, (size_t)n);
             anchor_on_bytes(caph, local, rbuf, (size_t)n, recv_mono_ns);
         } else if (fds[0].revents & (POLLHUP | POLLERR)) {
+            /* A replay FIFO whose writer closed with nothing left unread
+             * reports POLLHUP alone: the writer is done, not the FIFO. */
+            if (replay_fifo && !(fds[0].revents & POLLERR)) {
+                if ((replay_fd = replay_fifo_writer_closed(caph, local,
+                                                           replay_fd)) < 0)
+                    break;
+                src_fd = replay_fd;
+                continue;
+            }
             break;
         }
     }
@@ -6122,11 +6338,10 @@ done:
         char fjbuf[2048];
         fill_stats_extra(local, &fsx);
         if (diag_stats_format_json_ex(&local->stats, &fsx, fnow,
-                                      fjbuf, sizeof(fjbuf)) > 0) {
-            struct timeval ftv;
-            gettimeofday(&ftv, NULL);
-            cf_send_json(caph, NULL, 0, NULL, NULL, ftv, "diag_stats", fjbuf);
-        }
+                                      fjbuf, sizeof(fjbuf)) > 0)
+            teardown_send_json(caph, local, "diag_stats", fjbuf);
+        else
+            local->teardown_lost++;
     }
     /* Final native-decode totals. Flush first: the last frame of a finished
      * replay has no chunk after it, so its record only exists if the residual
@@ -6183,6 +6398,8 @@ done:
     diag_fd_release(local);   /* + the LOG mask this capture armed */
     if (local->replay_eof)
         replay_hold_at_eof(caph, local);
+    free(local->rawpkt.s);
+    local->rawpkt.s = NULL;
     cf_handler_spindown(caph);
 }
 

@@ -268,6 +268,8 @@ int diag_stats_format_json_ex(const diag_stats_t *s, const diag_stats_extra_t *x
     if (x && !etrunc) {
         if (x->decode_mode)
             XAPPEND(",\"decode_mode\":\"%s\"", x->decode_mode);
+        if (x->replay_state)
+            XAPPEND(",\"replay_state\":\"%s\"", x->replay_state);
         if (x->f3_preset) {
             char f3e[DIAG_STATS_MASK_MAX * 6];
             if (json_escape(x->f3_preset, f3e, sizeof(f3e)) == 0)

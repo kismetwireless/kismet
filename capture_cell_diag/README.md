@@ -214,6 +214,7 @@ Beside the fields above, the `diag_stats` line carries:
 | `anchor_count`, `anchor_last_epoch` | ClockAnchor rows completed; `0` epoch = none yet. Live sources only |
 | `obs_ring_dropped` | rendered observations dropped because Kismet's output ring was full: a live source drops rather than stop reading the DIAG port |
 | `bringup_ms`, `bringup_phases`, `bringup_error` | the deferred bring-up: phases finished so far (`at_scan=1204ms port_detect=3ms … decoder_start=…`, sent after each phase), the total, and why it failed |
+| `replay_state` | `replay=` sources only: `reading`, then `complete` (the file was read to the end and everything delivered) or `incomplete` (read to the end, but observations or raw slices were dropped) while the source idles open; the UI shows "Replay finished" instead of a stopped decoder |
 
 So that a failed bring-up does not leave the source reading only `IPC
 connection closed`, the source sends `bringup_error` (and `mask_preset`
@@ -426,9 +427,21 @@ not just dropped.
 
 A replay, or any stop that reaches teardown, ends with a totals line:
 `raw DIAG into the packets table (DLT 147): N slice(s), B delivered; …; END at
-offset N delivered`. A Kismet-driven stop cancels the capture thread first, so
-on that path there is no totals line and no `END`. The stream can also end
-short by the read(s) in flight at the close, in whole frames (see above). Setting
+offset N delivered`. A replay that read its file to the end then sends
+`REPLAY COMPLETE` once (`REPLAY INCOMPLETE`, an error, when observations,
+security events, raw slices or the final stats and census lines were dropped,
+or the `END` slice was not delivered) and stays open and idle until Kismet
+closes it, still sending its structured stats every `stats_interval` and its
+fixed `replay_state` line every 5 s. It is not re-opened, even if the helper
+is lost while it holds, so the file is not replayed into the kismetdb again;
+a later open of the source reads it again. A replay that fails to open (the
+file is not there yet) or fails while reading is retried like any source. A
+FIFO is never finished: when its writer closes, a frame it left partial is
+ended there (it fails its check rather than joining the next writer's bytes),
+and the helper waits for the next writer and keeps reading. A Kismet-driven
+stop cancels the capture thread first, so on that path there is no totals
+line and no `END`. The stream can also end short by the read(s) in flight at
+the close, in whole frames (see above). Setting
 `kis_log_packets=false` in `kismet_logging.conf` keeps the slices out of the
 kismetdb entirely.
 
@@ -539,10 +552,16 @@ decode the capture by replaying it through the helper:
 
 `celldiag_replay_ndjson` speaks the datasource protocol to the helper and prints
 what Kismet would receive as canonical NDJSON, one line per observation; status
-messages go to stderr as `message: <text>`, census lines as `census: <json>`. It
-exits `0` ok, `2` if the source refused to open or reported an ERROR, `3` on
-`--timeout`. The probe resolves `--spc` from the same `capture_cell_at` profile
-(`diag.spc`, matched on `--firmware`) as the helper.
+messages go to stderr as `message: <text>`, census lines as `census: <json>`.
+A finished replay stays open for Kismet and sends `REPLAY COMPLETE` (or
+`REPLAY INCOMPLETE`) with a fixed `replay_state` stats line; the driver then
+closes the helper and exits. It needs a regular file: a FIFO replay never
+finishes (it waits for the next writer), so the driver refuses one with exit
+`64`. It exits
+`0` ok, `2` if the source refused to open, reported an ERROR, was incomplete
+or did not exit cleanly after the close, `3` on `--timeout` (a replay already
+closing is given its close grace). The probe resolves `--spc` from the same
+`capture_cell_at` profile (`diag.spc`, matched on `--firmware`) as the helper.
 
 ## Troubleshooting
 

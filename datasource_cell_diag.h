@@ -284,6 +284,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> diag_bringup_ms;
     std::shared_ptr<tracker_element_string> diag_bringup_phases;
     std::shared_ptr<tracker_element_string> diag_bringup_error;
+    std::shared_ptr<tracker_element_string> diag_replay_state;
 
 };
 
