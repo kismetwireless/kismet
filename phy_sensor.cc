@@ -852,7 +852,8 @@ int kis_sensor_phy::packet_handler(CHAINCALL_PARMS) {
     if (json == NULL)
         return 0;
 
-    if (json->type != "RTL433")
+    // Live rtl_433 data is RTL433; a kismetdb replay has it under the type it was logged with
+    if (json->type != "RTL433" && json->type != "sensor")
         return 0;
 
     std::stringstream ss(json->json_string);

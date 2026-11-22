@@ -337,7 +337,8 @@ int kis_meter_phy::PacketHandler(CHAINCALL_PARMS) {
     if (json == nullptr)
         return 0;
 
-    if (json->type == "RTL433") {
+    // Live rtl_433 data is RTL433; a kismetdb replay has it under the type it was logged with
+    if (json->type == "RTL433" || json->type == "METER") {
         std::stringstream ss(json->json_string);
         nlohmann::json device_json;
 
