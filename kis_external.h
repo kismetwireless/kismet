@@ -659,6 +659,8 @@ protected:
     std::shared_ptr<ipc_tracker_v2> ipctracker;
 
     std::atomic<uint32_t> seqno;
+    // Liveness: when the last whole frame of any type came from the helper, not
+    // only the last PONG; a busy helper's PONG queues behind its data
     std::atomic<time_t> last_pong;
 
     int ping_timer_id;

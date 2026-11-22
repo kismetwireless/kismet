@@ -929,6 +929,10 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
         // if we've gotten this far, switch us to v2
         protocol_version = 2;
 
+        // Any whole frame shows the helper is alive; a busy source's pongs can
+        // sit behind the data it queued first
+        last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
+
         // Dispatch the received command & see if we need to purge the buffer ourselves
         try {
             dispatch_rx_packet(command, seqno, content);
@@ -973,6 +977,8 @@ int kis_external_interface::handle_packet(std::shared_ptr<boost::asio::streambuf
 
         // If we've gotten this far it's a valid newer protocol, switch to v2 mode
         protocol_version = 3;
+
+        last_pong = (time_t) Globalreg::globalreg->last_tv_sec;
 
         // Dispatch the received command
         try {

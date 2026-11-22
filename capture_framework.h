@@ -89,6 +89,16 @@ struct cf_ws_msg {
 #define CAP_FRAMEWORK_RINGBUF_OUT_SZ    (1024 * 1024 * 4)
 #define CAP_FRAMEWORK_WS_BUF_SZ         (1024 * 4)
 
+/* Outbound space data frames can't use, so pongs, responses and messages still
+ * queue while a busy source keeps the rest full.  Helper notices (messages, hop
+ * and sync reports) leave the reply share free; replies (pong, error, probe/open/
+ * list/config reports) are bounded by the server's requests and may use it all.
+ * Bytes of the TCP/IPC ring, messages of the websocket ring. */
+#define CAP_FRAMEWORK_RINGBUF_OUT_CTL_RESERVE   (1024 * 256)
+#define CAP_FRAMEWORK_RINGBUF_OUT_REPLY_RESERVE (1024 * 64)
+#define CAP_FRAMEWORK_WS_CTL_RESERVE            64
+#define CAP_FRAMEWORK_WS_REPLY_RESERVE          16
+
 /* List devices callback
  * Called to list devices available
  *
@@ -388,6 +398,16 @@ struct kis_capture_handler {
     /* Set while the loop may block in select(); a commit only writes the pipe
      * when it clears this */
     int out_ringbuf_wake_armed;
+
+    /* Control frames refused for lack of room, how many of those the server was
+     * told about, and when one was last logged; under out_ringbuf_lock.  While
+     * out_ctl_reporting is set, a refusal of out_ctl_report_thread's report isn't
+     * counted. */
+    uint64_t out_ctl_dropped;
+    uint64_t out_ctl_dropped_reported;
+    uint64_t out_ctl_drop_log_ns;
+    int out_ctl_reporting;
+    pthread_t out_ctl_report_thread;
 
     /* Are we shutting down? */
     atomic_int shutdown;

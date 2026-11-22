@@ -616,6 +616,11 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     }
     ch->out_ringbuf_wake_armed = 0;
 
+    ch->out_ctl_dropped = 0;
+    ch->out_ctl_dropped_reported = 0;
+    ch->out_ctl_drop_log_ns = 0;
+    ch->out_ctl_reporting = 0;
+
     ch->shutdown = 0;
     ch->spindown = 0;
 
@@ -798,6 +803,7 @@ static unsigned int cf_thread_live(unsigned int *live) {
 #define CF_EXIT_ALL     (CF_EXIT_CAPTURE | CF_EXIT_SIGNAL | CF_EXIT_HOP)
 
 static uint64_t cf_clock_ns(clockid_t clk);
+static void cf_out_ctl_drop_report(kis_capture_handler_t *caph);
 
 /* Under thread_exit_lock: threads in the set still live, and with pending only
  * those no earlier wait gave up on */
@@ -3364,7 +3370,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
     if (cmd == KIS_EXTERNAL_V3_CMD_PING) {
         caph->last_ping = time(0);
-        cf_send_pong(caph, seqno);
+        if (cf_send_pong(caph, seqno) > 0)
+            cf_out_ctl_drop_report(caph);
         cbret = 1;
         goto finish;
     } else if (cmd == KIS_EXTERNAL_V3_CMD_PONG) {
@@ -5173,10 +5180,119 @@ cap_loop_fail:
     return rv;
 }
 
+/* Which share of the outbound queue a frame may use (CAP_FRAMEWORK_*_RESERVE).
+ * Frames keep their order: a reserve only decides whether a frame fits. */
+enum cf_out_class {
+    CF_OUT_REPLY,
+    CF_OUT_NOTICE,
+    CF_OUT_DATA
+};
+
+static enum cf_out_class cf_out_frame_class(unsigned int command) {
+    switch (command) {
+        case KIS_EXTERNAL_V3_KDS_PACKET:
+            return CF_OUT_DATA;
+        case KIS_EXTERNAL_V3_CMD_PONG:
+        case KIS_EXTERNAL_V3_CMD_SHUTDOWN:
+        case KIS_EXTERNAL_V3_CMD_ERROR:
+        case KIS_EXTERNAL_V3_KDS_PROBEREPORT:
+        case KIS_EXTERNAL_V3_KDS_OPENREPORT:
+        case KIS_EXTERNAL_V3_KDS_LISTREPORT:
+        case KIS_EXTERNAL_V3_KDS_CONFIGREPORT:
+        case KIS_EXTERNAL_V3_KDS_NEWSOURCE:
+            return CF_OUT_REPLY;
+        default:
+            return CF_OUT_NOTICE;
+    }
+}
+
+/* Room a frame of this class must leave free in the TCP/IPC ring, in bytes */
+static size_t cf_rb_out_reserve(enum cf_out_class cls) {
+    switch (cls) {
+        case CF_OUT_DATA:
+            return CAP_FRAMEWORK_RINGBUF_OUT_CTL_RESERVE;
+        case CF_OUT_NOTICE:
+            return CAP_FRAMEWORK_RINGBUF_OUT_REPLY_RESERVE;
+        default:
+            return 0;
+    }
+}
+
+/* Does a frame of len bytes and this class fit the TCP/IPC ring; under out_ringbuf_lock */
+static int cf_rb_out_fits(kis_capture_handler_t *caph, enum cf_out_class cls, size_t len) {
+    size_t avail = kis_simple_ringbuf_available(caph->out_ringbuf);
+    size_t reserve = cf_rb_out_reserve(cls);
+
+    return avail >= reserve && avail - reserve >= len;
+}
+
+/* Count a control frame there was no room for; under out_ringbuf_lock.  Returns
+ * the count to log, or 0 when one was logged in the last few seconds. */
+#define CF_OUT_DROP_LOG_NS (5ULL * 1000000000ULL)
+static uint64_t cf_out_ctl_dropped(kis_capture_handler_t *caph, enum cf_out_class cls) {
+    uint64_t now;
+
+    if (cls == CF_OUT_DATA)
+        return 0;
+
+    /* The drop report itself; it's retried on the next pong */
+    if (caph->out_ctl_reporting && pthread_equal(pthread_self(), caph->out_ctl_report_thread))
+        return 0;
+
+    caph->out_ctl_dropped++;
+
+    now = cf_clock_ns(CLOCK_MONOTONIC);
+    if (caph->out_ctl_drop_log_ns != 0 && now - caph->out_ctl_drop_log_ns < CF_OUT_DROP_LOG_NS)
+        return 0;
+
+    caph->out_ctl_drop_log_ns = now;
+    return caph->out_ctl_dropped;
+}
+
+/* After out_ringbuf_lock is released */
+static void cf_out_ctl_drop_log(unsigned int command, uint64_t dropped) {
+    if (dropped == 0)
+        return;
+
+    fprintf(stderr, "ERROR: Outbound buffer to the Kismet server is full; no room for a type %u "
+            "control frame (%llu so far)\n", command, (unsigned long long) dropped);
+}
+
+/* Tell the server about control frames refused since the last report, once a
+ * pong fit again.  Called from the service thread under handler_lock. */
+static void cf_out_ctl_drop_report(kis_capture_handler_t *caph) {
+    char msg[STATUS_MAX];
+    uint64_t dropped;
+    int r;
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    dropped = caph->out_ctl_dropped - caph->out_ctl_dropped_reported;
+    if (dropped != 0) {
+        caph->out_ctl_reporting = 1;
+        caph->out_ctl_report_thread = pthread_self();
+    }
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    if (dropped == 0)
+        return;
+
+    snprintf(msg, STATUS_MAX, "Capture source outbound buffer was full; %llu control "
+            "messages to the server could not be queued", (unsigned long long) dropped);
+
+    r = cf_send_warning(caph, msg);
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    caph->out_ctl_reporting = 0;
+    if (r > 0)
+        caph->out_ctl_dropped_reported += dropped;
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+}
+
+/* Raw bytes carry no command, so they get the data share */
 int cf_send_rb_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-    if (kis_simple_ringbuf_available(caph->out_ringbuf) < len) {
+    if (!cf_rb_out_fits(caph, CF_OUT_DATA, len)) {
         /* fprintf(stderr, "debug - Insufficient room in write buffer to queue data\n"); */
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         return 0;
@@ -5205,6 +5321,20 @@ static void cf_ws_wake(kis_capture_handler_t *caph) {
     lws_cancel_service(caph->lwscontext);
 }
 
+/* Does one more message of this class fit the websocket ring; under out_ringbuf_lock */
+static int cf_ws_out_fits(kis_capture_handler_t *caph, enum cf_out_class cls) {
+    size_t n = lws_ring_get_count_free_elements(caph->lwsring);
+
+    switch (cls) {
+        case CF_OUT_DATA:
+            return n > CAP_FRAMEWORK_WS_CTL_RESERVE;
+        case CF_OUT_NOTICE:
+            return n > CAP_FRAMEWORK_WS_REPLY_RESERVE;
+        default:
+            return n > 0;
+    }
+}
+
 int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     int n;
     struct cf_ws_msg wsmsg;
@@ -5216,8 +5346,7 @@ int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
         return -1;
     }
 
-    n = lws_ring_get_count_free_elements(caph->lwsring);
-    if (n == 0) {
+    if (!cf_ws_out_fits(caph, CF_OUT_DATA)) {
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         lws_cancel_service(caph->lwscontext);
         return 0;
@@ -5285,6 +5414,9 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     /* Buffer holding all of it */
     uint8_t *send_buffer;
 
+    enum cf_out_class cls = cf_out_frame_class(command);
+    uint64_t dropped;
+
     /* Directly inject into the ringbuffer with a zero-copy, ringbuffer
      * handles non-zero-copy end of buffer situations */
 
@@ -5301,11 +5433,20 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
         }
     }
 
+    if (!cf_rb_out_fits(caph, cls, estimated_len + sizeof(kismet_external_frame_v3_t))) {
+        dropped = cf_out_ctl_dropped(caph, cls);
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        cf_out_ctl_drop_log(command, dropped);
+        return NULL;
+    }
+
     rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer,
             estimated_len + sizeof(kismet_external_frame_v3_t));
 
     if (rs_sz != estimated_len + sizeof(kismet_external_frame_v3_t)) {
+        dropped = cf_out_ctl_dropped(caph, cls);
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        cf_out_ctl_drop_log(command, dropped);
         return NULL;
     }
 
@@ -5391,7 +5532,8 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
     /* Frame we'll be sending */
     kismet_external_frame_v3_t *frame = NULL;
 
-    int n;
+    enum cf_out_class cls = cf_out_frame_class(command);
+    uint64_t dropped;
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
@@ -5400,10 +5542,11 @@ struct cf_ws_msg *cf_prep_ws_packet(kis_capture_handler_t *caph,
         return NULL;
     }
 
-    n = lws_ring_get_count_free_elements(caph->lwsring);
-    if (n == 0) {
+    if (!cf_ws_out_fits(caph, cls)) {
+        dropped = cf_out_ctl_dropped(caph, cls);
         cf_ws_wake(caph);
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
+        cf_out_ctl_drop_log(command, dropped);
         return NULL;
     }
 
