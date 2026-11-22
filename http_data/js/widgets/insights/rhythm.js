@@ -199,8 +199,13 @@ export function rhythm({ onPick = null } = {}) {
         node,
         update(result) {
             data = result;
+            const was = span;
             span = Object.hasOwn(spans, result.span) ? spans[result.span] : spans.hour;
             hint.textContent = span.hint;
+            // a highlight with no chip left to clear it would dim every row
+            if (lit && (span !== was || !result.together.some((keys) =>
+                keys.length === lit.size && keys.every((k) => lit.has(k)))))
+                lit = null;
             groupOf = new Map();
             result.together.forEach((keys, gi) => keys.forEach((k) => groupOf.set(k, gi)));
             renderSummary();
