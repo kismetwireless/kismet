@@ -1089,7 +1089,18 @@ export const celldiag_render_rows = (source, sdiv, set_row, now_s) => {
     else
         $('tr#celldiag_bringup', sdiv).remove();
 
+    /* A replay that read its file to the end idles open: finished, not dead.
+     * Only while it's still open; a lost helper reads as dead. */
+    const held = !!source['kismet.datasource.running'] &&
+        !source['kismet.datasource.error'];
     set_row(sdiv, 'celldiag_helper', '<b>Decoder</b>',
+        held && f('replay_state') === 'complete' ?
+            $('<span>').html('<i class="fa fa-check-circle"></i> ')
+                .append($('<span>').text('Replay finished — the file was read to the end')) :
+        held && f('replay_state') === 'incomplete' ?
+            $('<span>', { style: 'color: var(--ds-error-color);' })
+                .html('<i class="fa fa-exclamation-circle"></i> ')
+                .append($('<span>').text('Replay finished, incomplete — rows were dropped')) :
         f('helper_alive') ?
             $('<span>').html('<i class="fa fa-check-circle"></i> ')
                 .append($('<span>').text('alive' +

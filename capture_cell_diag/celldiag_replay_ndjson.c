@@ -40,8 +40,16 @@
  *   celldiag_replay_ndjson --canon            (stdin JSON lines -> canonical)
  *   celldiag_replay_ndjson --selftest
  *
- * Exit: 0 ok; 2 the source refused to open, reported an ERROR, or the stream
- * desynced; 3 the run hit --timeout; 64 usage.
+ * A finished replay stays open for the server, says "REPLAY COMPLETE" (or
+ * "REPLAY INCOMPLETE" when rows were lost) and sends a fixed replay_state
+ * diag_stats line; on that line the driver sends a close request and waits for
+ * the helper to exit, past --timeout if need be. The replay= file must be a
+ * regular file: a FIFO replay never finishes (it waits for the next writer),
+ * so a FIFO is refused (64).
+ *
+ * Exit: 0 ok; 2 the source refused to open, reported an ERROR, the replay was
+ * incomplete, the stream desynced, reading the helper failed, or the helper
+ * did not exit cleanly after the close; 3 the run hit --timeout; 64 usage.
  *
  * libc only. The frame layout and the msgpack subset are the ones documented in
  * kismet_capture_ipc.py's "Wire spec".
@@ -55,10 +63,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "diag_stats.h"
 
 /* ── growable byte buffer ───────────────────────────────────────────────────── */
 typedef struct {
@@ -627,6 +639,7 @@ static int mp_get_num(mp_t m, int64_t key, double *out, int *is_float) {
 #define PKT_OPENREQ 12
 #define PKT_OPENREPORT 13
 #define PKT_PACKET 16
+#define PKT_CLOSEREQ 20
 #define DATAREPORT_FIELD_GPSBLOCK 1
 #define DATAREPORT_FIELD_JSONBLOCK 5
 #define SUB_JSON_FIELD_TYPE 1
@@ -681,8 +694,14 @@ typedef struct {
     int open_code;
     int errors;
     int desync;
+    int complete;        /* the helper sent a hold marker */
+    int incomplete;      /* ...the incomplete one */
     long rows;
 } run_t;
+
+/* The helper's fixed hold lines (diag_stats.h), matched whole */
+static const char kReplayCompleteJson[] = DIAG_REPLAY_COMPLETE_JSON;
+static const char kReplayIncompleteJson[] = DIAG_REPLAY_INCOMPLETE_JSON;
 
 /* Same test as CellDiagRun._on_json: a control line declares its type. */
 static int is_control_line(const char *js, size_t n) {
@@ -715,6 +734,18 @@ static void on_packet(run_t *r, const uint8_t *pl, size_t n) {
             if (strlen(kNotObservationTypes[i]) == jtn &&
                 memcmp(kNotObservationTypes[i], jt, jtn) == 0)
                 return;
+    }
+    if (jsn == sizeof(kReplayCompleteJson) - 1 &&
+        memcmp(js, kReplayCompleteJson, jsn) == 0) {
+        /* A finished replay holds the helper open for the server */
+        r->complete = 1;
+        return;
+    }
+    if (jsn == sizeof(kReplayIncompleteJson) - 1 &&
+        memcmp(js, kReplayIncompleteJson, jsn) == 0) {
+        r->complete = 1;
+        r->incomplete = 1;
+        return;
     }
     if (is_control_line(js, jsn)) {
         /* The census table is what Kismet stores as the source's inventory, and
@@ -835,6 +866,45 @@ static double now_s(void) {
     return (double)ts.tv_sec + ts.tv_nsec / 1e9;
 }
 
+/* The definition's replay= value into out (the helper's cf_find_flag forms:
+ * bare up to the next ',', or "quoted"). 0 when absent or longer than cap. */
+static int definition_replay_path(const char *definition, char *out, size_t cap) {
+    const char *p = strchr(definition, ':');
+    while (p != NULL) {
+        p++;
+        if (strncasecmp(p, "replay=", 7) == 0) {
+            const char *v = p + 7, *e;
+            if (*v == '"') {
+                v++;
+                e = strchr(v, '"');
+            } else {
+                e = strchr(v, ',');
+            }
+            size_t n = e != NULL ? (size_t)(e - v) : strlen(v);
+            if (n == 0 || n >= cap)
+                return 0;
+            memcpy(out, v, n);
+            out[n] = '\0';
+            return 1;
+        }
+        p = strchr(p, ',');
+    }
+    return 0;
+}
+
+/* A FIFO replay waits for its next writer and never finishes, so the driver
+ * would only ever time out on one. */
+static int refuse_fifo_replay(const char *definition) {
+    char path[4096];
+    struct stat st;
+    if (!definition_replay_path(definition, path, sizeof(path)) ||
+            stat(path, &st) != 0 || !S_ISFIFO(st.st_mode))
+        return 0;
+    fprintf(stderr, "error: replay=%s is a FIFO; this driver needs a regular file "
+            "(a FIFO replay never finishes: it waits for the next writer)\n", path);
+    return 1;
+}
+
 static int run_replay(const char *binary, const char *definition, double timeout) {
     int a[2], b[2];          /* a: driver -> binary; b: binary -> driver */
     if (pipe(a) || pipe(b)) {
@@ -889,9 +959,22 @@ static int run_replay(const char *binary, const char *definition, double timeout
 
     run_t r = {0};
     buf_t in = {0};
-    double deadline = now_s() + timeout, next_ping = now_s() + 5.0;
-    int timed_out = 1;
-    while (now_s() < deadline) {
+    double deadline = now_s() + timeout, next_ping = now_s() + 5.0, close_by = 0;
+    int timed_out = 1, close_stuck = 0, st = 0, have_st = 0, read_err = 0;
+    /* Once the replay is complete, the close grace bounds the run: a
+     * completed replay that is closing has not timed out. */
+    while (r.complete || now_s() < deadline) {
+        if (r.complete && close_by == 0) {
+            /* Everything has been delivered: close the helper the way the
+             * server does, then drain until it exits. */
+            send_frame(a[1], PKT_CLOSEREQ, 2, NULL, 0);
+            close_by = now_s() + 10.0;   /* the helper's 5 s grace + margin */
+        }
+        if (close_by > 0 && now_s() >= close_by) {
+            close_stuck = 1;
+            timed_out = 0;
+            break;
+        }
         if (now_s() >= next_ping) {
             /* Mandatory keepalive: the binary FATAL-exits after 15 s silence. */
             send_frame(a[1], PKT_PING, 0, NULL, 0);
@@ -911,10 +994,13 @@ static int run_replay(const char *binary, const char *definition, double timeout
                 timed_out = 0;
                 break;
             }
-            if (errno != EINTR)
+            if (errno != EINTR) {
+                /* Not a timeout: the helper's exit status decides below */
+                read_err = errno;
+                timed_out = 0;
                 break;
+            }
         }
-        int st;
         if (waitpid(pid, &st, WNOHANG) == pid) {
             char chunk[65536];
             ssize_t got;
@@ -922,12 +1008,24 @@ static int run_replay(const char *binary, const char *definition, double timeout
                 buf_put(&in, chunk, (size_t)got);
             drain_frames(&r, &in);
             pid = -1;
+            have_st = 1;
             timed_out = 0;
             break;
         }
     }
     close(a[1]);
     close(b[0]);
+    /* After a close or a failed read the helper is exiting by itself: give it
+     * the time to, so its exit status is its own and not our SIGTERM. */
+    for (int i = 0; pid > 0 && (close_by > 0 || read_err) && !close_stuck && i < 50; i++) {
+        if (waitpid(pid, &st, WNOHANG) == pid) {
+            pid = -1;
+            have_st = 1;
+            break;
+        }
+        struct timespec ts = {0, 100000000};
+        nanosleep(&ts, NULL);
+    }
     if (pid > 0) {
         kill(pid, SIGTERM);
         waitpid(pid, NULL, 0);
@@ -935,9 +1033,32 @@ static int run_replay(const char *binary, const char *definition, double timeout
     free(in.p);
     fflush(stdout);
     fprintf(stderr, "rows: %ld\n", r.rows);
+    if (close_stuck) {
+        fprintf(stderr, "error: the helper did not close after REPLAY COMPLETE\n");
+        return 2;
+    }
+    if (close_by > 0 && (!have_st || !WIFEXITED(st) || WEXITSTATUS(st) != 0)) {
+        if (have_st && WIFSIGNALED(st))
+            fprintf(stderr, "error: the helper died of signal %d after the close\n",
+                    WTERMSIG(st));
+        else if (have_st)
+            fprintf(stderr, "error: the helper exited %d after the close\n",
+                    WEXITSTATUS(st));
+        else
+            fprintf(stderr, "error: the helper did not exit after the close\n");
+        return 2;
+    }
+    if (read_err && (!have_st || !WIFEXITED(st) || WEXITSTATUS(st) != 0)) {
+        fprintf(stderr, "error: reading the helper failed: %s\n", strerror(read_err));
+        return 2;
+    }
     if (timed_out) {
         fprintf(stderr, "error: replay did not finish within %.0f s\n", timeout);
         return 3;
+    }
+    if (r.incomplete) {
+        fprintf(stderr, "error: the replay is incomplete: rows were dropped\n");
+        return 2;
     }
     if (!r.opened || r.open_code != 1) {
         /* OPENREPORT code 1 is success; no report at all is accepted only
@@ -1054,6 +1175,24 @@ static int selftest(void) {
     expect_differ("adjacent doubles stay distinct", "{\"x\":1000.0}", "{\"x\":1000.0000000000001}");
     expect_canon("trailing garbage rejected", "{\"a\":1} x", NULL);
     expect_canon("truncated rejected", "{\"a\":", NULL);
+    {
+        static const struct { const char *def, *want; } rp[] = {
+            { "celldiag-0:replay=/tmp/a.hdlc", "/tmp/a.hdlc" },
+            { "celldiag-0:stats_interval=2,replay=/tmp/b,name=x", "/tmp/b" },
+            { "celldiag-0:replay=\"/tmp/c,d\",name=x", "/tmp/c,d" },
+            { "celldiag-0:noreplay=/tmp/e", NULL },
+            { "celldiag-0:replay=", NULL },
+            { "replay=/tmp/f", NULL },
+        };
+        for (size_t k = 0; k < sizeof(rp) / sizeof(rp[0]); k++) {
+            char got[64];
+            int ok = definition_replay_path(rp[k].def, got, sizeof(got));
+            if (ok != (rp[k].want != NULL) || (ok && strcmp(got, rp[k].want) != 0)) {
+                printf("  FAIL replay= path of %s: got %s\n", rp[k].def, ok ? got : "(none)");
+                g_fail++;
+            }
+        }
+    }
     if (g_fail) {
         printf("FAIL: %d canonical-form check(s)\n", g_fail);
         return 1;
@@ -1066,7 +1205,9 @@ static int usage(void) {
     fprintf(stderr,
             "usage: celldiag_replay_ndjson [--timeout S] <kismet_cap_cell_diag> <definition>\n"
             "       celldiag_replay_ndjson --canon     (JSON lines on stdin -> canonical)\n"
-            "       celldiag_replay_ndjson --selftest\n");
+            "       celldiag_replay_ndjson --selftest\n"
+            "replay= must name a regular file: a FIFO replay never finishes (it\n"
+            "waits for the next writer), so a FIFO is refused.\n");
     return 64;
 }
 
@@ -1083,5 +1224,7 @@ int main(int argc, char **argv) {
     }
     if (argc - i != 2 || timeout <= 0)
         return usage();
+    if (refuse_fifo_replay(argv[i + 1]))
+        return 64;
     return run_replay(argv[i], argv[i + 1], timeout);
 }

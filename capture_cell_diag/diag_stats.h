@@ -62,6 +62,20 @@
  * kismetdb `data` table under the source, as it does a RawDiagDrop row. */
 #define DIAG_CRC_CENSUS_TYPE        "DiagCrcCensus"
 
+/* A replay's state, the replay_state key: reading, or held open at the end of
+ * its file with everything delivered (complete) or with a loss (incomplete). */
+#define DIAG_REPLAY_STATE_READING    "reading"
+#define DIAG_REPLAY_STATE_COMPLETE   "complete"
+#define DIAG_REPLAY_STATE_INCOMPLETE "incomplete"
+
+/* The fixed diag_stats lines a replay sends once when it reaches the hold.
+ * celldiag_replay_ndjson matches them whole; diag_stats_format_json_ex lines
+ * always carry the counters, so none of them equals a marker. */
+#define DIAG_REPLAY_COMPLETE_JSON \
+    "{\"type\":\"diag_stats\",\"replay_state\":\"" DIAG_REPLAY_STATE_COMPLETE "\"}"
+#define DIAG_REPLAY_INCOMPLETE_JSON \
+    "{\"type\":\"diag_stats\",\"replay_state\":\"" DIAG_REPLAY_STATE_INCOMPLETE "\"}"
+
 
 typedef struct {
     /* DIAG port / read side */
@@ -280,6 +294,8 @@ typedef struct {
     /* Which decoder renders the observations: "native-only". A controlled
      * label; omitted when NULL. */
     const char *decode_mode;
+    /* A replay's DIAG_REPLAY_STATE_*; NULL (a live source) omits it. */
+    const char *replay_state;
 } diag_stats_extra_t;
 
 /* Format a machine-parseable JSON stats object into buf: the structured

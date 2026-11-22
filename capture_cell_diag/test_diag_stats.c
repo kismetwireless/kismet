@@ -591,6 +591,11 @@ static void test_format_json_ex_omits_unreported(void) {
     CHECK(strstr(buf, "inventory_") == NULL, "no census => omit all three: %s", buf);
     /* The raw file tee is gone: no rawlog_* key may ever be published. */
     CHECK(strstr(buf, "rawlog") == NULL, "a removed rawlog key was emitted: %s", buf);
+    /* A live source has no replay state */
+    CHECK(strstr(buf, "replay_state") == NULL, "live source sent replay_state: %s", buf);
+    /* No formatted line can equal a hold marker */
+    CHECK(strcmp(buf, DIAG_REPLAY_COMPLETE_JSON) != 0 &&
+          strcmp(buf, DIAG_REPLAY_INCOMPLETE_JSON) != 0, "line equals a marker: %s", buf);
 }
 
 /* No extras at all: the object still closes cleanly, with no stray bytes
@@ -633,10 +638,14 @@ static void test_format_json_ex_every_group_at_worst_case_fits(void) {
     x.crc_valid = 1; x.crc_checked = M; x.crc_ok = M; x.crc_bad = M;
     x.crc_damage_alerts = M;
     x.anchor_valid = 1; x.anchor_count = M; x.anchor_last_epoch = 1790000000LL;
+    x.decode_mode = "native-only";
+    x.replay_state = DIAG_REPLAY_STATE_INCOMPLETE;
 
     char buf[2048];
     int n = diag_stats_format_json_ex(&s, &x, t0, buf, sizeof(buf));
     CHECK(n > 0, "worst case refused: %d", n);
+    CHECK(strstr(buf, "\"replay_state\":\"incomplete\"") != NULL,
+          "replay_state missing at worst case: %s", buf);
     CHECK(strstr(buf, "\"crc_damage_alerts\":18446744073709551615") != NULL,
           "crc group missing at worst case: %s", buf);
     CHECK(strstr(buf, "\"inventory_undecoded_native\":18446744073709551615") != NULL,

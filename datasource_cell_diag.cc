@@ -27,6 +27,7 @@
 #include "kis_databaselogfile.h"
 #include "datasource_cell_diag.h"
 #include "capture_cell_diag/diag_rawpkt.h"
+#include "capture_cell_diag/diag_stats.h"
 
 // No diagspec leg headers here; see the decode-seam note in
 // datasource_cell_diag.h.  The decode->frame chain lives in the capture helper
@@ -295,6 +296,9 @@ void kis_datasource_cell_diag::register_celldiag_fields() {
         "empty = none reported this open");
     diag_bringup_error = reg_str("kismet.datasource.celldiag.bringup_error",
         "why the deferred bring-up failed; empty = it has not failed this open");
+    diag_replay_state = reg_str("kismet.datasource.celldiag.replay_state",
+        "replay= sources: \"reading\", or \"complete\" / \"incomplete\" once the "
+        "file was read to the end and the source idles open; empty = a live source");
 }
 
 kis_datasource_cell_diag::~kis_datasource_cell_diag() {
@@ -452,6 +456,7 @@ void kis_datasource_cell_diag::open_interface(std::string in_definition, unsigne
         diag_bringup_ms->set(0);
         diag_bringup_phases->set("");
         diag_bringup_error->set("");
+        diag_replay_state->set("");
     }
 
     kis_datasource::open_interface(in_definition, in_transaction, in_cb);
@@ -948,4 +953,19 @@ void kis_datasource_cell_diag::apply_diag_stats_json(const std::string& json_str
         diag_bringup_phases->set(j["bringup_phases"].get<std::string>());
     if (j.contains("bringup_error") && j["bringup_error"].is_string())
         diag_bringup_error->set(j["bringup_error"].get<std::string>());
+
+    // A controlled label: anything else is ignored, not stored
+    if (j.contains("replay_state") && j["replay_state"].is_string()) {
+        const auto& rs = j["replay_state"].get_ref<const std::string&>();
+        const bool held = (rs == DIAG_REPLAY_STATE_COMPLETE ||
+                rs == DIAG_REPLAY_STATE_INCOMPLETE);
+        if (held || rs == DIAG_REPLAY_STATE_READING)
+            diag_replay_state->set(rs);
+
+        // The file has been read to its end. A helper lost from here on must
+        // not be re-opened, or the file is ingested a second time; the next
+        // open takes retry from the definition again.
+        if (held)
+            set_int_source_retry(false);
+    }
 }
