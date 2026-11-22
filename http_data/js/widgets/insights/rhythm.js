@@ -1,5 +1,5 @@
-// Activity rhythm: a row per device, a column per minute of the last hour,
-// shaded by how much it sent.  Rows are ordered so devices with the same
+// Activity rhythm: a row per device, a column per minute of the last hour (or
+// per hour of the last day), shaded by how much it sent.  Rows are ordered so devices with the same
 // rhythm sit together, and devices that come and go together (a phone and
 // its watch, people who arrived together) are bracketed and named.
 //
@@ -15,15 +15,29 @@ const rowH = 15;
 const labelW = 210;
 const groupW = 26;
 
+// The words and axis of each span model.rhythm() can give
+const spans = {
+    hour: { unit: 'minute', units: 'minutes', tick: 'm', step: 10,
+        hint: 'Each row is a device, each column a minute; darker is busier.  Rows with the same rhythm are placed together.' },
+    day: { unit: 'hour', units: 'hours', tick: 'h', step: 4,
+        hint: 'Each row is a device, each column an hour, the last one the hour so far; darker is busier.  ' +
+            'Rows with the same rhythm are placed together.' },
+};
+
+// A group's names, the first few of them: over a day, whole crowds can come and go together
+const names = (list, sep, most) => list.slice(0, most).join(sep) +
+    (list.length > most ? `${sep}${list.length - most} more` : '');
+
 export function rhythm({ onPick = null } = {}) {
     const summary = el('div', { class: 'rh-summary' });
     const canvas = el('canvas', { class: 'rh-canvas' });
     const tip = el('div', { class: 'cg-tip', hidden: true });
     const scroller = el('div', { class: 'rh-scroll' }, canvas);
-    const node = el('div', { class: 'rh' }, summary, scroller, tip,
-        el('div', { class: 'cg-hint muted' }, 'Each row is a device, each column a minute; darker is busier.  Rows with the same rhythm are placed together.'));
+    const hint = el('div', { class: 'cg-hint muted' }, spans.hour.hint);
+    const node = el('div', { class: 'rh' }, summary, scroller, tip, hint);
     const ctx = canvas.getContext('2d');
     let data = { rows: [], together: [] };
+    let span = spans.hour;
     let groupOf = new Map();
     let hoverRow = -1;
     let lit = null;
@@ -43,7 +57,7 @@ export function rhythm({ onPick = null } = {}) {
         scaleCanvas(canvas, w, h);
         const c = (n) => theme.themeColor(n) || '#888';
         const text = c('--text'), muted = c('--muted'), accent = c('--accent'), border = c('--border');
-        const cols = rows[0]?.values.length ?? 59;
+        const cols = rows[0]?.values.length ?? (span === spans.day ? 24 : 59);
         const gridW = w - labelW - groupW - 8;
         const cw = gridW / cols;
         const max = Math.max(1, ...rows.flatMap((r) => r.values));
@@ -53,9 +67,9 @@ export function rhythm({ onPick = null } = {}) {
         ctx.fillStyle = muted;
         ctx.font = '10.5px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        for (let m = 0; m <= cols; m += 10) {
+        for (let m = 0; m <= cols; m += span.step) {
             const x = labelW + m * cw;
-            ctx.fillText(m === cols ? 'now' : `-${cols - m}m`, Math.min(x, labelW + gridW - 10), h - 8);
+            ctx.fillText(m === cols ? 'now' : `-${cols - m}${span.tick}`, Math.min(x, labelW + gridW - 10), h - 8);
             ctx.fillStyle = border;
             ctx.fillRect(x, 0, 1, rows.length * rowH);
             ctx.fillStyle = muted;
@@ -138,10 +152,10 @@ export function rhythm({ onPick = null } = {}) {
         const row = data.rows[i];
         const g = groupOf.get(row.key);
         const lines = [el('b', {}, row.label),
-            el('div', {}, `Heard in ${Math.round(row.present * 100)}% of the last ${row.values.length} minutes`)];
+            el('div', {}, `Heard in ${Math.round(row.present * 100)}% of the last ${row.values.length} ${span.units}`)];
         if (g !== undefined) {
             const others = data.together[g].filter((k) => k !== row.key).map((k) => data.rows.find((r) => r.key === k)?.label ?? k);
-            lines.push(el('div', { class: 'ok-text' }, `Comes and goes with ${others.join(', ')}`));
+            lines.push(el('div', { class: 'ok-text' }, `Comes and goes with ${names(others, ', ', 8)}`));
         }
         tip.replaceChildren(...lines);
         tip.hidden = false;
@@ -163,7 +177,8 @@ export function rhythm({ onPick = null } = {}) {
     function renderSummary() {
         const label = (k) => data.rows.find((r) => r.key === k)?.label ?? k;
         if (!data.rows.length) {
-            summary.replaceChildren(el('p', { class: 'muted' }, 'No device has been heard for a full minute yet.'));
+            summary.replaceChildren(el('p', { class: 'muted' }, span === spans.day ?
+                'No device has been heard in the last 24 hours yet.' : 'No device has been heard for a full minute yet.'));
             return;
         }
         const chips = data.together.map((keys, gi) => el('button', {
@@ -172,7 +187,7 @@ export function rhythm({ onPick = null } = {}) {
                 lit = lit && keys.every((k) => lit.has(k)) ? null : new Set(keys);
                 draw();
             },
-        }, el('span', { class: 'rh-dot', style: { background: charts.series(gi + 1) } }), keys.map(label).join(' + ')));
+        }, el('span', { class: 'rh-dot', style: { background: charts.series(gi + 1) } }), names(keys.map(label), ' + ', 4)));
         replace(summary,
             el('p', {}, data.together.length ?
                 `${data.together.length} group${data.together.length === 1 ? '' : 's'} of devices come and go together.  They may be carried by the same person, or arrive and leave as a group:` :
@@ -184,6 +199,8 @@ export function rhythm({ onPick = null } = {}) {
         node,
         update(result) {
             data = result;
+            span = Object.hasOwn(spans, result.span) ? spans[result.span] : spans.hour;
+            hint.textContent = span.hint;
             groupOf = new Map();
             result.together.forEach((keys, gi) => keys.forEach((k) => groupOf.set(k, gi)));
             renderSummary();

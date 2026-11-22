@@ -209,14 +209,26 @@ function pearson(a, b, mask) {
     return da > 0 && db > 0 ? num / Math.sqrt(da * db) : 0;
 }
 
-// The minutes of the last hour when any of a device's data sources was
-// delivering packets: a device can only be missed while something listens.
+// The columns of a rhythm span: the RRD ring and whether the bin still filling
+// is shown.  Over the day it is, or a device heard only this hour would be left out.
+const spans = {
+    hour: { ring: 'hour', current: false },
+    day: { ring: 'day', current: true },
+};
+const spanOf = (span) => (Object.hasOwn(spans, span) ? spans[span] : spans.hour);
+const columns = (h, span) => (spanOf(span).current ? h : h.slice(0, -1));
+
+// The minutes of the last hour (or hours of the day) when any of a device's
+// data sources was delivering packets: a device can only be missed while
+// something listens.
 //   sources   data source records with uuid and packets_rrd
 //   seenby    Map device key -> [source uuids]
-export function listening(sources, seenby, now) {
+//   span      'hour' or 'day', as for rhythm()
+export function listening(sources, seenby, now, span = 'hour') {
+    const ring = spanOf(span).ring;
     const active = new Map();
     for (const s of sources) {
-        const h = rrd.history(s['kismet.datasource.packets_rrd'], now, 'hour').slice(0, -1);
+        const h = columns(rrd.history(s['kismet.datasource.packets_rrd'], now, ring), span);
         active.set(s['kismet.datasource.uuid'], h.map((v) => v > 0));
     }
     const out = new Map();
@@ -228,19 +240,22 @@ export function listening(sources, seenby, now) {
     return out;
 }
 
-// Activity per device over the last hour, a minute per column, and which
-// devices come and go together.
-//   rows      [{ key, rec, label, values, present: fraction of minutes heard }]
+// Activity per device over the last hour, a minute per column (span 'hour'),
+// or over the last day, an hour per column (span 'day'), and which devices
+// come and go together.
+//   rows      [{ key, rec, label, values, present: fraction of columns heard }]
 //             ordered so that similar rhythms sit together
 //   together  [[keys]]: groups whose comings and goings match
-export function rhythm(records, now, { listen = new Map(), maxRows = 160 } = {}) {
+//   span      the span the columns cover
+export function rhythm(records, now, { listen = new Map(), maxRows = 160, span = 'hour' } = {}) {
+    if (!Object.hasOwn(spans, span))
+        span = 'hour';
     let rows = [];
     for (const rec of records) {
-        const h = rrd.history(rec[`${base}.packets.rrd`], now, 'hour');
+        const h = rrd.history(rec[`${base}.packets.rrd`], now, spans[span].ring);
         if (!h.length)
             continue;
-        // the current bin is still filling
-        const values = h.slice(0, -1);
+        const values = columns(h, span);
         const heard = values.filter((v) => v > 0).length;
         if (heard === 0)
             continue;
@@ -258,7 +273,7 @@ export function rhythm(records, now, { listen = new Map(), maxRows = 160 } = {})
     rows = rows.slice(0, maxRows);
     const n = rows.length;
     if (n < 2)
-        return { rows, together: [] };
+        return { rows, together: [], span };
 
     // Compare two devices only over minutes when both could have been heard;
     // a source that stopped is a gap, not both devices leaving
@@ -325,7 +340,7 @@ export function rhythm(records, now, { listen = new Map(), maxRows = 160 } = {})
     }
     const together = [...groups.values()].filter((m) => m.length > 1).map((m) => m.map((i) => rows[i].key));
 
-    return { rows: order.map((i) => rows[i]), together, corr: (a, b) => {
+    return { rows: order.map((i) => rows[i]), together, span, corr: (a, b) => {
         const ia = rows.findIndex((x) => x.key === a), ib = rows.findIndex((x) => x.key === b);
         return ia < 0 || ib < 0 ? 0 : r[ia][ib];
     } };
