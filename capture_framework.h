@@ -291,10 +291,10 @@ struct kis_capture_handler {
     int in_fd;
     int out_fd;
 
-	/* Child process in monitor mode */
+	/* Child process in monitor mode, under handler_lock; 0 once reaped */
 	pid_t monitor_pid;
 
-	/* Child process in ipc mode */
+	/* Unused, always 0: IPC children are tracked on ipc_list */
 	pid_t child_pid;
 
     /* Use legacy tcp mode */
@@ -691,6 +691,11 @@ size_t cf_append_unique_chans(char **in_list1, size_t in_list1_sz,
 
 
 /* Initialize a caphandler
+ *
+ * Call before starting any thread: it blocks SIGALRM, SIGQUIT, SIGCHLD and
+ * SIGPIPE for the framework's signal thread and gives SIGCHLD a handler.  A
+ * helper must not set SIGCHLD to SIG_IGN after this; until the capture thread
+ * launch replaces it, children exiting are discarded unseen by the reaper.
  *
  * Returns:
  * Pointer to handler or NULL on failure to allocate
