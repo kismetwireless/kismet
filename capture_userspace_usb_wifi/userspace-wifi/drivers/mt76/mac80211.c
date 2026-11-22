@@ -1353,7 +1353,7 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 	    !ieee80211_has_tods(hdr->frame_control))
 		security_idx = IEEE80211_NUM_TIDS;
 
-skip_hdr_check:
+skip_hdr_check: ;
 	BUILD_BUG_ON(sizeof(status->iv) != sizeof(wcid->rx_key_pn[0]));
 	ret = memcmp(status->iv, wcid->rx_key_pn[security_idx],
 		     sizeof(status->iv));
