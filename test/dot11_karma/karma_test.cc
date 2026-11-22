@@ -256,7 +256,7 @@ static void test_times() {
     CHECK(hi != nullptr && hi->last == max_frame_time);
     CHECK(hostile.newest == max_frame_time);
     CHECK(hostile.count(p).unbeaconed == 1);
-    hostile.pool_seed(9, std::numeric_limits<time_t>::min(), std::numeric_limits<time_t>::max(),
+    hostile.seed({seed_ssid{9, std::numeric_limits<time_t>::min(), std::numeric_limits<time_t>::max(), 0}},
             max_frame_time, p);
     CHECK(hostile.pool.size() == 1 && hostile.pool[0].first == 1 &&
             hostile.pool[0].last == max_frame_time);
@@ -526,20 +526,19 @@ static void test_pool_corrupt() {
 // A new state's pool starts with the SSIDs beaconed before it
 static void test_pool_seed() {
     state st;
-    st.pool_seed(1, T0, T0 + 3, T0 + 10, p);
-    st.pool_seed(2, T0 + 5, T0 + 5, T0 + 10, p);
     // Outside the window either way: from long ago, or from a source with a wrong clock
-    st.pool_seed(3, T0 - 5000, T0 - 4000, T0 + 10, p);
-    st.pool_seed(4, T0 + 100'000, T0 + 100'000, T0 + 10, p);
-    st.pool_seed(1, T0, T0 + 9, T0 + 10, p);
+    st.seed({seed_ssid{1, T0, T0 + 3, 0}, seed_ssid{2, T0 + 5, T0 + 5, 0},
+            seed_ssid{3, T0 - 5000, T0 - 4000, 0}, seed_ssid{4, T0 + 100'000, T0 + 100'000, 0}}, T0 + 10, p);
     CHECK(st.pool.size() == 2);
     CHECK(st.pool_count(p).ssids == 1);
     CHECK(st.newest == T0 + 5);
     params small = p;
     small.max_ssids = 4;
-    state cap;
+    std::vector<seed_ssid> seeds;
     for (uint32_t h = 0; h < 100; h++)
-        cap.pool_seed(h, T0, T0 + 1, T0 + 1, small);
+        seeds.push_back(seed_ssid{h, T0, T0 + 1, 0});
+    state cap;
+    cap.seed(seeds, T0 + 1, small);
     CHECK(cap.pool.size() == 4);
 }
 
@@ -548,7 +547,7 @@ static void test_pool_seed() {
 static void evade(bool beacon_first, uint32_t n, bool expect) {
     state st;
     // Its own SSID, beaconed before the state existed
-    st.pool_seed(1, T0, T0 + 3, T0 + 3, p);
+    st.seed({seed_ssid{1, T0, T0 + 3, 0}}, T0 + 3, p);
     for (uint32_t i = 0; i < n; i++) {
         const uint32_t h = 100 + i;
         const time_t ts = T0 + 4 + i;
@@ -598,6 +597,117 @@ static void test_alert_text() {
             "access point beaconing a pool of impersonated networks");
     CHECK(alert_text(counts{3, 0, 0, 10, 0}, true).find(", answered probes for 3 networks it does not beacon,") !=
             std::string::npos);
+    // A flood of one-offs leads with the flood, never a pool of 0
+    CHECK(alert_text(counts{0, 0, 0, 0, 0, 250}, true) ==
+            "flooded beacons for 250 new networks within 5 seconds (a beacon flood), which may indicate a "
+            "karma access point beaconing a pool of impersonated networks");
+    CHECK(alert_text(counts{0, 0, 0, 12, 0, 250, true}, true) ==
+            "beaconed about 12 different networks (estimated), 250 new ones within 5 seconds (a beacon "
+            "flood), which may indicate a karma access point beaconing a pool of impersonated networks");
+    // Raised later, rate limited, after the counts decayed: worded for the reason, without zeros
+    CHECK(alert_text(counts{}, true) ==
+            "beaconed a pool of different networks, which may indicate a karma access point beaconing a "
+            "pool of impersonated networks");
+    CHECK(alert_text(counts{}, false) ==
+            "answered probes for networks it does not advertise, which may indicate a karma or mana "
+            "access point impersonating networks clients look for");
+    CHECK(alert_text(counts{0, 0, 0, 3, 0}, false).find("0 ") == std::string::npos);
+
+    // Worded for the stored reason or for what the counts show now, whichever has a pool
+    constexpr auto answers = static_cast<uint8_t>(reason::answers);
+    constexpr auto pooled = static_cast<uint8_t>(reason::pool);
+    static_assert(!alert_pool(counts{12, 3, 0, 0, 0}, answers, p));
+    static_assert(!alert_pool(counts{12, 3, 0, 9, 0}, answers, p));
+    static_assert(alert_pool(counts{}, pooled, p));
+    static_assert(alert_pool(counts{12, 3, 0, 10, 0}, answers, p));
+    static_assert(alert_pool(counts{12, 3, 0, 0, 0, 250}, answers, p));
+    // Flagged for answers, raised later with a pool: both, and no zero clause
+    const auto both = alert_text(counts{12, 3, 0, 14, 0}, alert_pool(counts{12, 3, 0, 14, 0}, answers, p));
+    CHECK(both.find("beaconed 14 different networks") != std::string::npos);
+    CHECK(both.find("answered probes for 12 networks it does not beacon (3 probed for by clients)") != std::string::npos);
+    // Flagged for a pool, raised later with answers only: the answers are kept
+    const auto later = alert_text(counts{12, 3, 0, 0, 0}, alert_pool(counts{12, 3, 0, 0, 0}, pooled, p));
+    CHECK(later == "beaconed a pool of different networks, answered probes for 12 networks it does not beacon "
+            "(3 probed for by clients), which may indicate a karma access point beaconing a pool of "
+            "impersonated networks");
+    CHECK(both.find(" 0 ") == std::string::npos && later.find(" 0 ") == std::string::npos);
+}
+
+// A new state is seeded with the SSIDs beaconed before it: those which count first, and the
+// answers for them only once it beacons a pool
+static void test_seed() {
+    state one;
+    one.seed({seed_ssid{1, T0, T0, T0 + 1}}, T0 + 2, p);
+    CHECK(one.pool_count(p).ssids == 1);
+    CHECK(one.entries.empty());
+
+    state two;
+    two.seed({seed_ssid{1, T0, T0 + 3, 0}, seed_ssid{2, T0, T0, T0 + 1}, seed_ssid{3, T0 + 1, T0 + 1, 0}}, T0 + 4, p);
+    CHECK(two.pool.size() == 3);
+    CHECK(two.pool_count(p).ssids == 2);
+    CHECK(two.entries.size() == 1);
+    CHECK(two.find(2) != nullptr && has(two.find(2)->flags, flag::beaconed));
+    CHECK(two.count(p).unbeaconed == 0);
+
+    // One-offs listed first don't push the SSIDs which count out of a small pool
+    params small = p;
+    small.max_ssids = 4;
+    std::vector<seed_ssid> seeds;
+    for (uint32_t h = 100; h < 110; h++)
+        seeds.push_back(seed_ssid{h, T0, T0, 0});
+    for (uint32_t h = 1; h <= 4; h++)
+        seeds.push_back(seed_ssid{h, T0, T0 + 2, 0});
+    state cap;
+    cap.seed(seeds, T0 + 3, small);
+    CHECK(cap.pool.size() == 4);
+    CHECK(cap.pool_count(small).ssids == 4);
+}
+
+// A counting SSID a full pool dropped comes back with a beacon which may add it (a cached
+// beacon the BSSID broadcast-beacons), and not with one which only refreshes
+static void test_cached_readd() {
+    params small = p;
+    small.max_ssids = 4;
+    state st;
+    for (uint32_t h = 1; h <= 5; h++) {
+        bcn(st, h, T0 + h, true, small);
+        bcn(st, h, T0 + h + 10, true, small);
+    }
+    CHECK(st.pool.size() == 4);
+    auto in_pool = [&st](uint32_t h) {
+        return std::any_of(st.pool.begin(), st.pool.end(), [h](const entry& e) { return e.hash == h; });
+    };
+    CHECK(!in_pool(1));
+    bcn(st, 1, T0 + 20, false, small);
+    CHECK(!in_pool(1));
+    bcn(st, 1, T0 + 20, true, small);
+    CHECK(in_pool(1));
+    CHECK(st.pool.size() == 4);
+}
+
+// A repeated answer for an SSID already counted only moves its times, between refreshes
+static void test_repeat_answer() {
+    state st;
+    for (uint32_t h = 1; h <= 3; h++)
+        respond(st, h, T0, T0);
+    st.last_eval = st.newest;
+    CHECK(st.repeat_answer(1, T0 + 2, p) == T0 + 2);
+    CHECK(st.find(1)->last == T0 + 2);
+    CHECK(st.find(1)->first == T0);
+    // Not listed, not matched to a probe yet, or beaconed: the full path
+    CHECK(st.repeat_answer(9, T0 + 2, p) == 0);
+    respond(st, 5, T0 + 2, 0);
+    CHECK(st.repeat_answer(5, T0 + 2, p) == 0);
+    CHECK(st.find(5)->last == T0 + 2);
+    CHECK(st.seen(4, T0 + 2, flag::beaconed, p) != nullptr);
+    CHECK(st.repeat_answer(4, T0 + 2, p) == 0);
+    // A refresh is due
+    CHECK(st.repeat_answer(2, T0 + refresh_s + 1, p) == 0);
+    st.last_eval = st.newest;
+    CHECK(st.repeat_answer(2, T0 + refresh_s + 1, p) == T0 + refresh_s + 1);
+    // Out of the window
+    st.last_eval = T0 + p.window + 100;
+    CHECK(st.repeat_answer(3, T0 + p.window + 100, p) == 0);
 }
 
 // A renamed AP, twice: three names
@@ -710,6 +820,9 @@ int main() {
     test_pool_seed();
     test_evade_single_beacons();
     test_alert_text();
+    test_seed();
+    test_cached_readd();
+    test_repeat_answer();
 
     if (failures) {
         fprintf(stderr, "%d failures\n", failures);
