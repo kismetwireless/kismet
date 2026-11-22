@@ -178,9 +178,16 @@ struct finish_result {
     std::string err;
 };
 
-// End a file as a single .kismet: a final checkpoint and journal_mode=DELETE, both within
-// busy_budget.  The caller commits first and is the only user of the handle.
+// End a file as a single .kismet: a final checkpoint, journal_mode=DELETE and, for a log that
+// was in WAL, remove_unused_wal_files(), all within busy_budget.  The caller commits first and
+// is the only user of the handle.
 finish_result finish(sqlite3 *db, std::chrono::milliseconds busy_budget);
+
+// The -shm, and an empty -wal, that some sqlite builds (Apple's, or a persistent WAL) leave
+// next to a log once it has left WAL mode; nothing uses them in DELETE mode.  They're removed
+// while the log is locked exclusively, so no other program can take it back to WAL meanwhile,
+// and only as regular files.  Returns why one stays, "" when none does.
+std::string remove_unused_wal_files(sqlite3 *db, std::chrono::milliseconds busy_budget);
 
 // Why the log tools mustn't VACUUM this log, "" when they may.  A log in WAL mode, or a
 // persist log with its -journal, may be one Kismet is still writing; a vacuum holds the write

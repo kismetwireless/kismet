@@ -325,6 +325,7 @@ AS_IF([test x"$want_homebrew" != x"no"],
         LDFLAGS="-L`/opt/homebrew/bin/brew --prefix`/lib $LDFLAGS"
         CPPFLAGS="-I`/opt/homebrew/bin/brew --prefix`/include -I`/opt/homebrew/bin/brew --prefix openssl`/include $CPPFLAGS"
         SSL_DIRS=`/opt/homebrew/bin/brew --prefix openssl`
+        brew_sqlite=`/opt/homebrew/bin/brew --prefix sqlite 2>/dev/null`
     ],
     []
 )
@@ -1080,6 +1081,27 @@ fi
 
 # Don't check for sqlite3 if we're only building datasources
 if test "$caponly"x = "no"x; then
+    # Homebrew's sqlite is keg-only, so without its prefix macOS links Apple's
+    # /usr/lib/libsqlite3, which loses kismetdb rows while another program reads a log
+    if test "$darwin" = "yes"; then
+        AC_MSG_CHECKING([for homebrew sqlite])
+        sqlite_prefix=""
+        for d in "$brew_sqlite" /opt/homebrew/opt/sqlite /usr/local/opt/sqlite; do
+            if test -n "$d" -a -f "$d/include/sqlite3.h" -a -d "$d/lib"; then
+                sqlite_prefix="$d"
+                break
+            fi
+        done
+
+        if test -n "$sqlite_prefix"; then
+            AC_MSG_RESULT([$sqlite_prefix])
+            CPPFLAGS="-I$sqlite_prefix/include $CPPFLAGS"
+            LDFLAGS="-L$sqlite_prefix/lib $LDFLAGS"
+        else
+            AC_MSG_RESULT([no])
+        fi
+    fi
+
     # Check for sqlite3
     sql3l=no
     AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
@@ -1102,6 +1124,22 @@ if test "$caponly"x = "no"x; then
     else
         AC_MSG_ERROR(Failed to find sqlite3)
     fi # sqlite3
+
+    sqlite_apple=no
+    if test "$darwin" = "yes"; then
+        AC_MSG_CHECKING([which libsqlite3 is linked])
+        sqlite_linked=""
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sqlite3.h>]], [[return sqlite3_libversion_number() == 0;]])],
+            [sqlite_linked=`otool -L conftest$ac_exeext 2>/dev/null | awk '/libsqlite3/ { print $1; exit }'`])
+        AC_MSG_RESULT([${sqlite_linked:-unknown}])
+
+        case "$sqlite_linked" in
+            /usr/lib/*)
+                sqlite_apple=yes
+                AC_MSG_WARN([Linking Apple's system $sqlite_linked; install Homebrew's sqlite (brew install sqlite) and re-run configure])
+                ;;
+        esac
+    fi
 
 fi # caponly
 
@@ -2713,6 +2751,15 @@ elif test "$want_asan" = "yes" -o "$want_tsan" = "yes"; then
     echo "Compiling with ASAN or TSAN debugging can greatly increase the "
     echo "amount of RAM Kismet needs; you may see degraded performance or "
     echo "increased system load."
+fi
+
+if test "$sqlite_apple" = "yes"; then
+    echo
+    echo "*** WARNING ***"
+    echo "Kismet will be linked with Apple's system sqlite ($sqlite_linked), which loses "
+    echo "kismetdb log rows while another program reads the log.  Install Homebrew's sqlite "
+    echo "(brew install sqlite) and re-run configure; it is found with or without "
+    echo "--enable-homebrew."
 fi
 
 

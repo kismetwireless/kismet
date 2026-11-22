@@ -36,6 +36,7 @@
 #include <sqlite3.h>
 
 #include "getopt.h"
+#include "kis_database_journal.h"
 #include "nlohmann/json.hpp"
 #include "sqlite3_cpp11.h"
 #include "fmt.h"
@@ -137,6 +138,12 @@ int main(int argc, char *argv[]) {
         sqlite3_close(db);
         exit(1);
     }
+
+    /* Some sqlite builds (Apple's) leave the -shm, and an empty -wal, after leaving WAL */
+    const auto left = kismetdb_journal::remove_unused_wal_files(db, std::chrono::milliseconds(0));
+    if (!left.empty())
+        fmt::print(stderr, "WARNING:  '{}' is complete, but files sqlite left next to it "
+                "stay: {}\n", in_fname, left);
 
     sqlite3_close(db);
 

@@ -20,7 +20,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <charconv>
+#include <system_error>
 #include <thread>
 
 #include <sys/stat.h>
@@ -552,7 +554,60 @@ finish_result finish(sqlite3 *db, std::chrono::milliseconds busy_budget) {
     if (!f.single_file && f.err.empty())
         f.err = "the journal mode stayed " + m;
 
+    // Only a log that was in WAL; a -shm next to a persist log is another program's
+    if (f.single_file && was_wal) {
+        const auto left = remove_unused_wal_files(db, remaining());
+        if (!left.empty()) {
+            f.single_file = false;
+            append_err(f.err, left);
+        }
+    }
+
     return f;
+}
+
+std::string remove_unused_wal_files(sqlite3 *db, std::chrono::milliseconds busy_budget) {
+    const auto fn = sqlite3_db_filename(db, "main");
+    const std::string path = fn != nullptr ? fn : "";
+    const auto wal = wal_path(path);
+    const auto shm = path + "-shm";
+
+    if (path.empty() || (regular_size(wal) != 0 && !regular_size(shm).has_value()))
+        return "";
+
+    std::string err, e;
+    {
+        busy_wait w(busy_budget);
+        if (exec(db, "BEGIN EXCLUSIVE", e) != SQLITE_OK)
+            return "couldn't lock the log to remove its unused -wal and -shm: " + e;
+    }
+
+    std::string m;
+    if (pragma_text(db, "PRAGMA journal_mode", m, e) != SQLITE_OK) {
+        err = "couldn't read the journal mode to remove the unused -wal and -shm: " + e;
+    } else if (m != "delete") {
+        err = "the log went back to journal mode " + m + ", so its -wal and -shm stay";
+    } else {
+        auto remove = [&err](const std::string& p) {
+            if (unlink(p.c_str()) == 0)
+                return;
+
+            const auto unlink_errno = errno;
+            if (unlink_errno != ENOENT)
+                append_err(err, "couldn't remove '" + p + "': " +
+                        std::generic_category().message(unlink_errno));
+        };
+
+        if (regular_size(wal) == 0)
+            remove(wal);
+        if (regular_size(shm).has_value())
+            remove(shm);
+    }
+
+    if (rollback(db, e) != SQLITE_OK)
+        append_err(err, "couldn't unlock the log: " + e);
+
+    return err;
 }
 
 sqlite3 *open_checkpointer(const std::string& path, std::string& err) {
