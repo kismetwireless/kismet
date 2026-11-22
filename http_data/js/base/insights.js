@@ -1,5 +1,5 @@
 // The Insights tab: the devices heard lately as a graph of how they relate,
-// their rhythm over the last hour, and the unusual things in both.  Phy
+// their rhythm over the last hour or day, and the unusual things in both.  Phy
 // modules add relations and findings (js/registry/insights.js); this file
 // reads the devices, runs them, and adds the findings that hold for any phy.
 
@@ -9,8 +9,12 @@ import { rhythm as rhythmView } from '../widgets/insights/rhythm.js';
 import * as model from '../widgets/insights/model.js';
 
 const base = 'kismet.device.base';
-const windows = [[300, '5 minutes'], [900, '15 minutes'], [3600, 'hour']];
+const windows = [[300, '5 minutes'], [900, '15 minutes'], [3600, 'hour'], [86400, '24 hours']];
 const maxDevices = 500;
+
+// Rhythm reads the RRD ring that covers the window: a minute per column over
+// the hour, or an hour per column over the day
+const rhythmSpan = (win) => (win > 3600 ? 'day' : 'hour');
 
 export function register(kismet) {
     const { ui, api, dom, settings, clock, rrd, format, censor } = kismet;
@@ -97,7 +101,9 @@ export function register(kismet) {
         create(body, area) {
             let view = settings.get('insights.tab', 'flow');
             let wanted = view;
-            let win = settings.get('insights.window', 900);
+            let win = Number(settings.get('insights.window', 900));
+            if (!windows.some(([s]) => s === win))
+                win = 900;
             let graph = null;
             let records = [];
             let found = [];
@@ -105,6 +111,8 @@ export function register(kismet) {
             let showing = false;
             let rhythmMinute = -1;
             let rhythmKeys = '';
+            let rhythmSeq = 0;
+            let readSeq = 0;
 
             const pick = (key) => ui.openDevice(key);
             const flowView = flow({ linkKinds: ui.linkKinds, onPick: pick });
@@ -184,17 +192,20 @@ export function register(kismet) {
             async function updateRhythm(force = false) {
                 const now = clock.isKnown() ? clock.now() : Date.now() / 1000;
                 const minute = Math.floor(now / 60);
-                const keys = records.map((r) => r[`${base}.key`]).join();
-                // the hour columns change once a minute; don't re-cluster in between
+                const span = rhythmSpan(win);
+                // the devices arrive newest first, so the order changes on every read
+                const keys = `${span}:${records.map((r) => r[`${base}.key`]).sort().join()}`;
+                // the columns change at most once a minute; don't re-cluster in between
                 if (!force && minute === rhythmMinute && keys === rhythmKeys)
                     return;
                 rhythmMinute = minute;
                 rhythmKeys = keys;
+                const seq = ++rhythmSeq;
                 // which sources heard each device, and when each was delivering
                 // packets, so a stopped source isn't read as devices leaving
                 let listen = new Map();
                 try {
-                    const wanted = records.filter((r) => rrd.history(r[`${base}.packets.rrd`], now, 'hour').some((v) => v > 0))
+                    const wanted = records.filter((r) => rrd.history(r[`${base}.packets.rrd`], now, span).some((v) => v > 0))
                         .map((r) => r[`${base}.key`]);
                     const [sources, seen] = await Promise.all([
                         api.post('datasource/all_sources.json', { fields: ['kismet.datasource.uuid', 'kismet.datasource.packets_rrd'] }),
@@ -203,11 +214,14 @@ export function register(kismet) {
                     ]);
                     const seenby = new Map(seen.map((d) => [d[`${base}.key`],
                         (d[`${base}.seenby`] ?? []).map((sb) => sb['kismet.common.seenby.uuid'])]));
-                    listen = model.listening(sources, seenby, now);
+                    listen = model.listening(sources, seenby, now, span);
                 } catch (err) {
                     console.error('Could not read which sources heard each device:', err);
                 }
-                rh.update(model.rhythm(records, now, { listen }));
+                // a newer read (or another window) started while this one waited
+                if (seq !== rhythmSeq)
+                    return;
+                rh.update(model.rhythm(records, now, { listen, span }));
             }
 
             // The element the findings scroll in: the tab itself, or the page around it on a phone
@@ -268,17 +282,25 @@ export function register(kismet) {
                 clearTimeout(timer);
                 if (!showing)
                     return;
+                // a read started while this one waited (another window picked)
+                // keeps the refresh going; this one's reply is dropped
+                const seq = ++readSeq;
                 try {
                     const relations = ui.insightRelations.list();
                     const finders = ui.insightFindings.list();
                     const fields = model.fieldsFor(relations, finders);
-                    const [devices, alerts] = await Promise.all([
-                        api.post(`devices/views/all/last-time/${-win}/devices.json`, { fields }),
+                    // the server sorts and keeps the most recent, so a long window
+                    // with thousands of devices still sends only maxDevices of them
+                    // (Kismet's sort_dir is backwards: "asc" puts the newest first)
+                    const [page, alerts] = await Promise.all([
+                        api.post('devices/views/all/devices.json', { fields, last_time: -win },
+                            { page: 0, length: maxDevices, sort: `${base}.last_time`, sort_dir: 'asc' }),
                         api.get(api.marked(`alerts/last-time/${-win}/alerts.json`)).catch(() => []),
                     ]);
-                    let list = devices;
-                    if (list.length > maxDevices)
-                        list = list.sort((a, b) => b[`${base}.last_time`] - a[`${base}.last_time`]).slice(0, maxDevices);
+                    if (seq !== readSeq)
+                        return;
+                    const list = Array.isArray(page?.data) ? page.data : [];
+                    const heard = Math.max(list.length, Number(page?.last_row) || 0);
                     records = list;
                     graph = model.buildGraph(records, relations, graph);
                     const now = clock.isKnown() ? clock.now() : Date.now() / 1000;
@@ -293,8 +315,10 @@ export function register(kismet) {
                     tabButtons.unusual.textContent = found.length ? `Unusual (${found.length})` : 'Unusual';
                     tabButtons.unusual.classList.toggle('alerting', high > 0);
                     status.textContent = `${format.count(records.length)} devices, ${format.count(graph.links.length)} links` +
-                        (list.length >= maxDevices ? ` (the ${maxDevices} heard most recently)` : '');
+                        (heard > list.length ? ` (the ${format.count(list.length)} heard most recently of ${format.count(heard)})` : '');
                 } catch (err) {
+                    if (seq !== readSeq)
+                        return;
                     status.textContent = `Could not read the devices: ${err.message}`;
                 }
                 timer = setTimeout(read, 3000);
