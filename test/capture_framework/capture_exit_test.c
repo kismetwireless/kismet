@@ -752,10 +752,16 @@ static void run_prethread(kis_capture_handler_t *caph) {
     cf_handler_shutdown(caph);
 }
 
-/* Process-directed, held by the core mask until the signal thread runs */
+/* Process-directed, held by the core mask until the signal thread runs.  A
+ * shell starts background jobs with SIGQUIT ignored, which would discard it. */
 static void start_sigquit(void) {
+    struct sigaction sa;
     sigset_t pend;
 
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_DFL;
+    sigemptyset(&sa.sa_mask);
+    CHECK(sigaction(SIGQUIT, &sa, NULL) == 0);
     CHECK(kill(getpid(), SIGQUIT) == 0);
     sigpending(&pend);
     CHECK(sigismember(&pend, SIGQUIT));
