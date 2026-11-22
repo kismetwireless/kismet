@@ -530,6 +530,7 @@ struct cf_hop_clock {
 kis_capture_handler_t *cf_handler_init(const char *in_type) {
     kis_capture_handler_t *ch;
     pthread_mutexattr_t mutexattr;
+    pthread_condattr_t condattr;
 
     ch = (kis_capture_handler_t *) malloc(sizeof(kis_capture_handler_t));
 
@@ -538,6 +539,10 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 
     ch->last_ping = time(0);
     ch->seqno = 1;
+
+    /* Shutdown signals these when set */
+    ch->monitor_pid = 0;
+    ch->child_pid = 0;
 
     ch->capsource_type = strdup(in_type);
 
@@ -636,6 +641,26 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->userdata = NULL;
 
     ch->capture_running = 0;
+    ch->capture_live = 0;
+    ch->signal_live = 0;
+    ch->hop_live = 0;
+    ch->capture_exit_timed_out = 0;
+    ch->signal_exit_timed_out = 0;
+    ch->hop_exit_timed_out = 0;
+    ch->exit_deadline_ns = 0;
+    ch->shutdown_done = 0;
+    ch->shutdown_busy = 0;
+
+    /* Exit waits run on the monotonic clock where the platform has it */
+    ch->thread_exit_clock = CLOCK_REALTIME;
+    pthread_condattr_init(&condattr);
+#if defined(__linux__)
+    if (pthread_condattr_setclock(&condattr, CLOCK_MONOTONIC) == 0)
+        ch->thread_exit_clock = CLOCK_MONOTONIC;
+#endif
+    pthread_mutex_init(&(ch->thread_exit_lock), NULL);
+    pthread_cond_init(&(ch->thread_exit_cond), &condattr);
+    pthread_condattr_destroy(&condattr);
     ch->ipcthread_running = 0;
     ch->ipcthread_stop = 0;
     ch->hopping_running = 0;
@@ -712,89 +737,371 @@ static void cf_unlock_mutex_cleanup(void *arg) {
     pthread_mutex_unlock((pthread_mutex_t *) arg);
 }
 
+/* How long shutdown waits for a cancelled capture thread to leave, at least */
+#define CF_CAPTURE_EXIT_WAIT_MS 1000
+
+/* The capture thread is cancelled asynchronously.  Cancel it only while holding
+ * both framework locks so it can't die owning one, and only while it is still
+ * running: a finished thread clears capture_running under the same locks before
+ * it exits.  Lock order is handler_lock -> out_ringbuf_lock. */
+static void cf_cancel_capture_thread(kis_capture_handler_t *caph) {
+    pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+    if (caph->capture_running) {
+        /* A capture callback shutting its own source down returns on its own */
+        if (!pthread_equal(pthread_self(), caph->capturethread))
+            pthread_cancel(caph->capturethread);
+        caph->capture_running = 0;
+    }
+
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
+}
+
+/* How often an exit wait rechecks: a cancelled thread's exit isn't signalled */
+#define CF_THREAD_EXIT_POLL_MS 10
+
+/* Least time a wait gives a thread no wait has given up on yet */
+#define CF_THREAD_EXIT_MIN_MS 100
+
+/* A framework thread's last touch of the handler: a waiter may free it as soon
+ * as thread_exit_lock is released */
+static void cf_thread_exited(kis_capture_handler_t *caph, unsigned int *live) {
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    if (__atomic_load_n(live, __ATOMIC_ACQUIRE) > 0)
+        __atomic_sub_fetch(live, 1, __ATOMIC_ACQ_REL);
+    pthread_cond_broadcast(&(caph->thread_exit_cond));
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+}
+
+/* The same from a cancellation cleanup handler: the unwind there skips the
+ * sanitizers' stack bookkeeping (ASan reports, and hangs on, a false stack
+ * overflow in any call made from it), so the handler makes no calls and the
+ * waiters poll.  The decrement is the thread's last touch of the handler. */
+static void cf_thread_exited_unwound(unsigned int *live) {
+    __atomic_sub_fetch(live, 1, __ATOMIC_RELEASE);
+}
+
+static void cf_thread_started(unsigned int *live) {
+    __atomic_add_fetch(live, 1, __ATOMIC_ACQ_REL);
+}
+
+static unsigned int cf_thread_live(unsigned int *live) {
+    return __atomic_load_n(live, __ATOMIC_ACQUIRE);
+}
+
+/* Which framework threads an exit wait covers */
+#define CF_EXIT_CAPTURE 0x1
+#define CF_EXIT_SIGNAL  0x2
+#define CF_EXIT_HOP     0x4
+#define CF_EXIT_ALL     (CF_EXIT_CAPTURE | CF_EXIT_SIGNAL | CF_EXIT_HOP)
+
+static uint64_t cf_clock_ns(clockid_t clk);
+
+/* Under thread_exit_lock: threads in the set still live, and with pending only
+ * those no earlier wait gave up on */
+static int cf_threads_live_locked(kis_capture_handler_t *caph, int threads, int pending) {
+    return ((threads & CF_EXIT_CAPTURE) && cf_thread_live(&caph->capture_live) &&
+            !(pending && caph->capture_exit_timed_out)) ||
+        ((threads & CF_EXIT_SIGNAL) && cf_thread_live(&caph->signal_live) &&
+         !(pending && caph->signal_exit_timed_out)) ||
+        ((threads & CF_EXIT_HOP) && cf_thread_live(&caph->hop_live) &&
+         !(pending && caph->hop_exit_timed_out));
+}
+
+/* Under thread_exit_lock: the exit budget, started by the first close or
+ * shutdown and shared by every wait after it */
+static uint64_t cf_exit_deadline_locked(kis_capture_handler_t *caph) {
+    uint64_t wait_ms;
+
+    if (caph->exit_deadline_ns == 0) {
+        wait_ms = caph->close_grace_ms > CF_CAPTURE_EXIT_WAIT_MS ?
+            caph->close_grace_ms : CF_CAPTURE_EXIT_WAIT_MS;
+        caph->exit_deadline_ns = cf_clock_ns(caph->thread_exit_clock) +
+            wait_ms * (CF_NS_PER_SEC / 1000);
+    }
+
+    return caph->exit_deadline_ns;
+}
+
+static void cf_exit_deadline_start(kis_capture_handler_t *caph) {
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    cf_exit_deadline_locked(caph);
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+}
+
+/* Under thread_exit_lock: the wait for these threads is over */
+static void cf_exit_give_up_locked(kis_capture_handler_t *caph, int threads) {
+    if ((threads & CF_EXIT_CAPTURE) && cf_thread_live(&caph->capture_live))
+        caph->capture_exit_timed_out = 1;
+    if ((threads & CF_EXIT_SIGNAL) && cf_thread_live(&caph->signal_live))
+        caph->signal_exit_timed_out = 1;
+    if ((threads & CF_EXIT_HOP) && cf_thread_live(&caph->hop_live))
+        caph->hop_exit_timed_out = 1;
+}
+
+/* With shutdown and spindown, for a new connection: a new budget, and threads
+ * that never left are waited for again */
+static void cf_exit_wait_reset(kis_capture_handler_t *caph) {
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    caph->capture_exit_timed_out = 0;
+    caph->signal_exit_timed_out = 0;
+    caph->hop_exit_timed_out = 0;
+    caph->exit_deadline_ns = 0;
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+}
+
+/* A new connection: not shutting down any more */
+static void cf_handler_reset_shutdown(kis_capture_handler_t *caph) {
+    pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    caph->spindown = 0;
+    caph->shutdown = 0;
+    caph->shutdown_done = 0;
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    cf_exit_wait_reset(caph);
+}
+
+/* Wait for the framework threads in the set (CF_EXIT_*) to leave.  A cancel can
+ * be ignored (the capture thread may be past its callback with cancels
+ * disabled), so the wait is bounded by the one exit budget, and a thread that a
+ * wait already gave up on isn't waited for again.  Call with neither framework
+ * lock held: the threads' tails take them.  Returns 1 once they're gone, 0 if
+ * one is still live or the caller is one of them. */
+static int cf_wait_threads_exit(kis_capture_handler_t *caph, int threads) {
+    pthread_t self = pthread_self();
+    uint64_t deadline, now, slice_ns;
+    struct timespec slice;
+    int self_thread, gone, gave_up = 0;
+
+    /* The thread ids are written under handler_lock */
+    pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    self_thread = ((threads & CF_EXIT_CAPTURE) && cf_thread_live(&caph->capture_live) &&
+            pthread_equal(self, caph->capturethread)) ||
+        ((threads & CF_EXIT_SIGNAL) && cf_thread_live(&caph->signal_live) &&
+         pthread_equal(self, caph->signalthread)) ||
+        ((threads & CF_EXIT_HOP) && cf_thread_live(&caph->hop_live) &&
+         pthread_equal(self, caph->hopthread));
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    if (self_thread)
+        return 0;
+
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+
+    /* A thread this call just woke (the signal thread from free) gets a moment
+     * even when the budget is spent */
+    deadline = cf_exit_deadline_locked(caph);
+    now = cf_clock_ns(caph->thread_exit_clock) + CF_THREAD_EXIT_MIN_MS * (CF_NS_PER_SEC / 1000);
+    if (deadline < now)
+        deadline = now;
+
+    while (cf_threads_live_locked(caph, threads, 1)) {
+        now = cf_clock_ns(caph->thread_exit_clock);
+
+        if (now >= deadline) {
+            cf_exit_give_up_locked(caph, threads);
+            gave_up = 1;
+            break;
+        }
+
+        slice_ns = now + CF_THREAD_EXIT_POLL_MS * (CF_NS_PER_SEC / 1000);
+        if (slice_ns > deadline)
+            slice_ns = deadline;
+
+        slice.tv_sec = (time_t) (slice_ns / CF_NS_PER_SEC);
+        slice.tv_nsec = (long) (slice_ns % CF_NS_PER_SEC);
+
+        pthread_cond_timedwait(&(caph->thread_exit_cond), &(caph->thread_exit_lock), &slice);
+    }
+
+    gone = !cf_threads_live_locked(caph, threads, 0);
+
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+
+    if (gave_up)
+        fprintf(stderr, "ERROR: capture framework thread did not exit\n");
+
+    return gone;
+}
+
+/* Under handler_lock: stop hopping.  The current hop thread clears
+ * hopping_running under handler_lock before it returns, so the id is valid. */
+static void cf_cancel_hop_thread_locked(kis_capture_handler_t *caph) {
+    if (caph->hopping_running) {
+        if (!pthread_equal(pthread_self(), caph->hopthread))
+            pthread_cancel(caph->hopthread);
+        caph->hopping_running = 0;
+    }
+}
+
+/* Signal (TERM, then KILL) and detach every child on the IPC list.  The reaper
+ * reaps and marks under handler_lock and out_ringbuf_lock, so a pid signalled
+ * under out_ringbuf_lock unmarked is not reaped.  Call with out_ringbuf_lock not
+ * held (it is recursive); a child the reaper can't reap during the grace sleep
+ * (handler_lock held, from shutdown) stays a zombie, which is safe to signal. */
+static cf_ipc_t *cf_ipc_kill_detach(kis_capture_handler_t *caph) {
+    cf_ipc_t *ipc, *list;
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    caph->shutdown = 1;
+    for (ipc = caph->ipc_list; ipc != NULL; ipc = ipc->next)
+        if (!ipc->reaped)
+            cf_ipc_signal(caph, ipc, SIGTERM);
+    list = caph->ipc_list;
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    if (list == NULL)
+        return NULL;
+
+    /* A chance to die gracefully */
+    usleep(250000);
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    for (ipc = caph->ipc_list; ipc != NULL; ipc = ipc->next)
+        if (!ipc->reaped)
+            cf_ipc_signal(caph, ipc, SIGKILL);
+    list = caph->ipc_list;
+    caph->ipc_list = NULL;
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    return list;
+}
+
 void cf_handler_free(kis_capture_handler_t *caph) {
     size_t szi;
+    int threads_gone;
+    cf_ipc_t *ipc_list;
 
     if (caph == NULL)
         return;
 
+    /* Stop every framework thread first, so nothing below goes away under one.
+     * One that won't leave keeps what it can touch (wake pipe, out ring, hop
+     * state, IPC records, mutexes): leaked, the process is exiting. */
+    cf_cancel_capture_thread(caph);
+
+    pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+
+    cf_cancel_hop_thread_locked(caph);
+
+    /* Out of its sigwait loop, into shutdown (which returns at once if it already
+     * ran); a signal thread already inside shutdown finishes it.  Still live under
+     * thread_exit_lock means the id is still valid. */
+    caph->shutdown = 1;
+    if (cf_thread_live(&caph->signal_live))
+        pthread_kill(caph->signalthread, SIGALRM);
+
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    /* Children left when shutdown never ran (or added after it) */
+    ipc_list = cf_ipc_kill_detach(caph);
+
+    threads_gone = cf_wait_threads_exit(caph, CF_EXIT_ALL);
+
     pthread_mutex_lock(&(caph->handler_lock));
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-    if (caph->in_fd >= 0)
+    if (caph->in_fd >= 0) {
         close(caph->in_fd);
+        caph->in_fd = -1;
+    }
 
-    if (caph->out_fd >= 0)
+    if (caph->out_fd >= 0) {
         close(caph->out_fd);
+        caph->out_fd = -1;
+    }
 
-    if (caph->remote_host)
-        free(caph->remote_host);
+    free(caph->remote_host);
+    caph->remote_host = NULL;
 
-    if (caph->capsource_type)
-        free(caph->capsource_type);
+    free(caph->capsource_type);
+    caph->capsource_type = NULL;
 
-    if (caph->cli_sourcedef)
-        free(caph->cli_sourcedef);
+    free(caph->cli_sourcedef);
+    caph->cli_sourcedef = NULL;
 
 #ifdef HAVE_LIBWEBSOCKETS
     free(caph->lwsuuid);
     caph->lwsuuid = NULL;
 #endif
 
-    if (caph->tcp_fd >= 0)
+    if (caph->tcp_fd >= 0) {
         close(caph->tcp_fd);
+        caph->tcp_fd = -1;
+    }
 
-    if (caph->out_ringbuf_wake[0] >= 0)
-        close(caph->out_ringbuf_wake[0]);
+    if (threads_gone) {
+        while (ipc_list != NULL) {
+            cf_ipc_t *nipc = ipc_list->next;
+            cf_ipc_free(caph, ipc_list);
+            ipc_list = nipc;
+        }
 
-    if (caph->out_ringbuf_wake[1] >= 0)
-        close(caph->out_ringbuf_wake[1]);
+        if (caph->out_ringbuf_wake[0] >= 0)
+            close(caph->out_ringbuf_wake[0]);
+
+        if (caph->out_ringbuf_wake[1] >= 0)
+            close(caph->out_ringbuf_wake[1]);
+
+        caph->out_ringbuf_wake[0] = -1;
+        caph->out_ringbuf_wake[1] = -1;
+
+        if (caph->out_ringbuf != NULL)
+            kis_simple_ringbuf_free(caph->out_ringbuf);
+        caph->out_ringbuf = NULL;
+
+        for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
+            if (caph->channel_hop_list[szi] != NULL)
+                free(caph->channel_hop_list[szi]);
+
+            if (caph->chanfree_cb != NULL) {
+                (*(caph->chanfree_cb))(caph->custom_channel_hop_list[szi]);
+            } else if (caph->custom_channel_hop_list[szi] != NULL) {
+                free(caph->custom_channel_hop_list[szi]);
+            }
+        }
+
+        free(caph->channel_hop_list);
+        caph->channel_hop_list = NULL;
+
+        free(caph->custom_channel_hop_list);
+        caph->custom_channel_hop_list = NULL;
+
+        caph->channel_hop_list_sz = 0;
+
+        free(caph->hop_clock);
+        caph->hop_clock = NULL;
+        free(caph->hop_timing);
+        caph->hop_timing = NULL;
+
+        /* Read lock-free by the capture thread, which is gone */
+        free(caph->switch_windows);
+        caph->switch_windows = NULL;
+    }
 
     if (caph->in_ringbuf != NULL)
         kis_simple_ringbuf_free(caph->in_ringbuf);
+    caph->in_ringbuf = NULL;
 
-    if (caph->out_ringbuf != NULL)
-        kis_simple_ringbuf_free(caph->out_ringbuf);
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
 
-    for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
-        if (caph->channel_hop_list[szi] != NULL)
-            free(caph->channel_hop_list[szi]);
-
-        if (caph->chanfree_cb != NULL) {
-            (*(caph->chanfree_cb))(caph->custom_channel_hop_list[szi]);
-        } else if (caph->custom_channel_hop_list[szi] != NULL) {
-            free(caph->custom_channel_hop_list[szi]);
-        }
+    if (threads_gone) {
+        pthread_mutex_destroy(&(caph->out_ringbuf_lock));
+        pthread_mutex_destroy(&(caph->handler_lock));
+        pthread_cond_destroy(&(caph->thread_exit_cond));
+        pthread_mutex_destroy(&(caph->thread_exit_lock));
     }
-
-    if (caph->channel_hop_list != NULL)
-        free(caph->channel_hop_list);
-
-    if (caph->custom_channel_hop_list != NULL)
-        free(caph->custom_channel_hop_list);
-
-    if (caph->capture_running) {
-        pthread_cancel(caph->capturethread);
-        caph->capture_running = 0;
-    }
-
-    if (caph->hopping_running) {
-        pthread_cancel(caph->hopthread);
-        caph->hopping_running = 0;
-    }
-
-	if (caph->signal_running) {
-		pthread_cancel(caph->signalthread);
-		caph->signal_running = 0;
-	}
-
-    free(caph->hop_clock);
-    free(caph->hop_timing);
-
-    /* Not the switch windows: a capture thread may still be reading them */
-
-    pthread_mutex_destroy(&(caph->out_ringbuf_lock));
-    pthread_mutex_destroy(&(caph->handler_lock));
 }
 
 cf_params_interface_t *cf_params_interface_new() {
@@ -837,13 +1144,65 @@ void cf_params_spectrum_free(cf_params_spectrum_t *si) {
     free(si);
 }
 
+/* Under handler_lock */
+static void cf_handler_spindown_locked(kis_capture_handler_t *caph) {
+    caph->spindown = 1;
+    __atomic_store_n(&caph->env_report_ms, 0, __ATOMIC_RELEASE);
+}
+
+/* Called with handler_lock held once (shutdown's callers don't hold it), which it
+ * drops: a second shutdown returns once the first has finished.  Not from a
+ * thread the first one waits for (capture, hop), which returns at once. */
+static void cf_shutdown_wait_first(kis_capture_handler_t *caph) {
+    pthread_t self = pthread_self();
+    int waited_on, oldstate;
+
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    waited_on = (cf_thread_live(&caph->capture_live) &&
+            pthread_equal(self, caph->capturethread)) ||
+        (cf_thread_live(&caph->hop_live) && pthread_equal(self, caph->hopthread));
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    if (waited_on)
+        return;
+
+    /* A cancel in the wait would leave thread_exit_lock held */
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    while (caph->shutdown_busy && !pthread_equal(self, caph->shutdown_thread))
+        pthread_cond_wait(&(caph->thread_exit_cond), &(caph->thread_exit_lock));
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
+    pthread_setcancelstate(oldstate, NULL);
+}
+
 void cf_handler_shutdown(kis_capture_handler_t *caph) {
     cf_ipc_t *ipc, *nipc;
+    int hop_gone;
 
     if (caph == NULL)
         return;
 
     pthread_mutex_lock(&(caph->handler_lock));
+
+    /* The main loop and the signal thread can both get here */
+    if (caph->shutdown_done) {
+        cf_shutdown_wait_first(caph);
+        return;
+    }
+
+    caph->shutdown_done = 1;
+
+    /* First, so through the waits below the reaper only marks children, the
+     * loops stop and a child added late is killed */
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    caph->shutdown = 1;
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    caph->shutdown_busy = 1;
+    caph->shutdown_thread = pthread_self();
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
 
     if (caph->monitor_pid > 0) {
 	    kill(caph->monitor_pid, SIGINT);
@@ -853,40 +1212,46 @@ void cf_handler_shutdown(kis_capture_handler_t *caph) {
 	    kill(caph->child_pid, SIGINT);
     }
 
-    caph->shutdown = 1;
+    /* Capture threads that ignore cancels leave on spindown */
+    cf_handler_spindown_locked(caph);
+    cf_exit_deadline_start(caph);
 
-    /* Kill any IPC */
-    ipc = caph->ipc_list;
+    /* A channel change can use the IPC records freed below (zigbee900) */
+    cf_cancel_hop_thread_locked(caph);
+
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    cf_handler_wake_loop(caph);
+
+    hop_gone = cf_wait_threads_exit(caph, CF_EXIT_HOP);
+
+    pthread_mutex_lock(&(caph->handler_lock));
+
+    /* Kill any IPC; a hop thread that never left keeps the records */
+    ipc = cf_ipc_kill_detach(caph);
 
     while (ipc != NULL) {
-        /* kill ipc & give it a chance to die gracefully */
-        cf_ipc_signal(caph, ipc, SIGTERM);
-        usleep(250000);
-        cf_ipc_signal(caph, ipc, SIGKILL);
-
         nipc = ipc->next;
-        cf_ipc_free(caph, ipc);
+        if (hop_gone)
+            cf_ipc_free(caph, ipc);
         ipc = nipc;
     }
 
     /* Kill the capture thread */
-    if (caph->capture_running) {
-        pthread_cancel(caph->capturethread);
-        caph->capture_running = 0;
-    }
-
-    pthread_mutex_lock(&(caph->out_ringbuf_lock));
-    if (caph->capture_running) {
-	    pthread_cancel(caph->capturethread);
-	    caph->capture_running = 0;
-    }
-    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    cf_cancel_capture_thread(caph);
 
     /* Kill anything pending */
     cf_handler_signal_flush(caph);
     cf_handler_wake_loop(caph);
 
     pthread_mutex_unlock(&(caph->handler_lock));
+
+    cf_wait_threads_exit(caph, CF_EXIT_CAPTURE);
+
+    pthread_mutex_lock(&(caph->thread_exit_lock));
+    caph->shutdown_busy = 0;
+    pthread_cond_broadcast(&(caph->thread_exit_cond));
+    pthread_mutex_unlock(&(caph->thread_exit_lock));
 }
 
 void cf_handler_spindown(kis_capture_handler_t *caph) {
@@ -894,8 +1259,7 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
         return;
 
     pthread_mutex_lock(&(caph->handler_lock));
-    caph->spindown = 1;
-    __atomic_store_n(&caph->env_report_ms, 0, __ATOMIC_RELEASE);
+    cf_handler_spindown_locked(caph);
     pthread_mutex_unlock(&(caph->handler_lock));
 
     cf_handler_wake_loop(caph);
@@ -1529,11 +1893,30 @@ void cf_handler_set_chanfree_cb(kis_capture_handler_t *capf, cf_callback_chanfre
     pthread_mutex_unlock(&(capf->handler_lock));
 }
 
-/* Internal capture thread which spawns the capture callback
- */
-void *cf_int_capture_thread(void *arg) {
+/* Runs on a cancel, after any cleanup the capture callback pushed: the thread's
+ * last touch of caph, which a waiting cf_handler_free may then free */
+static void cf_capture_thread_exited(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
+    cf_thread_exited_unwound(&caph->capture_live);
+}
 
+/* A cancel longjmps back into the frame that pushed the cleanup, past the
+ * sanitizer's stack bookkeeping, and ASan's instrumented return from that jump
+ * then reports the stale redzones of the deeper frames.  The frames that push
+ * framework cleanups aren't instrumented. */
+#if defined(__SANITIZE_ADDRESS__)
+#define CF_UNWIND_FRAME __attribute__((no_sanitize_address))
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define CF_UNWIND_FRAME __attribute__((no_sanitize_address))
+#endif
+#endif
+#ifndef CF_UNWIND_FRAME
+#define CF_UNWIND_FRAME
+#endif
+
+/* The capture callback and the thread's tail */
+static void cf_capture_thread_run(kis_capture_handler_t *caph) {
     /* Set us cancelable */
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -1546,7 +1929,35 @@ void *cf_int_capture_thread(void *arg) {
 
     // cf_send_error(caph, 0, "capture thread ended, source is closed.");
 
-    cf_handler_spindown(caph);
+    /* Done capturing: no async cancel from here on (it could land inside a lock),
+     * and nothing should try to cancel a thread that is about to be gone */
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    /* Together, so an open seen between them can't launch a capture over this one */
+    pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    caph->capture_running = 0;
+    cf_handler_spindown_locked(caph);
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    cf_handler_wake_loop(caph);
+}
+
+/* Internal capture thread which spawns the capture callback
+ */
+CF_UNWIND_FRAME void *cf_int_capture_thread(void *arg) {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
+
+    /* Before async cancel is on, so a cancel always finds it */
+    pthread_cleanup_push(cf_capture_thread_exited, caph);
+    cf_capture_thread_run(caph);
+    pthread_cleanup_pop(0);
+
+    /* Returned with cancels off: the exit is signalled under thread_exit_lock,
+     * which orders the tail's last touches (the wake pipe) before a waiter's
+     * free, and wakes the waiter without a poll */
+    cf_thread_exited(caph, &caph->capture_live);
 
     return NULL;
 }
@@ -1567,24 +1978,38 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
         cf_ipc_t *prev_ipc = NULL;
         cf_ipc_t *ipc = NULL;
 
-        caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED);
-
-        if (caught_pid < 0 && errno == EINTR)
-            continue;
-
-        if (caught_pid <= 0)
-            return;
-
+        /* Reaped and unlinked or marked in one step under both locks, in the
+         * usual order: shutdown never signals a reaped pid still on the list, the
+         * IPC service walk never sees it unlinked, and a term callback may take
+         * handler_lock (a send that takes a seqno does) */
+        pthread_mutex_lock(&(caph->handler_lock));
         pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-        if (caph->shutdown) {
+        caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED);
+
+        if (caught_pid < 0 && errno == EINTR) {
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            pthread_mutex_unlock(&(caph->handler_lock));
             continue;
+        }
+
+        if (caught_pid <= 0) {
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            pthread_mutex_unlock(&(caph->handler_lock));
+            return;
         }
 
         ipc = caph->ipc_list;
 
         while (ipc != NULL) {
+            /* Shutdown frees the list; it only must not signal this one (a
+             * stopped child is still there to signal) */
+            if (ipc->pid == caught_pid && caph->shutdown) {
+                if (WIFEXITED(pid_status) || WIFSIGNALED(pid_status))
+                    ipc->reaped = 1;
+                break;
+            }
+
             if (ipc->pid == caught_pid) {
                 if (ipc == caph->ipc_list) {
                     caph->ipc_list = ipc->next;
@@ -1592,6 +2017,9 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
                     prev_ipc->next = ipc->next;
                 }
 
+                /* Runs under handler_lock (as from the IPC service loop) and
+                 * out_ringbuf_lock; it must not wait on a thread that takes
+                 * either */
                 if (ipc->term_callback != NULL) {
                     ipc->term_callback(caph, ipc, pid_status);
                 }
@@ -1604,6 +2032,7 @@ void cf_process_child_signals(kis_capture_handler_t *caph) {
         }
 
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        pthread_mutex_unlock(&(caph->handler_lock));
     }
 }
 
@@ -1619,6 +2048,10 @@ void *cf_int_signal_thread(void *arg) {
     sigfillset(&unblock_mask);
     pthread_sigmask(SIG_UNBLOCK, &unblock_mask, NULL);
     pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
+
+    /* Never cancelled: cf_handler_free sets shutdown and wakes it with SIGALRM, and
+     * it leaves through cf_handler_shutdown */
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
     while (!caph->spindown && !caph->shutdown) {
         r = sigwait(&cf_core_signal_mask, &sig_caught);
@@ -1644,61 +2077,110 @@ void *cf_int_signal_thread(void *arg) {
     fprintf(stderr, "DEBUG - cf handler shutdown\n");
     cf_handler_shutdown(caph);
 
+    pthread_mutex_lock(&(caph->handler_lock));
+    caph->signal_running = 0;
+    pthread_mutex_unlock(&(caph->handler_lock));
+
+    cf_thread_exited(caph, &caph->signal_live);
+
     return NULL;
 }
 
-/* Launch a capture thread after opening has been successful */
-int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
+/* Launch a capture thread after opening has been successful.  On failure msg
+ * (STATUS_MAX) says why; -2 means a thread could not be created and the source
+ * should spin down once the error is sent. */
+static int cf_launch_capture_thread_msg(kis_capture_handler_t *caph, char *msg) {
+    int ret = -2;
+
     /* Set the thread attributes - detached, cancellable */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 
-    sigemptyset(&cf_core_signal_mask);
+    pthread_mutex_lock(&(caph->handler_lock));
 
-    /*
-    sigaddset(&cf_core_signal_mask, SIGINT);
-    sigaddset(&cf_core_signal_mask, SIGQUIT);
-    sigaddset(&cf_core_signal_mask, SIGTERM);
-    sigaddset(&cf_core_signal_mask, SIGHUP);
-    sigaddset(&cf_core_signal_mask, SIGSEGV);
-     */
+    if (caph->capture_running) {
+        ret = 0;
+        goto out;
+    }
 
-    sigaddset(&cf_core_signal_mask, SIGALRM);
-    sigaddset(&cf_core_signal_mask, SIGQUIT);
-    sigaddset(&cf_core_signal_mask, SIGCHLD);
-    sigaddset(&cf_core_signal_mask, SIGPIPE);
+    /* Going down, or the last capture thread is still in its tail (an open that
+     * raced its spindown): a new one would run over it */
+    if (caph->spindown || caph->shutdown || cf_thread_live(&caph->capture_live)) {
+        snprintf(msg, STATUS_MAX, "source is closing, not starting a capture thread");
+        ret = -1;
+        goto out;
+    }
 
-    /* Set thread mask for all new threads */
+    /* Live before it starts: a thread that finishes at once clears it itself */
+    if (!cf_thread_live(&caph->signal_live)) {
+        /* Only with no signal thread sigwaiting on the mask */
+        sigemptyset(&cf_core_signal_mask);
+
+        /*
+        sigaddset(&cf_core_signal_mask, SIGINT);
+        sigaddset(&cf_core_signal_mask, SIGQUIT);
+        sigaddset(&cf_core_signal_mask, SIGTERM);
+        sigaddset(&cf_core_signal_mask, SIGHUP);
+        sigaddset(&cf_core_signal_mask, SIGSEGV);
+         */
+
+        sigaddset(&cf_core_signal_mask, SIGALRM);
+        sigaddset(&cf_core_signal_mask, SIGQUIT);
+        sigaddset(&cf_core_signal_mask, SIGCHLD);
+        sigaddset(&cf_core_signal_mask, SIGPIPE);
+
+        /* Set thread mask for all new threads */
+        pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
+
+        cf_thread_started(&caph->signal_live);
+
+        if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) != 0) {
+            cf_thread_exited(caph, &caph->signal_live);
+            snprintf(msg, STATUS_MAX, "failed to launch signal thread");
+            goto out;
+        }
+
+        caph->signal_running = 1;
+    }
+
+    /* The capture thread inherits the blocked core set */
     pthread_sigmask(SIG_BLOCK, &cf_core_signal_mask, NULL);
 
-    /* Launch the signal handling thread */
-    if (pthread_create(&(caph->signalthread), &attr, cf_int_signal_thread, caph) < 0) {
-        cf_send_error(caph, 0, "failed to launch signal thread");
-        cf_handler_spindown(caph);
-        return -1;
-    }
-	caph->signal_running = 1;
-
-    pthread_mutex_lock(&(caph->handler_lock));
-    if (caph->capture_running) {
-        pthread_mutex_unlock(&(caph->handler_lock));
-        return 0;
-    }
+    cf_thread_started(&caph->capture_live);
 
     if (pthread_create(&(caph->capturethread), &attr,
-                cf_int_capture_thread, caph) < 0) {
-        cf_send_error(caph, 0, "failed to launch capture thread");
-        cf_handler_spindown(caph);
-        return -1;
+                cf_int_capture_thread, caph) != 0) {
+        cf_thread_exited(caph, &caph->capture_live);
+        snprintf(msg, STATUS_MAX, "failed to launch capture thread");
+        goto out;
     }
 
     caph->capture_running = 1;
+    ret = 1;
 
+out:
     pthread_mutex_unlock(&(caph->handler_lock));
+    pthread_attr_destroy(&attr);
 
-    return 1;
+    return ret;
+}
+
+int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
+    char msg[STATUS_MAX];
+    int ret = cf_launch_capture_thread_msg(caph, msg);
+
+    if (ret < 0) {
+        cf_send_error(caph, 0, msg);
+
+        if (ret == -2)
+            cf_handler_spindown(caph);
+
+        return -1;
+    }
+
+    return ret;
 }
 
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph) {
@@ -2601,9 +3083,29 @@ static int cf_hop_prune_failures(kis_capture_handler_t *caph) {
  * A switch starts early by its expected duration, so it lands on the slot
  * boundary.  Not synced, the source hops on its own timer as before.
  */
-void *cf_int_chanhop_thread(void *arg) {
+static void cf_chanhop_thread_exited(void *arg) {
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
+    cf_thread_exited_unwound(&caph->hop_live);
+}
+
+static void cf_int_chanhop_loop(kis_capture_handler_t *caph);
+
+/* The loop returns from many places, with cancels off; the exit is counted
+ * here, on return and on a cancel in its sleep */
+CF_UNWIND_FRAME void *cf_int_chanhop_thread(void *arg) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) arg;
 
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    pthread_cleanup_push(cf_chanhop_thread_exited, caph);
+    cf_int_chanhop_loop(caph);
+    pthread_cleanup_pop(0);
+
+    cf_thread_exited(caph, &caph->hop_live);
+
+    return NULL;
+}
+
+static void cf_int_chanhop_loop(kis_capture_handler_t *caph) {
     unsigned int gen;
 
     /* Own timer: next position in the hop cycle, and when to move to it */
@@ -2639,7 +3141,7 @@ void *cf_int_chanhop_thread(void *arg) {
         /* A newer configuration owns the hop state now */
         if (gen != caph->hop_generation) {
             pthread_mutex_unlock(&(caph->handler_lock));
-            return NULL;
+            return;
         }
 
         /* Cancel thread if we're no longer hopping */
@@ -2647,7 +3149,7 @@ void *cf_int_chanhop_thread(void *arg) {
                 caph->chancontrol_cb == NULL || caph->channel_hop_list_sz == 0) {
             caph->hopping_running = 0;
             pthread_mutex_unlock(&(caph->handler_lock));
-            return NULL;
+            return;
         }
 
         t = caph->hop_timing;
@@ -2750,7 +3252,7 @@ void *cf_int_chanhop_thread(void *arg) {
                 caph->hopping_running = 0;
                 pthread_mutex_unlock(&caph->handler_lock);
                 cf_handler_spindown(caph);
-                return NULL;
+                return;
             } else if (r == 0) {
                 if (cf_hop_note_failure(caph, hopidx) && caph->hop_sync) {
                     snprintf(errstr, STATUS_MAX, "Could not tune to channel %s; skipping it "
@@ -2765,7 +3267,7 @@ void *cf_int_chanhop_thread(void *arg) {
                     caph->hopping_running = 0;
                     pthread_mutex_unlock(&caph->handler_lock);
                     cf_handler_spindown(caph);
-                    return NULL;
+                    return;
                 }
             }
         }
@@ -2785,15 +3287,13 @@ void *cf_int_chanhop_thread(void *arg) {
                     caph->hopping_running = 0;
                     pthread_mutex_unlock(&caph->handler_lock);
                     cf_handler_spindown(caph);
-                    return NULL;
+                    return;
                 }
             }
         }
 
         pthread_mutex_unlock(&caph->handler_lock);
     }
-
-    return NULL;
 }
 
 int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
@@ -2804,6 +3304,15 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 
     pthread_mutex_lock(&(caph->handler_lock));
+
+    /* Going down: shutdown already stopped hopping, and frees what a hop uses */
+    if (caph->spindown || caph->shutdown || caph->shutdown_done) {
+        pthread_mutex_unlock(&(caph->handler_lock));
+        pthread_attr_destroy(&attr);
+        cf_send_error(caph, 0, "source is closing, not starting a channel hopping thread");
+        return -1;
+    }
+
     if (caph->hopping_running) {
         pthread_cancel(caph->hopthread);
         caph->hopping_running = 0;
@@ -2819,8 +3328,10 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     /* Running before the thread starts, so a thread which reads it never sees a
      * stale 0 */
     caph->hopping_running = 1;
+    cf_thread_started(&caph->hop_live);
 
     if (pthread_create(&(caph->hopthread), &attr, cf_int_chanhop_thread, caph) != 0) {
+        cf_thread_exited(caph, &caph->hop_live);
         caph->hopping_running = 0;
         pthread_mutex_unlock(&(caph->handler_lock));
         pthread_attr_destroy(&attr);
@@ -2890,6 +3401,9 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
          * now -- which still drains whatever is queued before it exits. */
         if (!caph->close_requested) {
             __atomic_store_n(&caph->close_requested, 1, __ATOMIC_RELEASE);
+
+            /* The grace counts against the exit waits that follow */
+            cf_exit_deadline_start(caph);
 
             if (caph->close_grace_ms > 0 && caph->capture_running) {
                 caph->close_deadline_ms = cf_mono_ms() + caph->close_grace_ms;
@@ -3041,11 +3555,14 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             cbret = -1;
             goto finish;
-        } else if (caph->capture_running) {
+        } else if (caph->capture_running || cf_thread_live(&caph->capture_live)) {
             /* Sources free their state on open; re-opening under a running capture
-             * thread would pull it out from under it */
+             * thread, or one still leaving with cancels off, would pull it out from
+             * under it */
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_openresp(caph, seqno, false, "source is already open and capturing", 0,
+            cf_send_openresp(caph, seqno, false, caph->capture_running ?
+                    "source is already open and capturing" :
+                    "source is still closing its last capture", 0,
                     NULL, NULL, NULL);
             pthread_mutex_lock(&(caph->handler_lock));
 
@@ -3093,6 +3610,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             }
 
             uint32_t dlt;
+            int launchret;
 
             /* Only a server which takes sensor reports asks for them; a bad value
              * leaves them off rather than failing the open */
@@ -3120,8 +3638,21 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             cbret = (*(caph->open_cb))(caph, seqno, definition,
                     msgstr, &dlt, &uuid, &interfaceparams, &spectrumparams);
 
+            /* Capture thread first, so a refused launch is a failed open and not
+             * a success followed by an error.  Its sends wait on handler_lock (the
+             * seqno), held here, so the openresp still goes out first. */
+            launchret = 0;
+            if (cbret >= 0) {
+                launchret = cf_launch_capture_thread_msg(caph, msgstr);
+                if (launchret < 0)
+                    cbret = -1;
+            }
+
             cf_send_openresp(caph, seqno, cbret < 0 ? 0 : 1, msgstr, dlt, uuid,
                     interfaceparams, spectrumparams);
+
+            if (launchret == -2)
+                cf_handler_spindown(caph);
 
             if (uuid != NULL)
                 free(uuid);
@@ -3139,10 +3670,6 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             if (caph->remote_host) {
                 fprintf(stderr, "INFO: %s:%u starting capture...\n", caph->remote_host, caph->remote_port);
-            }
-
-            if (cbret >= 0) {
-                cf_handler_launch_capture_thread(caph);
             }
 
             goto finish;
@@ -3767,8 +4294,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     caph->last_ping = time(0);
 
     /* Reset spindown */
-    caph->spindown = 0;
-    caph->shutdown = 0;
+    cf_handler_reset_shutdown(caph);
     __atomic_store_n(&caph->close_requested, 0, __ATOMIC_RELEASE);
     caph->close_deadline_ms = 0;
 
@@ -3864,8 +4390,7 @@ void ws_connect_attempt(kis_capture_handler_t *caph) {
     caph->last_ping = time(0);
 
     /* Reset spindown */
-    caph->spindown = 0;
-    caph->shutdown = 0;
+    cf_handler_reset_shutdown(caph);
     __atomic_store_n(&caph->close_requested, 0, __ATOMIC_RELEASE);
     caph->close_deadline_ms = 0;
 
@@ -4137,6 +4662,10 @@ static void cf_ipc_service(kis_capture_handler_t *caph, fd_set *rset, fd_set *ws
                 buf_avail = kis_simple_ringbuf_available(ipc_iter->in_ringbuf);
                 maxread = kis_simple_ringbuf_reserve_zcopy(ipc_iter->in_ringbuf, (void **) &buf, buf_avail);
 
+                /* No room: not a 0 byte read, which would look like EOF */
+                if (maxread == 0)
+                    break;
+
                 amt_read = read(ipc_iter->out_fd, buf, maxread);
 
                 if (amt_read == 0) {
@@ -4181,6 +4710,10 @@ static void cf_ipc_service(kis_capture_handler_t *caph, fd_set *rset, fd_set *ws
 
                 buf_avail = kis_simple_ringbuf_available(ipc_iter->err_ringbuf);
                 maxread = kis_simple_ringbuf_reserve_zcopy(ipc_iter->err_ringbuf, (void **) &buf, buf_avail);
+
+                /* No room: not a 0 byte read, which would look like EOF */
+                if (maxread == 0)
+                    break;
 
                 amt_read = read(ipc_iter->err_fd, buf, maxread);
 
@@ -4633,14 +5166,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
 cap_loop_fail:
     /* Kill the capture thread */
-    pthread_mutex_lock(&(caph->out_ringbuf_lock));
-
-    if (caph->capture_running) {
-        pthread_cancel(caph->capturethread);
-        caph->capture_running = 0;
-    }
-
-    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+    cf_cancel_capture_thread(caph);
 
     /* Kill anything pending */
     cf_handler_signal_flush(caph);
@@ -4802,13 +5328,20 @@ kismet_external_frame_v3_t *cf_prep_rb_packet(kis_capture_handler_t *caph,
     return frame;
 }
 
+/* Returns -1 when the ring refuses the commit (larger than the reserve): the
+ * frame is dropped, and retrying can't fit it */
 int cf_commit_rb_packet(kis_capture_handler_t *caph, kismet_external_frame_v3_t *frame,
         size_t final_length) {
+    size_t total = final_length + sizeof(kismet_external_frame_v3_t);
+    size_t r;
+
     frame->length = htonl(final_length);
 
-    kis_simple_ringbuf_commit(caph->out_ringbuf, frame,
-            final_length + sizeof(kismet_external_frame_v3_t));
+    r = kis_simple_ringbuf_commit(caph->out_ringbuf, frame, total);
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    if (r != total)
+        return -1;
 
     cf_handler_wake_commit(caph);
 
@@ -4824,6 +5357,7 @@ int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command,
     /* Frame we'll be sending */
     kismet_external_frame_v3_t *frame =
         cf_prep_rb_packet(caph, command, seqno, code, len);
+    int r;
 
     /* free calling data and unlock if we failed */
     if (frame == NULL) {
@@ -4833,11 +5367,11 @@ int cf_send_rb_packet(kis_capture_handler_t *caph, unsigned int command,
 
     memcpy(frame->data, data, len);
 
-    cf_commit_rb_packet(caph, frame, len);
+    r = cf_commit_rb_packet(caph, frame, len);
 
     free(data);
 
-    return 1;
+    return r;
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
@@ -6975,8 +7509,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
     }
 
     while (1) {
-        caph->spindown = 0;
-        caph->shutdown = 0;
+        cf_handler_reset_shutdown(caph);
 
         if (caph->remote_retry && ((caph->monitor_pid = fork()) > 0)) {
             while (1) {
@@ -7389,19 +7922,28 @@ void cf_ipc_set_term(kis_capture_handler_t *caph, cf_ipc_t *ipc, cf_callback_ipc
     ipc->term_callback = cb;
 }
 
+/* The list changes under both locks, handler_lock first, as the reaper does */
 void cf_ipc_add_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
     pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     cf_ipc_t *first = caph->ipc_list;
 
     ipc->next = first;
     caph->ipc_list = ipc;
 
+    /* Shutdown already took the list: nothing will service this child, so end it
+     * now; cf_handler_free frees what is left on the list */
+    if (caph->shutdown)
+        cf_ipc_signal(caph, ipc, SIGKILL);
+
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
 void cf_ipc_remove_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
     pthread_mutex_lock(&(caph->handler_lock));
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     cf_ipc_t *current = caph->ipc_list;
     cf_ipc_t *prev = NULL;
@@ -7425,6 +7967,7 @@ void cf_ipc_remove_process(kis_capture_handler_t *caph, cf_ipc_t *ipc) {
         }
     }
 
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
     pthread_mutex_unlock(&(caph->handler_lock));
 }
 
