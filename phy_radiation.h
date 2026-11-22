@@ -401,7 +401,7 @@ public:
     radiation_reading_history& get_readings() { return readings; }
     std::deque<radiation_track_point>& get_track() { return track; }
 
-    std::string get_name() {
+    std::string sensor_name() {
         auto ds = std::static_pointer_cast<kis_datasource>(src_alias->get());
         if (ds != nullptr) {
             auto n = ds->get_source_name();
