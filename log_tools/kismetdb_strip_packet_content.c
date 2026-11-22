@@ -36,6 +36,13 @@
 
 #include "getopt.h"
 
+/* The result of PRAGMA journal_mode=DELETE: true once the log is in rollback mode */
+static int journal_delete_cb(void *aux, int argc, char **data, char **cols) {
+    (void) cols;
+    *(bool *) aux = argc == 1 && data[0] != NULL && strcmp(data[0], "delete") == 0;
+    return 0;
+}
+
 void print_help(char *argv) {
     printf("Kismet packet content strip tool.\n");
     printf("A simple tool for stripping the packet data from a KismetDB log file.\n");
@@ -63,6 +70,7 @@ int main(int argc, char *argv[]) {
     char *in_fname = NULL, *out_fname = NULL;
     bool verbose = false;
     bool force = false;
+    bool delete_mode = false;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -122,6 +130,21 @@ int main(int argc, char *argv[]) {
     if (sql_r) {
         fprintf(stderr, "ERROR:  Unable to open '%s': %s\n",
                 in_fname, sqlite3_errmsg(db));
+        exit(1);
+    }
+
+    /* A log still in WAL mode keeps part of its data in its -wal file, which the copy below
+     * wouldn't take; bring it all into the one file first.  This fails while another
+     * program has the log open, so a running Kismet's log isn't vacuumed either. */
+    delete_mode = false;
+    sql_r = sqlite3_exec(db, "PRAGMA journal_mode=DELETE", journal_delete_cb, &delete_mode,
+            &sql_errmsg);
+
+    if (sql_r != SQLITE_OK || !delete_mode) {
+        fprintf(stderr, "ERROR:  Unable to make '%s' a single file before copying (%s); it may "
+                "still be open in another program, such as a running Kismet\n", in_fname,
+                sql_r != SQLITE_OK && sql_errmsg != NULL ? sql_errmsg : "still in WAL mode");
+        sqlite3_close(db);
         exit(1);
     }
 

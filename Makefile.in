@@ -297,6 +297,12 @@ TEST_GPSD_TPV = test/gpsd_tpv/tpv_test
 TEST_GPSD_TPV_O = \
 	test/gpsd_tpv/tpv_test.cc.o
 
+# The kismetdb log journal: commits with other programs reading the log, WAL checkpoints;
+# built on request
+TEST_KISMETDB_JOURNAL = test/kismetdb_journal/journal_test
+TEST_KISMETDB_JOURNAL_O = \
+	test/kismetdb_journal/journal_test.cc.o kis_database_journal.cc.o
+
 # The device rules baseline grammar tests; built on request
 TEST_DEVICE_RULES = test/device_rules/baseline_test
 TEST_DEVICE_RULES_O = \
@@ -463,7 +469,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	kis_wiglecsvlogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
-	kis_database.cc.o \
+	kis_database.cc.o kis_database_journal.cc.o \
 	kismet_server.cc.o
 
 PS	= kismet
@@ -550,6 +556,9 @@ $(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
 
 $(TEST_GPSD_TPV):	$(TEST_GPSD_TPV_O)
 	$(LD) $(LDFLAGS) -o $(TEST_GPSD_TPV) $(TEST_GPSD_TPV_O) $(CXXLIBS)
+
+$(TEST_KISMETDB_JOURNAL):	$(TEST_KISMETDB_JOURNAL_O)
+	$(LD) $(LDFLAGS) -o $(TEST_KISMETDB_JOURNAL) $(TEST_KISMETDB_JOURNAL_O) $(LIBS) $(CXXLIBS)
 
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
@@ -1206,6 +1215,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
+	@-rm -f test/kismetdb_journal/*.o $(TEST_KISMETDB_JOURNAL)
 	@-rm -f test/external_policy/*.o $(TEST_EXTERNAL_POLICY)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)

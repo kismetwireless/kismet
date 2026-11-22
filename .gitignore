@@ -41,6 +41,7 @@ test/wired_helper/ifupreq_fuzz
 test/wired_helper/procids_fuzz
 test/external_policy/policy_test
 test/gpsd_tpv/tpv_test
+test/kismetdb_journal/journal_test
 callgrind*
 *.pcap
 *.pcapng
