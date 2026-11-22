@@ -7,6 +7,9 @@
  * END/BEGIN, no busy handling), which lose the data.
  *
  *   make test/kismetdb_journal/journal_test && test/kismetdb_journal/journal_test [--legacy]
+ *
+ * Its files go in a new directory under $TMPDIR, removed at exit unless KISMETDB_JOURNAL_KEEP
+ * is set.
  */
 
 #include "config.h"
@@ -18,6 +21,7 @@
 #include <string>
 #include <thread>
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -927,6 +931,157 @@ static void test_finish_retry() {
     CHECK(!exists(p + "-wal"));
     sqlite3_close_v2(h);
     CHECK(count_rows(p) == 200);
+}
+
+// Apple's sqlite keeps the -shm when the log leaves WAL; a persistent WAL keeps it here too,
+// with an empty -wal.  Neither is used once the log is in DELETE mode.
+static void test_finish_left_files() {
+    if (legacy)
+        return;
+
+    auto p = fresh("persistwal.kismet");
+    inserted = 0;
+    auto h = make_log(p, journal_mode::wal);
+    int on = 1;
+    CHECK(sqlite3_file_control(h, "main", SQLITE_FCNTL_PERSIST_WAL, &on) == SQLITE_OK);
+    insert(h, 50);
+    CHECK(tick(h).state == commit_state::committed);
+    insert(h, 50);
+
+    finish_result f;
+    CHECK(close_log(h, &f));
+    CHECK(f.single_file && !f.wal_left && f.err.empty());
+    CHECK(!exists(p + "-wal") && !exists(p + "-shm") && !exists(p + "-journal"));
+    CHECK(count_rows(p) == 100);
+    if (exists(p + "-wal") || exists(p + "-shm"))
+        fprintf(stderr, "  persistent WAL: -wal %lld bytes, -shm %lld bytes, err '%s'\n",
+                static_cast<long long>(file_size(p + "-wal")),
+                static_cast<long long>(file_size(p + "-shm")), f.err.c_str());
+}
+
+static void touch(const std::string& p) {
+    auto fd = fopen(p.c_str(), "w");
+    CHECK(fd != nullptr);
+    if (fd != nullptr)
+        fclose(fd);
+}
+
+// A -shm next to a finished log: removed only with the log to itself and out of WAL, never
+// through a link or as a directory
+static void test_remove_unused_wal_files() {
+    if (legacy)
+        return;
+
+    auto p = fresh("leftshm.kismet");
+    const auto shm = p + "-shm";
+    inserted = 0;
+    auto h = make_log(p, journal_mode::wal);
+    insert(h, 20);
+    {
+        connection_lock lk(h);
+        CHECK(commit(h, milliseconds(0)).state == commit_state::committed);
+    }
+
+    // Still in WAL: its -wal and -shm are in use
+    CHECK(exists(p + "-wal") && exists(shm));
+    auto left = remove_unused_wal_files(h, milliseconds(50));
+    CHECK(left.find("journal mode wal") != std::string::npos);
+    CHECK(exists(p + "-wal") && exists(shm));
+
+    auto f = finish(h, milliseconds(100));
+    CHECK(f.single_file && f.err.empty());
+    CHECK(!exists(p + "-wal") && !exists(shm));
+
+    // Nothing to remove
+    CHECK(remove_unused_wal_files(h, milliseconds(50)).empty());
+
+    // Another program reading the log keeps the lock from being taken
+    touch(shm);
+    {
+        reader rd(p);
+        const auto t0 = steady_clock::now();
+        left = remove_unused_wal_files(h, milliseconds(50));
+        CHECK(steady_clock::now() - t0 < seconds(2));
+        CHECK(left.find("couldn't lock the log") != std::string::npos);
+        CHECK(exists(shm));
+    }
+    CHECK(remove_unused_wal_files(h, milliseconds(50)).empty());
+    CHECK(!exists(shm));
+    CHECK(pragma(h, "PRAGMA journal_mode") == "delete");
+
+    // An empty -wal goes too, one with anything in it doesn't
+    touch(p + "-wal");
+    CHECK(remove_unused_wal_files(h, milliseconds(50)).empty());
+    CHECK(!exists(p + "-wal"));
+
+    {
+        auto fd = fopen((p + "-wal").c_str(), "w");
+        CHECK(fd != nullptr);
+        if (fd != nullptr) {
+            fputs("not a wal", fd);
+            fclose(fd);
+        }
+    }
+    touch(shm);
+
+    // sqlite opens a -wal with anything in it, and the log is in WAL again
+    left = remove_unused_wal_files(h, milliseconds(50));
+    CHECK(left.find("journal mode wal") != std::string::npos);
+    CHECK(file_size(p + "-wal") == 9 && exists(shm));
+    f = finish(h, milliseconds(100));
+    CHECK(f.single_file && f.err.empty());
+    CHECK(!exists(p + "-wal") && !exists(shm));
+
+    // Not a regular file: left, and the link's target untouched
+    const auto target = dir + "/leftshm-target";
+    touch(target);
+    CHECK(symlink(target.c_str(), shm.c_str()) == 0);
+    CHECK(remove_unused_wal_files(h, milliseconds(50)).empty());
+    struct stat st;
+    CHECK(lstat(shm.c_str(), &st) == 0 && S_ISLNK(st.st_mode));
+    CHECK(exists(target));
+    unlink(shm.c_str());
+    unlink(target.c_str());
+
+    CHECK(mkdir(shm.c_str(), 0755) == 0);
+    CHECK(remove_unused_wal_files(h, milliseconds(50)).empty());
+    CHECK(exists(shm));
+    rmdir(shm.c_str());
+
+    // One that can't be removed says so
+    touch(shm);
+    CHECK(chmod(dir.c_str(), 0500) == 0);
+    if (access(dir.c_str(), W_OK) == 0) {
+        printf("  skipping the unremovable -shm case: this user can write a 0500 directory\n");
+    } else {
+        left = remove_unused_wal_files(h, milliseconds(50));
+        CHECK(left.find("couldn't remove '" + shm + "'") != std::string::npos);
+        CHECK(exists(shm));
+    }
+    CHECK(chmod(dir.c_str(), 0700) == 0);
+
+    // The tools still take a log with a -shm left next to it as finished
+    {
+        sqlite3 *t = nullptr;
+        CHECK(sqlite3_open(p.c_str(), &t) == SQLITE_OK);
+        std::string skipped, err;
+        CHECK(vacuum_if_finished(t, skipped, err) == SQLITE_OK);
+        CHECK(skipped.empty() && err.empty());
+        sqlite3_close_v2(t);
+    }
+
+    CHECK(remove_unused_wal_files(h, milliseconds(50)).empty());
+    CHECK(!exists(shm));
+
+    // Holds no lock afterwards
+    {
+        auto o = open_rw(p);
+        CHECK(sqlite3_exec(o, "BEGIN IMMEDIATE; COMMIT", nullptr, nullptr, nullptr) == SQLITE_OK);
+        sqlite3_close_v2(o);
+    }
+
+    sqlite3_close_v2(h);
+    CHECK(count_rows(p) == 20);
 }
 
 // The journal mode can't be read or changed: a -wal next to the log still counts as part of it
@@ -1873,8 +2028,29 @@ static void test_helpers() {
     CHECK(!exists(p + "-journal"));
 }
 
+static bool keep_files = false;
+
+// The test's files are flat in dir; a -shm a test made a directory is empty
+static void remove_dir() {
+    if (keep_files || dir.empty())
+        return;
+
+    if (auto d = opendir(dir.c_str()); d != nullptr) {
+        while (auto e = readdir(d)) {
+            if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+                continue;
+            if (unlinkat(dirfd(d), e->d_name, 0) != 0)
+                unlinkat(dirfd(d), e->d_name, AT_REMOVEDIR);
+        }
+        closedir(d);
+    }
+
+    rmdir(dir.c_str());
+}
+
 int main(int argc, char **argv) {
     legacy = argc > 1 && strcmp(argv[1], "--legacy") == 0;
+    keep_files = getenv("KISMETDB_JOURNAL_KEEP") != nullptr;
 
     const char *tmp = getenv("TMPDIR");
     std::string tmpl = std::string{tmp != nullptr && tmp[0] != '\0' ? tmp : "/tmp"} + "/kismetdb_journal.XXXXXX";
@@ -1882,7 +2058,19 @@ int main(int argc, char **argv) {
         perror("mkdtemp");
         return 1;
     }
-    dir = tmpl;
+
+    // sqlite names the log by its real path; macOS TMPDIR is under the /var link
+    auto real = realpath(tmpl.c_str(), nullptr);
+    if (real == nullptr) {
+        perror("realpath");
+        rmdir(tmpl.c_str());
+        return 1;
+    }
+    dir = real;
+    free(real);
+
+    // Forked test processes leave with _exit, so only this one removes the files
+    atexit(remove_dir);
 
     if (!legacy) {
         test_helpers();
@@ -1912,14 +2100,18 @@ int main(int argc, char **argv) {
         test_finish_held();
         test_finish_retry();
         test_finish_unreadable();
+        test_finish_left_files();
+        test_remove_unused_wal_files();
         test_persist_retry();
         test_reader_until_exit(journal_mode::persist);
     }
     test_reader_until_exit(journal_mode::wal);
 
     if (failures != 0) {
-        fprintf(stderr, "%d check(s) failed%s, sqlite %s; files in %s\n", failures,
-                legacy ? " (legacy statements)" : "", sqlite3_libversion(), dir.c_str());
+        fprintf(stderr, "%d check(s) failed%s, sqlite %s; %s%s\n", failures,
+                legacy ? " (legacy statements)" : "", sqlite3_libversion(),
+                keep_files ? "files in " : "KISMETDB_JOURNAL_KEEP=1 keeps the files",
+                keep_files ? dir.c_str() : "");
         return 1;
     }
 

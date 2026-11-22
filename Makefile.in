@@ -366,7 +366,7 @@ LOGTOOL_KISMETDB_GPX_O = \
 LOGTOOL_KISMETDB_CLEAN = log_tools/kismetdb_clean
 LOGTOOL_KISMETDB_CLEAN_O = \
 	log_tools/kismetdb_clean.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
 LOGTOOL_KISMETDB_PCAP_O = \
