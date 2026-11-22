@@ -230,7 +230,7 @@ LOGTOOL_KISMETDB_WIGLE_O = \
 	version.c.o \
 	log_tools/kismetdb_to_wiglecsv.cc.o \
 	phy_cell_decisions.cc.o censor.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 # The cell phy decision tests; built on request (make test/cell_decisions/decisions_test),
 # not by 'all'
@@ -297,6 +297,12 @@ TEST_GPSD_TPV = test/gpsd_tpv/tpv_test
 TEST_GPSD_TPV_O = \
 	test/gpsd_tpv/tpv_test.cc.o
 
+# The kismetdb log journal: commits with other programs reading the log, WAL checkpoints;
+# built on request
+TEST_KISMETDB_JOURNAL = test/kismetdb_journal/journal_test
+TEST_KISMETDB_JOURNAL_O = \
+	test/kismetdb_journal/journal_test.cc.o kis_database_journal.cc.o
+
 # The device rules baseline grammar tests; built on request
 TEST_DEVICE_RULES = test/device_rules/baseline_test
 TEST_DEVICE_RULES_O = \
@@ -340,22 +346,22 @@ TEST_ENVIRONMENT_O = \
 LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
-	sqlite3_cpp11.cc.o
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 LOGTOOL_KISMETDB_STATS = log_tools/kismetdb_statistics
 LOGTOOL_KISMETDB_STATS_O = \
 	log_tools/kismetdb_statistics.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 LOGTOOL_KISMETDB_KML = log_tools/kismetdb_to_kml
 LOGTOOL_KISMETDB_KML_O = \
 	log_tools/kismetdb_to_kml.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 LOGTOOL_KISMETDB_GPX = log_tools/kismetdb_to_gpx
 LOGTOOL_KISMETDB_GPX_O = \
 	log_tools/kismetdb_to_gpx.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 LOGTOOL_KISMETDB_CLEAN = log_tools/kismetdb_clean
 LOGTOOL_KISMETDB_CLEAN_O = \
@@ -365,7 +371,7 @@ LOGTOOL_KISMETDB_CLEAN_O = \
 LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
 LOGTOOL_KISMETDB_PCAP_O = \
 	log_tools/kismetdb_to_pcap.cc.o \
-	sqlite3_cpp11.cc.o
+	sqlite3_cpp11.cc.o kis_database_journal.cc.o
 
 LOGTOOL_KISMETDB_CELLNDJSON = log_tools/kismetdb_to_cellndjson
 LOGTOOL_KISMETDB_CELLNDJSON_O = \
@@ -463,7 +469,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	kis_wiglecsvlogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
-	kis_database.cc.o \
+	kis_database.cc.o kis_database_journal.cc.o \
 	kismet_server.cc.o
 
 PS	= kismet
@@ -550,6 +556,9 @@ $(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
 
 $(TEST_GPSD_TPV):	$(TEST_GPSD_TPV_O)
 	$(LD) $(LDFLAGS) -o $(TEST_GPSD_TPV) $(TEST_GPSD_TPV_O) $(CXXLIBS)
+
+$(TEST_KISMETDB_JOURNAL):	$(TEST_KISMETDB_JOURNAL_O)
+	$(LD) $(LDFLAGS) -o $(TEST_KISMETDB_JOURNAL) $(TEST_KISMETDB_JOURNAL_O) $(LIBS) $(CXXLIBS)
 
 $(TEST_DEVICE_RULES):	$(TEST_DEVICE_RULES_O)
 	$(LD) $(LDFLAGS) -o $(TEST_DEVICE_RULES) $(TEST_DEVICE_RULES_O) $(LIBS) $(CXXLIBS)
@@ -1206,6 +1215,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
+	@-rm -f test/kismetdb_journal/*.o $(TEST_KISMETDB_JOURNAL)
 	@-rm -f test/external_policy/*.o $(TEST_EXTERNAL_POLICY)
 	@-rm -f $(PS)
 	@-rm -f $(CAPTURE_PCAPFILE)

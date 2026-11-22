@@ -198,6 +198,8 @@ public:
     // Published once a log file is complete and closed: when a size or time limit or a
     // rotate request starts the next file, and when the log is closed.  A kismetdb file a
     // pcapng download is still reading is finished when that download ends.
+    // kismet.logfile.wal_left is 1 when a kismetdb file was still open in another program
+    // and its -wal file (path + "-wal") holds part of it; keep the two together.
     static std::string event_log_finished() {
         return "LOG_FINISHED";
     }
@@ -229,7 +231,7 @@ protected:
     // kismetdb log takes the uuid of each new file), its path and why it ended: "size",
     // "duration", "api" or "close"
     void publish_log_finished(const uuid& in_log_uuid, const std::string& in_path,
-            const std::string& in_reason);
+            const std::string& in_reason, bool in_wal_left = false);
 
     virtual void register_fields() override {
         tracker_component::register_fields();

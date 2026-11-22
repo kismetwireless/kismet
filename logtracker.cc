@@ -456,7 +456,7 @@ void log_tracker::usage(const char *argv0) {
 }
 
 void kis_logfile::publish_log_finished(const uuid& in_log_uuid, const std::string& in_path,
-        const std::string& in_reason) {
+        const std::string& in_reason, bool in_wal_left) {
     auto eventbus = Globalreg::fetch_global_as<event_bus>();
     if (eventbus == nullptr)
         return;
@@ -472,6 +472,8 @@ void kis_logfile::publish_log_finished(const uuid& in_log_uuid, const std::strin
     content->insert("kismet.logfile.path", std::make_shared<tracker_element_string>(in_path));
     content->insert("kismet.logfile.finished_reason",
             std::make_shared<tracker_element_string>(in_reason));
+    content->insert("kismet.logfile.wal_left",
+            std::make_shared<tracker_element_uint8>(0, in_wal_left ? 1 : 0));
 
     eventbus->publish(evt);
 }

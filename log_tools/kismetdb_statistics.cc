@@ -39,6 +39,7 @@
 #include "getopt.h"
 #include "nlohmann/json.hpp"
 #include "sqlite3_cpp11.h"
+#include "kis_database_journal.h"
 #include "fmt.h"
 #include "packet_ieee80211.h"
 
@@ -117,7 +118,6 @@ int main(int argc, char *argv[]) {
     nlohmann::json root;
 
     int sql_r = 0;
-    char *sql_errmsg = NULL;
     sqlite3 *db = NULL;
 
     struct stat statbuf;
@@ -166,12 +166,16 @@ int main(int argc, char *argv[]) {
     }
 
     if (!skipclean) {
-        fmt::print(stderr, "* Cleaning database '{}'...\n", in_fname);
+        fmt::print(stderr, "* Preparing database '{}'...\n", in_fname);
 
-        sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
+        std::string skipped, vacuum_err;
+        sql_r = kismetdb_journal::vacuum_if_finished(db, skipped, vacuum_err);
+
+        if (!skipped.empty())
+            fmt::print(stderr, "* Not cleaning '{}': {}\n", in_fname, skipped);
 
         if (sql_r != SQLITE_OK) {
-            fmt::print(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: {}\n", sql_errmsg);
+            fmt::print(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: {}\n", vacuum_err);
             sqlite3_close(db);
             exit(1);
         }

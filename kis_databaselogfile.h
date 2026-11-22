@@ -52,6 +52,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_database.h"
+#include "kis_database_journal.h"
 #include "devicetracker.h"
 #include "alertracker.h"
 #include "logtracker.h"
@@ -185,7 +186,8 @@ protected:
     // or close replaces while downloads still read it is closed by the last of them
     std::mutex stream_handle_mutex;
     std::map<sqlite3 *, unsigned int> stream_handle_users;
-    // A finished file a download still reads: announced as finished when it closes
+    // A finished file a download still reads: announced as finished when it closes.  At
+    // close_log() any still read that have a -wal are reported, as Kismet may exit first.
     struct retired_handle {
         std::string path;
         uuid log_uuid;
@@ -196,11 +198,20 @@ protected:
     // The caller holds a writer guard, so db can't change underneath it
     sqlite3 *acquire_stream_handle();
     void release_stream_handle(sqlite3 *h);
-    // Close a handle now, or when the last download using it ends; true when it closed
-    // now, for the caller to announce once its own messages are out
+    // A handle a rotation or close replaces: true when no download reads it, and the caller
+    // closes it with close_finished(); otherwise the last download using it does
     bool retire_handle(sqlite3 *h, const std::string& path, const uuid& log_uuid,
             const std::string& reason);
-    bool close_finished(sqlite3 *h, const std::string& path);
+
+    // A finished file ends as a single .kismet, then closes; nothing else may use the handle.
+    // It doesn't log, so callers report it with report_finished() once they hold no locks.
+    struct finished_file {
+        bool closed = false;
+        kismetdb_journal::finish_result finish;
+    };
+    finished_file close_finished(sqlite3 *h);
+    void report_finished(const std::string& path, const uuid& in_log_uuid, const std::string& reason,
+            const finished_file& f);
 
     class db_writer_guard {
     public:
@@ -342,6 +353,69 @@ protected:
     // commit state we run a 10 second transaction commit loop
     kis_mutex transaction_mutex;
     int transaction_timer;
+
+    // kis_log_journal_mode, and the mode the current file got; WAL falls back to persist
+    // when sqlite can't use it
+    kismetdb_journal::journal_mode journal_cfg;
+    std::atomic<kismetdb_journal::journal_mode> journal_active;
+
+    // How long a commit may wait for another program's read; short, as every writer waits on
+    // the connection meanwhile.  Closing and finishing a file can wait longer.
+    static constexpr std::chrono::milliseconds commit_busy_budget{100};
+    static constexpr std::chrono::milliseconds close_busy_budget{2000};
+    // How long an insert retries while another connection has the log locked; the packet
+    // writer holds the connection while it waits
+    static constexpr std::chrono::milliseconds write_busy_budget{25};
+
+    // kis_log_journal_mode
+    kismetdb_journal::journal_mode journal_opt();
+    // Set up a new file's journal and begin its first transaction; the caller has db to
+    // itself.  Returns what went wrong, and in mode whether and why a WAL fell back to
+    // persist, for the caller to report once it holds no locks.
+    std::string start_journal(kismetdb_journal::log_file file, kismetdb_journal::mode_result& mode);
+    static void report_wal_unavailable(const std::string& path,
+            const kismetdb_journal::mode_result& mode);
+
+    // The page size of the current file, read when its journal is set up
+    std::atomic<int64_t> journal_page_size;
+    // That page size, read again if it couldn't be then; the caller holds a writer guard
+    int64_t page_size();
+
+    // When the open transaction's commit was first held, zero when it isn't
+    std::atomic<std::chrono::steady_clock::time_point> commit_held_since;
+    // The held time so far, starting it at now when it wasn't held
+    std::chrono::steady_clock::duration note_held(std::chrono::steady_clock::time_point now);
+    // A tick dropped a held commit, and the reader holding it may still be there
+    std::atomic<bool> hold_dropped;
+    // A commit went through, or a new file started: no hold
+    void hold_ended();
+    // A rotation lost or dropped what the old file couldn't save; the tick's failure count
+    // isn't for the file it saves next
+    std::atomic<bool> commit_report_reset;
+    // A tick dropped devices logged in the held transaction; they're logged again once a
+    // commit goes through, not into a transaction that's still held
+    std::atomic<bool> devices_dropped;
+
+    // WAL only: a second connection copying the bulk of each tick's WAL into the file.  The
+    // tick holds checkpoint_mutex through that checkpoint, which can take seconds, so it's
+    // never waited on with db_lifetime_mutex, the log tracker's mutex or the rotate gate held.
+    std::mutex checkpoint_mutex;
+    sqlite3 *checkpoint_db;
+    // A rotation or close has taken it; the tick then skips its catch-up checkpoint
+    bool checkpoint_taken;
+    // Opens one for the current file when it's in WAL mode; returns why it couldn't
+    std::string open_checkpointer(const std::string& path);
+    // Takes it from the commit tick, for the caller to close or give back
+    sqlite3 *take_checkpointer();
+    void restore_checkpointer(sqlite3 *h);
+
+    // Commits every 10 s; this state is only used by the commit timer
+    void transaction_tick();
+    kismetdb_journal::commit_failures commit_report{std::chrono::seconds(60)};
+    std::string commit_fail_path;
+    kismetdb_journal::repeat_report begin_report{std::chrono::seconds(60)};
+    kismetdb_journal::wal_watch wal_growth;
+    std::string wal_growth_path;
 
     // Packet time limit
     unsigned int packet_timeout;

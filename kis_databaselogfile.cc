@@ -65,6 +65,15 @@ uint64_t log_limit_opt(const std::string& name, uint64_t max) {
     return std::stoull(v);
 }
 
+// Logs close at shutdown after the console has stopped printing messages, so errors that say
+// data was lost, or that a -wal file is left with the log, go to stderr then as well
+void close_error(const std::string& msg) {
+    _MSG_ERROR("{}", msg);
+
+    if (Globalreg::globalreg->spindown)
+        fmt::print(stderr, "ERROR: {}\n", msg);
+}
+
 constexpr size_t tagged_data_default_size = 8 * 1024 * 1024;
 constexpr size_t tagged_data_min_size = 100000;
 constexpr size_t tagged_data_max_size = 64 * 1024 * 1024;
@@ -189,6 +198,17 @@ kis_database_logfile::kis_database_logfile():
     rotate_watch_timer = -1;
     rotate_warned = 0;
     transaction_timer = -1;
+    in_transaction_sync = false;
+
+    journal_cfg = kismetdb_journal::journal_mode::wal;
+    journal_active = kismetdb_journal::journal_mode::wal;
+    journal_page_size = 0;
+    commit_held_since = std::chrono::steady_clock::time_point{};
+    hold_dropped = false;
+    commit_report_reset = false;
+    devices_dropped = false;
+    checkpoint_db = nullptr;
+    checkpoint_taken = false;
 
     message_evt_id = 0;
     alert_evt_id = 0;
@@ -218,6 +238,10 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     auto timetracker =
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
+    struct stat st;
+    const auto file = lstat(in_path.c_str(), &st) == 0 ? kismetdb_journal::log_file::existing :
+        kismetdb_journal::log_file::created;
+
     bool dbr = database_open(in_path, SQLITE_OPEN_FULLMUTEX);
 
     if (!dbr) {
@@ -242,26 +266,31 @@ bool kis_database_logfile::open_log(const std::string& in_template, const std::s
     if (!dbuuid.error)
         set_int_log_uuid(dbuuid);
 
-    sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
+    // Go into transactional mode where we only commit every 10 seconds.  Each file, rotated
+    // ones too, tries WAL when it's configured, and falls back to persist on its own.
+    journal_cfg = journal_opt();
 
-    // Go into transactional mode where we only commit every 10 seconds
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    kismetdb_journal::mode_result first_journal;
+    auto journal_err = start_journal(file, first_journal);
+    report_wal_unavailable(in_path, first_journal);
+    if (!journal_err.empty())
+        _MSG_ERROR("kismetdb log '{}': {}", in_path, journal_err);
+
+    journal_err = open_checkpointer(in_path);
+    if (!journal_err.empty())
+        _MSG_ERROR("kismetdb log '{}' couldn't open a second connection for its WAL "
+                "checkpoints ({}); they'll run on the logging connection instead", in_path,
+                journal_err);
+
+    wal_growth = kismetdb_journal::wal_watch{};
+    wal_growth_path = in_path;
+    commit_report.reset();
+    begin_report.succeeded();
 
     transaction_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
-
-            db_writer_guard writer_lk(this);
-            if (!db_enabled)
-                return 1;
-
-            in_transaction_sync = true;
-
-            sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-            sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-
-            in_transaction_sync = false;
-
+            transaction_tick();
             return 1;
         });
 
@@ -742,6 +771,9 @@ void kis_database_logfile::close_log() {
     // Write what's already queued
     stop_packet_writer();
 
+    // Before the lifetime lock, as a commit tick may hold it in its bulk checkpoint
+    auto ckpt = take_checkpointer();
+
     // Wait for anything still using the database, then close it
     std::unique_lock<std::shared_mutex> lifetime_lk(db_lifetime_mutex);
 
@@ -750,32 +782,414 @@ void kis_database_logfile::close_log() {
     finalize_cached();
 
     // Already closed
-    if (db == nullptr)
+    if (db == nullptr) {
+        sqlite3_close_v2(ckpt);
         return;
+    }
 
-    // End the transaction
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    // The second connection has to be gone before the file can leave WAL mode
+    sqlite3_close_v2(ckpt);
 
-    sqlite3_exec(db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
-    sqlite3_exec(db, "BEGIN_EXCLUSIVE", NULL, NULL, NULL);
-    sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
+    // Save the last transaction; one that can't be saved is rolled back, so the file can
+    // still be finished
+    kismetdb_journal::commit_result final_commit;
+    {
+        kismetdb_journal::connection_lock clk(db);
+        final_commit = kismetdb_journal::commit(db, close_busy_budget);
+
+        std::string rollback_err;
+        if (final_commit.state == kismetdb_journal::commit_state::held &&
+                kismetdb_journal::rollback(db, rollback_err) != SQLITE_OK)
+            final_commit.err += "; and couldn't roll it back, so the log can't be made a "
+                "single file: " + rollback_err;
+    }
 
     // A download still reading it closes it when it ends
     std::string path;
     const auto log_uuid = get_log_uuid();
-    bool closed;
+    const auto journal = journal_active.load();
+    bool close_now;
+    sqlite3 *h;
 
     {
         kis_lock_guard<kis_mutex> dlk(ds_mutex, "kismetdb close_log");
-        auto h = db;
+        h = db;
         db = nullptr;
         path = ds_dbfile;
-        closed = retire_handle(h, path, log_uuid, "close");
+        close_now = retire_handle(h, path, log_uuid, "close");
     }
 
-    if (closed) {
-        _MSG_INFO("Finished kismetdb log '{}'", path);
-        publish_log_finished(log_uuid, path, "close");
+    finished_file finished;
+    if (close_now)
+        finished = close_finished(h);
+
+    lifetime_lk.unlock();
+
+    if (final_commit.state != kismetdb_journal::commit_state::committed)
+        close_error(fmt::format("The kismetdb log '{}' couldn't save what was logged since it "
+                    "was last saved, and lost it: {}{}", path, final_commit.err,
+                    journal == kismetdb_journal::journal_mode::persist &&
+                    final_commit.rc == SQLITE_BUSY ? " (another program was reading the log)" : ""));
+
+    if (close_now)
+        report_finished(path, log_uuid, "close", finished);
+
+    // Files pcapng downloads still read (this one, or one a rotation finished) are made a
+    // single file when the last download ends; Kismet exiting first leaves the -wal
+    std::vector<std::string> still_read;
+    {
+        std::lock_guard<std::mutex> lk(stream_handle_mutex);
+        for (const auto& r : retired_handles)
+            still_read.push_back(r.second.path);
+    }
+
+    for (const auto& p : still_read) {
+        if (!kismetdb_journal::wal_file_size(p).has_value())
+            continue;
+
+        close_error(fmt::format("The kismetdb log '{}' is still being read by a pcapng download, "
+                    "and is made a single file when that ends.  If Kismet exits first, keep "
+                    "'{}' with it: that file holds part of the log.", p,
+                    kismetdb_journal::wal_path(p)));
+    }
+}
+
+kismetdb_journal::journal_mode kis_database_logfile::journal_opt() {
+    using namespace kismetdb_journal;
+
+    // An ephemeral log is unlinked as it opens; a WAL would leave its -wal and -shm behind
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false))
+        return journal_mode::persist;
+
+    const auto v = Globalreg::globalreg->kismet_config->fetch_opt("kis_log_journal_mode");
+    if (v.empty())
+        return journal_mode::wal;
+
+    const auto configured = parse_mode(v);
+    if (!configured.has_value()) {
+        _MSG_ERROR("Ignoring kis_log_journal_mode={}; expected wal or persist", v);
+        return journal_mode::wal;
+    }
+
+    return *configured;
+}
+
+void kis_database_logfile::report_wal_unavailable(const std::string& path,
+        const kismetdb_journal::mode_result& mode) {
+    if (mode.wal_unavailable.empty())
+        return;
+
+    _MSG_INFO("The kismetdb log '{}': {} ({}); using the persist journal", path,
+            kismetdb_journal::fallback_cause(mode.wal_rc), mode.wal_unavailable);
+}
+
+std::string kis_database_logfile::start_journal(kismetdb_journal::log_file file,
+        kismetdb_journal::mode_result& mode) {
+    std::string err;
+    mode = kismetdb_journal::apply_mode(db, journal_cfg, file, err);
+    journal_active = mode.mode;
+    journal_page_size = kismetdb_journal::pragma_int(db, "PRAGMA page_size");
+    hold_ended();
+    // A new file gets every device written to it
+    devices_dropped = false;
+
+    std::string begin_err;
+    if (kismetdb_journal::begin(db, begin_err) != SQLITE_OK)
+        err += (err.empty() ? "" : "; ") + std::string{"couldn't start a transaction: "} + begin_err;
+
+    return err;
+}
+
+std::string kis_database_logfile::open_checkpointer(const std::string& path) {
+    std::string err;
+    sqlite3 *h = nullptr;
+
+    if (journal_active == kismetdb_journal::journal_mode::wal)
+        h = kismetdb_journal::open_checkpointer(path, err);
+
+    sqlite3 *old;
+    {
+        std::lock_guard<std::mutex> lk(checkpoint_mutex);
+        old = checkpoint_db;
+        checkpoint_db = h;
+        checkpoint_taken = false;
+    }
+
+    // Swapped under the mutex, so the commit timer no longer has it
+    sqlite3_close_v2(old);
+    return err;
+}
+
+sqlite3 *kis_database_logfile::take_checkpointer() {
+    std::lock_guard<std::mutex> lk(checkpoint_mutex);
+    auto h = checkpoint_db;
+    checkpoint_db = nullptr;
+    checkpoint_taken = h != nullptr;
+    return h;
+}
+
+void kis_database_logfile::restore_checkpointer(sqlite3 *h) {
+    if (h == nullptr)
+        return;
+
+    {
+        std::lock_guard<std::mutex> lk(checkpoint_mutex);
+        if (checkpoint_db == nullptr) {
+            checkpoint_db = h;
+            checkpoint_taken = false;
+            return;
+        }
+    }
+
+    // Only rotate_log() and close_log() take it, one at a time; nothing replaced it
+    sqlite3_close_v2(h);
+}
+
+std::chrono::steady_clock::duration kis_database_logfile::note_held(
+        std::chrono::steady_clock::time_point now) {
+    const auto since = commit_held_since.load();
+
+    if (since == std::chrono::steady_clock::time_point{}) {
+        commit_held_since = now;
+        return std::chrono::steady_clock::duration::zero();
+    }
+
+    return now - since;
+}
+
+void kis_database_logfile::hold_ended() {
+    commit_held_since = std::chrono::steady_clock::time_point{};
+    hold_dropped = false;
+}
+
+int64_t kis_database_logfile::page_size() {
+    const auto p = kismetdb_journal::known_page_size(db, journal_page_size.load());
+
+    if (p > 0)
+        journal_page_size = p;
+
+    return p;
+}
+
+// Every 10 s: commit and begin the next transaction.  In WAL mode the second connection copies
+// the bulk of the WAL while writers carry on, then the writer copies the rest between two
+// transactions, the only point the WAL can start over.
+void kis_database_logfile::transaction_tick() {
+    using namespace kismetdb_journal;
+
+    struct cycle_result {
+        commit_result commit;
+        // How long the commit has been held, and whether that went past the limits and the
+        // transaction was rolled back
+        std::chrono::steady_clock::duration held{};
+        int64_t held_bytes = 0;
+        bool dropped = false;
+        int begin_rc = SQLITE_OK;
+        std::string begin_err;
+        std::optional<checkpoint_result> ckpt;
+        int64_t page_size = 0;
+    };
+
+    // COMMIT, a checkpoint if asked, and the next BEGIN, with no other writer's statement
+    // between them; the caller holds a writer guard
+    auto cycle = [this](bool with_checkpoint) {
+        cycle_result r;
+        connection_lock clk(db);
+
+        in_transaction_sync = true;
+        // Qualified, or the class's own begin() (a tracked map's) would be found first
+        r.commit = kismetdb_journal::commit(db, commit_busy_budget);
+
+        if (r.commit.state == commit_state::held) {
+            r.held = note_held(std::chrono::steady_clock::now());
+            r.held_bytes = cache_bytes(db);
+
+            std::string rollback_err;
+            if (hold_exhausted(r.held, r.held_bytes)) {
+                if (kismetdb_journal::rollback(db, rollback_err) == SQLITE_OK) {
+                    r.dropped = true;
+                    commit_held_since = std::chrono::steady_clock::time_point{};
+                    hold_dropped = true;
+                } else {
+                    r.commit.err += "; couldn't roll it back past the hold limits: " + rollback_err;
+                }
+            }
+        } else {
+            hold_ended();
+        }
+
+        if (with_checkpoint && r.commit.state != commit_state::held) {
+            r.ckpt = kismetdb_journal::checkpoint(db, SQLITE_CHECKPOINT_PASSIVE,
+                    std::chrono::milliseconds(0));
+            r.page_size = page_size();
+        }
+        r.begin_rc = kismetdb_journal::begin(db, r.begin_err);
+        in_transaction_sync = false;
+
+        return r;
+    };
+
+    std::string path;
+    journal_mode journal = journal_mode::wal;
+    cycle_result first;
+    std::optional<cycle_result> second;
+    std::optional<checkpoint_result> bulk;
+
+    {
+        db_writer_guard writer_lk(this);
+        if (!db_enabled || db == nullptr)
+            return;
+
+        path = ds_dbfile;
+        journal = journal_active;
+        first = cycle(false);
+    }
+
+    if (journal == journal_mode::wal && first.commit.state != commit_state::held) {
+        bool taken;
+        {
+            std::lock_guard<std::mutex> lk(checkpoint_mutex);
+            if (checkpoint_db != nullptr)
+                bulk = kismetdb_journal::checkpoint(checkpoint_db, SQLITE_CHECKPOINT_PASSIVE,
+                        std::chrono::milliseconds(0));
+            taken = checkpoint_taken;
+        }
+
+        // While a rotation has the second connection, the catch-up would copy the whole WAL
+        // on the writer's; a rotation in between has its own file and checkpoints
+        if (!taken) {
+            db_writer_guard writer_lk(this);
+
+            if (db_enabled && db != nullptr && ds_dbfile == path)
+                second = cycle(true);
+        }
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+
+    if (commit_report_reset.exchange(false))
+        commit_report.reset();
+
+    auto report = [&](const cycle_result& r) {
+        switch (r.commit.state) {
+            case commit_state::committed: {
+                // The failures were on this file, or on the one before it, which a rotation
+                // saved before starting this one
+                const auto s = commit_report.saved();
+                const auto n = s.failures;
+                if (n > 0 && s.lost)
+                    _MSG_INFO("The kismetdb log '{}' is saving again, after {} failed "
+                            "attempt{}; the data those attempts lost isn't in it",
+                            commit_fail_path, n, n == 1 ? "" : "s");
+                else if (n > 0)
+                    _MSG_INFO("Saved the kismetdb log '{}' again, after {} failed attempt{}",
+                            commit_fail_path, n, n == 1 ? "" : "s");
+                break;
+            }
+            case commit_state::held: {
+                commit_fail_path = path;
+                auto n = commit_report.held(now);
+                const auto unsaved = std::chrono::duration_cast<std::chrono::seconds>(r.held).count() + 10;
+
+                if (r.dropped) {
+                    _MSG_ERROR("The kismetdb log '{}' couldn't be saved for {} seconds ({}), and "
+                            "Kismet dropped what was logged in that time ({} MB held in memory) "
+                            "rather than keep it any longer; it keeps logging.  Data held for "
+                            "over {} seconds or {} MB is dropped.", path, unsaved, r.commit.err,
+                            r.held_bytes / (1024 * 1024), max_hold.count(),
+                            max_hold_bytes / (1024 * 1024));
+                    // What these failures held is gone, not saved later
+                    commit_report.reset();
+                    break;
+                }
+
+                if (n == 0)
+                    break;
+
+                _MSG_ERROR("Couldn't save the last {} seconds of the kismetdb log '{}' ({} "
+                        "failed attempt{} since the last message): {}.  {}", unsaved, path, n,
+                        n == 1 ? "" : "s", r.commit.err,
+                        journal == journal_mode::persist && r.commit.rc == SQLITE_BUSY ?
+                        "Another program is reading the log (such as a kismetdb tool), which "
+                        "stops saving in persist mode; Kismet keeps the data in memory until "
+                        "that program finishes, for up to " + std::to_string(max_hold.count()) +
+                        " seconds." :
+                        "Kismet keeps the data and tries again every 10 seconds.");
+                break;
+            }
+            case commit_state::lost: {
+                commit_fail_path = path;
+                auto n = commit_report.lost(now);
+                if (n > 0)
+                    _MSG_ERROR("The kismetdb log '{}' couldn't save, and lost, what was logged "
+                            "in the last 10 seconds ({} time{} since the last message): {}", path,
+                            n, n == 1 ? "" : "s", r.commit.err);
+                break;
+            }
+        }
+
+        if (r.begin_rc == SQLITE_OK) {
+            begin_report.succeeded();
+        } else {
+            auto n = begin_report.failed(now);
+            if (n > 0)
+                _MSG_ERROR("The kismetdb log '{}' couldn't start a transaction ({} time{} since "
+                        "the last message): {}; until it can, everything is saved as it's "
+                        "logged, which is slower", path, n, n == 1 ? "" : "s", r.begin_err);
+        }
+    };
+
+    report(first);
+    if (second.has_value())
+        report(*second);
+
+    // Devices logged only in a dropped transaction would be missing from the file until they
+    // change again.  They're written once saving works again: into a transaction that's still
+    // held they'd only fill the cache to the limit and be dropped again.  The datasources
+    // follow on their own timer.
+    if (first.dropped || (second.has_value() && second->dropped))
+        devices_dropped = true;
+
+    const bool saved = first.commit.state == commit_state::committed &&
+        (!second.has_value() || second->commit.state == commit_state::committed);
+
+    if (saved && devices_dropped.exchange(false))
+        devicetracker->databaselog_write_all_devices();
+
+    if (!second.has_value() || !second->ckpt.has_value())
+        return;
+
+    if (wal_growth_path != path) {
+        wal_growth = wal_watch{};
+        wal_growth_path = path;
+    }
+
+    // A pcapng download holding the WAL back with no second connection to count its frames:
+    // go by the size of the -wal
+    const auto state = wal_state(*second->ckpt, bulk);
+    auto growth = wal_watch::verdict::quiet;
+
+    if (state.rc == SQLITE_LOCKED && state.log_frames < 0) {
+        const auto sz = wal_file_size(path);
+        if (sz.has_value())
+            growth = wal_growth.held_back(*sz, now);
+    } else {
+        growth = wal_growth.update(state, second->page_size, now);
+    }
+
+    switch (growth) {
+        case wal_watch::verdict::warn:
+            _MSG_ERROR("The kismetdb log's '{}-wal' file holds {} MB that can't be copied into "
+                    "'{}' while something is still reading the log: another program, or a "
+                    "pcapng download from the log.  It keeps growing until that reader is "
+                    "done.", path, wal_growth.bytes() / (1024 * 1024), path);
+            break;
+        case wal_watch::verdict::cleared:
+            _MSG_INFO("The kismetdb log's '{}-wal' file is being copied into the log again",
+                    path);
+            break;
+        default:
+            break;
     }
 }
 
@@ -810,32 +1224,59 @@ void kis_database_logfile::release_stream_handle(sqlite3 *h) {
     if (h == nullptr)
         return;
 
-    std::lock_guard<std::mutex> lk(stream_handle_mutex);
+    retired_handle retired;
 
-    auto u = stream_handle_users.find(h);
-    if (u == stream_handle_users.end() || --u->second > 0)
-        return;
+    {
+        std::lock_guard<std::mutex> lk(stream_handle_mutex);
 
-    stream_handle_users.erase(u);
+        auto u = stream_handle_users.find(h);
+        if (u == stream_handle_users.end() || --u->second > 0)
+            return;
 
-    auto r = retired_handles.find(h);
-    if (r != retired_handles.end()) {
-        const auto retired = r->second;
+        stream_handle_users.erase(u);
+
+        auto r = retired_handles.find(h);
+        if (r == retired_handles.end())
+            return;
+
+        retired = r->second;
         retired_handles.erase(r);
-        if (close_finished(h, retired.path)) {
-            _MSG_INFO("Finished kismetdb log '{}'", retired.path);
-            publish_log_finished(retired.log_uuid, retired.path, retired.reason);
-        }
     }
+
+    // The last download of a finished file; nothing else has the handle now
+    report_finished(retired.path, retired.log_uuid, retired.reason, close_finished(h));
 }
 
-bool kis_database_logfile::close_finished(sqlite3 *h, const std::string& path) {
-    if (sqlite3_close_v2(h) != SQLITE_OK) {
+kis_database_logfile::finished_file kis_database_logfile::close_finished(sqlite3 *h) {
+    finished_file f;
+
+    f.finish = kismetdb_journal::finish(h, close_busy_budget);
+    f.closed = sqlite3_close_v2(h) == SQLITE_OK;
+
+    return f;
+}
+
+void kis_database_logfile::report_finished(const std::string& path, const uuid& in_log_uuid,
+        const std::string& reason, const finished_file& f) {
+    if (f.finish.wal_left)
+        close_error(fmt::format("The kismetdb log '{}' is still open in another program, so it "
+                    "couldn't be made a single file ({}).  Keep '{}-wal' with it: that file "
+                    "holds part of the log.", path, f.finish.err, path));
+    else if (!f.finish.single_file)
+        _MSG_ERROR("Couldn't remove the journal of kismetdb log '{}': {}", path, f.finish.err);
+
+    if (!f.closed) {
         _MSG_ERROR("Failed to close kismetdb log '{}'", path);
-        return false;
+        return;
     }
 
-    return true;
+    if (f.finish.wal_left)
+        _MSG_INFO("Finished kismetdb log '{}', with its '{}'", path, kismetdb_journal::wal_path(path));
+    else
+        _MSG_INFO("Finished kismetdb log '{}'", path);
+
+    // Whatever moves or archives finished files needs the -wal too
+    publish_log_finished(in_log_uuid, path, reason, f.finish.wal_left);
 }
 
 bool kis_database_logfile::retire_handle(sqlite3 *h, const std::string& path,
@@ -850,7 +1291,7 @@ bool kis_database_logfile::retire_handle(sqlite3 *h, const std::string& path,
         return false;
     }
 
-    return close_finished(h, path);
+    return true;
 }
 
 // Packets nearly always come from the same few sources, so keep the last formatted uuid
@@ -1045,7 +1486,8 @@ bool kis_database_logfile::file_due() {
 
     if (max_size != 0) {
         // The size of the database as this connection sees it, so the open transaction
-        // counts too; the file itself only grows when a transaction ends
+        // counts too; the .kismet itself only grows when a transaction ends, or in WAL mode
+        // when the WAL is copied into it
         db_writer_guard writer_lk(this);
 
         if (!db_enabled || db == nullptr)
@@ -1066,23 +1508,16 @@ bool kis_database_logfile::file_due() {
 
 // Size of the current file as this connection sees it; the caller holds a writer guard
 uint64_t kis_database_logfile::current_size() {
-    auto pragma_int = [this](const char *sql) -> int64_t {
-        sqlite3_stmt *stmt = nullptr;
-        int64_t v = 0;
-
-        if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK &&
-                sqlite3_step(stmt) == SQLITE_ROW)
-            v = sqlite3_column_int64(stmt, 0);
-
-        sqlite3_finalize(stmt);
-        return v;
-    };
-
     if (db == nullptr)
         return 0;
 
-    const auto v = pragma_int("PRAGMA page_count") * pragma_int("PRAGMA page_size");
-    return v < 0 ? 0 : (uint64_t) v;
+    const auto pages = kismetdb_journal::pragma_int(db, "PRAGMA page_count");
+    const auto page = page_size();
+
+    if (pages <= 0 || page <= 0)
+        return 0;
+
+    return static_cast<uint64_t>(pages) * static_cast<uint64_t>(page);
 }
 
 void kis_database_logfile::rotate_log() {
@@ -1109,6 +1544,20 @@ void kis_database_logfile::rotate_log() {
     rotate_stage = rotate_hold::old_devices;
     devicetracker->databaselog_write_devices();
     rotate_stage = rotate_hold::log_tracker;
+
+    // Taken before the locks below, as a tick holds it through its bulk checkpoint; given
+    // back if the rotation doesn't go ahead
+    struct checkpointer_hold {
+        kis_database_logfile *log;
+        sqlite3 *h;
+
+        ~checkpointer_hold() { log->restore_checkpointer(h); }
+
+        void close() {
+            sqlite3_close_v2(h);
+            h = nullptr;
+        }
+    } old_ckpt{this, take_checkpointer()};
 
     auto give_up = [this](std::chrono::steady_clock::time_point deadline) {
         return !db_enabled || std::chrono::steady_clock::now() > deadline;
@@ -1161,7 +1610,6 @@ void kis_database_logfile::rotate_log() {
     rotate_stage = rotate_hold::finishing_old;
 
     bool rotated = false;
-    bool old_closed = false;
 
     if (!db_enabled || db == nullptr) {
         lifetime_lk.unlock();
@@ -1173,11 +1621,52 @@ void kis_database_logfile::rotate_log() {
     auto old_db = db;
     const auto old_uuid = database_get_db_uuid();
     const auto old_log_uuid = get_log_uuid();
-    sqlite3_exec(old_db, "END TRANSACTION", NULL, NULL, NULL);
+
+    kismetdb_journal::commit_result old_commit;
+    std::chrono::steady_clock::duration old_held{};
+    int64_t old_held_bytes = 0;
+    bool old_exhausted = false;
+    {
+        kismetdb_journal::connection_lock clk(old_db);
+        old_commit = kismetdb_journal::commit(old_db, commit_busy_budget);
+
+        if (old_commit.state == kismetdb_journal::commit_state::held) {
+            const auto now = std::chrono::steady_clock::now();
+            const auto due_for = rotate_due != std::chrono::steady_clock::time_point{} ?
+                now - rotate_due : std::chrono::steady_clock::duration::zero();
+            old_held = kismetdb_journal::rotation_hold(note_held(now), due_for, hold_dropped);
+            old_held_bytes = kismetdb_journal::cache_bytes(old_db);
+            old_exhausted = kismetdb_journal::hold_exhausted(old_held, old_held_bytes);
+        } else {
+            hold_ended();
+        }
+    }
+
+    // Another program reading the old file (persist mode) keeps its last data from being
+    // saved; keep logging to it and try again, within the hold limits.  Past them, the held
+    // data is dropped once the new file is open.
+    if (old_commit.state == kismetdb_journal::commit_state::held && !old_exhausted) {
+        lifetime_lk.unlock();
+        tracker_lk.unlock();
+        open_gate();
+
+        rotate_retry = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        rotate_held = rotate_hold::finishing_old;
+        return;
+    }
 
     // The cached inserts belong to the old handle, and it can't close while they're open;
     // they're prepared again on whichever handle is kept
     finalize_cached();
+
+    // The old file's second connection has to be gone before it can leave WAL mode
+    old_ckpt.close();
+
+    std::string journal_err;
+    kismetdb_journal::mode_result new_journal;
+    bool old_close_now = false;
+    bool old_dropped = false;
+    std::string old_rollback_err;
 
     // Only remove the new file on a failure if we made it
     struct stat st;
@@ -1189,12 +1678,17 @@ void kis_database_logfile::rotate_log() {
 
     if (!new_existed && database_open(new_path, SQLITE_OPEN_FULLMUTEX) &&
             database_upgrade_db() > 0) {
-        sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
-        sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+        journal_err = start_journal(kismetdb_journal::log_file::created, new_journal);
 
-        sqlite3_exec(old_db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
-        // A download still reading the old file closes it when it ends
-        old_closed = retire_handle(old_db, old_path, old_log_uuid, rotate_reason);
+        // Before the old handle is retired: once it is, a download ending closes it
+        if (old_exhausted) {
+            kismetdb_journal::connection_lock clk(old_db);
+            old_dropped = kismetdb_journal::rollback(old_db, old_rollback_err) == SQLITE_OK;
+        }
+
+        // A download still reading the old file finishes and closes it when it ends;
+        // otherwise that's done below, once the writers are running again
+        old_close_now = retire_handle(old_db, old_path, old_log_uuid, rotate_reason);
 
         set_int_log_path(new_path);
 
@@ -1217,11 +1711,47 @@ void kis_database_logfile::rotate_log() {
             ds_db_uuid = old_uuid;
         }
 
-        sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+        std::string begin_err;
+        if (kismetdb_journal::begin(db, begin_err) != SQLITE_OK)
+            journal_err = "couldn't start a transaction: " + begin_err;
     }
 
     lifetime_lk.unlock();
     tracker_lk.unlock();
+
+    // The file being logged to, new or kept
+    const auto ckpt_err = open_checkpointer(rotated ? new_path : old_path);
+
+    const auto old_held_s = std::chrono::duration_cast<std::chrono::seconds>(old_held).count();
+
+    if (old_commit.state == kismetdb_journal::commit_state::lost)
+        _MSG_ERROR("The kismetdb log '{}' couldn't save, and lost, what was logged since it was "
+                "last saved: {}", old_path, old_commit.err);
+    else if (old_dropped)
+        _MSG_ERROR("The kismetdb log '{}' couldn't be saved for {} seconds ({}); Kismet dropped "
+                "what was logged since it was last saved ({} MB held in memory) so the next "
+                "file can start", old_path, old_held_s, old_commit.err,
+                old_held_bytes / (1024 * 1024));
+    else if (rotated && old_exhausted)
+        _MSG_ERROR("The kismetdb log '{}' couldn't be saved for {} seconds ({}), and couldn't "
+                "drop what was logged since it was last saved either ({}); the next file has "
+                "started, and that data is lost as the old file closes", old_path, old_held_s,
+                old_commit.err, old_rollback_err);
+
+    // The tick's run of failures was on the old file, whose unsaved data is now gone
+    if (rotated && old_commit.state != kismetdb_journal::commit_state::committed)
+        commit_report_reset = true;
+
+    if (rotated)
+        report_wal_unavailable(new_path, new_journal);
+
+    if (!journal_err.empty())
+        _MSG_ERROR("kismetdb log '{}': {}", rotated ? new_path : old_path, journal_err);
+
+    if (!ckpt_err.empty())
+        _MSG_ERROR("kismetdb log '{}' couldn't open a second connection for its WAL "
+                "checkpoints ({}); they'll run on the logging connection instead",
+                rotated ? new_path : old_path, ckpt_err);
 
     if (!rotated) {
         open_gate();
@@ -1242,10 +1772,6 @@ void kis_database_logfile::rotate_log() {
     rotate_stage = rotate_hold::none;
 
     _MSG_INFO("Rotating to new kismetdb log '{}'", new_path);
-    if (old_closed) {
-        _MSG_INFO("Finished kismetdb log '{}'", old_path);
-        publish_log_finished(old_log_uuid, old_path, rotate_reason);
-    }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false))
         unlink(new_path.c_str());
@@ -1264,6 +1790,11 @@ void kis_database_logfile::rotate_log() {
 
     // Every device, not only those that changed since the last device log
     devicetracker->databaselog_write_all_devices();
+
+    // The old file's final checkpoint can wait up to close_busy_budget for its readers, so
+    // it's finished once the new file is set up; nothing else uses its handle
+    if (old_close_now)
+        report_finished(old_path, old_log_uuid, rotate_reason, close_finished(old_db));
 
     if (max_size == 0)
         return;
@@ -1633,12 +2164,13 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     db_lock_with_sync_check(dblock, return);
 #endif
 
-    r = sqlite3_step(msg_stmt);
+    std::string step_err;
+    r = kismetdb_journal::step(msg_stmt, write_busy_budget, step_err);
 
     // An oversized message is dropped, as above
     if (r != SQLITE_DONE && r != SQLITE_TOOBIG) {
         close_log();
-        _MSG_ERROR("Unable to insert message into {}: {}", ds_dbfile, sqlite3_errmsg(db));
+        _MSG_ERROR("Unable to insert message into {}: {}", ds_dbfile, step_err);
     }
 
     sqlite3_finalize(msg_stmt);
@@ -1764,7 +2296,8 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
     db_lock_with_sync_check(dblock, return);
 #endif
 
-    auto step_r = sqlite3_step(device_stmt);
+    std::string step_err;
+    auto step_r = kismetdb_journal::step(device_stmt, write_busy_budget, step_err);
 
     if (step_r == SQLITE_TOOBIG) {
         sqlite3_finalize(device_stmt);
@@ -1774,7 +2307,7 @@ int kis_database_logfile::log_device(const std::shared_ptr<kis_tracked_device_ba
 
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert device in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + step_err, MSGFLAG_ERROR);
         // An unfinalized statement keeps the database from closing
         sqlite3_finalize(device_stmt);
         close_log();
@@ -2067,10 +2600,7 @@ int kis_database_logfile::insert_packet(const db_packet_row& row) {
     sqlite3_bind_int(stmt, sql_pos++, row.hash);
     sqlite3_bind_int64(stmt, sql_pos++, row.packet_no);
 
-    auto r = sqlite3_step(stmt);
-
-    if (r != SQLITE_DONE)
-        err = sqlite3_errmsg(db);
+    auto r = kismetdb_journal::step(stmt, write_busy_budget, err);
 
     // Drop the references to our buffers before they go away
     sqlite3_reset(stmt);
@@ -2170,10 +2700,7 @@ int kis_database_logfile::insert_data(const db_data_row& row) {
 
     sqlite3_bind_int(stmt, sql_pos++, row.signal);
 
-    auto r = sqlite3_step(stmt);
-
-    if (r != SQLITE_DONE)
-        err = sqlite3_errmsg(db);
+    auto r = kismetdb_journal::step(stmt, write_busy_budget, err);
 
     sqlite3_reset(stmt);
     sqlite3_clear_bindings(stmt);
@@ -2272,7 +2799,8 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
     db_lock_with_sync_check(dblock, return -1);
 #endif
 
-    auto step_r = sqlite3_step(datasource_stmt);
+    std::string step_err;
+    auto step_r = kismetdb_journal::step(datasource_stmt, write_busy_budget, step_err);
 
     if (step_r == SQLITE_TOOBIG) {
         sqlite3_finalize(datasource_stmt);
@@ -2282,7 +2810,7 @@ int kis_database_logfile::log_datasource(const shared_tracker_element& in_dataso
 
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert datasource in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + step_err, MSGFLAG_ERROR);
         // An unfinalized statement keeps the database from closing
         sqlite3_finalize(datasource_stmt);
         close_log();
@@ -2365,7 +2893,8 @@ int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_ale
     db_lock_with_sync_check(dblock, return -1);
 #endif
 
-    auto step_r = sqlite3_step(alert_stmt);
+    std::string step_err;
+    auto step_r = kismetdb_journal::step(alert_stmt, write_busy_budget, step_err);
 
     if (step_r == SQLITE_TOOBIG) {
         sqlite3_finalize(alert_stmt);
@@ -2375,7 +2904,7 @@ int kis_database_logfile::log_alert(const std::shared_ptr<tracked_alert>& in_ale
 
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert alert in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + step_err, MSGFLAG_ERROR);
         // An unfinalized statement keeps the database from closing
         sqlite3_finalize(alert_stmt);
         close_log();
@@ -2453,7 +2982,8 @@ int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& 
     db_lock_with_sync_check(dblock, return -1);
 #endif
 
-    auto step_r = sqlite3_step(snapshot_stmt);
+    std::string step_err;
+    auto step_r = kismetdb_journal::step(snapshot_stmt, write_busy_budget, step_err);
 
     if (step_r == SQLITE_TOOBIG) {
         sqlite3_finalize(snapshot_stmt);
@@ -2463,7 +2993,7 @@ int kis_database_logfile::log_snapshot(const std::shared_ptr<kis_gps_packinfo>& 
 
     if (step_r != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert snapshot in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + step_err, MSGFLAG_ERROR);
         // An unfinalized statement keeps the database from closing
         sqlite3_finalize(snapshot_stmt);
         close_log();

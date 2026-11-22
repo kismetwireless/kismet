@@ -44,7 +44,8 @@
 
 void print_help(char *argv) {
     printf("Kismetdb Cleanup\n");
-    printf("Performs a basic cleanup of Kismetdb logs with an incomplete journal file\n");
+    printf("Performs a basic cleanup of Kismetdb logs with an incomplete journal or WAL file,\n"
+            "and leaves the log as a single file\n");
     printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n");
 }
@@ -105,6 +106,29 @@ int main(int argc, char *argv[]) {
     }
 
     fmt::print(stderr, "* Cleaning database '{}'...\n", in_fname);
+
+    /* A log from a Kismet that stopped without closing it is still in WAL mode; leave it as
+     * one file, which tools can read without its -wal and -shm or a writable directory.
+     * A running Kismet's WAL log can't leave WAL while Kismet has it open.  Its persist log
+     * is usually locked by Kismet's open transaction, so this or the vacuum fails; in the
+     * moment after Kismet saves it isn't, and a vacuum then holds the write lock Kismet's
+     * next insert needs, which can close Kismet's log. */
+    std::string jmode;
+    sql_r = sqlite3_exec(db, "PRAGMA journal_mode=DELETE",
+            [] (void *aux, int ncols, char **data, char **) -> int {
+                if (ncols == 1 && data[0] != nullptr)
+                    *static_cast<std::string *>(aux) = data[0];
+                return 0;
+            }, &jmode, &sql_errmsg);
+
+    if (sql_r != SQLITE_OK || jmode != "delete") {
+        fmt::print(stderr, "ERROR:  Unable to make '{}' a single file ({}); it may still be "
+                "open in another program, such as a running Kismet\n", in_fname,
+                sql_r != SQLITE_OK ? std::string{sql_errmsg != nullptr ? sql_errmsg : sqlite3_errstr(sql_r)} :
+                "journal mode " + jmode);
+        sqlite3_close(db);
+        exit(1);
+    }
 
     sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
 
