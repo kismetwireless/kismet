@@ -642,7 +642,7 @@ void kis_radiation_phy::check_alerts(time_t now) {
                         censor::format("Radiation sensor {} reports a dose rate of {:.3f} uSv/h "
                             "over the last {} seconds, at or above the alert level of {:.3f} uSv/h.  "
                             "Never rely on Kismet to decide whether an area is safe.",
-                            sensor->get_name(), usv, alert_window, alert_dose_level));
+                            sensor->sensor_name(), usv, alert_window, alert_dose_level));
             } else if (r.dose_alerted && usv < alert_dose_level * 0.8) {
                 r.dose_alerted = false;
             }
@@ -664,7 +664,7 @@ void kis_radiation_phy::check_alerts(time_t now) {
                         mac_addr{}, mac_addr{}, mac_addr{}, mac_addr{}, "",
                         censor::format("Radiation sensor {} reports {:.2f} counts per second over the "
                             "last {} seconds, {:.1f} times its average of {:.2f} over the past {} minutes.",
-                            sensor->get_name(), cps, alert_window, cps / base, base, base_minutes));
+                            sensor->sensor_name(), cps, alert_window, cps / base, base, base_minutes));
             } else if (r.rise_alerted && (sigma < alert_rise_sigma / 2 ||
                         cps < base * (1 + (alert_min_rise_ratio - 1) / 2))) {
                 r.rise_alerted = false;
