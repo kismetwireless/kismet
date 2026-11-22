@@ -323,20 +323,20 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     auto rssi_j = json["rssi"];
     if (rssi_j.is_number())
-        commondev->set_rssi(fmt::format("{}", rssi_j.get<int>()));
+        commondev->set_rssi(fmt::format("{}", rssi_j.get<double>()));
     else if (rssi_j.is_string())
         commondev->set_rssi(munge_to_printable(rssi_j));
 
     auto snr_j = json["snr"];
     if (snr_j.is_number())
-        commondev->set_snr(fmt::format("{}", snr_j.get<int>()));
+        commondev->set_snr(fmt::format("{}", snr_j.get<double>()));
     else if (snr_j.is_string())
         commondev->set_snr(munge_to_printable(snr_j));
 
 
     auto noise_j = json["noise"];
     if (noise_j.is_number())
-        commondev->set_noise(fmt::format("{}", noise_j.get<int>()));
+        commondev->set_noise(fmt::format("{}", noise_j.get<double>()));
     else if (noise_j.is_string())
         commondev->set_noise(munge_to_printable(noise_j));
 
