@@ -9,7 +9,9 @@
 // resized from their corner; position { left, top, width, height } places
 // one, and onMove(position) is told where the user put it.  A panel that
 // would cover nearly the whole window (most panels on a phone) fills it
-// instead, below the menu and name.  A new panel moves to the nearest spot
+// instead, below the menu and name.  A placed panel is kept wholly on
+// screen, made smaller if the window is smaller than it; it goes back to the
+// size and place it was given when the window grows again.  A new panel moves to the nearest spot
 // clear of the panels already open, when there is one.  fullSize: true gives
 // a panel a button to fill the window and go back.  Modal dialogs keep the
 // size their content gives them.
@@ -18,6 +20,20 @@ import { el } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 
 let topLayer = 10;
+
+// The notch and home indicator insets; scripts can't read env(), so a hidden
+// probe is padded with them
+let insetProbe = null;
+function safeInsets() {
+    if (!insetProbe?.isConnected) {
+        insetProbe = el('div', { 'aria-hidden': 'true', style: 'position: fixed; top: 0; left: 0; visibility: hidden; ' +
+            'pointer-events: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) ' +
+            'env(safe-area-inset-bottom) env(safe-area-inset-left)' });
+        document.body.append(insetProbe);
+    }
+    const s = getComputedStyle(insetProbe);
+    return { left: parseFloat(s.paddingLeft) || 0, right: parseFloat(s.paddingRight) || 0, bottom: parseFloat(s.paddingBottom) || 0 };
+}
 
 // Escape closes the panel in front.  Modal dialogs close themselves; Escape
 // that something else used (cancelling an edit, closing the menu, clearing
@@ -82,8 +98,21 @@ export function dialog({ title, body, modal = true, closable = true, className =
         node.show();
         fill();
         avoidOthers();
+        // Fit it again when the window changes size or turns, and when the top
+        // bar does (the ribbon wrapping to a row of its own)
+        const bar = document.querySelector('.topbar');
+        let barSeen = false;
+        const barWatch = bar ? new ResizeObserver(() => {
+            if (barSeen)
+                fill();
+            barSeen = true;
+        }) : null;
+        barWatch?.observe(bar);
         window.addEventListener('resize', fill);
-        node.addEventListener('close', () => window.removeEventListener('resize', fill));
+        node.addEventListener('close', () => {
+            window.removeEventListener('resize', fill);
+            barWatch?.disconnect();
+        });
     }
     makeMovable();
 
@@ -103,18 +132,26 @@ export function dialog({ title, body, modal = true, closable = true, className =
         return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-bottom')) || 0;
     }
 
-    // Pin the panel at a position, instead of docked to the side of the window
+    // Pin the panel at a position, instead of docked to the side of the
+    // window.  All of it stays on screen, below the top bar and clear of the
+    // notch: no bigger than the window (its CSS minimum size still wins), then
+    // moved in.  Only what's drawn changes, not `wanted`.
     function place({ left, top, width, height }) {
-        const w = Math.min(width ?? node.offsetWidth, window.innerWidth - 16);
-        const h = Math.min(height ?? node.offsetHeight, window.innerHeight - 16);
-        // Keep the title bar on screen, so the panel can always be dragged back
-        left = Math.max(60 - w, Math.min(left, window.innerWidth - 60));
-        top = Math.max(minTop(), Math.min(top, window.innerHeight - 40));
-        // Shorten it rather than let its bottom (and the end of its scrolling) go off screen
-        const fit = Math.max(Math.min(h, 192), window.innerHeight - top - 8);
-        Object.assign(node.style, { left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto',
-            width: `${w}px`, height: `${Math.min(h, fit)}px` });
+        const s = safeInsets();
+        const room = { left: s.left, top: minTop(), right: window.innerWidth - s.right, bottom: window.innerHeight - s.bottom };
+        // A saved position from an older or damaged setting may not be numbers
+        const num = (v, d) => (Number.isFinite(v) ? v : d);
+        const w = Math.min(num(width, node.offsetWidth), room.right - room.left - 16);
+        const h = Math.min(num(height, node.offsetHeight), room.bottom - room.top - 8);
         node.classList.add('placed');
+        Object.assign(node.style, { right: 'auto', bottom: 'auto', width: `${w}px`, height: `${h}px` });
+        const ow = node.offsetWidth, oh = node.offsetHeight;
+        // Narrowed to fit: centred, rather than against one edge
+        if (num(width, 0) > w)
+            left = room.left + Math.round((room.right - room.left - ow) / 2);
+        left = Math.max(room.left, Math.min(num(left, room.left), room.right - ow));
+        top = Math.max(room.top, Math.min(num(top, room.top), room.bottom - oh));
+        Object.assign(node.style, { left: `${left}px`, top: `${top}px` });
     }
 
     // Fill the window when the panel, at the size it was given, would cover
@@ -199,7 +236,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
         }
         if (!best || better(best.s, here) >= 0)
             return;
-        wanted = { left: Math.round(best.x), top: Math.round(best.y), width: w, height: h };
+        wanted = { left: Math.round(best.x), top: Math.round(best.y), width: wanted?.width ?? w, height: wanted?.height ?? h };
         fill();
     }
 
@@ -236,9 +273,15 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 header.removeEventListener('pointerup', up);
                 header.removeEventListener('pointercancel', up);
                 node.classList.remove('moving');
-                if (!modal)
-                    wanted = currentPosition();
-                onMove?.(currentPosition());
+                if (modal) {
+                    onMove?.(currentPosition());
+                    return;
+                }
+                // Moved, not resized: keep the size it was given, though the
+                // window may be showing it smaller
+                const now = currentPosition();
+                wanted = { ...now, width: wanted?.width ?? now.width, height: wanted?.height ?? now.height };
+                onMove?.({ ...wanted });
             };
             header.addEventListener('pointermove', move);
             header.addEventListener('pointerup', up);
@@ -291,12 +334,12 @@ export function dialog({ title, body, modal = true, closable = true, className =
             const w = Math.min(width, window.innerWidth - 16);
             if (w <= p.width || node.classList.contains('full'))
                 return;
-            wanted = { ...p, width: w, left: Math.max(8, Math.min(p.left, window.innerWidth - 8 - w)) };
-            place(wanted);
+            wanted = { ...(wanted ?? p), width: w };
             fill();
         },
         // Shrink or grow a panel to the height of its content (no taller than
-        // fits), keeping its top where it is; { grow: false } only shrinks it
+        // fits), keeping its top where it is unless it would then run off the
+        // bottom of the window; { grow: false } only shrinks it
         fitContent({ grow = true } = {}) {
             if (modal || node.classList.contains('full'))
                 return;
@@ -315,8 +358,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 parseFloat(pad.paddingBottom) + node.offsetHeight - node.clientHeight);
             if (h === p.height || (!grow && h > p.height))
                 return;
-            wanted = { ...p, height: h };
-            place(wanted);
+            wanted = { ...(wanted ?? p), height: h };
             fill();
         },
     };
