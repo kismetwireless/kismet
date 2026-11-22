@@ -227,6 +227,7 @@
 #include "diag_gsmtap_sink.h"
 #include "diag_probeclose.h"
 #include "diag_portadmit.h"
+#include "diag_replayfifo.h"
 
 /* Compiled-in default dir holding the capture_cell_at/profiles/<model>.json
  * files, overridable via the profiles= source option or $CELLDIAG_PROFILES.
@@ -5847,22 +5848,9 @@ static int replay_fd_is_fifo(kis_capture_handler_t *caph, local_diag_t *local, i
     return S_ISFIFO(st.st_mode) ? 1 : 0;
 }
 
-/* A replay FIFO's writer closed. The FIFO is not finished: it waits for the
- * next writer. A frame the writer left partial is flushed now (as a FIFO EOF),
- * so the next writer's bytes never join onto it, in the decode or the raw
- * stream.
- *
- * Linux reports POLLHUP on the read end until a new writer opens, so the read
- * end is replaced: the new one is opened (non-blocking, so the wait for a
- * writer is the read loop's poll) before the old one is closed, so the FIFO
- * always has a reader. A fresh Linux read end reports no POLLHUP until a writer
- * has come and gone. Elsewhere (macOS, the BSDs) a read end with no writer
- * reports POLLHUP at once, fresh or not, so the fd is kept and the pass sleeps
- * the read loop's poll interval instead of spinning.
- * Returns the fd to read, or -1 with the error reported (the source spins
- * down). */
-static int replay_fifo_writer_closed(kis_capture_handler_t *caph, local_diag_t *local,
-                                     int fd) {
+/* Flush the frame a replay FIFO's writer left partial (as a FIFO EOF), so the
+ * next writer's bytes never join onto it, in the decode or the raw stream. */
+static void replay_fifo_flush(kis_capture_handler_t *caph, local_diag_t *local) {
     if (local->native_stream != NULL) {
         native_tap_ctx_t ctx = { .caph = caph, .local = local };
         diag_logstream_flush(local->native_stream, native_tap_cb, &ctx);
@@ -5873,8 +5861,31 @@ static int replay_fifo_writer_closed(kis_capture_handler_t *caph, local_diag_t *
         diag_rawpkt_flush(local->rawpkt.s, rawpkt_emit, &rctx);
         rawpkt_report(caph, local);
     }
+}
 
+/* The platform reported a replay FIFO's writer closed (POLLHUP, or an EOF
+ * read). The FIFO is not finished: it waits for the next writer.
+ *
+ * Linux reports POLLHUP on the read end until a new writer opens, so the read
+ * end is replaced: the new one is opened (non-blocking, so the wait for a
+ * writer is the read loop's poll) before the old one is closed, so the FIFO
+ * always has a reader. A fresh Linux read end reports no POLLHUP until a writer
+ * has come and gone.
+ *
+ * Elsewhere the fd is kept, the partial frame is flushed once per writer, and
+ * the pass sleeps the read loop's poll interval in case the report repeats.
+ * On macOS poll never raises POLLIN (or POLLHUP) for the close, so the read
+ * loop never reads the EOF and never gets here; a non-blocking read does
+ * return 0, so the loop's idle probe (diag_replayfifo_idle) finds the close
+ * instead.
+ * Returns the fd to read, or -1 with the error reported (the source spins
+ * down). */
+static int replay_fifo_writer_closed(kis_capture_handler_t *caph, local_diag_t *local,
+                                     int fd, diag_replayfifo_t *watch) {
 #ifdef __linux__
+    (void)watch;
+    replay_fifo_flush(caph, local);
+
     char errstr[ERRBUF_MAX];
     int nfd = cell_safe_op(CELL_SAFE_OPEN, local->replay_path, NULL,
                            O_RDONLY | O_NONBLOCK, 0, CELL_SAFE_FIFO_OK);
@@ -5899,6 +5910,8 @@ static int replay_fifo_writer_closed(kis_capture_handler_t *caph, local_diag_t *
     close(fd);
     return nfd;
 #else
+    if (diag_replayfifo_writer_closed(watch))
+        replay_fifo_flush(caph, local);
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 250000000 };
     nanosleep(&ts, NULL);
     return fd;
@@ -5937,6 +5950,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
     int src_fd;
     int replay_fd = -1;
     int replay_fifo = 0;
+    diag_replayfifo_t fifo_watch;
+    diag_replayfifo_init(&fifo_watch);
 
     if (local->bringup.pending) {
         char berr[STATUS_MAX];
@@ -6238,6 +6253,28 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
             break;
         }
 
+#ifndef __linux__
+        /* macOS reports a replay FIFO's closed writer as nothing at all, so a
+         * timeout is probed: a closed writer flushes its partial frame once,
+         * and bytes the probe reads are fed like any other read. */
+        if (pr == 0 && replay_fifo) {
+            size_t pn = 0;
+            diag_replayfifo_rc prc = diag_replayfifo_idle(&fifo_watch, src_fd, rbuf,
+                                                          sizeof(rbuf), &pn);
+            if (prc == DIAG_REPLAYFIFO_DATA) {
+                uint64_t recv_mono_ns = anchor_mono_ns();
+                feed_bytes(caph, local, rbuf, pn);
+                anchor_on_bytes(caph, local, rbuf, pn, recv_mono_ns);
+            } else if (prc == DIAG_REPLAYFIFO_CLOSED) {
+                replay_fifo_flush(caph, local);
+            } else if (prc == DIAG_REPLAYFIFO_ERROR) {
+                diag_stats_on_read_error(&local->stats);
+                break;
+            }
+            continue;
+        }
+#endif
+
         if (fds[0].revents & POLLIN) {
             ssize_t n = read(src_fd, rbuf, sizeof(rbuf));
             /* Stamped here, before feed_bytes: the decode and emit inside it
@@ -6256,7 +6293,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                 if (local->replay_path) {
                     if (replay_fifo) {
                         if ((replay_fd = replay_fifo_writer_closed(caph, local,
-                                                                   replay_fd)) < 0)
+                                                                   replay_fd,
+                                                                   &fifo_watch)) < 0)
                             break;
                         src_fd = replay_fd;
                         continue;
@@ -6266,6 +6304,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
                 }
                 continue;
             }
+            if (replay_fifo)
+                diag_replayfifo_bytes(&fifo_watch);
             feed_bytes(caph, local, rbuf, (size_t)n);
             anchor_on_bytes(caph, local, rbuf, (size_t)n, recv_mono_ns);
         } else if (fds[0].revents & (POLLHUP | POLLERR)) {
@@ -6273,7 +6313,8 @@ static void capture_thread_run(kis_capture_handler_t *caph) {
              * reports POLLHUP alone: the writer is done, not the FIFO. */
             if (replay_fifo && !(fds[0].revents & POLLERR)) {
                 if ((replay_fd = replay_fifo_writer_closed(caph, local,
-                                                           replay_fd)) < 0)
+                                                           replay_fd,
+                                                           &fifo_watch)) < 0)
                     break;
                 src_fd = replay_fd;
                 continue;

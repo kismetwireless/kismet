@@ -437,7 +437,9 @@ a later open of the source reads it again. A replay that fails to open (the
 file is not there yet) or fails while reading is retried like any source. A
 FIFO is never finished: when its writer closes, a frame it left partial is
 ended there (it fails its check rather than joining the next writer's bytes),
-and the helper waits for the next writer and keeps reading. A Kismet-driven
+and the helper waits for the next writer and keeps reading. On macOS the close
+is found only after about 250 ms of quiet, so a writer that opens within about
+250 ms of the previous writer's last byte joins its partial frame. A Kismet-driven
 stop cancels the capture thread first, so on that path there is no totals
 line and no `END`. The stream can also end short by the read(s) in flight at
 the close, in whole frames (see above). Setting
