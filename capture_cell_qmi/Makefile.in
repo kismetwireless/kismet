@@ -11,6 +11,8 @@ MONITOR_OBJS = \
 	qmi_obs.c.o \
 	qmi_node.c.o \
 	qmi_transport.c.o \
+	mbim_wire.c.o \
+	mbim_obs.c.o \
 	cell_discover.c.o
 MONITOR_BIN = kismet_cap_cell_qmi
 
@@ -38,11 +40,12 @@ ifeq ($(CELL_SELFTEST),1)
 all: $(TEST_BIN)
 
 $(TEST_BIN):	test_cellqmi.c qmi_wire.c qmi_wire.h qmi_obs.c qmi_obs.h qmi_node.c \
-		qmi_node.h qmi_transport.c qmi_transport.h \
+		qmi_node.h qmi_transport.c qmi_transport.h mbim_wire.c mbim_wire.h \
+		mbim_obs.c mbim_obs.h \
 		../capture_cell_diag/cell_discover.c ../capture_cell_diag/cell_discover.h
 		$(CC) $(CFLAGS) $(CPPFLAGS) -DQMI_OPEN_BACKLOG_MAX_MS=5000 -o $(TEST_BIN) \
 		    test_cellqmi.c qmi_wire.c qmi_obs.c qmi_node.c qmi_transport.c \
-		    ../capture_cell_diag/cell_discover.c
+		    mbim_wire.c mbim_obs.c ../capture_cell_diag/cell_discover.c
 endif
 
 clean:

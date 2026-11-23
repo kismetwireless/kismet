@@ -24,6 +24,7 @@
 #define _GNU_SOURCE
 
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -37,6 +38,8 @@
 #include <unistd.h>
 
 #include "../capture_cell_diag/cell_discover.h"
+#include "mbim_obs.h"
+#include "mbim_wire.h"
 #include "qmi_node.h"
 #include "qmi_obs.h"
 #include "qmi_transport.h"
@@ -1279,6 +1282,542 @@ static void test_cid_record(void) {
     fake_stop(&fk);
 }
 
+/* ------------------------------------------------------------ native MBIM */
+
+static size_t utf16_put(tlvbuf_t *t, const char *s) {
+    const size_t start = t->n;
+    for (const char *p = s; *p; p++)
+        put16(t, (uint16_t) (unsigned char) *p);
+    while (t->n % 4)
+        put8(t, 0);
+    return start;
+}
+
+static void patch32(tlvbuf_t *t, size_t at, uint32_t v) {
+    t->b[at] = (uint8_t) v;
+    t->b[at + 1] = (uint8_t) (v >> 8);
+    t->b[at + 2] = (uint8_t) (v >> 16);
+    t->b[at + 3] = (uint8_t) (v >> 24);
+}
+
+/* A COMMAND_DONE carrying `info`, as one message */
+static size_t mbim_done_build(uint8_t *out, size_t cap, uint32_t tid, const uint8_t uuid[16],
+                              uint32_t cid, uint32_t status, const uint8_t *info,
+                              size_t info_len) {
+    tlvbuf_t t;
+    t.n = 0;
+    put32(&t, MBIM_COMMAND_DONE);
+    put32(&t, 0);
+    put32(&t, tid);
+    put32(&t, 1);
+    put32(&t, 0);
+    memcpy(t.b + t.n, uuid, 16);
+    t.n += 16;
+    put32(&t, cid);
+    put32(&t, status);
+    put32(&t, (uint32_t) info_len);
+    memcpy(t.b + t.n, info, info_len);
+    t.n += info_len;
+    patch32(&t, 4, (uint32_t) t.n);
+    if (t.n > cap)
+        return 0;
+    memcpy(out, t.b, t.n);
+    return t.n;
+}
+
+/* Split a whole message into fragments of at most `max` bytes, as a
+ * function with that maximum control transfer sends it */
+static int mbim_fragment(const uint8_t *msg, size_t len, size_t max,
+                         uint8_t frags[][512], size_t *flen, int maxfrags) {
+    const size_t first_data = max - 20, more_data = max - 20;
+    const size_t body = len - 20;
+    int n = body <= first_data ? 1 : 1 + (int) ((body - first_data + more_data - 1) / more_data);
+    size_t off = 20;
+
+    if (n > maxfrags)
+        return 0;
+    for (int i = 0; i < n; i++) {
+        const size_t take = (len - off) < more_data ? (len - off) : more_data;
+        memcpy(frags[i], msg, 12);
+        frags[i][12] = (uint8_t) n;
+        frags[i][13] = frags[i][14] = frags[i][15] = 0;
+        frags[i][16] = (uint8_t) i;
+        frags[i][17] = frags[i][18] = frags[i][19] = 0;
+        memcpy(frags[i] + 20, msg + off, take);
+        flen[i] = 20 + take;
+        frags[i][4] = (uint8_t) flen[i];
+        frags[i][5] = (uint8_t) (flen[i] >> 8);
+        frags[i][6] = frags[i][7] = 0;
+        off += take;
+    }
+    return n;
+}
+
+static void test_mbim_fragments(void) {
+    uint8_t info[600], msg[700], frags[8][512];
+    size_t flen[8];
+    mbim_reasm_t r;
+    mbim_msg_t m;
+
+    for (size_t i = 0; i < sizeof(info); i++)
+        info[i] = (uint8_t) (i * 7);
+    const size_t len = mbim_done_build(msg, sizeof(msg), 9, mbim_uuid_atds, 1, 0, info,
+                                       sizeof(info));
+    CHECK(len == 48 + 600 && !mbim_is_fragment(msg, len), "frag: a whole message is "
+          "not a fragment");
+
+    const int n = mbim_fragment(msg, len, 256, frags, flen, 8);
+    CHECK(n == 3, "frag: 648 bytes in 256-byte transfers are 3 fragments (%d)", n);
+    CHECK(mbim_is_fragment(frags[0], flen[0]) && !mbim_parse(frags[0], flen[0], &m),
+          "frag: a fragment is seen as one and not parsed alone");
+
+    mbim_reasm_reset(&r);
+    int a0 = mbim_reasm_add(&r, frags[0], flen[0]);
+    int a1 = mbim_reasm_add(&r, frags[1], flen[1]);
+    int a2 = mbim_reasm_add(&r, frags[2], flen[2]);
+    CHECK(a0 == 0 && a1 == 0 && a2 == 1, "frag: 0, 0, then complete (%d %d %d)", a0, a1, a2);
+    CHECK(r.len == len && mbim_parse(r.buf, r.len, &m) && m.info_len == sizeof(info) &&
+          memcmp(m.info, info, sizeof(info)) == 0 && m.cid == 1 && m.tid == 9,
+          "frag: the joined message reads as the original");
+
+    mbim_reasm_reset(&r);
+    (void) mbim_reasm_add(&r, frags[0], flen[0]);
+    CHECK(mbim_reasm_add(&r, frags[2], flen[2]) == -1, "frag: a skipped fragment resets");
+    CHECK(mbim_reasm_add(&r, frags[1], flen[1]) == -1, "frag: no continuation without a "
+          "first fragment");
+
+    mbim_reasm_reset(&r);
+    (void) mbim_reasm_add(&r, frags[0], flen[0]);
+    frags[1][8] = 10;   /* another transaction */
+    CHECK(mbim_reasm_add(&r, frags[1], flen[1]) == -1, "frag: another transaction's "
+          "fragment resets");
+}
+
+/* DEVICE_SERVICES information: each service a UUID and its CIDs */
+static size_t devsvc_build(uint8_t *out, int with_qmi, int with_bsi, int with_atds) {
+    const uint8_t *uuids[4];
+    uint32_t cids[4][3];
+    int ncids[4], n = 0;
+    tlvbuf_t t;
+
+    uuids[n] = mbim_uuid_basic_connect; cids[n][0] = 9; cids[n][1] = 16; ncids[n++] = 2;
+    if (with_qmi) { uuids[n] = mbim_uuid_qmi; cids[n][0] = 1; ncids[n++] = 1; }
+    uuids[n] = mbim_uuid_ms_basic_connect_ext; cids[n][0] = 3; ncids[n] = 1;
+    if (with_bsi) cids[n][ncids[n]++] = 11;
+    n++;
+    if (with_atds) { uuids[n] = mbim_uuid_atds; cids[n][0] = 1; cids[n][1] = 2; ncids[n++] = 2; }
+
+    t.n = 0;
+    put32(&t, (uint32_t) n);
+    put32(&t, 0);
+    const size_t pairs = t.n;
+    for (int i = 0; i < n; i++) { put32(&t, 0); put32(&t, 0); }
+    for (int i = 0; i < n; i++) {
+        const size_t at = t.n;
+        memcpy(t.b + t.n, uuids[i], 16);
+        t.n += 16;
+        put32(&t, 0);
+        put32(&t, 0);
+        put32(&t, (uint32_t) ncids[i]);
+        for (int c = 0; c < ncids[i]; c++)
+            put32(&t, cids[i][c]);
+        patch32(&t, pairs + 8 * (size_t) i, (uint32_t) at);
+        patch32(&t, pairs + 8 * (size_t) i + 4, (uint32_t) (t.n - at));
+    }
+    memcpy(out, t.b, t.n);
+    return t.n;
+}
+
+static void test_mbim_device_services(void) {
+    uint8_t b[1024];
+    mbim_caps_t c;
+
+    size_t n = devsvc_build(b, 1, 1, 1);
+    CHECK(mbim_device_services_parse(b, n, &c) && c.services == 4 && c.have_qmi &&
+          c.have_base_stations && c.have_atds_location && c.have_atds_signal,
+          "devsvc: QMI, BASE_STATIONS_INFO and atds all seen");
+
+    /* The XMM7360 shape: the extensions service without CID 11, no QMI */
+    n = devsvc_build(b, 0, 0, 1);
+    CHECK(mbim_device_services_parse(b, n, &c) && !c.have_qmi && !c.have_base_stations &&
+          c.have_atds_location, "devsvc: extensions without CID 11 is no "
+          "BASE_STATIONS_INFO");
+
+    n = devsvc_build(b, 0, 1, 0);
+    CHECK(mbim_device_services_parse(b, n, &c) && c.have_base_stations &&
+          !c.have_atds_location, "devsvc: no atds");
+
+    CHECK(!mbim_device_services_parse(b, n - 4, &c), "devsvc: a truncated last service "
+          "is refused");
+    b[8] = 0xF0;   /* the first service's offset points past the buffer */
+    b[9] = 0x0F;
+    CHECK(!mbim_device_services_parse(b, n, &c), "devsvc: an offset past the end is "
+          "refused");
+}
+
+/* One LTE cell structure; `ta` adds the serving cell's timing advance */
+static void lte_cell_put(tlvbuf_t *t, const char *provider, uint32_t cell, uint32_t earfcn,
+                         uint32_t pci, uint32_t tac, int32_t rsrp, int32_t rsrq, int ta) {
+    const size_t start = t->n;
+    put32(t, 0);
+    put32(t, 0);
+    put32(t, cell);
+    put32(t, earfcn);
+    put32(t, pci);
+    put32(t, tac);
+    put32(t, (uint32_t) rsrp);
+    put32(t, (uint32_t) rsrq);
+    if (ta)
+        put32(t, 0xFFFFFFFFu);
+    if (provider != NULL) {
+        const size_t at = utf16_put(t, provider);
+        patch32(t, start, (uint32_t) (at - start));
+        patch32(t, start + 4, (uint32_t) (2 * strlen(provider)));
+    }
+}
+
+typedef struct {
+    uint32_t cell, earfcn, pci, tac;
+    int32_t rsrp, rsrq;
+} nb_t;
+
+/* BASE_STATIONS_INFO, MBIM 1.0 layout, LTE serving + an LTE MRL */
+static size_t bsi_build(uint8_t *out, const char *provider, uint32_t cell, uint32_t earfcn,
+                        uint32_t pci, uint32_t tac, int32_t rsrp, int32_t rsrq,
+                        const nb_t *nb, int nnb) {
+    tlvbuf_t t;
+
+    t.n = 0;
+    put32(&t, MBIM_DATA_CLASS_LTE);
+    for (int i = 0; i < 18; i++)
+        put32(&t, 0);
+
+    const size_t serving = t.n;
+    lte_cell_put(&t, provider, cell, earfcn, pci, tac, rsrp, rsrq, 1);
+    patch32(&t, 4 + 8 * 3, (uint32_t) serving);
+    patch32(&t, 4 + 8 * 3 + 4, (uint32_t) (t.n - serving));
+
+    if (nnb > 0) {
+        const size_t mrl = t.n;
+        put32(&t, (uint32_t) nnb);
+        for (int i = 0; i < nnb; i++)
+            lte_cell_put(&t, NULL, nb[i].cell, nb[i].earfcn, nb[i].pci, nb[i].tac,
+                         nb[i].rsrp, nb[i].rsrq, 0);
+        patch32(&t, 4 + 8 * 7, (uint32_t) mrl);
+        patch32(&t, 4 + 8 * 7 + 4, (uint32_t) (t.n - mrl));
+    }
+    memcpy(out, t.b, t.n);
+    return t.n;
+}
+
+static void test_mbim_base_stations(void) {
+    const uint32_t U = MBIM_UNKNOWN_U32;
+    /* The measured shape (EM9291, MBIM 1.0), synthetic values: the serving
+     * PCI repeated as a neighbour with unknown identity, one inter-frequency
+     * neighbour above the 16-bit range, one that may be wrapped */
+    const nb_t nb[3] = {
+        { U, U, 1, U, -87, -6 },
+        { U, 65636, 2, U, -95, -10 },
+        { U, 100, 3, U, -99, -12 },
+    };
+    uint8_t b[1024], req[32];
+    mbim_base_stations_t bs;
+    char rows[MBIM_OBS_MAX][QMI_OBS_JSON_MAX];
+    qmi_obs_stats_t st;
+
+    CHECK(mbim_base_stations_req(req, sizeof(req), 15) == 20 && req[0] == 15 &&
+          req[16] == 15, "bsi: the MBIM 1.0 request is five counts, no NR count");
+
+    size_t n = bsi_build(b, "00101", 0xABCDE1, 100, 1, 0x1234, -87, -6, nb, 3);
+    CHECK(mbim_base_stations_parse(b, n, &bs) && bs.have_lte_serving &&
+          bs.lte_serving.cell_id == 0xABCDE1 && bs.lte_serving.pci == 1 &&
+          bs.lte_serving.tac == 0x1234 && bs.lte_serving.earfcn == 100 &&
+          strcmp(bs.lte_serving.provider, "00101") == 0 && bs.nneighbours == 3 &&
+          bs.neighbours[1].earfcn == 65636 && bs.neighbours[0].cell_id == U,
+          "bsi: serving and neighbours decode");
+
+    int nr = mbim_obs_build(NULL, &bs, NULL, NULL, 1.0, rows, MBIM_OBS_MAX, &st);
+    CHECK(nr == 2 && st.serving == 1 && st.neighbours == 1, "bsi obs: serving + one "
+          "neighbour (%d rows)", nr);
+    CHECK(nr >= 1 && strstr(rows[0], "\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":4660,"
+                            "\"cell_id\":11259361,\"pci\":1") != NULL &&
+          strstr(rows[0], "earfcn") == NULL && strstr(rows[0], "\"rsrp\":-87.0") != NULL &&
+          strstr(rows[0], "\"rsrq\":-6.0") != NULL &&
+          strstr(rows[0], "\"src\":\"mbim\",\"origin\":\"MBIM:BSI\"") != NULL &&
+          strstr(rows[0], "\"is_serving\":true") != NULL,
+          "bsi obs: serving row keeps its identity, no EARFCN at or below 65535: %s", rows[0]);
+    CHECK(nr == 2 && strstr(rows[1], "\"pci\":2,\"earfcn\":65636") != NULL &&
+          strstr(rows[1], "\"is_serving\":false") != NULL,
+          "bsi obs: the proven neighbour is written: %s", nr == 2 ? rows[1] : "");
+    CHECK(st.unproven_earfcn == 2, "bsi obs: the serving EARFCN and neighbour PCI 3 are "
+          "unproven (%d)", st.unproven_earfcn);
+
+    /* A proven serving EARFCN is written */
+    n = bsi_build(b, "00101", 0xABCDE1, 65636, 1, 0x1234, -87, -6, NULL, 0);
+    CHECK(mbim_base_stations_parse(b, n, &bs) &&
+          mbim_obs_build(NULL, &bs, NULL, NULL, 1.0, rows, MBIM_OBS_MAX, &st) == 1 &&
+          strstr(rows[0], "\"earfcn\":65636") != NULL, "bsi obs: EARFCN above 65535 kept");
+
+    /* The T700 on MBIM 1.0: indices, and the MNC's leading zero dropped */
+    n = bsi_build(b, "31001", 0xABCDE1, 100, 1, 0x1234, 47, 28, NULL, 0);
+    CHECK(mbim_base_stations_parse(b, n, &bs) &&
+          mbim_obs_build(NULL, &bs, NULL, NULL, 1.0, rows, MBIM_OBS_MAX, &st) == 1 &&
+          strstr(rows[0], "\"mcc\":\"310\",\"mnc\":\"001\"") != NULL &&
+          strstr(rows[0], "\"rsrp\":-94.0") != NULL && strstr(rows[0], "\"rsrq\":-6.0") != NULL,
+          "bsi obs: 3GPP indices decode, 5-digit 310 id is MNC 001: %s", rows[0]);
+
+    /* No provider in the cell: the registration's provider */
+    mbim_register_t reg;
+    memset(&reg, 0, sizeof(reg));
+    reg.state = MBIM_REG_ROAMING;
+    strcpy(reg.provider, "001010");
+    n = bsi_build(b, NULL, 0xABCDE1, 100, 1, 0x1234, -87, -6, NULL, 0);
+    CHECK(mbim_base_stations_parse(b, n, &bs) &&
+          mbim_obs_build(&reg, &bs, NULL, NULL, 1.0, rows, MBIM_OBS_MAX, &st) == 1 &&
+          strstr(rows[0], "\"mcc\":\"001\",\"mnc\":\"010\"") != NULL,
+          "bsi obs: PLMN from REGISTER_STATE when the cell has none: %s", rows[0]);
+
+    /* No PLMN at all and no proven EARFCN: nothing to key the cell on */
+    CHECK(mbim_obs_build(NULL, &bs, NULL, NULL, 1.0, rows, MBIM_OBS_MAX, &st) == 0,
+          "bsi obs: no PLMN and no proven EARFCN is no row");
+
+    CHECK(mbim_lte_rsrp_x10(-1) == INT32_MIN && mbim_lte_rsrq_x10(-1) == INT32_MIN &&
+          mbim_lte_rsrp_x10(0) == -1410 && mbim_lte_rsrp_x10(97) == -440 &&
+          mbim_lte_rsrq_x10(0) == -200 && mbim_lte_rsrq_x10(34) == -30 &&
+          mbim_lte_rsrp_x10(-140) == -1400 && mbim_lte_rsrq_x10(-20) == -200,
+          "bsi: RSRP/RSRQ index and value ranges, 0xFFFFFFFF unknown");
+
+    /* Offsets that leave the buffer are refused */
+    n = bsi_build(b, "00101", 0xABCDE1, 100, 1, 0x1234, -87, -6, nb, 3);
+    CHECK(!mbim_base_stations_parse(b, n - 8, &bs), "bsi: a truncated MRL is refused");
+    b[4 + 8 * 7 + 4] = 0xFF;   /* MRL size past the end */
+    CHECK(!mbim_base_stations_parse(b, n, &bs), "bsi: an MRL size past the end is refused");
+    n = bsi_build(b, "00101", 0xABCDE1, 100, 1, 0x1234, -87, -6, nb, 3);
+    b[4 + 8 * 7 + 0] = 8;      /* MRL offset inside the header */
+    CHECK(!mbim_base_stations_parse(b, n, &bs), "bsi: an offset into the header is refused");
+}
+
+static void test_mbim_register_atds(void) {
+    uint8_t b[256];
+    tlvbuf_t t;
+    mbim_register_t reg;
+    mbim_atds_location_t loc;
+    mbim_atds_signal_t sig;
+    char rows[MBIM_OBS_MAX][QMI_OBS_JSON_MAX];
+    qmi_obs_stats_t st;
+
+    /* REGISTER_STATE: nw error, state, mode, data classes, cellular class,
+     * provider id, provider name, roaming text, flags */
+    t.n = 0;
+    put32(&t, 0); put32(&t, MBIM_REG_ROAMING); put32(&t, 1); put32(&t, MBIM_DATA_CLASS_LTE);
+    put32(&t, 1);
+    put32(&t, 0); put32(&t, 0); put32(&t, 0); put32(&t, 0); put32(&t, 0); put32(&t, 0);
+    put32(&t, 2);
+    const size_t at = utf16_put(&t, "00101");
+    patch32(&t, 20, (uint32_t) at);
+    patch32(&t, 24, 10);
+    memcpy(b, t.b, t.n);
+    CHECK(mbim_register_parse(b, t.n, &reg) && reg.state == MBIM_REG_ROAMING &&
+          strcmp(reg.provider, "00101") == 0 && mbim_registered(reg.state),
+          "register: state and provider id");
+
+    /* atds, the measured coding: RSSI 26, BER 99, RSCP/EcNo 255, RSRQ 25,
+     * RSRP 52, RSSNR 29 */
+    t.n = 0;
+    put32(&t, 26); put32(&t, 99); put32(&t, 255); put32(&t, 255);
+    put32(&t, 25); put32(&t, 52); put32(&t, 29);
+    CHECK(mbim_atds_signal_parse(t.b, t.n, &sig) && sig.rssi == -61 && sig.rsrq_x10 == -70 &&
+          sig.rsrp_x10 == -880 && sig.snr_x10 == 240, "atds signal: -61 dBm, RSRQ -7.0, "
+          "RSRP -88, SNR 24 (%d %d %d %d)", sig.rssi, sig.rsrq_x10, sig.rsrp_x10, sig.snr_x10);
+
+    t.n = 0;
+    put32(&t, 0); put32(&t, 0x1234); put32(&t, 0xABCDE1);
+    CHECK(mbim_atds_location_parse(t.b, t.n, &loc) && loc.tac == 0x1234, "atds location");
+
+    int n = mbim_obs_build(&reg, NULL, &loc, &sig, 2.0, rows, MBIM_OBS_MAX, &st);
+    CHECK(n == 1 && strstr(rows[0], "\"mcc\":\"001\",\"mnc\":\"01\",\"tac\":4660,"
+                           "\"cell_id\":11259361") != NULL &&
+          strstr(rows[0], "\"rsrp\":-88.0,\"rsrq\":-7.0,\"snr\":24.0,\"rssi\":-61") != NULL &&
+          strstr(rows[0], "\"origin\":\"MBIM:ATDS\"") != NULL,
+          "atds obs: serving row from the location and the registration: %s",
+          n ? rows[0] : "");
+
+    /* The XMM7360 refused registration: location all zero, deregistered */
+    memset(&loc, 0, sizeof(loc));
+    reg.state = MBIM_REG_DEREGISTERED;
+    reg.provider[0] = '\0';
+    n = mbim_obs_build(&reg, NULL, &loc, &sig, 2.0, rows, MBIM_OBS_MAX, &st);
+    CHECK(n == 0 && st.no_service == 1, "atds obs: zero location, deregistered: no service");
+
+    /* Registered, but no read names a cell (NR SA on MBIM 1.0): a gap, not
+     * no service */
+    reg.state = MBIM_REG_HOME;
+    strcpy(reg.provider, "00101");
+    n = mbim_obs_build(&reg, NULL, &loc, &sig, 2.0, rows, MBIM_OBS_MAX, &st);
+    CHECK(n == 0 && st.no_service == 0, "atds obs: registered without a cell is not "
+          "no service");
+
+    char mcc[4], mnc[4];
+    CHECK(mbim_provider_split("001010", mcc, mnc) && strcmp(mnc, "010") == 0 &&
+          mbim_provider_split("31001", mcc, mnc) && strcmp(mnc, "001") == 0 &&
+          mbim_provider_split("00101", mcc, mnc) && strcmp(mcc, "001") == 0 &&
+          strcmp(mnc, "01") == 0 && !mbim_provider_split("3101", mcc, mnc) &&
+          !mbim_provider_split("00a101", mcc, mnc), "provider split");
+}
+
+/* A fake native-MBIM node on a pty: answers DEVICE_SERVICES (after
+ * MBIM_OPEN, unless `already_open`) and a BASE_STATIONS_INFO query, every
+ * reply split into `max`-byte fragments.  Reports 'o' per MBIM_OPEN and 'c'
+ * per MBIM_CLOSE on `count_fd`. */
+static void fake_mbim_node(int fd, int count_fd, int already_open, size_t max) {
+    uint8_t in[8192], out[4096], frags[16][512], info[2048];
+    size_t inlen = 0, flen[16];
+    int open = already_open;
+
+    for (;;) {
+        ssize_t r = read(fd, in + inlen, sizeof(in) - inlen);
+        if (r <= 0)
+            _exit(0);
+        inlen += (size_t) r;
+
+        for (;;) {
+            int bad = 0;
+            const size_t fl = mbim_frame_len(in, inlen, &bad);
+            if (bad)
+                _exit(1);
+            if (fl == 0)
+                break;
+
+            const uint32_t type = in[0] | (in[1] << 8) | (in[2] << 16) | ((uint32_t) in[3] << 24);
+            const uint8_t *tidp = in + 8;
+            uint8_t reply[16];
+            size_t olen = 0;
+
+            if (type == MBIM_OPEN_MSG || type == MBIM_CLOSE_MSG) {
+                if (write(count_fd, type == MBIM_OPEN_MSG ? "o" : "c", 1) < 0)
+                    _exit(0);
+                open = type == MBIM_OPEN_MSG;
+                memset(reply, 0, sizeof(reply));
+                reply[0] = type == MBIM_OPEN_MSG ? 1 : 2;
+                reply[3] = 0x80;
+                reply[4] = 16;
+                memcpy(reply + 8, tidp, 4);
+                if (write(fd, reply, 16) < 0)
+                    _exit(0);
+            } else if (type == MBIM_COMMAND_MSG && !open) {
+                memset(reply, 0, sizeof(reply));
+                reply[0] = 4;
+                reply[3] = 0x80;
+                reply[4] = 16;
+                memcpy(reply + 8, tidp, 4);
+                reply[12] = 5;      /* not opened */
+                if (write(fd, reply, 16) < 0)
+                    _exit(0);
+            } else if (type == MBIM_COMMAND_MSG) {
+                const uint32_t tid = tidp[0] | (tidp[1] << 8) | (tidp[2] << 16) |
+                    ((uint32_t) tidp[3] << 24);
+                const uint32_t cid = in[36] | (in[37] << 8);
+                size_t il;
+                if (memcmp(in + 20, mbim_uuid_basic_connect, 16) == 0 && cid == 16)
+                    il = devsvc_build(info, 0, 1, 1);
+                else {
+                    nb_t nb[12];
+                    for (int i = 0; i < 12; i++) {
+                        nb[i].cell = nb[i].tac = MBIM_UNKNOWN_U32;
+                        nb[i].earfcn = 65636;
+                        nb[i].pci = (uint32_t) (i + 2) % 9 + 1;
+                        nb[i].rsrp = -100;
+                        nb[i].rsrq = -11;
+                    }
+                    il = bsi_build(info, "00101", 0xABCDE1, 100, 1, 0x1234, -87, -6, nb, 12);
+                }
+                olen = mbim_done_build(out, sizeof(out), tid, in + 20, cid, 0, info, il);
+                const int n = mbim_fragment(out, olen, max, frags, flen, 16);
+                for (int i = 0; i < n; i++) {
+                    if (write(fd, frags[i], flen[i]) < 0)
+                        _exit(0);
+                }
+            }
+            memmove(in, in + fl, inlen - fl);
+            inlen -= fl;
+        }
+    }
+}
+
+typedef struct {
+    int opened, queried, opens, closes, have_bsi, have_atds, nneighbours;
+} mbim_fake_t;
+
+static mbim_fake_t mbim_fake_run(int already_open, size_t max) {
+    mbim_fake_t res;
+    int counts[2];
+
+    memset(&res, 0, sizeof(res));
+    int master = posix_openpt(O_RDWR | O_NOCTTY);
+    if (master < 0 || grantpt(master) < 0 || unlockpt(master) < 0 || pipe(counts) < 0) {
+        printf("FAIL: cannot make a pty for the fake MBIM node\n");
+        failures++;
+        return res;
+    }
+    const char *slave_name = ptsname(master);
+    int slave = open(slave_name, O_RDWR | O_NOCTTY);
+    struct termios tio;
+    if (slave < 0 || tcgetattr(slave, &tio) < 0) {
+        printf("FAIL: cannot open the pty slave\n");
+        failures++;
+        return res;
+    }
+    cfmakeraw(&tio);
+    tcsetattr(slave, TCSANOW, &tio);
+    tcsetattr(master, TCSANOW, &tio);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(counts[0]);
+        close(slave);
+        fake_mbim_node(master, counts[1], already_open, max);
+        _exit(0);
+    }
+    close(counts[1]);
+
+    mbim_session_t s;
+    char err[256] = "";
+    res.opened = mbim_session_open(&s, slave_name, 0, 1500, err, sizeof(err));
+    if (!res.opened)
+        printf("     (fake MBIM open: %s)\n", err);
+    if (res.opened) {
+        uint8_t req[32], buf[QMI_MSG_MAX];
+        mbim_msg_t done;
+        mbim_base_stations_t bs;
+        res.have_bsi = s.caps.have_base_stations;
+        res.have_atds = s.caps.have_atds_location;
+        const size_t rl = mbim_base_stations_req(req, sizeof(req), 15);
+        if (mbim_session_query(&s, mbim_uuid_ms_basic_connect_ext, MBIM_CID_BASE_STATIONS,
+                               req, rl, buf, sizeof(buf), &done, 1500, err,
+                               sizeof(err)) == 1 &&
+            done.status == 0 && mbim_base_stations_parse(done.info, done.info_len, &bs)) {
+            res.queried = 1;
+            res.nneighbours = bs.nneighbours;
+        }
+        mbim_session_close(&s);
+    }
+
+    usleep(100 * 1000);
+    kill(pid, SIGKILL);
+    waitpid(pid, NULL, 0);
+
+    char buf[64];
+    ssize_t n = read(counts[0], buf, sizeof(buf));
+    for (ssize_t i = 0; i < n; i++) {
+        res.opens += buf[i] == 'o';
+        res.closes += buf[i] == 'c';
+    }
+    close(counts[0]);
+    close(slave);
+    close(master);
+    return res;
+}
+
 static void test_mbim_open_max_transfer(void) {
     /* The node's buffer bounds the open: the XMM7360's 512 must be asked for
      * as 512, never the 4096 that wedged its MBIM function */
@@ -1289,6 +1828,25 @@ static void test_mbim_open_max_transfer(void) {
           "at 4096, the largest message read here");
     CHECK(mbim_open_max_transfer(1, 0) == 64, "open max: never under MBIM's 64");
     CHECK(mbim_open_max_transfer(0, 0) == 4096, "open max: without the ioctl, 4096");
+}
+
+static void test_mbim_native_open(void) {
+    /* A closed function: asked first, then opened once, closed once; every
+     * reply in 128-byte fragments (the BASE_STATIONS_INFO reply, 12
+     * neighbours, spans five) */
+    mbim_fake_t r = mbim_fake_run(0, 128);
+    CHECK(r.opened && r.have_bsi && r.have_atds, "native open: DEVICE_SERVICES read "
+          "after MBIM_OPEN (opened=%d bsi=%d atds=%d)", r.opened, r.have_bsi, r.have_atds);
+    CHECK(r.opens == 1 && r.closes == 1, "native open: one MBIM_OPEN, one MBIM_CLOSE "
+          "(%d, %d)", r.opens, r.closes);
+    CHECK(r.queried && r.nneighbours == 12, "native open: a fragmented BASE_STATIONS_INFO "
+          "reply joins (queried=%d, %d neighbours)", r.queried, r.nneighbours);
+
+    /* An open function (another program's): never opened or closed here */
+    r = mbim_fake_run(1, 512);
+    CHECK(r.opened && r.queried, "native open: an open function answers at once");
+    CHECK(r.opens == 0 && r.closes == 0, "native open: no MBIM_OPEN or MBIM_CLOSE on an "
+          "open function (%d, %d)", r.opens, r.closes);
 }
 
 int main(void) {
@@ -1314,7 +1872,12 @@ int main(void) {
     test_node_sysfs();
     test_cold_open_backlog();
     test_cid_record();
+    test_mbim_fragments();
+    test_mbim_device_services();
+    test_mbim_base_stations();
+    test_mbim_register_atds();
     test_mbim_open_max_transfer();
+    test_mbim_native_open();
 
     char cmd[300];
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", g_tmp);

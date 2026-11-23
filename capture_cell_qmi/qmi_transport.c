@@ -262,6 +262,17 @@ static int mbim_exchange(qmi_transport_t *t, const uint8_t *msg, size_t len,
         if (r <= 0)
             return r;
 
+        /* A reply larger than the function's maximum control transfer comes
+         * in fragments: join them, then read the whole message */
+        if (mbim_is_fragment(buf, n)) {
+            const int a = mbim_reasm_add(&t->reasm, buf, n);
+            if (a != 1 || t->reasm.len > cap)
+                continue;
+            memcpy(buf, t->reasm.buf, t->reasm.len);
+            n = t->reasm.len;
+            mbim_reasm_reset(&t->reasm);
+        }
+
         mbim_msg_t m;
         if (!mbim_parse(buf, n, &m) || m.tid != tid)
             continue;
@@ -765,6 +776,9 @@ static void release_recorded(qmi_session_t *s, const struct stat *node,
     cid_record_clear(s->state_fd);
 }
 
+static int session_start(qmi_session_t *s, int via_proxy, int timeout_ms,
+                         const char *state_path, char *err, size_t errsz);
+
 int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
                      int via_proxy, int timeout_ms, char *err, size_t errsz) {
     return qmi_session_open_tracked(s, dev, framing, via_proxy, timeout_ms, NULL,
@@ -775,9 +789,6 @@ int qmi_session_open_tracked(qmi_session_t *s, const char *dev,
                              qmi_framing_t framing, int via_proxy, int timeout_ms,
                              const char *state_path, char *err, size_t errsz) {
     qmi_transport_kind_t kind;
-    struct stat node;
-
-    memset(&node, 0, sizeof(node));
 
     memset(s, 0, sizeof(*s));
     s->t.fd = -1;
@@ -794,6 +805,16 @@ int qmi_session_open_tracked(qmi_session_t *s, const char *dev,
 
     if (!transport_open(&s->t, dev, kind, timeout_ms, err, errsz))
         return 0;
+
+    return session_start(s, via_proxy, timeout_ms, state_path, err, errsz);
+}
+
+/* The open after the transport: the client id record, then the NAS client */
+static int session_start(qmi_session_t *s, int via_proxy, int timeout_ms,
+                         const char *state_path, char *err, size_t errsz) {
+    struct stat node;
+
+    memset(&node, 0, sizeof(node));
 
     /* Only a direct open holds the node alone, so only it keeps a record */
     if (state_path != NULL && !via_proxy && fstat(s->t.fd, &node) == 0 &&
@@ -891,4 +912,133 @@ void qmi_session_release_now(const qmi_session_t *s) {
     if (s->close_len > 0)
         (void) raw_write(s->t.fd, s->t.is_socket, s->close_bytes, s->close_len);
     cid_record_clear(s->state_fd);
+}
+
+/* ------------------------------------------------------------ native MBIM */
+
+static int devsvc_query(qmi_transport_t *t, uint8_t *buf, size_t cap, mbim_msg_t *done,
+                        int timeout_ms, char *err, size_t errsz) {
+    uint8_t msg[64];
+    const uint32_t tid = next_mbim_tid(t);
+    const size_t len = mbim_command_build(msg, sizeof(msg), tid, mbim_uuid_basic_connect,
+                                          MBIM_CID_DEVICE_SERVICES,
+                                          MBIM_COMMAND_TYPE_QUERY, NULL, 0);
+
+    return mbim_exchange(t, msg, len, tid, MBIM_COMMAND_DONE, mbim_uuid_basic_connect,
+                         MBIM_CID_DEVICE_SERVICES, buf, cap, done, timeout_ms, err, errsz);
+}
+
+int mbim_session_open(mbim_session_t *s, const char *dev, int via_proxy, int timeout_ms,
+                      char *err, size_t errsz) {
+    uint8_t buf[QMI_MSG_MAX];
+    mbim_msg_t done;
+    int r;
+
+    memset(s, 0, sizeof(*s));
+    s->t.fd = -1;
+
+    if (!transport_open(&s->t, dev, via_proxy ? QMI_T_PROXY_MBIM : QMI_T_DIRECT_MBIM,
+                        timeout_ms, err, errsz))
+        return 0;
+
+    if (via_proxy) {
+        r = devsvc_query(&s->t, buf, sizeof(buf), &done, timeout_ms, err, errsz);
+    } else {
+        /* Ask before opening: an open function answers, and opening it again
+         * would reset it under whoever opened it */
+        r = devsvc_query(&s->t, buf, sizeof(buf), &done, MBIM_PROBE_MS, err, errsz);
+        if (r == 0 || (r == XFER_FUNCTION_ERROR && done.status == MBIM_ERROR_NOT_OPENED)) {
+            if (!mbim_open_function(&s->t, timeout_ms, err, errsz)) {
+                mbim_session_close(s);
+                return 0;
+            }
+            s->close_len = mbim_close_build(s->close_bytes, sizeof(s->close_bytes),
+                                            MBIM_TID_CLOSE);
+            r = devsvc_query(&s->t, buf, sizeof(buf), &done, timeout_ms, err, errsz);
+        } else if (r == 1) {
+            s->t.mbim_ready = 1;
+        }
+    }
+
+    if (r == 0)
+        seterr(err, errsz, "no answer to MBIM DEVICE_SERVICES");
+    if (r != 1) {
+        mbim_session_close(s);
+        return 0;
+    }
+    if (done.status != 0 || !mbim_device_services_parse(done.info, done.info_len,
+                                                        &s->caps)) {
+        seterr(err, errsz, "MBIM DEVICE_SERVICES unreadable (status %u)",
+               (unsigned int) done.status);
+        mbim_session_close(s);
+        return 0;
+    }
+
+    return 1;
+}
+
+int mbim_session_query(mbim_session_t *s, const uint8_t uuid[16], uint32_t cid,
+                       const uint8_t *info, size_t info_len, uint8_t *buf, size_t cap,
+                       mbim_msg_t *done, int timeout_ms, char *err, size_t errsz) {
+    uint8_t msg[256];
+
+    if (s->t.fd < 0) {
+        seterr(err, errsz, "session not open");
+        return -1;
+    }
+
+    const uint32_t tid = next_mbim_tid(&s->t);
+    const size_t len = mbim_command_build(msg, sizeof(msg), tid, uuid, cid,
+                                          MBIM_COMMAND_TYPE_QUERY, info, info_len);
+    if (len == 0) {
+        seterr(err, errsz, "request too large");
+        return -1;
+    }
+
+    const int r = mbim_exchange(&s->t, msg, len, tid, MBIM_COMMAND_DONE, uuid, cid, buf,
+                                cap, done, timeout_ms, err, errsz);
+    return r == XFER_FUNCTION_ERROR ? -1 : r;
+}
+
+void mbim_session_close(mbim_session_t *s) {
+    char err[128];
+
+    if (s->t.fd < 0)
+        return;
+
+    if (s->t.kind == QMI_T_DIRECT_MBIM && s->t.mbim_opened) {
+        uint8_t msg[16], buf[QMI_MSG_MAX];
+        mbim_msg_t done;
+        const uint32_t tid = next_mbim_tid(&s->t);
+        const size_t len = mbim_close_build(msg, sizeof(msg), tid);
+        (void) mbim_exchange(&s->t, msg, len, tid, MBIM_CLOSE_DONE, NULL, 0, buf,
+                             sizeof(buf), &done, 1000, err, sizeof(err));
+        s->t.mbim_opened = 0;
+    }
+
+    close(s->t.fd);
+    s->t.fd = -1;
+}
+
+void mbim_session_close_now(const mbim_session_t *s) {
+    if (s->t.fd < 0 || !s->t.mbim_opened || s->close_len == 0)
+        return;
+    (void) raw_write(s->t.fd, s->t.is_socket, s->close_bytes, s->close_len);
+}
+
+int qmi_session_adopt(qmi_session_t *s, mbim_session_t *m, int timeout_ms,
+                      const char *state_path, char *err, size_t errsz) {
+    if (m->t.fd < 0) {
+        seterr(err, errsz, "MBIM session not open");
+        return 0;
+    }
+
+    memset(s, 0, sizeof(*s));
+    s->state_fd = -1;
+    s->t = m->t;
+    s->t.mbim_ready = 1;
+    m->t.fd = -1;
+
+    return session_start(s, s->t.kind == QMI_T_PROXY_MBIM, timeout_ms, state_path, err,
+                         errsz);
 }

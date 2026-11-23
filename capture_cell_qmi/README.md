@@ -1,6 +1,7 @@
 # kismet_cap_cell_qmi
 
-A cellular modem's serving and neighbour cells, read over QMI.
+A cellular modem's serving and neighbour cells, read over QMI, or over MBIM's
+own services when the modem's MBIM function carries no QMI.
 
 The source polls the modem's NAS service on its QMI control node and sends each
 cell to Kismet as a `CellModem` record, the record the AT (`cellat`) and DIAG
@@ -24,6 +25,7 @@ the source runs as root.
 | `interval=<ms>` | 2000 | poll period, at least 500 |
 | `open=auto\|proxy\|direct` | auto | how the node is reached, below |
 | `framing=qmux\|mbim` | from the node | when the node's driver cannot be read |
+| `backend=auto\|qmi\|mbim` | auto | on an MBIM node: QMI over MBIM when the function offers it, else native MBIM; `qmi` or `mbim` insists on one |
 
 ## How the node is reached
 
@@ -71,17 +73,51 @@ Rules that follow from sharing a modem:
   of silence, or 20 s in all. Giving up early and asking again would allocate
   a second client whose reply is never read, and that client would add to the
   next open's backlog.
-- The `MBIM_OPEN` asks for no larger control transfer than the node's own
-  buffer (`IOCTL_WDM_MAX_COMMAND`, 512 bytes on an Intel XMM7360). Told it may
-  send more, an XMM7360 sent a 1 KB reply in one transfer the node could not
-  hold, and its MBIM function then answered nothing until the modem was reset.
 - On a direct MBIM node it sends `MBIM_OPEN` only if the function answers that
   it is not open: opening an open function resets it, which ends any data
   session another program set up. It closes the function afterwards only if it
   opened it. Through `mbim-proxy` it sends neither; the proxy owns the function.
 
-A modem whose MBIM function carries no QMI service is refused with a message.
-It needs a native MBIM reader, which this source does not have yet.
+- On an MBIM node the source first reads `DEVICE_SERVICES`, then keeps the
+  same open function for whichever backend reads it, so the function is opened
+  at most once.
+- The `MBIM_OPEN` asks for no larger control transfer than the node's own
+  buffer (`IOCTL_WDM_MAX_COMMAND`, 512 bytes on an Intel XMM7360). Told it may
+  send more, an XMM7360 sent a 1 KB reply in one transfer the node could not
+  hold, and its MBIM function then answered nothing until the modem was reset.
+  Replies longer than the transfer come in fragments, which the source joins.
+
+## Native MBIM
+
+A modem whose MBIM function offers no QMI service (Intel XMM, MediaTek T700)
+is read with MBIM's own services, all MBIM 1.0 queries, each poll:
+
+- `REGISTER_STATE`: registration state and the provider id (MCC + MNC).
+- `BASE_STATIONS_INFO` (MS basic connect extensions CID 11), when the function
+  lists it: the LTE serving cell and neighbours. The source never negotiates
+  MBIMEx 3.0: on a MediaTek T700 that negotiation followed by this query
+  crashes the firmware.
+- The AT&T `atds` location and signal, when listed: the serving cell's TAC
+  and cell ID, and its RSRP, RSRQ and SNR. This is the only cell identity an
+  XMM7360 offers.
+
+A function that offers neither QMI, `BASE_STATIONS_INFO` nor the atds location
+is refused with a message. Rows carry `prov.src` `mbim`.
+
+Rules, beside the QMI rules below:
+
+- MBIM's EARFCN field is 32 bits, but firmware fills it from a 16-bit value
+  (band 65 channel 65636 arrives as 100), so an EARFCN at or below 65535 is
+  never written. A serving cell keeps its global identity without it; a
+  neighbour without one is left out.
+- RSRP and RSRQ arrive as dBm / dB (a Qualcomm EM9291) or as 3GPP report
+  indices (a MediaTek T700). The values are negative and the indices are not,
+  so each is read for what it is.
+- A five-digit provider id under a North American MCC (302, 310-316, 334),
+  whose MNCs all have three digits, lost its MNC's leading zero (a MediaTek
+  T700 sends MNC `0xy` as `xy`), and is read so: `31001` is 310 / 001.
+- Registered with no cell named (NR SA on MBIM 1.0) is a known gap, not
+  "no service".
 
 ## What it reads
 

@@ -33,10 +33,16 @@
                            mbim-proxy when one is running, else open it
                            directly; proxy: only through a proxy; direct: never
       framing=qmux|mbim    what the node speaks, when its driver cannot be read
+      backend=auto|qmi|mbim
+                           on an MBIM node: auto (default) reads QMI over MBIM
+                           when the function offers the QMI service, else
+                           MBIM's own services; qmi or mbim insists on one
 
     QMI reaches the modem as bare QMUX on a qmi_wwan / wwan / MHI QMI node,
     or inside MBIM on a cdc_mbim node.  A modem whose MBIM function carries
-    no QMI service is refused with a message; it needs a native MBIM reader.
+    no QMI service is read natively over MBIM: BASE_STATIONS_INFO (MBIM 1.0
+    only, never MBIMEx 3.0), else the atds location, with REGISTER_STATE for
+    the PLMN.  A function that offers none of them is refused.
 */
 
 #define _GNU_SOURCE
@@ -59,6 +65,7 @@
 #include "../capture_cell_diag/cell_discover.h"
 #include "../capture_cell_diag/cell_safefile.h"
 
+#include "mbim_obs.h"
 #include "qmi_node.h"
 #include "qmi_obs.h"
 #include "qmi_transport.h"
@@ -71,6 +78,14 @@
 /* Covers the client id release on close, and an MBIM close after it */
 #define CELLQMI_CLOSE_GRACE_MS 3000
 #define CELLQMI_LIST_MAX 32
+/* BASE_STATIONS_INFO: the most cells of each RAT asked for */
+#define CELLQMI_MBIM_CELLS_MAX 15
+
+typedef enum {
+    CELLQMI_BACKEND_AUTO = 0,
+    CELLQMI_BACKEND_QMI,
+    CELLQMI_BACKEND_MBIM,
+} cellqmi_backend_t;
 
 typedef struct {
     kis_capture_handler_t *caph;
@@ -87,6 +102,9 @@ typedef struct {
     pthread_mutex_t lock;
     qmi_session_t session;
     int session_open;
+    /* The native MBIM backend: the session above is unused */
+    int native;
+    mbim_session_t msession;
 
     int no_service;           /* -1 until the first poll */
 } local_qmi_t;
@@ -99,8 +117,12 @@ static local_qmi_t *g_local;
  * (the server going away) would otherwise end the helper without a release;
  * the release is prebuilt, so sending it here is one write(). */
 static void fatal_signal(int sig) {
-    if (g_local != NULL && g_local->session_open)
-        qmi_session_release_now(&g_local->session);
+    if (g_local != NULL && g_local->session_open) {
+        if (g_local->native)
+            mbim_session_close_now(&g_local->msession);
+        else
+            qmi_session_release_now(&g_local->session);
+    }
 
     signal(sig, SIG_DFL);
     raise(sig);
@@ -134,6 +156,7 @@ typedef struct {
     int open_req_set;
     unsigned int interval_ms;
     qmi_framing_t framing;    /* QMI_FRAMING_NONE: from the node */
+    cellqmi_backend_t backend;
 } cellqmi_def_t;
 
 /* 1 if the definition names a cellqmi source; 0 if it is someone else's;
@@ -198,6 +221,19 @@ static int parse_definition(char *definition, cellqmi_def_t *d, char *msg) {
             d->framing = QMI_FRAMING_MBIM;
         else {
             snprintf(msg, STATUS_MAX, "cellqmi: framing= is qmux or mbim");
+            return -1;
+        }
+    }
+
+    if ((vl = cf_find_flag(&v, "backend", definition)) > 0) {
+        if (vl == 4 && strncmp(v, "auto", 4) == 0)
+            d->backend = CELLQMI_BACKEND_AUTO;
+        else if (vl == 3 && strncmp(v, "qmi", 3) == 0)
+            d->backend = CELLQMI_BACKEND_QMI;
+        else if (vl == 4 && strncmp(v, "mbim", 4) == 0)
+            d->backend = CELLQMI_BACKEND_MBIM;
+        else {
+            snprintf(msg, STATUS_MAX, "cellqmi: backend= is auto, qmi or mbim");
             return -1;
         }
     }
@@ -406,14 +442,52 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    if (d.backend == CELLQMI_BACKEND_MBIM && local->framing != QMI_FRAMING_MBIM) {
+        snprintf(msg, STATUS_MAX, "cellqmi: backend=mbim needs an MBIM node; %s "
+                 "speaks bare QMUX", d.device);
+        return -1;
+    }
+
     char state[1200];
     const char *state_path = cid_state_path(d.device, state, sizeof(state));
+    const int via_proxy = plan.mode == QMI_PLAN_PROXY;
+    const char *kind_name;
+    int ok;
 
     pthread_mutex_lock(&local->lock);
-    const int ok = qmi_session_open_tracked(&local->session, d.device, local->framing,
-                                            plan.mode == QMI_PLAN_PROXY,
-                                            CELLQMI_TIMEOUT_MS, state_path, err,
-                                            sizeof(err));
+    local->native = 0;
+    if (local->framing == QMI_FRAMING_MBIM) {
+        /* Read what the function offers, then keep the transport for
+         * whichever backend reads it: no second MBIM_OPEN */
+        ok = mbim_session_open(&local->msession, d.device, via_proxy,
+                               CELLQMI_TIMEOUT_MS, err, sizeof(err));
+        if (ok) {
+            const mbim_caps_t *c = &local->msession.caps;
+            const int can_native = c->have_base_stations || c->have_atds_location;
+
+            if (d.backend != CELLQMI_BACKEND_MBIM && c->have_qmi) {
+                ok = qmi_session_adopt(&local->session, &local->msession,
+                                       CELLQMI_TIMEOUT_MS, state_path, err, sizeof(err));
+            } else if (d.backend == CELLQMI_BACKEND_QMI) {
+                snprintf(err, sizeof(err), "the MBIM function offers no QMI service "
+                         "(backend=qmi)");
+                mbim_session_close(&local->msession);
+                ok = 0;
+            } else if (!can_native) {
+                snprintf(err, sizeof(err), "the MBIM function offers neither QMI, "
+                         "BASE_STATIONS_INFO nor the atds location (%d services)",
+                         c->services);
+                mbim_session_close(&local->msession);
+                ok = 0;
+            } else {
+                local->native = 1;
+            }
+        }
+    } else {
+        ok = qmi_session_open_tracked(&local->session, d.device, local->framing,
+                                      via_proxy, CELLQMI_TIMEOUT_MS, state_path, err,
+                                      sizeof(err));
+    }
     local->session_open = ok;
     pthread_mutex_unlock(&local->lock);
 
@@ -421,6 +495,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(msg, STATUS_MAX, "cellqmi: %s: %s", d.device, err);
         return -1;
     }
+
+    if (local->native)
+        kind_name = via_proxy ? "MBIM via mbim-proxy" : "MBIM";
+    else
+        kind_name = qmi_transport_kind_name(local->session.t.kind);
 
     free(local->name);
     free(local->device);
@@ -431,17 +510,26 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     local->no_service = -1;
 
     describe_node(d.device, local->driver, hw, sizeof(hw));
-    snprintf(desc, sizeof(desc), "%s, %s", hw,
-             qmi_transport_kind_name(local->session.t.kind));
+    snprintf(desc, sizeof(desc), "%s, %s", hw, kind_name);
     (*ret_interface)->capif = strdup(d.device);
     (*ret_interface)->hardware = strdup(desc);
     *uuid = cellqmi_uuid(definition, d.device);
 
     snprintf(msg, STATUS_MAX, "cellqmi: polling %s every %u ms (%s; %s)", d.device,
-             local->interval_ms, qmi_transport_kind_name(local->session.t.kind),
-             plan.reason);
+             local->interval_ms, kind_name, plan.reason);
 
-    if (local->session.stale_released) {
+    if (local->native) {
+        const mbim_caps_t *c = &local->msession.caps;
+        char note[STATUS_MAX];
+        snprintf(note, sizeof(note), "cellqmi: %s: %s; reading MBIM's own services: "
+                 "%s%s", d.device,
+                 c->have_qmi ? "QMI over MBIM not used (backend=mbim)" : "no QMI over MBIM",
+                 c->have_base_stations ? "BASE_STATIONS_INFO" : "atds location",
+                 c->have_base_stations && c->have_atds_location ? ", atds location" : "");
+        cf_send_message(caph, note, MSGFLAG_INFO);
+    }
+
+    if (!local->native && local->session.stale_released) {
         char note[STATUS_MAX];
         snprintf(note, sizeof(note), "cellqmi: %s: released NAS client id %u, left "
                  "allocated by an earlier cellqmi that ended without releasing it%s",
@@ -450,6 +538,86 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_message(caph, note, MSGFLAG_INFO);
     }
 
+    return 1;
+}
+
+/* One native MBIM query: 1 with a successful reply's information buffer
+ * copied to `out`, 0 missed or refused, -1 the transport failed */
+static int mbim_read(local_qmi_t *local, const uint8_t uuid[16], uint32_t cid,
+                     const uint8_t *info, size_t info_len, uint8_t *out, size_t cap,
+                     size_t *outlen, char *err, size_t errsz) {
+    uint8_t buf[QMI_MSG_MAX];
+    mbim_msg_t done;
+
+    const int r = mbim_session_query(&local->msession, uuid, cid, info, info_len, buf,
+                                     sizeof(buf), &done, CELLQMI_TIMEOUT_MS, err, errsz);
+    if (r != 1)
+        return r;
+    if (done.status != 0 || done.info_len > cap)
+        return 0;
+    memcpy(out, done.info, done.info_len);
+    *outlen = done.info_len;
+    return 1;
+}
+
+static int poll_mbim(local_qmi_t *local, char rows[][QMI_OBS_JSON_MAX], int *nrows,
+                     qmi_obs_stats_t *st, char *err, size_t errsz) {
+    static uint8_t buf[4][QMI_MSG_MAX];
+    size_t len[4] = { 0, 0, 0, 0 };
+    int got[4] = { 0, 0, 0, 0 };
+    uint8_t req[32];
+    mbim_register_t reg;
+    mbim_base_stations_t bs;
+    mbim_atds_location_t loc;
+    mbim_atds_signal_t sig;
+    struct timeval tv;
+    int r;
+
+    *nrows = 0;
+
+    pthread_mutex_lock(&local->lock);
+    if (!local->session_open) {
+        pthread_mutex_unlock(&local->lock);
+        snprintf(err, errsz, "session closed");
+        return -1;
+    }
+    const mbim_caps_t c = local->msession.caps;
+
+    r = mbim_read(local, mbim_uuid_basic_connect, MBIM_CID_REGISTER_STATE, NULL, 0,
+                  buf[0], QMI_MSG_MAX, &len[0], err, errsz);
+    got[0] = r == 1;
+    if (r >= 0 && c.have_base_stations) {
+        const size_t rl = mbim_base_stations_req(req, sizeof(req), CELLQMI_MBIM_CELLS_MAX);
+        r = mbim_read(local, mbim_uuid_ms_basic_connect_ext, MBIM_CID_BASE_STATIONS,
+                      req, rl, buf[1], QMI_MSG_MAX, &len[1], err, errsz);
+        got[1] = r == 1;
+    }
+    if (r >= 0 && c.have_atds_location) {
+        r = mbim_read(local, mbim_uuid_atds, MBIM_CID_ATDS_LOCATION, NULL, 0, buf[2],
+                      QMI_MSG_MAX, &len[2], err, errsz);
+        got[2] = r == 1;
+    }
+    if (r >= 0 && c.have_atds_signal) {
+        r = mbim_read(local, mbim_uuid_atds, MBIM_CID_ATDS_SIGNAL, NULL, 0, buf[3],
+                      QMI_MSG_MAX, &len[3], err, errsz);
+        got[3] = r == 1;
+    }
+    pthread_mutex_unlock(&local->lock);
+
+    if (r < 0)
+        return -1;
+    if (!got[0] && !got[1] && !got[2] && !got[3])
+        return 0;
+
+    const int have_reg = got[0] && mbim_register_parse(buf[0], len[0], &reg);
+    const int have_bs = got[1] && mbim_base_stations_parse(buf[1], len[1], &bs);
+    const int have_loc = got[2] && mbim_atds_location_parse(buf[2], len[2], &loc);
+    const int have_sig = got[3] && mbim_atds_signal_parse(buf[3], len[3], &sig);
+
+    gettimeofday(&tv, NULL);
+    *nrows = mbim_obs_build(have_reg ? &reg : NULL, have_bs ? &bs : NULL,
+                            have_loc ? &loc : NULL, have_sig ? &sig : NULL,
+                            (double) tv.tv_sec + tv.tv_usec / 1e6, rows, MBIM_OBS_MAX, st);
     return 1;
 }
 
@@ -469,6 +637,9 @@ static int poll_once(local_qmi_t *local, char rows[][QMI_OBS_JSON_MAX], int *nro
     struct timeval tv;
 
     *nrows = 0;
+
+    if (local->native)
+        return poll_mbim(local, rows, nrows, st, err, errsz);
 
     pthread_mutex_lock(&local->lock);
     if (!local->session_open) {
@@ -537,8 +708,9 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         if (r == 0) {
             if (++missed >= CELLQMI_MISSED_MAX) {
-                snprintf(text, sizeof(text), "%s: the modem stopped answering QMI "
-                         "(%d polls missed)", local->device, missed);
+                snprintf(text, sizeof(text), "%s: the modem stopped answering %s "
+                         "(%d polls missed)", local->device, local->native ? "MBIM" : "QMI",
+                         missed);
                 cf_send_error(caph, 0, text);
                 break;
             }
@@ -566,7 +738,10 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     pthread_mutex_lock(&local->lock);
     if (local->session_open) {
-        qmi_session_close(&local->session);
+        if (local->native)
+            mbim_session_close(&local->msession);
+        else
+            qmi_session_close(&local->session);
         local->session_open = 0;
     }
     pthread_mutex_unlock(&local->lock);
@@ -580,6 +755,7 @@ int main(int argc, char *argv[]) {
     memset(&local, 0, sizeof(local));
     pthread_mutex_init(&local.lock, NULL);
     local.session.t.fd = -1;
+    local.msession.t.fd = -1;
     local.interval_ms = CELLQMI_INTERVAL_MS;
     local.no_service = -1;
     g_local = &local;
@@ -625,7 +801,10 @@ int main(int argc, char *argv[]) {
      * holding the session */
     pthread_mutex_lock(&local.lock);
     if (local.session_open) {
-        qmi_session_close(&local.session);
+        if (local.native)
+            mbim_session_close(&local.msession);
+        else
+            qmi_session_close(&local.session);
         local.session_open = 0;
     }
     pthread_mutex_unlock(&local.lock);

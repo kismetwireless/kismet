@@ -46,6 +46,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "mbim_wire.h"
 #include "qmi_node.h"
 #include "qmi_wire.h"
 
@@ -70,6 +71,7 @@ typedef struct {
     uint32_t mbim_tid;
     int mbim_ready;         /* direct MBIM: the function is known to be open */
     int mbim_opened;        /* direct MBIM: this session sent the MBIM_OPEN */
+    mbim_reasm_t reasm;     /* MBIM: a reply arriving in fragments */
 } qmi_transport_t;
 
 typedef struct {
@@ -151,6 +153,40 @@ const char *qmi_transport_kind_name(qmi_transport_kind_t kind);
  * answered nobody until the modem was reset.  Without the ioctl (a proxy
  * socket, or not Linux) the default stands. */
 uint32_t mbim_open_max_transfer(int have_node_max, uint32_t node_max);
+
+/* ------------------------------------------------------------ native MBIM */
+
+/* An MBIM function read with MBIM's own services, for modems whose MBIM
+ * function carries no QMI.  The open follows the QMI session's MBIM rules:
+ * through @mbim-proxy nothing is opened or closed; directly, MBIM_OPEN is
+ * sent only if the function answers that it is not open, and MBIM_CLOSE on
+ * close only if this session opened it.  DEVICE_SERVICES is read at open. */
+typedef struct {
+    qmi_transport_t t;
+    mbim_caps_t caps;
+    uint8_t close_bytes[16];
+    size_t close_len;
+} mbim_session_t;
+
+int mbim_session_open(mbim_session_t *s, const char *dev, int via_proxy, int timeout_ms,
+                      char *err, size_t errsz);
+
+/* A query: 1 with the reply in `done` (whose status may be an error), 0 on
+ * a timeout, -1 if the transport failed */
+int mbim_session_query(mbim_session_t *s, const uint8_t uuid[16], uint32_t cid,
+                       const uint8_t *info, size_t info_len, uint8_t *buf, size_t cap,
+                       mbim_msg_t *done, int timeout_ms, char *err, size_t errsz);
+
+void mbim_session_close(mbim_session_t *s);
+
+/* Async-signal-safe: the prebuilt MBIM_CLOSE, when this session opened it */
+void mbim_session_close_now(const mbim_session_t *s);
+
+/* Carry on as a QMI session (QMI over MBIM) on the MBIM transport `m` opened,
+ * which the QMI session then owns: `m` is left closed.  As
+ * qmi_session_open_tracked() after its transport open. */
+int qmi_session_adopt(qmi_session_t *s, mbim_session_t *m, int timeout_ms,
+                      const char *state_path, char *err, size_t errsz);
 
 #ifdef __cplusplus
 }
