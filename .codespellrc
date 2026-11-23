@@ -1,0 +1,3 @@
+[codespell]
+skip = ./boost,*.js
+ignore-words-list = ba,ba,ue,te,hsi,cace,iterm,ot,nd
