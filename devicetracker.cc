@@ -1838,6 +1838,22 @@ void device_tracker::forget_device(const std::shared_ptr<kis_tracked_device_base
     }
 
     remove_view_device(d);
+
+    if (!removed_hooks.empty())
+        for (const auto& [id, hook] : removed_hooks)
+            hook(*d);
+}
+
+unsigned long device_tracker::add_removed_hook(removed_hook_t hook) {
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker add_removed_hook");
+    const auto id = next_removed_hook_id++;
+    removed_hooks.emplace_back(id, std::move(hook));
+    return id;
+}
+
+void device_tracker::remove_removed_hook(unsigned long id) {
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker remove_removed_hook");
+    std::erase_if(removed_hooks, [id](const auto& h) { return h.first == id; });
 }
 
 size_t device_tracker::expire_devices(const std::function<bool(kis_tracked_device_base&)>& pred) {
@@ -2106,6 +2122,11 @@ std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) 
         return vk->second;
 
     return nullptr;
+}
+
+std::shared_ptr<device_tracker_view> device_tracker::get_all_view() {
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex, "device_tracker get_all_view");
+    return all_view;
 }
 
 size_t device_tracker::count_phy_devices(int in_phyid) {

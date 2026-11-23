@@ -26,6 +26,7 @@
 
 #include "config.h"
 
+#include <array>
 #include <atomic>
 #include <climits>
 #include <deque>
@@ -44,6 +45,14 @@
 #include "wired_flow_tracker.h"
 
 class kis_net_beast_httpd_connection;
+
+// A 6 byte MAC from mac_addr::longmac, as flows and the link graph keep them
+inline mac_addr mac_from_u64(uint64_t v) {
+    std::array<uint8_t, 6> b;
+    for (size_t i = 0; i < b.size(); i++)
+        b[i] = static_cast<uint8_t>(v >> ((8 - i - 1) * 8));
+    return mac_addr(b.data(), 6);
+}
 
 // A VLAN (or tag stack) a device was seen sending on
 class ethernet_tracked_vlan : public tracker_component {
@@ -482,6 +491,11 @@ public:
     static constexpr size_t max_macs_per_ip = 4;
     static constexpr size_t max_vlan_inventory = 4096;
     static constexpr size_t max_service_ips = 64;
+
+    // wired_max_devices, fixed at startup; 0 for no limit
+    size_t get_max_devices() const {
+        return max_devices;
+    }
 
 protected:
     std::shared_ptr<packet_chain> packetchain;

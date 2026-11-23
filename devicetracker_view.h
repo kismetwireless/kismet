@@ -23,7 +23,9 @@
 
 #include <functional>
 #include <unordered_map>
+#include <vector>
 
+#include "devicetracker_view_walk.h"
 #include "uuid.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
@@ -127,6 +129,13 @@ public:
     // A copy of the devices in the view, in the order they joined it
     std::shared_ptr<tracker_element_vector> copy_devices();
 
+    // A walk over the view a batch at a time (devicetracker_view_walk.h): copies the devices
+    // in up to max_slots slots and moves the cursor past them; false once it's at the end.
+    // Devices in the view throughout the walk are copied at least once.
+    using walk_cursor = view_walk::cursor<device_key>;
+    bool copy_devices_batch(walk_cursor& c, size_t max_slots,
+            std::vector<std::shared_ptr<kis_tracked_device_base>>& out);
+
     // Do work on a specific vector; this does NOT make an immutable copy of the vector.  You
     // must not call this on a vector which can be altered in another thread.
     virtual std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker,
@@ -199,8 +208,12 @@ protected:
     // quarter of the list.  Copies of the list must skip nulls.
     std::shared_ptr<tracker_element_vector> device_list;
     size_t list_holes = 0;
-    // Index of each device in device_list
-    std::unordered_map<device_key, size_t> device_presence_map;
+    // Index of each device in device_list, and when it joined
+    std::unordered_map<device_key, view_walk::place> device_presence_map;
+    // Every empty slot squeezed out so far, and the serial of the next device to join, for
+    // walks a batch at a time.  After the map, so the members before keep their offsets.
+    uint64_t slots_squeezed = 0;
+    uint32_t next_join_serial = 1;
 
     void device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
     // Devices seen (last_time) or, with modified, changed (mod_time) since a timestamp

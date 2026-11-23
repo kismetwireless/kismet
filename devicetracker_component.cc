@@ -617,3 +617,22 @@ void kis_tracked_device_base::add_related_device(const std::string& in_relations
     }
 }
 
+bool kis_tracked_device_base::remove_related_device(const std::string& in_relationship, const device_key in_key) {
+    auto related_group_i = related_devices_map->find(in_relationship);
+
+    if (related_group_i == related_devices_map->end())
+        return false;
+
+    auto related_group = static_cast<tracker_element_device_key_map *>(related_group_i->second.get());
+    auto ki = related_group->find(in_key);
+
+    if (ki == related_group->end())
+        return false;
+
+    related_group->erase(ki);
+
+    if (related_group->empty())
+        related_devices_map->erase(related_group_i);
+
+    return true;
+}

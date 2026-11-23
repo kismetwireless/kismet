@@ -287,6 +287,13 @@ TEST_ETHERNET_O = \
 	test/ethernet/l3_parse_test.cc.o \
 	kis_l3_parse.cc.o wired_flow_tracker.cc.o
 
+# The wired/Wi-Fi record linking graph tests; built on request
+TEST_ENTITY = test/entity/graph_test
+TEST_ENTITY_O = \
+	test/entity/graph_test.cc.o entity_graph.cc.o
+TEST_VIEW_WALK = test/entity/view_walk_test
+TEST_VIEW_WALK_O = test/entity/view_walk_test.cc.o
+
 # The wired datasource status record tests; built on request
 TEST_WIRED_STATUS = test/wired_helper/status_test
 TEST_WIRED_STATUS_O = \
@@ -462,6 +469,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	phy_cell.cc.o phy_cell_decisions.cc.o \
 	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o \
+	entity_graph.cc.o entity_tracker.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -550,6 +558,12 @@ $(TEST_EXTERNAL_POLICY):	$(TEST_EXTERNAL_POLICY_O)
 
 $(TEST_ETHERNET):	$(TEST_ETHERNET_O)
 	$(LD) $(LDFLAGS) -o $(TEST_ETHERNET) $(TEST_ETHERNET_O) $(CXXLIBS)
+
+$(TEST_ENTITY):	$(TEST_ENTITY_O)
+	$(LD) $(LDFLAGS) -o $(TEST_ENTITY) $(TEST_ENTITY_O) $(CXXLIBS)
+
+$(TEST_VIEW_WALK):	$(TEST_VIEW_WALK_O)
+	$(LD) $(LDFLAGS) -o $(TEST_VIEW_WALK) $(TEST_VIEW_WALK_O) $(CXXLIBS)
 
 $(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
 	$(LD) $(LDFLAGS) -o $(TEST_WIRED_STATUS) $(TEST_WIRED_STATUS_O) $(CXXLIBS)
@@ -1190,6 +1204,7 @@ depclean:
 	@-rm -f test/environment/*.d
 	@-rm -f test/util_utf8/*.d
 	@-rm -f test/ethernet/*.d
+	@-rm -f test/entity/*.d
 	@-rm -f test/gpsd_tpv/*.d
 	@-rm -f protobuf_cpp/*.d
 
@@ -1213,6 +1228,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET)
+	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
 	@-rm -f test/kismetdb_journal/*.o $(TEST_KISMETDB_JOURNAL)

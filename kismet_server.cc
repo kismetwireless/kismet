@@ -135,6 +135,7 @@
 #include "device_alerts.h"
 #include "device_rules.h"
 #include "range_tracker.h"
+#include "entity_tracker.h"
 
 #include "phy_80211.h"
 #include "phy_802154.h"
@@ -1005,6 +1006,8 @@ int main(int argc, char *argv[], char *envp[]) {
     kis_webhooks::create_webhooks();
     device_rules::create_device_rules();
     range_tracker::create_range_tracker();
+    // After the phys it links records of
+    entity_tracker::create_entity_tracker();
 
     // Add the datasources
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_pcapfile_builder()));
