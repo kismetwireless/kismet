@@ -21,6 +21,7 @@ import * as datasources from './core/sources.js';
 import * as censor from './core/censor.js';
 import * as shorten from './core/shorten.js';
 import * as alertSeverity from './core/severity.js';
+import * as entities from './core/entities.js';
 import { durationIn } from './core/filterquery.js';
 import { createRegistry } from './registry/registry.js';
 import { deviceColumns, deviceIcons, rowHighlights, phyColors, searchFields, filterHints, alwaysFields, fieldName } from './registry/columns.js';
@@ -82,6 +83,8 @@ export const kismet = {
     pwa,
     // Alert severity names and colours: levels, level(n), label(n), color(n)
     alertSeverity,
+    // Linked wired and Wi-Fi records: linked(device), peer(device, phyname), status()
+    entities,
 
     // Building blocks for modules that draw their own UI
     widgets: {

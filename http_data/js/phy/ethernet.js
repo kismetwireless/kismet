@@ -1,6 +1,7 @@
 // Ethernet (IEEE802.3): wired devices from Ethernet captures, with their
 // VLANs, addresses, names and DHCP details, the Ethernet flows tab and the
-// Ethernet VLANs window.
+// Ethernet VLANs window, and the "On the wire" section of a device linked to
+// an Ethernet record (a Wi-Fi client, say).
 //
 // The server names no UI module for this phy, so js/core/modules.js loads
 // this one when the server lists the IEEE802.3 phy.  The tab and the window's
@@ -9,6 +10,7 @@
 
 import { protocolNames, roleNames, tcpFlagNames, ipProtocolName, vlanLabel, vlanTagText, vlanSortKey,
     endpoint, hostNames, addresses, statusNotes, flowFilter } from './ethernetinfo.js';
+import { statusNotes as entityNotes, statusSummary as entitySummary } from '../core/entityinfo.js';
 
 const base = 'kismet.device.base';
 const e = 'ethernet.device';
@@ -224,6 +226,7 @@ export function register(kismet) {
     const statusWatchers = new Set();
     let statusTimer = null;
     let offered = false;
+    let linkBoxes = 0;
 
     function offerWindows(on) {
         if (on === offered)
@@ -250,6 +253,9 @@ export function register(kismet) {
             try {
                 status = await api.get('phy/ethernet/status/status.json');
                 offerWindows((status?.['ethernet.status.devices'] ?? 0) > 0);
+                // Linking counters only while something shows them
+                if (linkBoxes)
+                    await kismet.entities.refreshStatus().catch(() => null);
                 for (const fn of statusWatchers)
                     fn(status);
             } catch (err) {
@@ -269,23 +275,40 @@ export function register(kismet) {
             readStatus();
     });
 
-    // Warnings from the status counters, kept up to date while shown
-    function statusBox() {
-        const node = el('ul', { class: 'mem-insights', hidden: true });
+    // Warnings from the status counters, kept up to date while shown.  With
+    // links, also how many Ethernet records are linked to Wi-Fi ones and the
+    // links not kept at a limit.
+    function statusBox({ links = false } = {}) {
+        const warnings = el('ul', { class: 'mem-insights', hidden: true });
+        const summary = el('p', { class: 'muted eth-links', hidden: true });
+        const node = links ? el('div', { class: 'eth-status' }, summary, warnings) : warnings;
         let shown = '';
         const draw = (st) => {
-            const notes = statusNotes(st);
-            const key = JSON.stringify(notes);
+            const ent = links ? kismet.entities.status() : null;
+            const notes = [...statusNotes(st), ...entityNotes(ent)];
+            const line = entitySummary(ent);
+            const key = JSON.stringify([notes, line]);
             if (key === shown)
                 return;
             shown = key;
-            node.replaceChildren(...notes.map((n) => el('li', { class: 'mem-insight mem-warn', title: n.help },
+            warnings.replaceChildren(...notes.map((n) => el('li', { class: 'mem-insight mem-warn', title: n.help },
                 el('span', {}, n.text), el('span', { class: 'muted' }, n.help))));
-            node.hidden = !notes.length;
+            warnings.hidden = !notes.length;
+            summary.textContent = line;
+            summary.hidden = !line;
         };
         draw(status);
         statusWatchers.add(draw);
-        return { node, destroy: () => statusWatchers.delete(draw) };
+        if (links) {
+            linkBoxes++;
+            // At once, not at the next status read
+            kismet.entities.refreshStatus().then(() => draw(status), () => {});
+        }
+        return { node, destroy: () => {
+            statusWatchers.delete(draw);
+            if (links)
+                linkBoxes--;
+        } };
     }
 
     // ---- windows -------------------------------------------------------------
@@ -325,6 +348,8 @@ export function register(kismet) {
             'VLAN 0 carries only a priority.  QinQ (stacked tags) is shown as outer/inner VLAN ID.',
         'Devices counts the source MAC addresses that sent on the VLAN.  Frames and bytes count every frame sent on it, as on the wire.',
         'On Linux, captures of the "any" interface can lose their VLAN tags, so their frames show as untagged.',
+        'Linked to Wi-Fi counts the Ethernet records Kismet linked to the Wi-Fi record with the same MAC address, and the ' +
+            'possible links below entity_link_min_confidence.  A linked device lists them under Linked devices.',
     ];
 
     let vlanWindow = null;
@@ -338,7 +363,7 @@ export function register(kismet) {
         const summary = el('span', { class: 'muted' });
         const about = aboutView({ setting: 'ethernet.vlans.about' });
         about.set(vlanAbout);
-        const notes = statusBox();
+        const notes = statusBox({ links: true });
         const v = (k) => (r) => r[`${vl}.${k}`];
         let d = null;
         const table = listTable({
@@ -546,7 +571,9 @@ export function register(kismet) {
     });
     const mono = (v) => el('span', { class: 'mono eth-wrap' }, v);
 
-    ui.deviceDetails.add({
+    // Its rows are also drawn from a linked Ethernet record, in another phy's
+    // "On the wire" section
+    const ethernetSection = ui.deviceDetails.add({
         id: 'ethernet', title: 'Ethernet', priority: 5,
         match: (device) => device[`${base}.phyname`] === phy && !!device[e],
         fields: [
@@ -658,5 +685,56 @@ export function register(kismet) {
                 ],
             },
         ],
+    });
+
+    // ---- linked records ------------------------------------------------------
+
+    // What the wire saw a device on another phy (a Wi-Fi client, say) do,
+    // from the Ethernet record linked to it: the Ethernet section's rows, read
+    // from that record, with the sensors that saw it
+    const linkedEthernet = (dev) => {
+        const rec = kismet.entities.peer(dev, phy)?.record;
+        return rec && rec[e] ? rec : null;
+    };
+
+    const sensorRows = (seenby) => Object.values(seenby ?? {}).filter((s) => s && typeof s === 'object')
+        .sort((a, b) => (b['kismet.common.seenby.last_time'] ?? 0) - (a['kismet.common.seenby.last_time'] ?? 0));
+
+    const wireFields = [
+        { id: 'eth_record', title: 'Ethernet record', field: `${base}.key`,
+            draw: (cell, key, rec, state) => {
+                if (state.key === key && cell.childNodes.length)
+                    return;
+                state.key = key;
+                cell.replaceChildren(el('a', { href: '#', class: 'mono', title: 'Open the Ethernet record', onclick: (ev) => {
+                    ev.preventDefault();
+                    ui.openDevice(key);
+                } }, rec[`${base}.macaddr`] ?? key, ' ', icons.icon('chain')));
+            },
+            help: 'The Ethernet device record linked to this one.  Open it for its own panel.' },
+        { title: 'Last seen on the wire', field: `${base}.last_time`, format: time },
+        ...(ethernetSection?.fields ?? []).filter((f) => f.group !== 'Flows'),
+        {
+            group: 'Sensors', show: (rec) => sensorRows(rec[`${base}.seenby`]).length > 0,
+            help: 'The data sources that saw the device on the wire.',
+            fields: [
+                { id: 'eth_sensors', wide: true, field: `${base}.seenby`,
+                    format: (v) => smallTable(['Source', 'Frames', 'Last seen'], sensorRows(v).map((s) => el('tr', {},
+                        el('td', {}, s['kismet.common.seenby.source']?.['kismet.datasource.name'] ?? s['kismet.common.seenby.uuid'] ?? ''),
+                        el('td', {}, counted(s['kismet.common.seenby.num_packets'])),
+                        el('td', {}, time(s['kismet.common.seenby.last_time']))))) },
+            ],
+        },
+        ...(ethernetSection?.fields ?? []).filter((f) => f.group === 'Flows'),
+    ];
+
+    ui.deviceDetails.add({
+        id: 'ethernet_wire', title: 'On the wire', priority: 7,
+        match: (device) => device[`${base}.phyname`] !== phy && !!linkedEthernet(device),
+        render: (device, node) => {
+            const rec = linkedEthernet(device);
+            if (rec)
+                ui.detailFields(node, rec, wireFields);
+        },
     });
 }
