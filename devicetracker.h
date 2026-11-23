@@ -227,6 +227,13 @@ public:
         range.store(rt, std::memory_order_release);
     }
 
+    // Called for each device forgotten (expired, trimmed to tracker_max_devices or evicted by
+    // a phy) after it's marked removed, with the device list mutex held and no device lock.
+    // A hook may only take leaf locks.  Returns the id remove_removed_hook takes.
+    using removed_hook_t = std::function<void (const kis_tracked_device_base&)>;
+    unsigned long add_removed_hook(removed_hook_t hook);
+    void remove_removed_hook(unsigned long id);
+
     std::shared_ptr<kis_tracked_device_base> update_common_device(
             const mac_addr& in_mac, kis_phy_handler *phy,
             const std::shared_ptr<kis_packet>& in_pack, unsigned int in_flags,
@@ -341,6 +348,9 @@ public:
 
     // Get phy views
     std::shared_ptr<device_tracker_view> get_phy_view(int in_phy);
+
+    // The view of every device, kept whatever the view options; null before deferred startup
+    std::shared_ptr<device_tracker_view> get_all_view();
 
     // Devices tracked for a phy, whether or not phy views are kept; takes the device list lock
     size_t count_phy_devices(int in_phy);
@@ -634,6 +644,9 @@ protected:
 
     std::shared_ptr<kis_tracked_device_base> device_builder;
 
+    // Under the device list mutex.  Last, so the members before keep their offsets.
+    std::vector<std::pair<unsigned long, removed_hook_t>> removed_hooks;
+    unsigned long next_removed_hook_id = 1;
 };
 
 class devicelist_scope_locker {

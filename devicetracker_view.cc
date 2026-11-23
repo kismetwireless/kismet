@@ -306,6 +306,28 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::copy_devices() {
     return ret;
 }
 
+bool device_tracker_view::copy_devices_batch(walk_cursor& c, size_t max_slots,
+        std::vector<std::shared_ptr<kis_tracked_device_base>>& out) {
+    out.clear();
+
+    kis_view_lock vlk(view_mutex, true);
+
+    // A device's key is set before it joins a view and never changes
+    return view_walk::batch(c, device_list->get(), slots_squeezed, max_slots,
+            [this](const device_key& k) -> std::optional<view_walk::place> {
+                const auto pi = device_presence_map.find(k);
+                if (pi == device_presence_map.end())
+                    return std::nullopt;
+                return pi->second;
+            },
+            [](const shared_tracker_element& e) {
+                return static_cast<kis_tracked_device_base *>(e.get())->get_key();
+            },
+            [&out](const shared_tracker_element& e) {
+                out.push_back(std::static_pointer_cast<kis_tracked_device_base>(e));
+            });
+}
+
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker,
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
@@ -394,10 +416,12 @@ void device_tracker_view::set_present(const std::shared_ptr<kis_tracked_device_b
     auto dpmi = device_presence_map.find(device->get_key());
 
     if (present && dpmi == device_presence_map.end()) {
-        device_presence_map[device->get_key()] = device_list->size();
+        // Serials wrap; the walk compares them for equality only
+        device_presence_map[device->get_key()] =
+            view_walk::place{static_cast<uint32_t>(device_list->size()), next_join_serial++};
         device_list->push_back(device);
     } else if (!present && dpmi != device_presence_map.end()) {
-        (*device_list)[dpmi->second] = nullptr;
+        (*device_list)[dpmi->second.slot] = nullptr;
         device_presence_map.erase(dpmi);
         list_holes++;
 
@@ -411,9 +435,10 @@ void device_tracker_view::set_present(const std::shared_ptr<kis_tracked_device_b
                     continue;
                 if (w != r)
                     v[w] = std::move(v[r]);
-                device_presence_map[static_cast<kis_tracked_device_base *>(v[w].get())->get_key()] = w;
+                device_presence_map[static_cast<kis_tracked_device_base *>(v[w].get())->get_key()].slot = static_cast<uint32_t>(w);
                 w++;
             }
+            slots_squeezed += v.size() - w;
             v.resize(w);
             list_holes = 0;
         }

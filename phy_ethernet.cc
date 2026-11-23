@@ -46,13 +46,6 @@ mac_addr mac_of(const std::array<uint8_t, 6>& a) {
     return mac_addr(a.data(), 6);
 }
 
-mac_addr mac_from_u64(uint64_t v) {
-    std::array<uint8_t, 6> b;
-    for (size_t i = 0; i < 6; i++)
-        b[i] = static_cast<uint8_t>(v >> ((8 - i - 1) * 8));
-    return mac_addr(b.data(), 6);
-}
-
 std::string hex_of(std::string_view s) {
     static constexpr char hx[] = "0123456789abcdef";
     std::string r;

@@ -671,6 +671,8 @@ public:
 
     __ProxyTrackable(related_devices_map, tracker_element_string_map, related_devices_map);
     void add_related_device(const std::string& in_relationship, const device_key in_key);
+    // Removes the relationship too once its last device goes; false when it wasn't there
+    bool remove_related_device(const std::string& in_relationship, const device_key in_key);
 
     // Non-exported internal counter used for structured sorting
     uint64_t get_kis_internal_id() {

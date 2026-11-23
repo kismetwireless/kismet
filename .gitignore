@@ -33,6 +33,9 @@ test/capture_framework/out_reserve_test
 test/capture_framework/out_reserve_mt_test
 test/capture_framework/rx_full_fuzz
 test/ethernet/l3_parse_test
+test/entity/graph_test
+test/entity/graph_fuzz
+test/entity/view_walk_test
 test/wired_helper/wired_test
 test/wired_helper/priv_test
 test/wired_helper/ifup_test
