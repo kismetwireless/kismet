@@ -71,6 +71,10 @@ Rules that follow from sharing a modem:
   of silence, or 20 s in all. Giving up early and asking again would allocate
   a second client whose reply is never read, and that client would add to the
   next open's backlog.
+- The `MBIM_OPEN` asks for no larger control transfer than the node's own
+  buffer (`IOCTL_WDM_MAX_COMMAND`, 512 bytes on an Intel XMM7360). Told it may
+  send more, an XMM7360 sent a 1 KB reply in one transfer the node could not
+  hold, and its MBIM function then answered nothing until the modem was reset.
 - On a direct MBIM node it sends `MBIM_OPEN` only if the function answers that
   it is not open: opening an open function resets it, which ends any data
   session another program set up. It closes the function afterwards only if it

@@ -26,11 +26,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef __linux__
+#include <linux/usb/cdc-wdm.h>
+#endif
 
 #include "../capture_cell_diag/cell_safefile.h"
 #include "qmi_transport.h"
@@ -46,6 +51,8 @@
 #define MBIM_ERROR_NOT_OPENED 5
 
 #define MBIM_MAX_CONTROL_TRANSFER 4096
+/* MBIM 1.0: a function's control transfer is never under 64 bytes */
+#define MBIM_MIN_CONTROL_TRANSFER 64
 #define MBIM_PROXY_TIMEOUT_S 10
 /* How long a direct MBIM node gets to show it is already open */
 #define MBIM_PROBE_MS 1500
@@ -276,12 +283,34 @@ static int mbim_exchange(qmi_transport_t *t, const uint8_t *msg, size_t len,
     }
 }
 
+uint32_t mbim_open_max_transfer(int have_node_max, uint32_t node_max) {
+    if (!have_node_max)
+        return MBIM_MAX_CONTROL_TRANSFER;
+    if (node_max < MBIM_MIN_CONTROL_TRANSFER)
+        return MBIM_MIN_CONTROL_TRANSFER;
+    return node_max < MBIM_MAX_CONTROL_TRANSFER ? node_max : MBIM_MAX_CONTROL_TRANSFER;
+}
+
+/* The largest control transfer to ask for in MBIM_OPEN: no more than the
+ * node's own buffer (mbim_open_max_transfer) */
+static uint32_t mbim_max_transfer(const qmi_transport_t *t) {
+#if defined(__linux__) && defined(IOCTL_WDM_MAX_COMMAND)
+    uint16_t node_max = 0;
+
+    if (!t->is_socket && ioctl(t->fd, IOCTL_WDM_MAX_COMMAND, &node_max) == 0)
+        return mbim_open_max_transfer(1, node_max);
+#else
+    (void) t;
+#endif
+    return mbim_open_max_transfer(0, 0);
+}
+
 static int mbim_open_function(qmi_transport_t *t, int timeout_ms, char *err,
                               size_t errsz) {
     uint8_t msg[32], buf[QMI_MSG_MAX];
     mbim_msg_t done;
     const uint32_t tid = next_mbim_tid(t);
-    const size_t len = mbim_open_build(msg, sizeof(msg), tid, MBIM_MAX_CONTROL_TRANSFER);
+    const size_t len = mbim_open_build(msg, sizeof(msg), tid, mbim_max_transfer(t));
 
     const int r = mbim_exchange(t, msg, len, tid, MBIM_OPEN_DONE, NULL, 0, buf,
                                 sizeof(buf), &done, timeout_ms, err, errsz);

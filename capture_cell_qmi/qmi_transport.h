@@ -143,6 +143,15 @@ void qmi_session_release_now(const qmi_session_t *s);
 
 const char *qmi_transport_kind_name(qmi_transport_kind_t kind);
 
+/* The control transfer MBIM_OPEN asks for: the node's own buffer
+ * (`have_node_max`: cdc-wdm's IOCTL_WDM_MAX_COMMAND answered), never more
+ * than 4096 nor under MBIM's 64.  Asking for more than the node holds is not
+ * harmless: an XMM7360 with a 512-byte buffer, opened at 4096, sent a 1 KB
+ * reply as one transfer the node could not hold, and its MBIM function then
+ * answered nobody until the modem was reset.  Without the ioctl (a proxy
+ * socket, or not Linux) the default stands. */
+uint32_t mbim_open_max_transfer(int have_node_max, uint32_t node_max);
+
 #ifdef __cplusplus
 }
 #endif

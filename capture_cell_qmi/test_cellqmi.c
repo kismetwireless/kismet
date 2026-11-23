@@ -1279,6 +1279,18 @@ static void test_cid_record(void) {
     fake_stop(&fk);
 }
 
+static void test_mbim_open_max_transfer(void) {
+    /* The node's buffer bounds the open: the XMM7360's 512 must be asked for
+     * as 512, never the 4096 that wedged its MBIM function */
+    CHECK(mbim_open_max_transfer(1, 512) == 512, "open max: a 512-byte node is "
+          "opened at 512, not %u", mbim_open_max_transfer(1, 512));
+    CHECK(mbim_open_max_transfer(1, 4096) == 4096, "open max: 4096 stays 4096");
+    CHECK(mbim_open_max_transfer(1, 16384) == 4096, "open max: a larger node is capped "
+          "at 4096, the largest message read here");
+    CHECK(mbim_open_max_transfer(1, 0) == 64, "open max: never under MBIM's 64");
+    CHECK(mbim_open_max_transfer(0, 0) == 4096, "open max: without the ioctl, 4096");
+}
+
 int main(void) {
     snprintf(g_tmp, sizeof(g_tmp), "/tmp/test_cellqmi.XXXXXX");
     if (mkdtemp(g_tmp) == NULL) {
@@ -1302,6 +1314,7 @@ int main(void) {
     test_node_sysfs();
     test_cold_open_backlog();
     test_cid_record();
+    test_mbim_open_max_transfer();
 
     char cmd[300];
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", g_tmp);
