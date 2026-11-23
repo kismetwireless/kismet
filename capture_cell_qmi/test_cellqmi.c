@@ -881,6 +881,8 @@ static void fake_node(int master, int count_fd, long backlog_ms, int answer) {
     size_t inlen = 0;
     uint8_t pending[16];
     size_t npending = 0;
+    uint8_t rel_tid[16], rel_cid[16];
+    size_t nrel = 0;
 
     for (;;) {
         const long now = fake_now_ms();
@@ -918,6 +920,22 @@ static void fake_node(int master, int count_fd, long backlog_ms, int answer) {
             npending = 0;
         }
 
+        for (size_t i = 0; i < nrel; i++) {
+            tlvbuf_t t = { .n = 0 };
+            tlv_result(&t, 0, 0);
+            size_t s = tlv_begin(&t, 0x01);
+            put8(&t, QMI_SVC_NAS);
+            put8(&t, rel_cid[i]);
+            tlv_end(&t, s);
+            size_t n = qmux_build(f, sizeof(f), QMI_SVC_CTL, 0, rel_tid[i],
+                                  QMI_CTL_RELEASE_CLIENT_ID, t.b, t.n);
+            f[3] = 0x80;
+            f[6] = 0x01;
+            if (write(master, f, n) < 0)
+                _exit(0);
+        }
+        nrel = 0;
+
         struct pollfd p = { .fd = master, .events = POLLIN };
         if (poll(&p, 1, 5) > 0) {
             ssize_t r = read(master, in + inlen, sizeof(in) - inlen);
@@ -942,6 +960,17 @@ static void fake_node(int master, int count_fd, long backlog_ms, int answer) {
                     _exit(0);
                 if (npending < sizeof(pending))
                     pending[npending++] = (uint8_t) m.tid;
+            }
+            /* A release is reported as 'r' and the id it names */
+            if (qmux_parse(in, fl, &m) && m.service == QMI_SVC_CTL &&
+                m.msg_id == QMI_CTL_RELEASE_CLIENT_ID && fl >= 6 + 6 + 5) {
+                const uint8_t rel[2] = { 'r', in[fl - 1] };
+                if (write(count_fd, rel, 2) < 0)
+                    _exit(0);
+                if (nrel < sizeof(rel_tid)) {
+                    rel_tid[nrel] = (uint8_t) m.tid;
+                    rel_cid[nrel++] = in[fl - 1];
+                }
             }
             memmove(in, in + fl, inlen - fl);
             inlen -= fl;
@@ -1002,7 +1031,9 @@ static cold_open_t cold_open(long backlog_ms, int answer, int timeout_ms) {
 
     char buf[64];
     ssize_t n = read(counts[0], buf, sizeof(buf));
-    res.alloc_requests = n < 0 ? 0 : (int) n;
+    res.alloc_requests = 0;
+    for (ssize_t i = 0; i < n; i++)
+        res.alloc_requests += buf[i] == 'a';
     close(counts[0]);
     close(slave);
     close(master);
@@ -1036,6 +1067,218 @@ static void test_cold_open_backlog(void) {
           "endless backlog: gives up in %ld ms", r.elapsed_ms);
 }
 
+/* A fake node that stays up across several sessions, for the client id
+ * record (#7452 b).  Its reports go to `counts`: 'a' per client id request,
+ * 'r' and the id per release. */
+typedef struct {
+    int master, slave, counts;
+    pid_t pid;
+    char slave_name[128];
+} fake_t;
+
+static int fake_start(fake_t *fk) {
+    int c[2];
+    struct termios tio;
+
+    memset(fk, 0, sizeof(*fk));
+    fk->master = posix_openpt(O_RDWR | O_NOCTTY);
+    if (fk->master < 0 || grantpt(fk->master) < 0 || unlockpt(fk->master) < 0 ||
+        pipe(c) < 0)
+        return 0;
+    snprintf(fk->slave_name, sizeof(fk->slave_name), "%s", ptsname(fk->master));
+    fk->slave = open(fk->slave_name, O_RDWR | O_NOCTTY);
+    if (fk->slave < 0 || tcgetattr(fk->slave, &tio) < 0)
+        return 0;
+    cfmakeraw(&tio);
+    tcsetattr(fk->slave, TCSANOW, &tio);
+    fcntl(c[0], F_SETFL, O_NONBLOCK);
+
+    fk->pid = fork();
+    if (fk->pid == 0) {
+        close(c[0]);
+        close(fk->slave);
+        fake_node(fk->master, c[1], 0, 1);
+        _exit(0);
+    }
+    close(c[1]);
+    fk->counts = c[0];
+    return 1;
+}
+
+/* What the node saw since the last call: client id requests, releases, and
+ * the last id released */
+static void fake_seen(fake_t *fk, int *allocs, int *releases, int *last_rel) {
+    char buf[256];
+    *allocs = *releases = 0;
+    *last_rel = -1;
+    usleep(100 * 1000);     /* let the node report */
+    const ssize_t n = read(fk->counts, buf, sizeof(buf));
+    for (ssize_t i = 0; i < n; i++) {
+        if (buf[i] == 'a')
+            (*allocs)++;
+        else if (buf[i] == 'r' && i + 1 < n) {
+            (*releases)++;
+            *last_rel = (unsigned char) buf[++i];
+        }
+    }
+}
+
+static void fake_stop(fake_t *fk) {
+    kill(fk->pid, SIGKILL);
+    waitpid(fk->pid, NULL, 0);
+    close(fk->counts);
+    close(fk->slave);
+    close(fk->master);
+}
+
+static long file_size(const char *path) {
+    struct stat st;
+    return stat(path, &st) == 0 ? (long) st.st_size : -1;
+}
+
+/* A session in a child that opens, says so, then ends the way `how` says:
+ * 'k' is SIGKILLed while it holds the id, 't' runs the signal handler's
+ * release and exits, 'c' closes cleanly */
+static void child_session(fake_t *fk, const char *state, char how) {
+    int ready[2];
+    if (pipe(ready) < 0)
+        return;
+    pid_t pid = fork();
+    if (pid == 0) {
+        qmi_session_t s;
+        char err[256];
+        close(ready[0]);
+        const int ok = qmi_session_open_tracked(&s, fk->slave_name, QMI_FRAMING_QMUX,
+                                                0, 400, state, err, sizeof(err));
+        if (ok && how == 't')
+            qmi_session_release_now(&s);
+        if (ok && how == 'c')
+            qmi_session_close(&s);
+        if (write(ready[1], ok ? "o" : "x", 1) < 0)
+            _exit(1);
+        for (;;)
+            pause();
+    }
+    close(ready[1]);
+    char c = 0;
+    if (read(ready[0], &c, 1) != 1 || c != 'o') {
+        printf("FAIL: the child session did not open\n");
+        failures++;
+    }
+    close(ready[0]);
+    kill(pid, SIGKILL);
+    waitpid(pid, NULL, 0);
+}
+
+static void test_cid_record(void) {
+    char state[300];
+    fake_t fk;
+    qmi_session_t s;
+    char err[256] = "";
+    int a, r, last;
+
+    snprintf(state, sizeof(state), "%s/cellqmi-fake.cid", g_tmp);
+    if (!fake_start(&fk)) {
+        printf("FAIL: cannot make a pty for the fake node\n");
+        failures++;
+        return;
+    }
+
+    /* SIGKILL: no handler runs, the id stays allocated, the record stays */
+    child_session(&fk, state, 'k');
+    fake_seen(&fk, &a, &r, &last);
+    CHECK(a == 1 && r == 0, "sigkill: the killed session allocated and released "
+          "nothing (allocs=%d releases=%d)", a, r);
+    CHECK(file_size(state) > 0, "sigkill: the record outlives the killed session");
+
+    /* The next open releases the dead session's id 8, then takes its own */
+    int ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400,
+                                      state, err, sizeof(err));
+    CHECK(ok, "after sigkill: open (%s)", err);
+    CHECK(ok && s.stale_released && s.stale_cid == 8 && s.stale_answered,
+          "after sigkill: the open reports releasing id 8 (released=%d cid=%u)",
+          ok ? s.stale_released : -1, ok ? s.stale_cid : 0);
+    fake_seen(&fk, &a, &r, &last);
+    CHECK(r == 1 && last == 8 && a == 1, "after sigkill: the node saw one release "
+          "of id 8 and one request (releases=%d last=%d allocs=%d)", r, last, a);
+    if (ok)
+        qmi_session_close(&s);
+    CHECK(file_size(state) == 0, "clean close: the record is emptied");
+    fake_seen(&fk, &a, &r, &last);
+
+    /* After a clean close there is nothing to release */
+    ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
+                                  err, sizeof(err));
+    CHECK(ok && !s.stale_released, "after a clean close: nothing released");
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &r, &last);
+    CHECK(r == 1, "after a clean close: only the session's own release (%d)", r);
+
+    /* The signal handler's release empties the record too: an id it freed
+     * must never be released again */
+    child_session(&fk, state, 't');
+    fake_seen(&fk, &a, &r, &last);
+    CHECK(file_size(state) == 0, "sigterm path: the record is emptied");
+    ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
+                                  err, sizeof(err));
+    CHECK(ok && !s.stale_released, "after the sigterm path: nothing released");
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &r, &last);
+
+    /* A record for another node (a modem that re-enumerated) is not used.
+     * Each identity field on its own must be enough to refuse it, so each
+     * case differs from the real node in exactly one. */
+    struct stat st;
+    stat(fk.slave_name, &st);
+    static const char *const kField[3] = { "device number", "inode", "change time" };
+    for (int field = 0; field < 3; field++) {
+        FILE *f = fopen(state, "w");
+        if (f == NULL)
+            break;
+        fprintf(f, "cellqmi-cid 1 %llu %llu %lld %ld 3 9\n",
+                (unsigned long long) st.st_rdev + (field == 0),
+                (unsigned long long) st.st_ino + (field == 1),
+                (long long) st.st_ctim.tv_sec + (field == 2), (long) st.st_ctim.tv_nsec);
+        fclose(f);
+        ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
+                                      err, sizeof(err));
+        CHECK(ok && !s.stale_released, "another node's record (%s differs): nothing "
+              "released", kField[field]);
+        if (ok)
+            qmi_session_close(&s);
+        fake_seen(&fk, &a, &r, &last);
+        CHECK(r == 1, "another node's record (%s differs): only the session's own "
+              "release (%d)", kField[field], r);
+    }
+
+    /* Positive control for the cases above: the same record with every field
+     * matching IS released */
+    FILE *f = fopen(state, "w");
+    if (f != NULL) {
+        fprintf(f, "cellqmi-cid 1 %llu %llu %lld %ld 3 9\n",
+                (unsigned long long) st.st_rdev, (unsigned long long) st.st_ino,
+                (long long) st.st_ctim.tv_sec, (long) st.st_ctim.tv_nsec);
+        fclose(f);
+    }
+    ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
+                                  err, sizeof(err));
+    CHECK(ok && s.stale_released && s.stale_cid == 9, "matching record: id 9 released");
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &r, &last);
+
+    /* Untracked opens keep no record */
+    unlink(state);
+    ok = qmi_session_open(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, err, sizeof(err));
+    CHECK(ok && file_size(state) == -1, "untracked open: no record file");
+    if (ok)
+        qmi_session_close(&s);
+
+    fake_stop(&fk);
+}
+
 int main(void) {
     snprintf(g_tmp, sizeof(g_tmp), "/tmp/test_cellqmi.XXXXXX");
     if (mkdtemp(g_tmp) == NULL) {
@@ -1058,6 +1301,7 @@ int main(void) {
     test_node_names();
     test_node_sysfs();
     test_cold_open_backlog();
+    test_cid_record();
 
     char cmd[300];
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", g_tmp);

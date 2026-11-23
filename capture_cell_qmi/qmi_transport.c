@@ -27,10 +27,12 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
 
+#include "../capture_cell_diag/cell_safefile.h"
 #include "qmi_transport.h"
 
 /* CTL transaction id 0xFF and the top MBIM ids are kept for the prebuilt
@@ -647,12 +649,110 @@ static void prebuild_release(qmi_session_t *s) {
     }
 }
 
+/* The client id record: one line naming the node and the id it holds.  An
+ * empty file holds nothing. */
+#define CID_RECORD_FMT "cellqmi-cid 1 %llu %llu %lld %ld %u %u\n"
+
+#ifdef __APPLE__
+#define ST_CTIME_SEC(st)  ((st)->st_ctimespec.tv_sec)
+#define ST_CTIME_NSEC(st) ((st)->st_ctimespec.tv_nsec)
+#else
+#define ST_CTIME_SEC(st)  ((st)->st_ctim.tv_sec)
+#define ST_CTIME_NSEC(st) ((st)->st_ctim.tv_nsec)
+#endif
+
+/* 1 and the id when the record names this very node */
+static int cid_record_read(int fd, const struct stat *node, uint8_t *cid) {
+    char buf[160];
+    const ssize_t n = pread(fd, buf, sizeof(buf) - 1, 0);
+    unsigned long long rdev, ino;
+    long long csec;
+    long cnsec;
+    unsigned int svc, c;
+
+    if (n <= 0)
+        return 0;
+    buf[n] = '\0';
+
+    if (sscanf(buf, CID_RECORD_FMT, &rdev, &ino, &csec, &cnsec, &svc, &c) != 6)
+        return 0;
+    if (rdev != (unsigned long long) node->st_rdev ||
+        ino != (unsigned long long) node->st_ino ||
+        csec != (long long) ST_CTIME_SEC(node) ||
+        cnsec != (long) ST_CTIME_NSEC(node) ||
+        svc != QMI_SVC_NAS || c == 0 || c > 0xFF)
+        return 0;
+
+    *cid = (uint8_t) c;
+    return 1;
+}
+
+static void cid_record_write(int fd, const struct stat *node, uint8_t cid) {
+    char buf[160];
+    const int n = snprintf(buf, sizeof(buf), CID_RECORD_FMT,
+                           (unsigned long long) node->st_rdev,
+                           (unsigned long long) node->st_ino,
+                           (long long) ST_CTIME_SEC(node), (long) ST_CTIME_NSEC(node),
+                           (unsigned int) QMI_SVC_NAS, (unsigned int) cid);
+
+    if (n <= 0 || (size_t) n >= sizeof(buf))
+        return;
+    if (pwrite(fd, buf, (size_t) n, 0) == n)
+        (void) ftruncate(fd, n);
+    (void) fsync(fd);
+}
+
+/* Async-signal-safe */
+static void cid_record_clear(int fd) {
+    if (fd >= 0)
+        (void) ftruncate(fd, 0);
+}
+
+/* Release the id a dead session recorded for this node, before asking for
+ * one of our own.  Whatever the modem answers, the record is emptied: an id
+ * that was already free must not be released again later, by when the modem
+ * may have given it to someone else. */
+static void release_recorded(qmi_session_t *s, const struct stat *node,
+                             int timeout_ms) {
+    uint8_t cid, req[32], rsp[QMI_MSG_MAX];
+    size_t rl = 0;
+    char err[128];
+    qmux_msg_t m;
+    uint16_t code = 0;
+
+    if (!cid_record_read(s->state_fd, node, &cid)) {
+        cid_record_clear(s->state_fd);
+        return;
+    }
+
+    const size_t len = qmi_ctl_release_build(req, sizeof(req), next_ctl_tid(s),
+                                             QMI_SVC_NAS, cid);
+    const int r = xfer(&s->t, req, len, rsp, sizeof(rsp), &rl, timeout_ms,
+                       QMI_OPEN_BACKLOG_MAX_MS, err, sizeof(err));
+
+    s->stale_released = 1;
+    s->stale_cid = cid;
+    s->stale_answered = r == 1 && qmux_parse(rsp, rl, &m) && qmi_result(&m, &code) == 1;
+    cid_record_clear(s->state_fd);
+}
+
 int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
                      int via_proxy, int timeout_ms, char *err, size_t errsz) {
+    return qmi_session_open_tracked(s, dev, framing, via_proxy, timeout_ms, NULL,
+                                    err, errsz);
+}
+
+int qmi_session_open_tracked(qmi_session_t *s, const char *dev,
+                             qmi_framing_t framing, int via_proxy, int timeout_ms,
+                             const char *state_path, char *err, size_t errsz) {
     qmi_transport_kind_t kind;
+    struct stat node;
+
+    memset(&node, 0, sizeof(node));
 
     memset(s, 0, sizeof(*s));
     s->t.fd = -1;
+    s->state_fd = -1;
 
     if (framing == QMI_FRAMING_QMUX)
         kind = via_proxy ? QMI_T_PROXY_QMUX : QMI_T_DIRECT_QMUX;
@@ -665,6 +765,15 @@ int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
 
     if (!transport_open(&s->t, dev, kind, timeout_ms, err, errsz))
         return 0;
+
+    /* Only a direct open holds the node alone, so only it keeps a record */
+    if (state_path != NULL && !via_proxy && fstat(s->t.fd, &node) == 0 &&
+        S_ISCHR(node.st_mode)) {
+        s->state_fd = cell_safe_op(CELL_SAFE_OPEN, state_path, NULL, O_RDWR | O_CREAT,
+                                   0600, CELL_SAFE_MUST_OWN);
+        if (s->state_fd >= 0)
+            release_recorded(s, &node, timeout_ms);
+    }
 
     /* A modem just out of reset can refuse the first client id request */
     int r = alloc_nas(s, timeout_ms, err, errsz);
@@ -679,6 +788,8 @@ int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
     }
 
     prebuild_release(s);
+    if (s->state_fd >= 0)
+        cid_record_write(s->state_fd, &node, s->nas_cid);
     return 1;
 }
 
@@ -720,6 +831,14 @@ void qmi_session_close(qmi_session_t *s) {
         s->have_cid = 0;
     }
 
+    /* Emptied even when the release went unanswered: a record of an id that
+     * was in fact released could later free someone else's */
+    if (s->state_fd >= 0) {
+        cid_record_clear(s->state_fd);
+        close(s->state_fd);
+        s->state_fd = -1;
+    }
+
     if (s->t.kind == QMI_T_DIRECT_MBIM && s->t.mbim_opened) {
         uint8_t msg[16], buf[QMI_MSG_MAX];
         mbim_msg_t done;
@@ -742,4 +861,5 @@ void qmi_session_release_now(const qmi_session_t *s) {
         (void) raw_write(s->t.fd, s->t.is_socket, s->release_bytes, s->release_len);
     if (s->close_len > 0)
         (void) raw_write(s->t.fd, s->t.is_socket, s->close_bytes, s->close_len);
+    cid_record_clear(s->state_fd);
 }

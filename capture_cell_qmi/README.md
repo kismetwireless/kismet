@@ -54,6 +54,15 @@ Rules that follow from sharing a modem:
 - It releases its NAS client ID when it closes, and on SIGTERM, SIGINT and
   SIGHUP. Neither the modem nor the proxies reclaim a dead client's IDs, and
   each service has only a few.
+- No handler runs on SIGKILL, so a direct open also records its client ID in
+  `~/.kismet/cellqmi-<node>.cid`, written at the caller's own ids under a
+  suid install. The next direct open of the same node releases a recorded ID
+  before asking for its own, and says so in the Kismet messages. The record
+  names the node by device number, inode and change time, so after a modem
+  re-enumerates (its node is made again, and the reset freed its IDs) an old
+  number is never released. The record is emptied on every release. Through a
+  proxy nothing is recorded, because other clients share the modem's IDs
+  there. Without a `~/.kismet` directory nothing is recorded.
 - On a direct QMUX node it asks for a client ID once and waits for the answer
   through whatever the node delivers first. While a node is closed, the modem
   queues indications for every client nobody released, and `cdc-wdm` hands

@@ -52,10 +52,12 @@
 #include <time.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include "../capture_framework.h"
 #include "../config.h"
 #include "../capture_cell_diag/cell_discover.h"
+#include "../capture_cell_diag/cell_safefile.h"
 
 #include "qmi_node.h"
 #include "qmi_obs.h"
@@ -260,6 +262,31 @@ static void describe_node(const char *device, const char *driver, char *out,
         snprintf(out, outsz, "%s", driver[0] ? driver : "?");
 }
 
+/* Where a direct session records its client id (qmi_session_open_tracked):
+ * ~/.kismet/cellqmi-<node>.cid, the caller's own directory, as cellat keeps
+ * its lock state.  NULL (track nothing) when there is no ~/.kismet. */
+static const char *cid_state_path(const char *dev, char *out, size_t outsz) {
+    char home[1024], dir[1100], name[128];
+    struct stat st;
+    const char *base = strrchr(dev, '/');
+    size_t n = 0;
+
+    base = base != NULL ? base + 1 : dev;
+    for (; *base != '\0' && n + 1 < sizeof(name); base++)
+        name[n++] = (isalnum((unsigned char) *base) || *base == '-' || *base == '_')
+                        ? *base : '_';
+    name[n] = '\0';
+
+    if (n == 0 || cell_home_dir(home, sizeof(home)) != 0)
+        return NULL;
+    snprintf(dir, sizeof(dir), "%s/.kismet", home);
+    if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode))
+        return NULL;
+    if (snprintf(out, outsz, "%s/cellqmi-%s.cid", dir, name) >= (int) outsz)
+        return NULL;
+    return out;
+}
+
 static int is_char_device(const char *path) {
     struct stat st;
     return stat(path, &st) == 0 && S_ISCHR(st.st_mode);
@@ -379,10 +406,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    char state[1200];
+    const char *state_path = cid_state_path(d.device, state, sizeof(state));
+
     pthread_mutex_lock(&local->lock);
-    const int ok = qmi_session_open(&local->session, d.device, local->framing,
-                                    plan.mode == QMI_PLAN_PROXY, CELLQMI_TIMEOUT_MS,
-                                    err, sizeof(err));
+    const int ok = qmi_session_open_tracked(&local->session, d.device, local->framing,
+                                            plan.mode == QMI_PLAN_PROXY,
+                                            CELLQMI_TIMEOUT_MS, state_path, err,
+                                            sizeof(err));
     local->session_open = ok;
     pthread_mutex_unlock(&local->lock);
 
@@ -409,6 +440,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     snprintf(msg, STATUS_MAX, "cellqmi: polling %s every %u ms (%s; %s)", d.device,
              local->interval_ms, qmi_transport_kind_name(local->session.t.kind),
              plan.reason);
+
+    if (local->session.stale_released) {
+        char note[STATUS_MAX];
+        snprintf(note, sizeof(note), "cellqmi: %s: released NAS client id %u, left "
+                 "allocated by an earlier cellqmi that ended without releasing it%s",
+                 d.device, (unsigned int) local->session.stale_cid,
+                 local->session.stale_answered ? "" : " (the modem did not confirm)");
+        cf_send_message(caph, note, MSGFLAG_INFO);
+    }
 
     return 1;
 }

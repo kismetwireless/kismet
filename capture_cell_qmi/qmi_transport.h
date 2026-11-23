@@ -84,6 +84,12 @@ typedef struct {
     size_t release_len;
     uint8_t close_bytes[16];
     size_t close_len;
+    /* The client id record (qmi_session_open_tracked), or -1 */
+    int state_fd;
+    /* The open released a client id an earlier session left behind */
+    int stale_released;
+    uint8_t stale_cid;
+    int stale_answered;     /* the modem answered that release */
 } qmi_session_t;
 
 /* How long a cold open's client id request may wait while the node keeps
@@ -102,6 +108,24 @@ typedef struct {
 int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
                      int via_proxy, int timeout_ms, char *err, size_t errsz);
 
+/* qmi_session_open(), and on a direct open also keep a record of the client
+ * id in `state_path`, so a session that dies without releasing it (SIGKILL,
+ * where no handler runs) does not leak it for good: the next direct open of
+ * the same node finds the record, releases that id, then allocates its own.
+ *
+ * The record names the node by device number, inode and change time, so a
+ * modem that re-enumerated (its node was made again, and its ids were freed
+ * by the reset) never has a number released that it may since have given to
+ * someone else.  A direct open happens only when no other program holds the
+ * node (the open order refuses otherwise), so the recorded id has no live
+ * holder.  Through a proxy, other clients share the modem's ids, and nothing
+ * is recorded.  The record is emptied whenever the id is released: on close,
+ * and by qmi_session_release_now().  A NULL `state_path`, or a record that
+ * cannot be opened, tracks nothing. */
+int qmi_session_open_tracked(qmi_session_t *s, const char *dev,
+                             qmi_framing_t framing, int via_proxy, int timeout_ms,
+                             const char *state_path, char *err, size_t errsz);
+
 /* Send NAS request `msg_id` (no TLVs) and wait for its reply, which is parsed
  * into `out` and points into `buf`.  1 on a reply, 0 on a timeout, -1 if the
  * transport failed (`err` says how). */
@@ -113,7 +137,8 @@ int qmi_session_nas(qmi_session_t *s, uint16_t msg_id, uint8_t *buf, size_t cap,
 void qmi_session_close(qmi_session_t *s);
 
 /* Async-signal-safe: write the prebuilt release (and MBIM_CLOSE) without
- * waiting for replies.  For a signal handler on the way out. */
+ * waiting for replies, and empty the client id record.  For a signal handler
+ * on the way out. */
 void qmi_session_release_now(const qmi_session_t *s);
 
 const char *qmi_transport_kind_name(qmi_transport_kind_t kind);
