@@ -1012,7 +1012,9 @@ function registerDetails(kismet) {
     const probeRec = `${d}/${d}.last_probed_ssid_record`;
     const karmaRec = `${d}/${d}.karma`;
 
-    ui.deviceDetails.add({
+    // Some of its rows are also drawn from a linked Wi-Fi record, in another
+    // phy's "Wireless" section
+    const dot11Section = ui.deviceDetails.add({
         id: 'dot11', title: 'Wi-Fi (802.11)', priority: 5,
         match: (dev) => dev[`${base}.phyname`] === phy,
         fields: [
@@ -1389,6 +1391,54 @@ function registerDetails(kismet) {
                 ],
             },
         ],
+    });
+
+    // What Wi-Fi saw a device on another phy (an Ethernet host, say) do, from
+    // the Wi-Fi record linked to it
+    const linkedWifi = (dev) => {
+        const rec = kismet.entities.peer(dev, phy)?.record;
+        return rec && rec[d] ? rec : null;
+    };
+    const ownRows = (pick) => (dot11Section?.fields ?? []).filter(pick);
+    // The access point record of the network the client was last part of
+    const lastApKey = (rec) => {
+        const bssid = api.field(rec, `${d}/${d}.last_bssid`);
+        const key = typeof bssid === 'string' ? api.field(rec, `${d}/${d}.client_map`)?.[bssid]?.[`${cl}.bssid_key`] : null;
+        return key && key !== '0' ? key : null;
+    };
+
+    const wirelessFields = [
+        { id: 'wifi_record', title: 'Wi-Fi record', field: `${base}.key`,
+            draw: (cell, key, rec, state) => {
+                if (state.key === key && cell.childNodes.length)
+                    return;
+                state.key = key;
+                cell.replaceChildren(el('a', { href: '#', class: 'mono', title: 'Open the Wi-Fi record', onclick: (e) => {
+                    e.preventDefault();
+                    ui.openDevice(key);
+                } }, rec[`${base}.macaddr`] ?? key, ' ', icons.icon('chain')));
+            },
+            help: 'The Wi-Fi device record linked to this one.  Open it for its own panel.' },
+        { title: 'Type', field: `${base}.type`, hideEmpty: true },
+        ...ownRows((f) => f.title === 'Last BSSID'),
+        { id: 'wifi_network', title: 'Network', value: lastApKey, show: (key) => !!key,
+            draw: (cell, key) => relatedText(cell, key, (dev) => ssidText(dev.last_ssid)),
+            help: 'The SSID of the access point this device was last a client of.' },
+        ...ownRows((f) => f.title === 'Last beaconed SSID' || f.title === 'Last probed SSID'),
+        { title: 'Signal', field: `${base}.signal/kismet.common.signal.last_signal`, hideZero: true, format: format.signal,
+            help: 'The last signal level the Wi-Fi record was heard at.' },
+        { title: 'Last seen on Wi-Fi', field: `${base}.last_time`, format: format.time },
+        ...ownRows((f) => f.group === 'Wi-Fi client behavior'),
+    ];
+
+    ui.deviceDetails.add({
+        id: 'dot11_wireless', title: 'Wireless', priority: 7,
+        match: (dev) => dev[`${base}.phyname`] !== phy && !!linkedWifi(dev),
+        render: (dev, node) => {
+            const rec = linkedWifi(dev);
+            if (rec)
+                ui.detailFields(node, rec, wirelessFields);
+        },
     });
 
     // Every SSID seen, as a tab next to the device list

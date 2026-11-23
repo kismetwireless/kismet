@@ -1757,6 +1757,15 @@ body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
 .eth-table .ds-census td:last-child { white-space: nowrap; }
 .eth-wrap { overflow-wrap: anywhere; }
 .eth-flow-count { font-variant-numeric: tabular-nums; }
+.eth-status { display: flex; flex-direction: column; gap: 0.4rem; }
+.eth-links { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* Linked records (entities) in the device panel */
+.entity-badge:first-child { margin-left: 0; }
+.entity-confidence { max-width: 14rem; }
+.entity-confidence.possible .fill-bar-fill { background: color-mix(in srgb, var(--warn) 45%, transparent); }
+.entity-evidence { margin: 0; padding-left: 1.1rem; }
+.entity-via { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; }
 .eth-flow-filter input { max-width: 100%; }
 .eth-flows-head { flex: none; display: flex; flex-direction: column; gap: 0.6rem; padding: 0.6rem 0.75rem 0.4rem; }
 .eth-flows-tab > .list-table { margin: 0 0.75rem 0.5rem; }
