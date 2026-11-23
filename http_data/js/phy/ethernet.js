@@ -562,8 +562,47 @@ export function register(kismet) {
 
     // ---- device details ------------------------------------------------------
 
-    const smallTable = (heads, rows) => el('div', { class: 'eth-table' },
-        el('table', { class: 'ds-census' }, el('tr', {}, heads.map((h) => el('th', {}, h))), rows));
+    // A small table for a draw(), updated in place so a text selection
+    // survives the panel's redraws.  rows(v) gives [key, cells] per row; a
+    // cell is text, or { text, node() } for content built from that text.
+    const smallTable = (heads, rows) => (cell, v, _rec, state) => {
+        if (!state.table) {
+            state.table = el('table', { class: 'ds-census' }, el('tr', {}, heads.map((h) => el('th', {}, h))));
+            state.rows = new Map();
+            cell.replaceChildren(el('div', { class: 'eth-table' }, state.table));
+        }
+        const seen = new Set();
+        let at = state.table.firstChild.nextSibling;
+        rows(v).forEach(([k, cells]) => {
+            let key = k;
+            for (let j = 1; seen.has(key); j++)
+                key = `${k}#${j}`;
+            seen.add(key);
+            let row = state.rows.get(key);
+            if (!row) {
+                row = { tr: el('tr', {}, heads.map(() => el('td'))), shown: [] };
+                state.rows.set(key, row);
+            }
+            cells.forEach((c, j) => {
+                const text = c && typeof c === 'object' ? c.text : String(c ?? '');
+                if (row.shown[j] === text)
+                    return;
+                row.shown[j] = text;
+                dom.replace(row.tr.children[j], c && typeof c === 'object' ? c.node() : text);
+            });
+            if (row.tr !== at)
+                state.table.insertBefore(row.tr, at);
+            else
+                at = at.nextSibling;
+        });
+        for (const [key, row] of state.rows) {
+            if (!seen.has(key)) {
+                row.tr.remove();
+                state.rows.delete(key);
+            }
+        }
+        return undefined;
+    };
     const hasList = (path) => (dev) => list(kismet.api.field(dev, path)).length > 0;
     const anyOf = (...paths) => (dev) => paths.some((p) => {
         const v = kismet.api.field(dev, p);
@@ -586,11 +625,12 @@ export function register(kismet) {
                 help: 'Names the device announced for itself.  Anyone on the network can send any name, so they\'re claims, not proof.',
                 fields: [
                     { id: 'eth_names', wide: true, field: `${e}/${e}.names`,
-                        format: (v) => smallTable(['Name', 'Source', 'First seen', 'Last seen'], list(v).map((n) => el('tr', {},
-                            el('td', {}, n[`${e}.name.name`] ?? ''),
-                            el('td', {}, nameSources[n[`${e}.name.source`]] ?? n[`${e}.name.source`] ?? ''),
-                            el('td', {}, time(n[`${e}.name.first_time`])),
-                            el('td', {}, time(n[`${e}.name.last_time`]))))) },
+                        draw: smallTable(['Name', 'Source', 'First seen', 'Last seen'], (v) => list(v).map((n) => [
+                            `${n[`${e}.name.source`]}|${n[`${e}.name.name`]}`, [
+                                n[`${e}.name.name`] ?? '',
+                                nameSources[n[`${e}.name.source`]] ?? n[`${e}.name.source`] ?? '',
+                                time(n[`${e}.name.first_time`]),
+                                time(n[`${e}.name.last_time`])]])) },
                 ],
             },
             {
@@ -598,16 +638,17 @@ export function register(kismet) {
                 help: 'IP addresses the device used or was given.  ARP and DHCP addresses are always listed; addresses from the traffic it sent only when they are local, unless wired_learn_remote_ips is set.',
                 fields: [
                     { id: 'eth_addresses', wide: true, value: (dev) => [...list(dev[e]?.[`${e}.ipv4`]), ...list(dev[e]?.[`${e}.ipv6`])],
-                        format: (v) => smallTable(['Address', 'Source', 'First seen', 'Last seen'], v.map((a) => {
+                        draw: smallTable(['Address', 'Source', 'First seen', 'Last seen'], (v) => v.map((a) => {
+                            const addr = a[`${e}.ip.address`] ?? '';
                             const eui = a[`${e}.ip.eui64_mac`];
-                            return el('tr', {},
-                                el('td', {}, mono(a[`${e}.ip.address`] ?? ''),
-                                    typeof eui === 'string' && macPattern.test(eui) ?
-                                        el('div', { class: 'muted', title: 'The MAC address in this IPv6 address\'s interface ID isn\'t this device\'s' },
-                                            `EUI-64 of ${eui}`) : null),
-                                el('td', {}, ipSources[a[`${e}.ip.source`]] ?? a[`${e}.ip.source`] ?? ''),
-                                el('td', {}, time(a[`${e}.ip.first_time`])),
-                                el('td', {}, time(a[`${e}.ip.last_time`])));
+                            const euiOk = typeof eui === 'string' && macPattern.test(eui);
+                            return [addr, [
+                                { text: JSON.stringify([addr, euiOk ? eui : null]), node: () => [mono(addr), euiOk ?
+                                    el('div', { class: 'muted', title: 'The MAC address in this IPv6 address\'s interface ID isn\'t this device\'s' },
+                                        `EUI-64 of ${eui}`) : null] },
+                                ipSources[a[`${e}.ip.source`]] ?? a[`${e}.ip.source`] ?? '',
+                                time(a[`${e}.ip.first_time`]),
+                                time(a[`${e}.ip.last_time`])]];
                         })) },
                 ],
             },
@@ -616,15 +657,14 @@ export function register(kismet) {
                 help: 'VLANs the device sent on.  Untagged frames are listed as Untagged; QinQ is shown as outer/inner VLAN ID.',
                 fields: [
                     { id: 'eth_vlans', wide: true, field: `${e}/${e}.vlans`,
-                        format: (v) => smallTable(['VLAN', 'Tags', 'Frames', 'First seen', 'Last seen'], list(v).slice()
+                        draw: smallTable(['VLAN', 'Tags', 'Frames', 'First seen', 'Last seen'], (v) => list(v).slice()
                             .sort((a, b) => vlanSortKey(a[`${e}.vlan.tags`], a[`${e}.vlan.vid`], a[`${e}.vlan.inner_vid`]) -
                                 vlanSortKey(b[`${e}.vlan.tags`], b[`${e}.vlan.vid`], b[`${e}.vlan.inner_vid`]))
-                            .map((x) => el('tr', {},
-                                el('td', {}, vlanLabel(x[`${e}.vlan.tags`], x[`${e}.vlan.vid`], x[`${e}.vlan.inner_vid`])),
-                                el('td', {}, vlanTagText(x[`${e}.vlan.tags`])),
-                                el('td', {}, counted(x[`${e}.vlan.packets`])),
-                                el('td', {}, time(x[`${e}.vlan.first_time`])),
-                                el('td', {}, time(x[`${e}.vlan.last_time`]))))) },
+                            .map((x) => {
+                                const label = vlanLabel(x[`${e}.vlan.tags`], x[`${e}.vlan.vid`], x[`${e}.vlan.inner_vid`]);
+                                return [`${x[`${e}.vlan.tags`]}|${label}`, [label, vlanTagText(x[`${e}.vlan.tags`]),
+                                    counted(x[`${e}.vlan.packets`]), time(x[`${e}.vlan.first_time`]), time(x[`${e}.vlan.last_time`])]];
+                            })) },
                 ],
             },
             {
@@ -701,16 +741,7 @@ export function register(kismet) {
         .sort((a, b) => (b['kismet.common.seenby.last_time'] ?? 0) - (a['kismet.common.seenby.last_time'] ?? 0));
 
     const wireFields = [
-        { id: 'eth_record', title: 'Ethernet record', field: `${base}.key`,
-            draw: (cell, key, rec, state) => {
-                if (state.key === key && cell.childNodes.length)
-                    return;
-                state.key = key;
-                cell.replaceChildren(el('a', { href: '#', class: 'mono', title: 'Open the Ethernet record', onclick: (ev) => {
-                    ev.preventDefault();
-                    ui.openDevice(key);
-                } }, rec[`${base}.macaddr`] ?? key, ' ', icons.icon('chain')));
-            },
+        { id: 'eth_record', title: 'Ethernet record', field: `${base}.key`, draw: ui.recordLink({ title: 'Open the Ethernet record' }),
             help: 'The Ethernet device record linked to this one.  Open it for its own panel.' },
         { title: 'Last seen on the wire', field: `${base}.last_time`, format: time },
         ...(ethernetSection?.fields ?? []).filter((f) => f.group !== 'Flows'),
@@ -719,10 +750,11 @@ export function register(kismet) {
             help: 'The data sources that saw the device on the wire.',
             fields: [
                 { id: 'eth_sensors', wide: true, field: `${base}.seenby`,
-                    format: (v) => smallTable(['Source', 'Frames', 'Last seen'], sensorRows(v).map((s) => el('tr', {},
-                        el('td', {}, s['kismet.common.seenby.source']?.['kismet.datasource.name'] ?? s['kismet.common.seenby.uuid'] ?? ''),
-                        el('td', {}, counted(s['kismet.common.seenby.num_packets'])),
-                        el('td', {}, time(s['kismet.common.seenby.last_time']))))) },
+                    draw: smallTable(['Source', 'Frames', 'Last seen'], (v) => sensorRows(v).map((s) => [
+                        String(s['kismet.common.seenby.uuid'] ?? ''), [
+                            s['kismet.common.seenby.source']?.['kismet.datasource.name'] ?? s['kismet.common.seenby.uuid'] ?? '',
+                            counted(s['kismet.common.seenby.num_packets']),
+                            time(s['kismet.common.seenby.last_time'])]])) },
             ],
         },
         ...(ethernetSection?.fields ?? []).filter((f) => f.group === 'Flows'),
