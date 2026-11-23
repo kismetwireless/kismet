@@ -390,7 +390,6 @@ function registerDetails(kismet) {
     const { el } = dom;
     const muted = ui.muted;
     const lookup = createLookup(api);
-    const macCache = new Map();     // MAC -> Wi-Fi device key (or null)
 
     icons.define('download', '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>');
 
@@ -664,23 +663,14 @@ function registerDetails(kismet) {
         const show = (key) => {
             dom.replace(cell, el('span', { class: 'mono' }, mac), key ? [' ', deviceLink(key, 'View')] : null);
         };
-        // The server doesn't decode the path, so the MAC goes in as is; only
-        // well-formed ones, so nothing else can end up in the URL
-        if (macCache.has(mac) || !/^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/.test(mac)) {
-            show(macCache.get(mac));
-            return undefined;
-        }
-        macCache.set(mac, null);
-        show(null);
-        api.post(`devices/by-mac/${mac}/devices.json`,
-            { fields: ['kismet.device.base.key', 'kismet.device.base.phyname'] })
-            .then((devs) => {
-                const wifi = (devs ?? []).find((x) => x['kismet.device.base.phyname'] === phy);
-                macCache.set(mac, wifi?.['kismet.device.base.key'] ?? null);
+        const wifiKey = (list) => list?.find((x) => x.phy === phy)?.key ?? null;
+        const known = ui.macDevices(mac);
+        show(wifiKey(known));
+        if (!known)
+            ui.findMac(mac).then((list) => {
                 if (cell.isConnected)
-                    show(macCache.get(mac));
-            })
-            .catch(() => {});
+                    show(wifiKey(list));
+            });
         return undefined;
     }
 
@@ -1018,13 +1008,13 @@ function registerDetails(kismet) {
         id: 'dot11', title: 'Wi-Fi (802.11)', priority: 5,
         match: (dev) => dev[`${base}.phyname`] === phy,
         fields: [
-            { title: 'Last beaconed SSID', field: `${beaconRec}/${as}.ssid`,
+            { id: 'last_beaconed_ssid', title: 'Last beaconed SSID', field: `${beaconRec}/${as}.ssid`,
                 format: (v, dev) => ssidText(v, api.field(dev, beaconRec)),
                 help: 'The last network name this device advertised as an access point, in a beacon or a probe response.' },
-            { title: 'Last probed SSID', field: `${probeRec}/${ps}.ssid`,
+            { id: 'last_probed_ssid', title: 'Last probed SSID', field: `${probeRec}/${ps}.ssid`,
                 format: (v) => (v === '' ? muted('Broadcast') : ssidText(v)),
                 help: 'The last network name this device asked for as a client looking for a network.' },
-            { title: 'Last BSSID', field: `${d}/${d}.last_bssid`, show: notZeroMac, format: copyable,
+            { id: 'last_bssid', title: 'Last BSSID', field: `${d}/${d}.last_bssid`, show: notZeroMac, format: copyable,
                 help: 'The BSSID (MAC address) of the last network this device was part of.  Every access point has its own BSSID, even ones sharing an SSID.' },
             { title: 'Uptime', field: `${d}/${d}.bss_timestamp`, hideZero: true, format: uptime,
                 help: 'Access points send a high-precision timestamp that shows roughly how long they\'ve been running.  It usually resets when the access point restarts.' },
@@ -1329,7 +1319,7 @@ function registerDetails(kismet) {
             },
 
             {
-                group: 'Wi-Fi client behavior',
+                id: 'client_behavior', group: 'Wi-Fi client behavior',
                 show: (dev) => hasKeys(api.field(dev, `${d}/${d}.client_map`)),
                 help: 'A Wi-Fi device can be a client of several networks over time, but only of one access point at a time.  Clients usually roam between access points with the same SSID.',
                 fields: [
@@ -1399,7 +1389,7 @@ function registerDetails(kismet) {
         const rec = kismet.entities.peer(dev, phy)?.record;
         return rec && rec[d] ? rec : null;
     };
-    const ownRows = (pick) => (dot11Section?.fields ?? []).filter(pick);
+    const ownRows = (...ids) => (dot11Section?.fields ?? []).filter((f) => ids.includes(f.id));
     // The access point record of the network the client was last part of
     const lastApKey = (rec) => {
         const bssid = api.field(rec, `${d}/${d}.last_bssid`);
@@ -1408,27 +1398,18 @@ function registerDetails(kismet) {
     };
 
     const wirelessFields = [
-        { id: 'wifi_record', title: 'Wi-Fi record', field: `${base}.key`,
-            draw: (cell, key, rec, state) => {
-                if (state.key === key && cell.childNodes.length)
-                    return;
-                state.key = key;
-                cell.replaceChildren(el('a', { href: '#', class: 'mono', title: 'Open the Wi-Fi record', onclick: (e) => {
-                    e.preventDefault();
-                    ui.openDevice(key);
-                } }, rec[`${base}.macaddr`] ?? key, ' ', icons.icon('chain')));
-            },
+        { id: 'wifi_record', title: 'Wi-Fi record', field: `${base}.key`, draw: ui.recordLink({ title: 'Open the Wi-Fi record' }),
             help: 'The Wi-Fi device record linked to this one.  Open it for its own panel.' },
         { title: 'Type', field: `${base}.type`, hideEmpty: true },
-        ...ownRows((f) => f.title === 'Last BSSID'),
+        ...ownRows('last_bssid'),
         { id: 'wifi_network', title: 'Network', value: lastApKey, show: (key) => !!key,
             draw: (cell, key) => relatedText(cell, key, (dev) => ssidText(dev.last_ssid)),
             help: 'The SSID of the access point this device was last a client of.' },
-        ...ownRows((f) => f.title === 'Last beaconed SSID' || f.title === 'Last probed SSID'),
+        ...ownRows('last_beaconed_ssid', 'last_probed_ssid'),
         { title: 'Signal', field: `${base}.signal/kismet.common.signal.last_signal`, hideZero: true, format: format.signal,
             help: 'The last signal level the Wi-Fi record was heard at.' },
         { title: 'Last seen on Wi-Fi', field: `${base}.last_time`, format: format.time },
-        ...ownRows((f) => f.group === 'Wi-Fi client behavior'),
+        ...ownRows('client_behavior'),
     ];
 
     ui.deviceDetails.add({

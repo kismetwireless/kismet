@@ -39,6 +39,7 @@ import * as coverage from './widgets/coverage.js';
 import * as datatable from './widgets/datatable.js';
 import { addTable, tableColumns, tableHighlights } from './widgets/tables.js';
 import { openDevice } from './widgets/detailpanel.js';
+import { deviceLink, macLink, recordLink, macDevices, findMac } from './widgets/devicelink.js';
 import * as dialog from './widgets/dialog.js';
 import * as devicetable from './widgets/devicetable.js';
 import * as messages from './widgets/messages.js';
@@ -83,7 +84,10 @@ export const kismet = {
     pwa,
     // Alert severity names and colours: levels, level(n), label(n), color(n)
     alertSeverity,
-    // Linked wired and Wi-Fi records: linked(device), peer(device, phyname), status()
+    // Linked wired and Wi-Fi records, for open device panels and windows (not
+    // per row in lists): linked(device), peer(device, phyname), status(),
+    // refreshStatus(), supported().  See core/entities.js; replies are shared
+    // and read-only.
     entities,
 
     // Building blocks for modules that draw their own UI
@@ -162,6 +166,12 @@ export const kismet = {
         detailFields,
         muted,
         openDevice,
+        // Links to other devices in the device panel (widgets/devicelink.js)
+        deviceLink,
+        macLink,
+        recordLink,
+        macDevices,
+        findMac,
     },
 };
 

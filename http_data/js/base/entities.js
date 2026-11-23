@@ -11,53 +11,24 @@ const base = 'kismet.device.base';
 const en = 'kismet.entity';
 const ed = 'kismet.entity.edge';
 
-const macPattern = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/;
-
 export function register(kismet) {
-    const { ui, api, dom, icons, format, entities } = kismet;
+    const { ui, dom, format, entities } = kismet;
     const { el } = dom;
     const muted = ui.muted;
 
     const edgesOf = (reply) => (Array.isArray(reply?.[`${en}.edges`]) ? reply[`${en}.edges`] : []);
 
-    // Redraw a cell only when its value changed, so links stay put between the panel's redraws
+    // Redraw a cell only when its value changed, so links stay put between
+    // the panel's redraws.  build() draws from the value alone, so everything
+    // it shows has to be in the value.
     const stable = (build) => (cell, v, rec, state) => {
         const k = JSON.stringify(v ?? null);
         if (state.k === k && cell.childNodes.length)
             return undefined;
         state.k = k;
-        dom.replace(cell, build(v, rec));
+        dom.replace(cell, build(v));
         return undefined;
     };
-
-    const deviceLink = (key, text) => el('a', { href: '#', class: 'mono', title: 'Open this device', onclick: (e) => {
-        e.preventDefault();
-        ui.openDevice(key);
-    } }, text, ' ', icons.icon('chain'));
-
-    // A BSSID or WDS radio: a link to its Wi-Fi device, if Kismet tracks one
-    function macLink(mac) {
-        if (!macPattern.test(mac))
-            return el('span', { class: 'mono' }, mac);
-        const a = el('a', { href: '#', class: 'mono', title: 'Open this device', onclick: async (ev) => {
-            ev.preventDefault();
-            let key = null;
-            try {
-                const devs = await api.post(`devices/by-mac/${mac}/devices.json`, { fields: [`${base}.key`, `${base}.phyname`] });
-                const list = Array.isArray(devs) ? devs : [];
-                key = (list.find((d) => d[`${base}.phyname`] === 'IEEE802.11') ?? list[0])?.[`${base}.key`] ?? null;
-            } catch {
-                key = null;
-            }
-            if (key) {
-                ui.openDevice(key);
-            } else {
-                a.title = 'Kismet doesn\'t track a device with this MAC address';
-                a.classList.add('muted');
-            }
-        } }, mac, ' ', icons.icon('chain'));
-        return a;
-    }
 
     const threshold = () => {
         const t = entities.status()?.['kismet.entity.status.min_confidence'];
@@ -65,29 +36,28 @@ export function register(kismet) {
     };
 
     const edgeFields = [
-        { id: 'peer', title: 'Record', value: (x) => peerOf(x).key,
-            draw: stable((key, x) => {
-                const { record } = peerOf(x);
-                if (!record)
-                    return [el('span', { class: 'mono' }, x[`${ed}.macaddr`] ?? ''), ' ', muted('No longer tracked')];
-                return deviceLink(key, record[`${base}.macaddr`] ?? key);
-            }),
+        { id: 'peer', title: 'Record',
+            value: (x) => {
+                const { key, record } = peerOf(x);
+                return record ? { key, mac: record[`${base}.macaddr`] ?? key } : { key: null, mac: x[`${ed}.macaddr`] ?? '' };
+            },
+            draw: stable(({ key, mac }) => (key ? ui.deviceLink(key, mac) :
+                [el('span', { class: 'mono' }, mac), ' ', muted('No longer tracked')])),
             help: 'The linked device record.  The two records stay separate; open this one to see what the other phy saw.' },
-        { id: 'state', title: 'Link', value: (x) => [x[`${ed}.linked`], x[`${ed}.conflicted`], confidence(x), threshold()],
-            draw: stable((v, x) => {
-                const t = threshold();
-                const out = [x[`${ed}.linked`] ? el('span', { class: 'badge ok entity-badge' }, 'Linked') :
+        { id: 'state', title: 'Link', value: (x) => ({ linked: !!x[`${ed}.linked`], conflicted: !!x[`${ed}.conflicted`], t: threshold() }),
+            draw: stable(({ linked, conflicted, t }) => {
+                const out = [linked ? el('span', { class: 'badge ok entity-badge' }, 'Linked') :
                     el('span', { class: 'badge alert entity-badge' }, 'Possible link')];
-                if (x[`${ed}.conflicted`])
+                if (conflicted)
                     out.push(el('span', { class: 'badge error entity-badge', title: 'What the wire saw contradicts this link' }, 'Conflicted'));
-                if (!x[`${ed}.linked`])
+                if (!linked)
                     out.push(muted(t === null ? ' below the linking threshold' : ` below the linking threshold of ${t}`));
                 return out;
             }),
             help: 'Records are linked when the confidence reaches entity_link_min_confidence in kismet_wired.conf.  ' +
                 'Below it they are a possible link: listed here, but not given an entity id.  A conflicted link is one the wire contradicts.' },
-        { id: 'confidence', title: 'Confidence', value: confidence,
-            draw: stable((c, x) => el('div', { class: ['fill-bar', 'entity-confidence', !x[`${ed}.linked`] && 'possible'],
+        { id: 'confidence', title: 'Confidence', value: (x) => ({ c: confidence(x), linked: !!x[`${ed}.linked`] }),
+            draw: stable(({ c, linked }) => el('div', { class: ['fill-bar', 'entity-confidence', !linked && 'possible'],
                 role: 'meter', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': c, title: `${c} out of 100` },
             el('span', { class: 'fill-bar-fill', style: { width: `${c}%` } }),
             el('span', { class: 'fill-bar-text' }, `${c} / 100`))),
@@ -100,7 +70,7 @@ export function register(kismet) {
             draw: stable((v) => el('ul', { class: 'entity-evidence' }, evidenceText(v).map((t) => el('li', {}, t)))),
             help: 'What Kismet saw that ties the records together.  Each fact counts once.' },
         { id: 'via', title: 'Heard behind', value: viaList, show: (v) => v.length > 0,
-            draw: stable((v) => el('div', { class: 'entity-via' }, v.map((m) => macLink(m)))),
+            draw: stable((v) => el('div', { class: 'entity-via' }, v.map((m) => ui.macLink(m, { phy: 'IEEE802.11' })))),
             help: 'The access points (BSSIDs) or WDS bridge radios the Wi-Fi record was heard behind, newest first.' },
         { title: 'First linked', field: `${ed}.first_time`, format: (v) => format.time(v) },
         { title: 'Last confirmed', field: `${ed}.last_time`, format: (v) => format.time(v) },

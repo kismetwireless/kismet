@@ -5,14 +5,25 @@
 //                                  { 'kismet.entity.entity_id', 'kismet.entity.edges': [...] },
 //                                  or undefined until it's been read, or null when
 //                                  the server doesn't link records
-//   entities.peer(device, phyname) the linked record of that phy, or null
+//   entities.peer(device, phyname) the first linked record of that phy and its link,
+//                                  { record, edge }, or null
 //   entities.status()              the last /entities/status.json, read again when
-//                                  it's older than statusSeconds; null without one
+//                                  it's older than statusSeconds; null when the
+//                                  server has none (or before the first read)
+//   entities.refreshStatus()       read the status now: a promise of the reply, or
+//                                  null when the server has none
+//   entities.supported()           false once the server answered that it has no
+//                                  entity endpoints
 //
 // The device panel draws every second, so a section can call these from
 // match() and render(): a read starts when the kept reply is too old, and the
 // next draw shows it.  Links are read every few seconds while a record is
 // linked, less often while it isn't.
+//
+// They're meant for open device panels and windows, not for every row of a
+// device list or table: only the last 64 records are kept, and each one asks
+// the server on its own.  Replies are shared by every caller, so treat them as
+// read-only; copy before sorting or changing them.
 
 import * as api from './api.js';
 
