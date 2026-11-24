@@ -182,7 +182,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     },
     [62] = { 
         /* Not typically exposed */
-        .chan = 63, 
+        .chan = 62,
         .freq = 5310, 
         .flags = WIFI_WIDTH_40MHZ | WIFI_OTHER_RESERVED
     },
@@ -310,10 +310,11 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
         .freq = 5690, 
         .flags = WIFI_WIDTH_80MHZ | WIFI_OTHER_RESERVED
     },
-    [140] = { 
-        .chan = 140, 
-        .freq = 5700, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS | WIFI_HT_HT80,
+    [140] = {
+        /* Lower half of 40MHz 140/144 (centre 142) */
+        .chan = 140,
+        .freq = 5700,
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT80,
         .freq80 = 5690,
     },
     [142] = { 
@@ -325,7 +326,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [144] = { 
         .chan = 144, 
         .freq = 5720, 
-        /* Probably can't do 40+ here */
+        /* Upper half of 140/144; 144/148 isn't a channel */
         .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS | WIFI_HT_HT80,
         .freq80 = 5690,
     }, 
