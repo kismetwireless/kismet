@@ -27,7 +27,8 @@
 //
 // With rowKey(row) and detail(row, el), clicking a row shows its details
 // under the table, kept open (and redrawn with fresh data) across updates.
-// t.redraw() redraws the rows, for cells that fill in later.
+// t.redraw() redraws the rows, for cells that fill in later.  With onRow(row)
+// instead, clicking a row calls it (to open a window for the row, say).
 //
 // With fill: true the table takes the height of its container (a tab, say)
 // instead of ten rows; the container must be a flex column.
@@ -43,7 +44,7 @@ const visibleRows = 10;
 const listWidths = new Map();
 
 export function listTable({ id, load = null, columns, search = 'Search', empty = 'Nothing to show.',
-    refreshSeconds = 5, defaultSort = null, rowKey = null, detail = null, fill = false }) {
+    refreshSeconds = 5, defaultSort = null, rowKey = null, detail = null, onRow = null, fill = false }) {
 
     const sortKey = `listtable.${id}.sort`;
     let sort = settings.get(sortKey, null);
@@ -59,6 +60,7 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
     let destroyed = false;
     let version;
     let selected = null;    // rowKey of the row whose details show
+    let loads = 0;          // refreshes started
 
     const input = el('input', { type: 'search', placeholder: search, 'aria-label': search });
     const count = el('span', { class: 'muted list-table-count' });
@@ -81,7 +83,7 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
         el('div', { class: 'list-table-search' }, el('label', { class: 'search-box' }, icon('search'), input), count),
         scroll, message, detailBox);
 
-    if (detail)
+    if (detail || onRow)
         table.classList.add('selectable');
 
     function select(key) {
@@ -159,9 +161,13 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
             const r = shown[i];
             const key = rowKey ? String(rowKey(r)) : null;
             const tr = el('tr', { class: key !== null && key === selected ? 'selected' : null, dataset: key !== null ? { key } : null,
-                onclick: detail ? (e) => {
+                onclick: detail || onRow ? (e) => {
                     // Links and buttons in a row do their own thing
-                    if (!e.target.closest('a, button'))
+                    if (e.target.closest('a, button'))
+                        return;
+                    if (onRow)
+                        onRow(r);
+                    else
                         select(key);
                 } : null }, columns.map((c) => {
                 let content;
@@ -267,6 +273,9 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
         clearTimeout(timer);
         if (destroyed || !load)
             return;
+        // A refresh while one is loading replaces it: only the newest one's
+        // rows are kept, and only it sets the next timer
+        const seq = ++loads;
         // Taken off the page (its section or panel went away): stop for good
         if (node.isConnected)
             everConnected = true;
@@ -275,15 +284,22 @@ export function listTable({ id, load = null, columns, search = 'Search', empty =
         // Only while it's on screen: an open section in a visible page
         const onScreen = node.checkVisibility ? node.checkVisibility() : node.offsetParent !== null;
         if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
+            let got = null;
+            let failed = null;
             try {
-                rows = await load();
-                error = null;
+                got = await load();
             } catch (err) {
-                error = err;
+                failed = err;
+            }
+            if (destroyed || seq !== loads)
+                return;
+            if (failed) {
+                error = failed;
+            } else {
+                rows = got;
+                error = null;
             }
             loaded = true;
-            if (destroyed)
-                return;
             apply(true);
         }
         timer = setTimeout(refresh, (loaded ? refreshSeconds : 0.5) * 1000);

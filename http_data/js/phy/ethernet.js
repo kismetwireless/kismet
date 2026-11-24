@@ -1,7 +1,8 @@
 // Ethernet (IEEE802.3): wired devices from Ethernet captures, with their
 // VLANs, addresses, names and DHCP details, the Ethernet flows tab and the
 // Ethernet VLANs window, and the "On the wire" section of a device linked to
-// an Ethernet record (a Wi-Fi client, say).
+// an Ethernet record (a Wi-Fi client, say).  Clicking a flow opens its own
+// details window, laid out like the device panel.
 //
 // The server names no UI module for this phy, so js/core/modules.js loads
 // this one when the server lists the IEEE802.3 phy.  The tab and the window's
@@ -9,8 +10,8 @@
 // no location, so there's no map source for them.
 
 import { protocolNames, roleNames, tcpFlagNames, ipProtocolName, vlanLabel, vlanTagText, vlanSortKey,
-    endpoint, hostNames, addresses, statusNotes, flowFilter } from './ethernetinfo.js';
-import { statusNotes as entityNotes, statusSummary as entitySummary } from '../core/entityinfo.js';
+    endpoint, hostNames, addresses, statusNotes, flowFilter, flowKey, flowPoller } from './ethernetinfo.js';
+import { statusNotes as entityNotes, statusSummary as entitySummary, peerOf } from '../core/entityinfo.js';
 
 const base = 'kismet.device.base';
 const e = 'ethernet.device';
@@ -21,6 +22,9 @@ const vl = 'ethernet.vlan';
 const statusSeconds = 10;
 const flowPage = 200;
 const deviceFlows = 100;
+const flowSeconds = 5;
+// Flow windows' shared reads a tick, at most, however many are open
+const flowReads = 4;
 
 const macPattern = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/;
 
@@ -149,15 +153,7 @@ export function register(kismet) {
 
     const flowValue = (k) => (r) => r[`${fl}.${k}`];
     const flowVlan = (r) => vlanLabel(r[`${fl}.vlan_tags`], r[`${fl}.vid`], r[`${fl}.inner_vid`]);
-    const flowFlags = (r) => {
-        if (r[`${fl}.proto`] !== 6)
-            return '';
-        const a = tcpFlagNames(r[`${fl}.tcp_flags_ab`]).join(' ');
-        const b = tcpFlagNames(r[`${fl}.tcp_flags_ba`]).join(' ');
-        return `${a || '-'} / ${b || '-'}`;
-    };
-    const flowKey = (r) => ['family', 'proto', 'addr_a', 'port_a', 'addr_b', 'port_b', 'vlan_tags', 'vid', 'inner_vid']
-        .map((k) => r[`${fl}.${k}`]).join('|');
+    const mono = (v) => el('span', { class: 'mono eth-wrap' }, v);
 
     const flowColumns = [
         { id: 'proto', title: 'Protocol', value: (r) => ipProtocolName(r[`${fl}.proto`]) },
@@ -176,32 +172,19 @@ export function register(kismet) {
         { id: 'last', title: 'Last seen', value: flowValue('last_time'), dir: 'desc', render: (r) => time(r[`${fl}.last_time`]) },
     ];
 
-    // Everything about one flow, shown under the table when its row is clicked
-    const flowDetail = (r, node) => ui.detailFields(node, r, [
-        { title: 'Protocol', value: (x) => ipProtocolName(x[`${fl}.proto`]) },
-        { title: 'Side A', value: (x) => endpoint(x[`${fl}.addr_a`], x[`${fl}.port_a`], x[`${fl}.proto`]) },
-        { title: 'MAC A', field: `${fl}.mac_a`, format: macLink, help: 'The last source MAC address seen sending for side A.' },
-        { title: 'Side B', value: (x) => endpoint(x[`${fl}.addr_b`], x[`${fl}.port_b`], x[`${fl}.proto`]) },
-        { title: 'MAC B', field: `${fl}.mac_b`, format: macLink, help: 'The last source MAC address seen sending for side B.' },
-        { title: 'Started by', field: `${fl}.initiator`, format: (v) => (v === 'a' ? 'Side A' : 'Side B'),
-            help: 'The side that sent the first packet Kismet saw.  A flow already running when the capture started may have begun with the other side.' },
-        { title: 'VLAN', value: flowVlan },
-        { title: 'A to B', value: (x) => `${format.size(x[`${fl}.bytes_ab`])}, ${counted(x[`${fl}.packets_ab`])} packets` },
-        { title: 'B to A', value: (x) => `${format.size(x[`${fl}.bytes_ba`])}, ${counted(x[`${fl}.packets_ba`])} packets` },
-        { title: 'TCP flags', value: flowFlags, hideEmpty: true, help: 'TCP flags seen from side A / side B.' },
-        { title: 'First seen', field: `${fl}.first_time`, format: time },
-        { title: 'Last seen', field: `${fl}.last_time`, format: time },
-    ]);
-
     // A table of flows from the server, most recent first.  query() gives the
-    // filter and paging; onLoad gets the whole reply, and onDetail is called
-    // when a flow's details are drawn.  fill makes it take its container's height.
-    function flowTable(id, query, onLoad, onDetail, fill = false) {
+    // filter and paging, and onLoad gets the whole reply.  Clicking a flow
+    // opens its window.  fill makes it take its container's height.
+    function flowTable(id, query, onLoad, fill = false) {
+        let asked = 0;
         return listTable({
             id, fill,
             load: async () => {
+                const n = ++asked;
                 const r = await api.post('phy/ethernet/flows/flows.json', query());
-                onLoad?.(r);
+                // A reply overtaken by a newer read (a new filter) doesn't count
+                if (n === asked)
+                    onLoad?.(r);
                 return list(r?.[`${fl}s.flows`]);
             },
             columns: flowColumns,
@@ -209,12 +192,209 @@ export function register(kismet) {
             empty: 'No flows.',
             defaultSort: { column: 'last', dir: 'desc' },
             rowKey: flowKey,
-            detail: (r, node) => {
-                flowDetail(r, node);
-                onDetail?.();
-            },
+            onRow: (r) => openFlow(r),
             refreshSeconds: 5,
         });
+    }
+
+    // ---- flow details --------------------------------------------------------
+
+    const hasPorts = (proto) => proto === 6 || proto === 17 || proto === 132;
+    const packetCount = (n) => `${counted(n)} ${n === 1 ? 'packet' : 'packets'}`;
+
+    // Redraw a cell only when its value changed, so links stay put between redraws
+    const stable = (build) => (cell, v, _rec, state) => {
+        const k = JSON.stringify(v ?? null);
+        if (state.k === k && cell.childNodes.length)
+            return undefined;
+        state.k = k;
+        dom.replace(cell, build(v));
+        return undefined;
+    };
+
+    // The records the server linked to the Ethernet record of a side's MAC
+    // address (its Wi-Fi record, say): [{ key, mac, phy, linked }].  The MAC's
+    // records are looked up once, and the links read as the device panel reads them.
+    function linkedTo(mac) {
+        if (typeof mac !== 'string' || !macPattern.test(mac))
+            return [];
+        const devs = ui.macDevices(mac);
+        if (devs === undefined) {
+            ui.findMac(mac);
+            return [];
+        }
+        const key = devs.find((x) => x.phy === phy)?.key;
+        if (!key)
+            return [];
+        const edges = kismet.entities.linked({ [`${base}.key`]: key })?.['kismet.entity.edges'];
+        return list(edges).map((edge) => {
+            const { key: peerKey, record } = peerOf(edge);
+            return { key: peerKey, mac: record?.[`${base}.macaddr`] ?? '', phy: record?.[`${base}.phyname`] ?? '',
+                linked: !!edge?.['kismet.entity.edge.linked'] };
+        }).filter((x) => x.key && x.phy !== phy);
+    }
+
+    const sideFields = (s) => [
+        { title: 'Address', field: `${fl}.addr_${s}`, format: mono },
+        { title: 'Port', field: `${fl}.port_${s}`, show: (_v, x) => hasPorts(x[`${fl}.proto`]), format: (v) => String(v) },
+        { title: 'MAC', field: `${fl}.mac_${s}`, format: macLink,
+            help: 'The last source MAC address seen sending for this side.  For an address on another network it is ' +
+                'usually a router\'s.  Open it for that device\'s panel.' },
+        { id: `linked_${s}`, title: 'Linked devices', value: (x) => linkedTo(x[`${fl}.mac_${s}`]),
+            show: (v) => v.length > 0,
+            draw: stable((v) => v.map((x) => {
+                const a = ui.deviceLink(x.key, x.mac || x.key);
+                a.classList.add('eth-mac');
+                return el('div', {}, a, ' ', muted(`${x.phy}${x.linked ? '' : ', possible link'}`));
+            })),
+            help: 'Records on other phys that Kismet linked to this MAC address\'s Ethernet record: the same device ' +
+                'seen on Wi-Fi, say.  A possible link is below entity_link_min_confidence.' },
+    ];
+
+    // The flow window's sections, in order
+    const flowSections = [
+        { id: 'flow', title: 'Flow', fields: [
+            { title: 'Protocol', value: (x) => ipProtocolName(x[`${fl}.proto`]) },
+            { title: 'Address family', field: `${fl}.family`, format: (v) => (v === 6 ? 'IPv6' : v === 4 ? 'IPv4' : '-') },
+            { title: 'VLAN', value: flowVlan },
+            { title: 'Started by', field: `${fl}.initiator`, format: (v) => (v === 'a' ? 'Side A' : 'Side B'),
+                help: 'The side that sent the first packet Kismet saw.  A flow already running when the capture started may have begun with the other side.' },
+            { title: 'First seen', field: `${fl}.first_time`, format: time },
+            { title: 'Last seen', field: `${fl}.last_time`, format: time },
+            { title: 'Duration', value: (x) => ((x[`${fl}.first_time`] ?? 0) > 0 && (x[`${fl}.last_time`] ?? 0) >= x[`${fl}.first_time`] ?
+                format.duration(x[`${fl}.last_time`] - x[`${fl}.first_time`]) : undefined),
+            help: 'From the first packet Kismet saw to the last.' },
+        ] },
+        { id: 'side_a', title: 'Side A', fields: sideFields('a') },
+        { id: 'side_b', title: 'Side B', fields: sideFields('b') },
+        { id: 'traffic', title: 'Traffic', fields: [
+            { title: 'A to B', value: (x) => `${format.size(x[`${fl}.bytes_ab`])}, ${packetCount(x[`${fl}.packets_ab`])}`,
+                help: 'Bytes and packets side A sent, as on the wire.' },
+            { title: 'B to A', value: (x) => `${format.size(x[`${fl}.bytes_ba`])}, ${packetCount(x[`${fl}.packets_ba`])}`,
+                help: 'Bytes and packets side B sent, as on the wire.' },
+            { title: 'Flags from A', value: (x) => tcpFlagNames(x[`${fl}.tcp_flags_ab`]).join(' ') || '-',
+                show: (_v, x) => x[`${fl}.proto`] === 6, help: 'Every TCP flag side A sent in this flow.' },
+            { title: 'Flags from B', value: (x) => tcpFlagNames(x[`${fl}.tcp_flags_ba`]).join(' ') || '-',
+                show: (_v, x) => x[`${fl}.proto`] === 6, help: 'Every TCP flag side B sent in this flow.' },
+        ] },
+    ];
+
+    const flowTitle = (x) => `${endpoint(x[`${fl}.addr_a`], x[`${fl}.port_a`], x[`${fl}.proto`])} ↔ ` +
+        `${endpoint(x[`${fl}.addr_b`], x[`${fl}.port_b`], x[`${fl}.proto`])}`;
+
+    const openFlowWindows = new Map();      // flow key -> window
+
+    // Every open flow window is read through this, sharing reads of the same address
+    const flowReader = flowPoller({
+        post: (body) => api.post('phy/ethernet/flows/flows.json', body),
+        seconds: flowSeconds,
+        maxReads: flowReads,
+        visible: () => document.visibilityState !== 'hidden',
+    });
+
+    // A flow's details window, like the device panel: one per flow, read
+    // again while it's open and the page is visible, until it's found gone
+    function openFlow(r) {
+        const key = flowKey(r);
+        const had = openFlowWindows.get(key);
+        if (had?.node.isConnected) {
+            had.raise();
+            return had;
+        }
+
+        const subtitle = el('div', { class: 'detail-subtitle muted' });
+        const noteText = el('p', { class: 'warn-text' });
+        const again = el('button', { type: 'button', hidden: true, onclick: () => watcher.check() }, 'Check again');
+        const note = el('div', { class: 'eth-flow-note', hidden: true }, noteText, again);
+        const sections = kismet.widgets.detailSections({ closed: 'ethernet.flow.closed', what: 'flow' });
+        const content = el('div', {}, subtitle, note, sections.node);
+        let flow = r;
+        let state = 'found';
+        let was = 'found';
+        let failed = '';
+        let userSized = false;
+        let fitted = 0;
+
+        // Opens where the user last put one, each further one a little offset
+        const saved = settings.get('ethernet.flow.position', null);
+        const offset = openFlowWindows.size * 24;
+        const d = dialog({
+            title: flowTitle(r),
+            body: content,
+            modal: false,
+            className: 'detail-panel eth-flow-panel',
+            position: saved ? { ...saved, left: saved.left + offset, top: saved.top + offset } : null,
+            onMove: (pos) => {
+                settings.set('ethernet.flow.position', pos);
+                if (fitted && Math.abs((pos?.height ?? fitted) - fitted) > 1)
+                    userSized = true;
+            },
+            onClose: () => {
+                watcher.stop();
+                clearInterval(ticker);
+                resized.disconnect();
+                if (openFlowWindows.get(key) === d)
+                    openFlowWindows.delete(key);
+            },
+        });
+        openFlowWindows.set(key, d);
+
+        // To its content's height, until the user sizes it
+        function fit() {
+            if (userSized)
+                return;
+            requestAnimationFrame(() => {
+                if (userSized || !d.node.isConnected)
+                    return;
+                d.fitContent({ grow: true });
+                fitted = d.node.offsetHeight;
+            });
+        }
+        // Rows that come and go (links, the note, a closed section) change the height
+        const resized = new ResizeObserver(() => fit());
+        resized.observe(content);
+
+        const notes = {
+            gone: 'Kismet no longer tracks this flow: it went idle and was forgotten.  These are the last numbers read.',
+            unknown: 'This flow is no longer among the newest flows of either of its addresses, so it can\'t be read ' +
+                'again.  These are the last numbers read.',
+        };
+
+        function draw() {
+            const scrollTop = d.body.scrollTop;
+            d.setTitle(flowTitle(flow));
+            const vlan = (flow[`${fl}.vlan_tags`] ?? 0) > 0 ? `VLAN ${flowVlan(flow)}` : 'Untagged';
+            subtitle.textContent = ['Ethernet flow', ipProtocolName(flow[`${fl}.proto`]), vlan].join(' · ');
+            // While it's being looked for, the note of before stays
+            const shown = state === 'checking' ? was : state;
+            const text = shown === 'error' ? `Could not read the flow: ${failed}.  These are the last numbers read.` : notes[shown] ?? '';
+            if (noteText.textContent !== text)
+                noteText.textContent = text;
+            note.hidden = !text;
+            // Not read again until asked to
+            again.hidden = shown !== 'gone' && shown !== 'unknown';
+            again.disabled = state === 'checking';
+            again.textContent = state === 'checking' ? 'Checking…' : 'Check again';
+            sections.render(flow, flowSections);
+            if (d.body.scrollTop !== scrollTop)
+                d.body.scrollTop = scrollTop;
+        }
+
+        const watcher = flowReader.watch(r, (w) => {
+            ({ flow, state, was } = w);
+            failed = w.error;
+            if (d.node.isConnected)
+                draw();
+        });
+
+        // Links to linked records fill in as their replies arrive
+        const ticker = setInterval(() => {
+            if (document.visibilityState !== 'hidden')
+                draw();
+        }, 1000);
+
+        draw();
+        return d;
     }
 
     // ---- server status -----------------------------------------------------
@@ -424,7 +604,7 @@ export function register(kismet) {
             'Side A and side B are the two ends; the MACs are the last ones seen sending for each side, which for a remote ' +
             'address is usually a router.',
         'The newest flows come first, a page at a time.  Filter by a MAC address (either side), an IP address (either side) ' +
-            'or a VLAN ID; the search box then searches the page shown.  Click a flow for its details.',
+            'or a VLAN ID; the search box then searches the page shown.  Click a flow to open its details window.',
         'Flows are kept in memory only, never logged, and are forgotten after they go idle (wired_flow_tcp_timeout and ' +
             'wired_flow_udp_timeout in kismet_wired.conf).',
     ];
@@ -484,7 +664,7 @@ export function register(kismet) {
                 setTimeout(() => table.refresh(), 0);
             }
             showPage();
-        }, null, true);
+        }, true);
 
         function showPage() {
             const n = total ?? 0;
@@ -608,7 +788,6 @@ export function register(kismet) {
         const v = kismet.api.field(dev, p);
         return typeof v === 'string' && v !== '';
     });
-    const mono = (v) => el('span', { class: 'mono eth-wrap' }, v);
 
     // Its rows are also drawn from a linked Ethernet record, in another phy's
     // "On the wire" section

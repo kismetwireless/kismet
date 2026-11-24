@@ -60,6 +60,7 @@ import * as memory from './widgets/memory.js';
 import * as environment from './widgets/environment.js';
 import * as envdata from './widgets/envdata.js';
 import { aboutView } from './widgets/aboutview.js';
+import { detailSections } from './widgets/detailsections.js';
 import * as cpu from './widgets/cpu.js';
 import * as devicerules from './widgets/devicerules.js';
 import * as loading from './widgets/loading.js';
@@ -116,6 +117,7 @@ export const kismet = {
         environment,
         envdata,
         aboutView,
+        detailSections,
         cpu,
         devicerules,
         loading,

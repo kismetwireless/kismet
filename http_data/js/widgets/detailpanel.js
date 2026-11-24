@@ -15,7 +15,7 @@ import * as api from '../core/api.js';
 import * as censor from '../core/censor.js';
 import * as settings from '../core/settings.js';
 import { deviceDetails, deviceDetailFields } from '../registry/devices.js';
-import { detailFields } from './detailfields.js';
+import { detailSections } from './detailsections.js';
 import { dialog } from './dialog.js';
 
 const open = new Map();     // device key -> panel
@@ -31,19 +31,6 @@ function sectionFields(section) {
         .map((x) => x.entry);
 }
 
-function isClosed(id) {
-    return settings.get('detail.closed', {})[id];
-}
-
-function setClosed(id, closed) {
-    const all = { ...settings.get('detail.closed', {}) };
-    if (closed)
-        all[id] = true;
-    else
-        delete all[id];
-    settings.set('detail.closed', all);
-}
-
 export function openDevice(key) {
     if (!key)
         return;
@@ -53,9 +40,8 @@ export function openDevice(key) {
         return;
     }
 
-    const sections = el('div', { class: 'detail-sections' }, el('p', { class: 'muted' }, 'Loading...'));
+    const sections = detailSections({ closed: 'detail.closed', what: 'device' });
     const subtitle = el('div', { class: 'detail-subtitle muted' });
-    const sectionEls = new Map();
     let socket = null;
     let closed = false;
     let last = null;
@@ -65,7 +51,7 @@ export function openDevice(key) {
     const offset = open.size * 24;
     const d = dialog({
         title: 'Device',
-        body: el('div', {}, subtitle, sections),
+        body: el('div', {}, subtitle, sections.node),
         modal: false,
         className: 'detail-panel',
         position: saved ? { ...saved, left: saved.left + offset, top: saved.top + offset } : null,
@@ -90,59 +76,7 @@ export function openDevice(key) {
         subtitle.textContent = [device[`${base}.phyname`], device[`${base}.type`], device[`${base}.macaddr`]]
             .filter(Boolean).join(' · ');
 
-        const matching = deviceDetails.list().filter((s) => {
-            try {
-                return s.match(device);
-            } catch (err) {
-                console.error(`device section ${s.id} failed:`, err);
-                return false;
-            }
-        });
-
-        const wanted = new Set(matching.map((s) => s.id));
-        for (const [id, node] of sectionEls) {
-            if (!wanted.has(id)) {
-                node.remove();
-                sectionEls.delete(id);
-            }
-        }
-        if (sectionEls.size === 0)
-            sections.replaceChildren();
-
-        let at = sections.firstElementChild;
-        for (const s of matching) {
-            let section = sectionEls.get(s.id);
-            if (!section) {
-                const fieldsEl = el('div', { class: 'detail-body' });
-                const customEl = el('div', { class: 'detail-body detail-custom' });
-                const startOpen = !isClosed(s.id) && s.open !== false;
-                section = el('details', { class: 'detail-section', open: startOpen, dataset: { id: s.id } },
-                    el('summary', {}, s.title), fieldsEl, customEl);
-                section.addEventListener('toggle', () => setClosed(s.id, !section.open));
-                section.fieldsEl = fieldsEl;
-                section.customEl = customEl;
-                sectionEls.set(s.id, section);
-            }
-            // Keep sections in priority order, moving only one that's out of place
-            if (section !== at)
-                sections.insertBefore(section, at);
-            else
-                at = at.nextElementSibling;
-
-            try {
-                const fields = sectionFields(s);
-                section.fieldsEl.hidden = fields.length === 0;
-                if (fields.length)
-                    detailFields(section.fieldsEl, device, fields);
-                section.customEl.hidden = !s.render;
-                if (s.render)
-                    s.render(device, section.customEl);
-            } catch (err) {
-                console.error(`device section ${s.id} failed:`, err);
-                section.customEl.hidden = false;
-                section.customEl.replaceChildren(el('p', { class: 'form-error' }, `This section failed: ${err.message}`));
-            }
-        }
+        sections.render(device, deviceDetails.list(), sectionFields);
 
         if (d.body.scrollTop !== scrollTop)
             d.body.scrollTop = scrollTop;
@@ -186,6 +120,6 @@ export function openDevice(key) {
             watch();
         })
         .catch((err) => {
-            sections.replaceChildren(el('p', { class: 'form-error' }, `Could not load the device: ${err.message}`));
+            sections.node.replaceChildren(el('p', { class: 'form-error' }, `Could not load the device: ${err.message}`));
         });
 }
