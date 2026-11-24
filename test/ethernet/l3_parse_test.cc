@@ -8,6 +8,8 @@
 
 #include "config.h"
 
+#include <algorithm>
+#include <bit>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -607,11 +609,14 @@ static wired_flow_tracker::observation obs(uint8_t a, uint8_t b, uint16_t sp, ui
     return o;
 }
 
+// Trackers in tests hash with fixed seeds so every run places flows alike
+constexpr uint64_t test_seed = 0x5eed;
+
 static void test_flows() {
     using r = wired_flow_tracker::result;
     wired_flow_tracker::params p;
     p.max_flows = 100;
-    wired_flow_tracker t(p);
+    wired_flow_tracker t(p, test_seed);
 
     CHECK(t.add(obs(1, 1, 1000, 53, 10)) == r::created);
     CHECK(t.add(obs(1, 1, 1000, 53, 11)) == r::updated);
@@ -686,14 +691,229 @@ static void test_flows() {
     m.dst.family = 6;
     CHECK(t.add(m) == r::ignored);
     p.max_flows = 0;
-    wired_flow_tracker z(p);
+    wired_flow_tracker z(p, test_seed);
     CHECK(z.add(obs(1, 1, 1, 1, 1)) == r::ignored);
+}
+
+// UDP 192.0.2.10:2588 hashed, without a seed, to the same shard and pending slot as the
+// victim's :40000, so one attacker packet between the victim's two kept it deferred
+static void test_flow_seed_collision() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 100;
+
+    // any seed puts them in one slot one time in 16384; none of these do
+    for (uint64_t seed = 1; seed <= 8; seed++) {
+        wired_flow_tracker t(p, seed);
+        for (int i = 0; i < 90; i++)
+            t.add(obs(2, 2, 2000 + i, 80, 20, 6));
+
+        CHECK(t.add(obs(10, 10, 40000, 443, 21)) == r::deferred);
+        CHECK(t.add(obs(10, 10, 2588, 443, 21)) == r::deferred);
+        CHECK(t.add(obs(10, 10, 40000, 443, 22)) == r::created);
+    }
+}
+
+// The unseeded hash could be solved for addr_b: a UDP flow 2001:db8::1:1 -> [forged]:i whose
+// pre-avalanche value is target, so every forged key with one target had one hash, and
+// target 0 gave hash 0 (splitmix64 maps 0 to 0)
+static wired_flow_tracker::observation forged_obs(uint16_t i, uint64_t target) {
+    constexpr uint64_t c = 0x9e3779b97f4a7c15ULL;
+    const auto mixf = [](uint64_t h, uint64_t v) { return h ^ (v + c + (h << 6) + (h >> 2)); };
+    const auto unmix = [](uint64_t h, uint64_t t) { return (t ^ h) - c - (h << 6) - (h >> 2); };
+
+    wired_flow_tracker::observation o;
+    o.src.family = o.dst.family = 6;
+    o.src.a = {0x20, 0x01, 0x0d, 0xb8};
+    o.src.a[15] = 1;
+    o.proto = 17;
+    o.sport = 1;
+    o.dport = i;
+    o.bytes = 60;
+
+    uint64_t h = (6ULL << 56) | (17ULL << 48) | (1ULL << 16) | i;
+    h = mixf(h, 0);
+    uint64_t ahi = 0, alo = 0;
+    for (int k = 0; k < 8; k++) {
+        ahi = (ahi << 8) | o.src.a[k];
+        alo = (alo << 8) | o.src.a[k + 8];
+    }
+    h = mixf(h, mixf(ahi, alo));
+    const uint64_t bhi = 0x20010db800000000ULL | i;
+    const uint64_t blo = unmix(bhi, unmix(h, target));
+    for (int k = 0; k < 8; k++) {
+        o.dst.a[k] = static_cast<uint8_t>(bhi >> (56 - 8 * k));
+        o.dst.a[k + 8] = static_cast<uint8_t>(blo >> (56 - 8 * k));
+    }
+    return o;
+}
+
+struct flow_peek : public wired_flow_tracker {
+    using wired_flow_tracker::wired_flow_tracker;
+
+    size_t shard_size(size_t i) const {
+        std::lock_guard<std::mutex> lk(shards[i].mutex);
+        return shards[i].flows.size();
+    }
+
+    // Pending slots hold 0 (empty) or a tag with bit 0 set
+    bool pending_tags_odd() const {
+        for (size_t i = 0; i < n_shards; i++) {
+            std::lock_guard<std::mutex> lk(shards[i].mutex);
+            for (auto v : shards[i].pending)
+                if (v != 0 && (v & 1) == 0)
+                    return false;
+        }
+        return true;
+    }
+
+    uint64_t hash_of(const key& k) const { return hasher(k); }
+
+    // Every shard's map hashes with the tracker's seeded hasher, not a default one
+    bool maps_use_hasher(const key& k) const {
+        for (size_t i = 0; i < n_shards; i++) {
+            if (shards[i].flows.hash_function()(k) != hasher(k))
+                return false;
+        }
+        return true;
+    }
+};
+
+static void test_flow_forged_keys() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 100;
+
+    // a hash-0 key matched an empty pending slot and was admitted on its first packet
+    flow_peek t(p, test_seed);
+    for (int i = 0; i < 90; i++)
+        t.add(obs(2, 2, 2000 + i, 80, 20, 6));
+    for (uint16_t i = 1; i <= 4; i++)
+        CHECK(t.add(forged_obs(i, 0)) == r::deferred);
+    for (int i = 0; i < 200; i++)
+        t.add(obs(3, 3, 3000 + i, 53, 21));
+    CHECK(t.pending_tags_odd());
+
+    // keys forged to one hash all went to one shard and one probe chain
+    p.max_flows = 16384;
+    flow_peek u(p, test_seed);
+    constexpr uint16_t n_forged = 512;
+    for (uint16_t i = 1; i <= n_forged; i++)
+        CHECK(u.add(forged_obs(i, 0x1234567ULL)) == r::created);
+    CHECK(u.get_stats().flows == n_forged);
+    size_t biggest = 0;
+    for (size_t s = 0; s < wired_flow_tracker::n_shards; s++)
+        biggest = std::max(biggest, u.shard_size(s));
+    // 32 per shard expected
+    CHECK(biggest < 64);
+}
+
+static void flip_key_bit(wired_flow_tracker::key& k, unsigned bit) {
+    if (bit < 8)
+        k.family ^= 1U << bit;
+    else if (bit < 16)
+        k.proto ^= 1U << (bit - 8);
+    else if (bit < 32)
+        k.port_a ^= 1U << (bit - 16);
+    else if (bit < 48)
+        k.port_b ^= 1U << (bit - 32);
+    else if (bit < 112)
+        k.vlan ^= 1ULL << (bit - 48);
+    else if (bit < 240)
+        k.addr_a[(bit - 112) / 8] ^= 1U << ((bit - 112) % 8);
+    else
+        k.addr_b[(bit - 240) / 8] ^= 1U << ((bit - 240) % 8);
+}
+
+static void test_flow_hash_seed() {
+    using kh = wired_flow_tracker::key_hash;
+    constexpr unsigned key_bits = 368;
+    constexpr unsigned n_keys = 256;
+    constexpr uint64_t slot_mask = wired_flow_tracker::n_shards * wired_flow_tracker::pending_slots - 1;
+
+    const kh a(1), a2(1), b(2);
+    unsigned same_shard = 0, same_slot = 0, mismatched = 0;
+
+    for (unsigned i = 0; i < n_keys; i++) {
+        wired_flow_tracker::key k;
+        k.family = 4;
+        k.proto = 17;
+        k.port_a = 1024 + i;
+        k.port_b = 53;
+        k.addr_a[0] = 192; k.addr_a[2] = 2; k.addr_a[3] = 1;
+        k.addr_b[0] = 198; k.addr_b[1] = 51; k.addr_b[2] = 100; k.addr_b[3] = 1;
+
+        if (a(k) != a2(k))
+            mismatched++;
+        if (a(k) % wired_flow_tracker::n_shards == b(k) % wired_flow_tracker::n_shards)
+            same_shard++;
+        if ((a(k) & slot_mask) == (b(k) & slot_mask))
+            same_slot++;
+    }
+
+    // the same seed is repeatable; another seed reshuffles shards (1 in 16 alike) and slots
+    CHECK(mismatched == 0);
+    CHECK(same_shard < n_keys / 8);
+    CHECK(same_slot < 4);
+
+    // every key bit flips about half of the hash
+    uint64_t total = 0;
+    unsigned weak = 0;
+    for (unsigned bit = 0; bit < key_bits; bit++) {
+        unsigned flipped = 0;
+        for (unsigned i = 0; i < 64; i++) {
+            wired_flow_tracker::key k;
+            k.family = 6;
+            k.proto = 6;
+            k.port_a = i * 977;
+            k.port_b = 443;
+            k.vlan = i * 0x10001;
+            k.addr_a[0] = 0x20; k.addr_a[1] = 0x01; k.addr_a[2] = 0x0d; k.addr_a[3] = 0xb8;
+            k.addr_a[15] = i;
+            k.addr_b = k.addr_a;
+            k.addr_b[14] = 1;
+            const auto h = a(k);
+            flip_key_bit(k, bit);
+            flipped += std::popcount(h ^ a(k));
+        }
+        total += flipped;
+        if (flipped < 64 * 28 || flipped > 64 * 36)
+            weak++;
+    }
+    const double mean = static_cast<double>(total) / (key_bits * 64);
+    CHECK(mean > 31.5 && mean < 32.5);
+    CHECK(weak == 0);
+
+    // trackers with one seed defer and admit alike
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 100;
+    wired_flow_tracker t1(p, 7), t2(p, 7);
+    for (int i = 0; i < 90; i++) {
+        t1.add(obs(2, 2, 2000 + i, 80, 20, 6));
+        t2.add(obs(2, 2, 2000 + i, 80, 20, 6));
+    }
+    for (int i = 0; i < 64; i++) {
+        const auto o = obs(10, 10, 3000 + i * 13, 443, 21);
+        CHECK(t1.add(o) == t2.add(o));
+    }
+    CHECK(t1.get_stats().deferred == t2.get_stats().deferred && t1.get_stats().flows == t2.get_stats().flows);
+    CHECK(t1.add(obs(10, 10, 40000, 443, 22)) == r::deferred);
+
+    // without a seed each tracker draws its own, and the maps hash with it
+    wired_flow_tracker::key k;
+    k.family = 4;
+    k.proto = 17;
+    const flow_peek d1(p), d2(p), s1(p, 7);
+    CHECK(d1.hash_of(k) != d2.hash_of(k));
+    CHECK(s1.hash_of(k) == kh(7)(k) && s1.hash_of(k) != kh()(k));
+    CHECK(d1.maps_use_hasher(k) && d2.maps_use_hasher(k) && s1.maps_use_hasher(k));
 }
 
 static void test_flow_times() {
     wired_flow_tracker::params p;
     p.max_flows = 1000;
-    wired_flow_tracker t(p);
+    wired_flow_tracker t(p, test_seed);
 
     // Packet times from 2036 and a day back: expiry follows server time only
     auto fut = obs(1, 1, 1, 1, 0);
@@ -713,7 +933,7 @@ static void test_flow_times() {
 
     // Newest packet first, ties in key order, and every page of a large table agrees with a
     // full listing
-    wired_flow_tracker u(p);
+    wired_flow_tracker u(p, test_seed);
     for (int i = 0; i < 500; i++)
         u.add(obs(static_cast<uint8_t>(i % 7), static_cast<uint8_t>(i % 11), static_cast<uint16_t>(i), 9,
                     static_cast<time_t>(i % 13)));
@@ -785,6 +1005,9 @@ int main() {
     test_dns_names();
     test_dhcp6();
     test_flows();
+    test_flow_seed_collision();
+    test_flow_forged_keys();
+    test_flow_hash_seed();
     test_flow_times();
     test_frame_reuse();
     test_escape_hidden();

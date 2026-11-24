@@ -20,36 +20,14 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
+#include <random>
 #include <tuple>
 
 namespace {
 
-constexpr uint64_t mix(uint64_t h, uint64_t v) {
-    h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
-    return h;
-}
-
-constexpr uint64_t fold16(const std::array<uint8_t, 16>& a) {
-    uint64_t hi = 0, lo = 0;
-    for (size_t i = 0; i < 8; i++) {
-        hi = (hi << 8) | a[i];
-        lo = (lo << 8) | a[i + 8];
-    }
-    return mix(hi, lo);
-}
-
-constexpr uint8_t tcp_fin = 0x01;
-constexpr uint8_t tcp_rst = 0x04;
-
-}
-
-uint64_t wired_flow_tracker::key_hash::operator()(const key& k) const noexcept {
-    uint64_t h = (static_cast<uint64_t>(k.family) << 56) | (static_cast<uint64_t>(k.proto) << 48) |
-        (static_cast<uint64_t>(k.port_a) << 16) | k.port_b;
-    h = mix(h, k.vlan);
-    h = mix(h, fold16(k.addr_a));
-    h = mix(h, fold16(k.addr_b));
-    // final avalanche (splitmix64)
+// splitmix64 finalizer
+constexpr uint64_t avalanche(uint64_t h) {
     h ^= h >> 30;
     h *= 0xbf58476d1ce4e5b9ULL;
     h ^= h >> 27;
@@ -58,9 +36,66 @@ uint64_t wired_flow_tracker::key_hash::operator()(const key& k) const noexcept {
     return h;
 }
 
+uint64_t load64(const uint8_t* p) {
+    uint64_t v;
+    std::memcpy(&v, p, sizeof(v));
+    return v;
+}
+
+// What a pending slot holds for hash h; never 0, which marks an empty slot.  Bit 0 is part of
+// the shard index, so it's the same for every hash in one shard and setting it loses nothing.
+constexpr uint64_t pending_tag(uint64_t h) {
+    return h | 1;
+}
+
+static_assert(wired_flow_tracker::n_shards % 2 == 0, "pending_tag needs bit 0 in the shard index");
+
+uint64_t random_seed() {
+    std::random_device rd;
+    return (static_cast<uint64_t>(rd()) << 32) ^ rd();
+}
+
+constexpr uint8_t tcp_fin = 0x01;
+constexpr uint8_t tcp_rst = 0x04;
+
+}
+
+wired_flow_tracker::key_hash::key_hash(uint64_t seed) {
+    for (auto& k : keys) {
+        seed += 0x9e3779b97f4a7c15ULL;
+        k = avalanche(seed);
+    }
+}
+
+uint64_t wired_flow_tracker::key_hash::operator()(const key& k) const noexcept {
+    // NH (as in UMAC) over the six key words: the sum of (w0 + k0) * (w1 + k1) in 128 bits is
+    // the same for two keys with chance 2^-64 unless the attacker knows the keys
+    uint64_t lo = 0, hi = 0;
+    const auto nh = [&lo, &hi](uint64_t a, uint64_t b) {
+        ankerl::unordered_dense::detail::wyhash::mum(&a, &b);
+        lo += a;
+        hi += b + (lo < a);
+    };
+
+    nh(((static_cast<uint64_t>(k.family) << 56) | (static_cast<uint64_t>(k.proto) << 48) |
+                (static_cast<uint64_t>(k.port_a) << 16) | k.port_b) + keys[0],
+            k.vlan + keys[1]);
+    nh(load64(k.addr_a.data()) + keys[2], load64(k.addr_a.data() + 8) + keys[3]);
+    nh(load64(k.addr_b.data()) + keys[4], load64(k.addr_b.data() + 8) + keys[5]);
+
+    return avalanche(lo ^ hi ^ keys[6]);
+}
+
 wired_flow_tracker::wired_flow_tracker(const params& in_p) :
+    wired_flow_tracker(in_p, random_seed()) { }
+
+wired_flow_tracker::wired_flow_tracker(const params& in_p, uint64_t hash_seed) :
     p{in_p},
+    hasher{hash_seed},
     shards{std::make_unique<shard[]>(n_shards)} {
+
+    for (size_t i = 0; i < n_shards; i++)
+        shards[i].flows = decltype(shard::flows)(0, hasher);
 
     if (p.admit_pct > 100)
         p.admit_pct = 100;
@@ -100,7 +135,7 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
         k.port_b = o.sport;
     }
 
-    const auto h = key_hash{}(k);
+    const auto h = hasher(k);
     auto& s = shards[h % n_shards];
 
     std::lock_guard<std::mutex> lk(s.mutex);
@@ -113,8 +148,9 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
 
         if (n >= admit_threshold && n < p.max_flows) {
             auto& slot = s.pending[(h / n_shards) % pending_slots];
-            if (slot != h) {
-                slot = h;
+            const auto tag = pending_tag(h);
+            if (slot != tag) {
+                slot = tag;
                 n_deferred.fetch_add(1, std::memory_order_relaxed);
                 return result::deferred;
             }
