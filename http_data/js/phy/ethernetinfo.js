@@ -154,3 +154,222 @@ export function flowFilter({ mac = '', ip = '', vlan = '' } = {}) {
     }
     return { filter };
 }
+
+// What identifies a flow: its protocol, both ends and its VLAN tags
+const flowKeyFields = ['family', 'proto', 'addr_a', 'port_a', 'addr_b', 'port_b', 'vlan_tags', 'vid', 'inner_vid'];
+export const flowKey = (r) => flowKeyFields.map((k) => r?.[`ethernet.flow.${k}`]).join('|');
+
+// The flows endpoint filters by address and VLAN, not by flow, so a flow is
+// read again by asking for the newest flows of one end's address on its VLAN.
+// The query for one side, or null when that side has no usable address.
+export function flowQuery(r, side, length) {
+    const addr = r?.[`ethernet.flow.addr_${side}`];
+    const f = flowFilter({ ip: typeof addr === 'string' ? addr : '' });
+    if (f.error || !f.filter.ip)
+        return null;
+    const vlan = num(r?.['ethernet.flow.vlan_tags']) > 0 ? { vlan: num(r['ethernet.flow.vid']) } : {};
+    return { ip: f.filter.ip, ...vlan, start: 0, length };
+}
+
+// A flow in a reply: { flow, total, complete }, complete when the reply holds
+// every flow of the address, so a flow missing from it is gone
+export function matchFlow(want, reply) {
+    const rows = Array.isArray(reply?.['ethernet.flows.flows']) ? reply['ethernet.flows.flows'] : [];
+    const total = num(reply?.['ethernet.flows.total']);
+    return { flow: rows.find((x) => flowKey(x) === want) ?? null, total, complete: total <= rows.length };
+}
+
+// Read one flow again: a few of the newest flows of each end, then more of the
+// end with fewer flows, one read only.  post(body) gives the endpoint's reply.
+// known holds totals already read for a side ({ a: 250 }), so that side isn't
+// asked again; isClosed() stops it between reads.  Resolves to
+// { state, flow, prefer }, state being
+//   found     flow is the fresh record
+//   gone      a complete list for one of its addresses doesn't have it: the
+//             server has forgotten it
+//   unknown   every list read was cut short before it turned up
+//   closed    isClosed() said to stop
+// prefer is the end whose address has fewer flows, to ask about first next time.
+export async function findFlow(r, post, { prefer = 'a', few = 100, more = 1000, known = {}, isClosed = () => false } = {}) {
+    const want = flowKey(r);
+    const totals = { ...known };
+    const better = () => ('a' in totals && 'b' in totals && totals.b < totals.a ? 'b' : 'a' in totals ? 'a' :
+        'b' in totals ? 'b' : prefer);
+    const sides = (prefer === 'b' ? ['b', 'a'] : ['a', 'b']).filter((s) => flowQuery(r, s, few));
+    const ask = async (side, length) => {
+        if (isClosed())
+            return { state: 'closed' };
+        const reply = await post(flowQuery(r, side, length));
+        if (isClosed())
+            return { state: 'closed' };
+        const m = matchFlow(want, reply);
+        totals[side] = m.total;
+        if (m.flow)
+            return { state: 'found', flow: m.flow };
+        return m.complete ? { state: 'gone', flow: null } : null;
+    };
+    const done = (got) => (got.state === 'closed' ? { state: 'closed', flow: null, prefer } : { ...got, prefer: better() });
+    for (const side of sides) {
+        if (side in known)
+            continue;
+        const got = await ask(side, few);
+        if (got)
+            return done(got);
+    }
+    const quieter = sides.filter((s) => num(totals[s]) > few).sort((x, y) => totals[x] - totals[y])[0];
+    if (quieter && more > few) {
+        const got = await ask(quieter, more);
+        if (got)
+            return done(got);
+    }
+    return { state: 'unknown', flow: null, prefer: better() };
+}
+
+// Keeps open flow windows up to date with as few reads as it can.  Every
+// `seconds` while visible(): one read of `few` flows per address and VLAN,
+// shared by every window that asks about it, at most maxReads of them (the
+// longest waiting first).  A flow missing from a cut-short list gets a longer
+// look (findFlow), one at a time and at most one started a tick.  A flow
+// found gone or unknown is no longer read until check() asks again.
+//
+// watch(flow, onUpdate) gives { stop(), check() }; onUpdate(w) is called with
+// { flow, state, was, error } as they change, state being found, checking,
+// gone, unknown or error (an endpoint error; still read every tick), and
+// was the state before a check.
+export function flowPoller({ post, few = 100, more = 1000, maxReads = 4, seconds = 5, visible = () => true }) {
+    const watchers = new Set();
+    const lookups = [];
+    let ticks = 0;
+    let busy = false;
+    let looking = false;
+    let lookTick = -1;
+    let timer = null;
+
+    function sync() {
+        if (!seconds)
+            return;
+        if (watchers.size && !timer) {
+            timer = setInterval(tick, seconds * 1000);
+        } else if (!watchers.size && timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    function set(w, state, extra = {}) {
+        if (w.stopped)
+            return;
+        if (state === 'checking' && w.state !== 'checking')
+            w.was = w.state;
+        Object.assign(w, { state }, extra);
+        w.onUpdate(w);
+    }
+
+    function lookFurther(w, known) {
+        w.known = known;
+        set(w, 'checking');
+        if (!lookups.includes(w))
+            lookups.push(w);
+        nextLookup();
+    }
+
+    async function nextLookup() {
+        if (looking || lookTick === ticks)
+            return;
+        // stop() takes a window out of the queue
+        const w = lookups.shift();
+        if (!w)
+            return;
+        looking = true;
+        lookTick = ticks;
+        try {
+            const got = await findFlow(w.flow, post, { prefer: w.prefer, few, more, known: w.known,
+                isClosed: () => w.stopped });
+            if (got.state !== 'closed') {
+                w.prefer = got.prefer;
+                set(w, got.state, got.flow ? { flow: got.flow, error: '' } : { error: '' });
+            }
+        } catch (err) {
+            set(w, 'error', { error: err?.message ?? String(err) });
+        } finally {
+            looking = false;
+        }
+    }
+
+    async function tick() {
+        if (busy || !visible())
+            return;
+        busy = true;
+        ticks++;
+        try {
+            const groups = new Map();
+            for (const w of watchers) {
+                if (w.state !== 'found' && w.state !== 'error')
+                    continue;
+                const side = [w.prefer, w.prefer === 'a' ? 'b' : 'a'].find((s) => flowQuery(w.flow, s, few));
+                if (!side) {
+                    set(w, 'unknown');
+                    continue;
+                }
+                const query = flowQuery(w.flow, side, few);
+                const k = JSON.stringify(query);
+                if (!groups.has(k))
+                    groups.set(k, { query, members: [], oldest: Infinity });
+                const g = groups.get(k);
+                g.members.push({ w, side });
+                g.oldest = Math.min(g.oldest, w.lastTick);
+            }
+            const chosen = [...groups.values()].sort((x, y) => x.oldest - y.oldest).slice(0, maxReads);
+            await Promise.all(chosen.map(async (g) => {
+                for (const { w } of g.members)
+                    w.lastTick = ticks;
+                let reply;
+                try {
+                    reply = await post(g.query);
+                } catch (err) {
+                    for (const { w } of g.members)
+                        set(w, 'error', { error: err?.message ?? String(err) });
+                    return;
+                }
+                for (const { w, side } of g.members) {
+                    if (w.stopped || (w.state !== 'found' && w.state !== 'error'))
+                        continue;
+                    const m = matchFlow(flowKey(w.flow), reply);
+                    if (m.flow)
+                        set(w, 'found', { flow: m.flow, error: '' });
+                    else if (m.complete)
+                        set(w, 'gone', { error: '' });
+                    else
+                        lookFurther(w, { [side]: m.total });
+                }
+            }));
+        } finally {
+            busy = false;
+        }
+        nextLookup();
+    }
+
+    function watch(flow, onUpdate) {
+        const w = { flow, prefer: 'a', state: 'found', was: 'found', error: '', stopped: false, lastTick: ticks,
+            known: {}, onUpdate };
+        watchers.add(w);
+        sync();
+        return {
+            stop() {
+                w.stopped = true;
+                watchers.delete(w);
+                const i = lookups.indexOf(w);
+                if (i >= 0)
+                    lookups.splice(i, 1);
+                sync();
+            },
+            // Look for it again, all the way, after it was found gone or unknown
+            check() {
+                if (!w.stopped && w.state !== 'checking')
+                    lookFurther(w, {});
+            },
+        };
+    }
+
+    return { watch, tick, get size() { return watchers.size; } };
+}

@@ -1773,6 +1773,8 @@ body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
 .eth-flows-tab > .about-view > .about-view-body { padding: 0.2rem 0.75rem 0.6rem; }
 a.eth-mac { color: var(--accent); text-decoration: none; }
 a.eth-mac:hover { text-decoration: underline; }
+.eth-flow-note { margin: 0 0 0.4rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+.eth-flow-note > p { margin: 0; flex: 1 1 14rem; }
 .ds-hint { font-size: 0.85em; color: var(--muted); margin-top: 0.2rem; }
 .warn-text { color: var(--warn); }
 .ok-text { color: var(--ok); }
