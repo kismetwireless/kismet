@@ -356,6 +356,13 @@ TEST_ENVIRONMENT_O = \
 	test/environment/env_test.cc.o environment.cc.o battery.cc.o \
 	$(filter-out test/datasource_probed/probed_test.cc.o,$(TEST_DATASOURCE_PROBED_O))
 
+# Wired flow history as JSON, against a real kis_tracked_rrd; built on request, with the
+# same objects
+TEST_FLOW_RRD = test/ethernet/flow_rrd_test
+TEST_FLOW_RRD_O = \
+	test/ethernet/flow_rrd_test.cc.o wired_flow_rrd.cc.o wired_flow_history.cc.o \
+	$(filter-out test/datasource_probed/probed_test.cc.o,$(TEST_DATASOURCE_PROBED_O))
+
 LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
 LOGTOOL_KISMETDB_JSON_O = \
 	log_tools/kismetdb_dump_devices.cc.o \
@@ -474,7 +481,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_btle_adv.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	phy_cell.cc.o phy_cell_decisions.cc.o \
-	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o \
+	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o wired_flow_rrd.cc.o \
 	entity_graph.cc.o entity_tracker.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
@@ -594,6 +601,9 @@ $(TEST_HTTPD_LOGIN_CONF):	$(TEST_HTTPD_LOGIN_CONF_O)
 
 $(TEST_ENVIRONMENT):	$(TEST_ENVIRONMENT_O) $(DATASOURCE_COMMON_A)
 	$(LD) $(LDFLAGS) -o $(TEST_ENVIRONMENT) $(TEST_ENVIRONMENT_O) $(DATASOURCE_COMMON_A) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) $(DATASOURCE_LIBS)
+
+$(TEST_FLOW_RRD):	$(TEST_FLOW_RRD_O)
+	$(LD) $(LDFLAGS) -o $(TEST_FLOW_RRD) $(TEST_FLOW_RRD_O) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
 
 diagspec/enrichment/cpp/lte_band.cpp.o:	diagspec/enrichment/cpp/lte_band.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@ -MMD -MP -MF $(@:.o=.d)
@@ -1236,7 +1246,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
-	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY)
+	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY) $(TEST_FLOW_RRD)
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)

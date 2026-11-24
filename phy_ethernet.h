@@ -42,6 +42,7 @@
 #include "packet.h"
 #include "packetchain.h"
 #include "unordered_dense.h"
+#include "wired_flow_rrd.h"
 #include "wired_flow_tracker.h"
 
 class kis_net_beast_httpd_connection;
@@ -642,11 +643,17 @@ protected:
             const std::function<void (kis_tracked_device_base&, ethernet_tracked_device&)>& fn);
 
     std::shared_ptr<tracker_element> flows_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> flow_by_key_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> vlans_endpoint();
     std::shared_ptr<tracker_element> by_ip_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> status_endpoint();
 
-    int flow_fields[23];
+    std::shared_ptr<tracker_element_map> flow_row(const wired_flow_tracker::flow& fl);
+
+    // 0-19 and 23-25 are row fields, 20-22 the list's, 26-29 the history of each series
+    int flow_fields[30];
+    static constexpr size_t flow_rrd_field = 26;
+    wired_flow_rrd flow_rrd;
     int vlan_fields[8];
     static constexpr size_t n_status_fields = 24;
     int status_fields[n_status_fields];

@@ -330,6 +330,22 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
     flow_fields[21] = reg_u64("ethernet.flows.start", "index of the first flow returned");
     flow_fields[22] = entrytracker->register_field("ethernet.flows.flows",
             tracker_element_factory<tracker_element_vector>(), "flows, most recently seen first");
+    flow_fields[23] = reg_str("ethernet.flow.key", "flow id for /phy/ethernet/flows/by-key/");
+    flow_fields[24] = reg_u64("ethernet.flow.id", "serial number of the flow, never reused while the server runs");
+    flow_fields[25] = reg_u64("ethernet.flow.history_time", "server time the traffic history began, 0 for none");
+
+    // In flow_history::series order
+    const char *rrd_names[][2] = {
+        { "ethernet.flow.bytes_ab.rrd", "bytes from a to b, history" },
+        { "ethernet.flow.bytes_ba.rrd", "bytes from b to a, history" },
+        { "ethernet.flow.packets_ab.rrd", "packets from a to b, history" },
+        { "ethernet.flow.packets_ba.rrd", "packets from b to a, history" },
+    };
+    static_assert(sizeof(rrd_names) / sizeof(rrd_names[0]) == flow_history::n_series);
+    static_assert(flow_rrd_field + flow_history::n_series == sizeof(flow_fields) / sizeof(flow_fields[0]));
+    for (size_t i = 0; i < flow_history::n_series; i++)
+        flow_fields[flow_rrd_field + i] = entrytracker->register_field(rrd_names[i][0],
+                tracker_element_factory<tracker_element_map>(), rrd_names[i][1]);
 
     vlan_fields[0] = reg_u64("ethernet.vlan.tags", "VLAN tags, 0 untagged");
     vlan_fields[1] = reg_u64("ethernet.vlan.vid", "outer VLAN ID");
@@ -384,6 +400,12 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return flows_endpoint(con);
+                }));
+
+    httpd->register_route("/phy/ethernet/flows/by-key/:key/flow", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return flow_by_key_endpoint(con);
                 }));
 
     httpd->register_route("/phy/ethernet/vlans/vlans", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -1534,35 +1556,8 @@ std::shared_ptr<tracker_element>
     if (flows != nullptr)
         flows->snapshot(flt, start, length, out, total);
 
-    for (const auto& fl : out) {
-        auto m = std::make_shared<tracker_element_map>();
-        kis_l3::ip_addr a, b;
-        a.family = b.family = fl.k.family;
-        a.a = fl.k.addr_a;
-        b.a = fl.k.addr_b;
-
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[0], fl.k.family));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[1], fl.k.proto));
-        m->insert(std::make_shared<tracker_element_string>(flow_fields[2], ethernet_ip_string(a)));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[3], fl.k.port_a));
-        m->insert(std::make_shared<tracker_element_string>(flow_fields[4], ethernet_ip_string(b)));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[5], fl.k.port_b));
-        m->insert(std::make_shared<tracker_element_mac_addr>(flow_fields[6], mac_from_u64(fl.mac_a)));
-        m->insert(std::make_shared<tracker_element_mac_addr>(flow_fields[7], mac_from_u64(fl.mac_b)));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[8], fl.k.vlan >> 32));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[9], (fl.k.vlan >> 12) & 0xfff));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[10], fl.k.vlan & 0xfff));
-        m->insert(std::make_shared<tracker_element_string>(flow_fields[11], fl.initiator_a ? "a" : "b"));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[12], fl.bytes_ab));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[13], fl.bytes_ba));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[14], fl.packets_ab));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[15], fl.packets_ba));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[16], fl.first_time));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[17], fl.last_time));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[18], fl.flags_ab));
-        m->insert(std::make_shared<tracker_element_uint64>(flow_fields[19], fl.flags_ba));
-        vec->push_back(m);
-    }
+    for (const auto& fl : out)
+        vec->push_back(flow_row(fl));
 
     vec->set_id(flow_fields[22]);
     ret->insert(vec);
@@ -1570,6 +1565,74 @@ std::shared_ptr<tracker_element>
     ret->insert(std::make_shared<tracker_element_uint64>(flow_fields[21], start));
 
     return ret;
+}
+
+std::shared_ptr<tracker_element_map> kis_ethernet_phy::flow_row(const wired_flow_tracker::flow& fl) {
+    auto m = std::make_shared<tracker_element_map>();
+    kis_l3::ip_addr a, b;
+    a.family = b.family = fl.k.family;
+    a.a = fl.k.addr_a;
+    b.a = fl.k.addr_b;
+
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[0], fl.k.family));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[1], fl.k.proto));
+    m->insert(std::make_shared<tracker_element_string>(flow_fields[2], ethernet_ip_string(a)));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[3], fl.k.port_a));
+    m->insert(std::make_shared<tracker_element_string>(flow_fields[4], ethernet_ip_string(b)));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[5], fl.k.port_b));
+    m->insert(std::make_shared<tracker_element_mac_addr>(flow_fields[6], mac_from_u64(fl.mac_a)));
+    m->insert(std::make_shared<tracker_element_mac_addr>(flow_fields[7], mac_from_u64(fl.mac_b)));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[8], fl.k.vlan >> 32));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[9], (fl.k.vlan >> 12) & 0xfff));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[10], fl.k.vlan & 0xfff));
+    m->insert(std::make_shared<tracker_element_string>(flow_fields[11], fl.initiator_a ? "a" : "b"));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[12], fl.bytes_ab));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[13], fl.bytes_ba));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[14], fl.packets_ab));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[15], fl.packets_ba));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[16], fl.first_time));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[17], fl.last_time));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[18], fl.flags_ab));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[19], fl.flags_ba));
+    m->insert(std::make_shared<tracker_element_string>(flow_fields[23],
+                wired_flow_tracker::format_key(fl.k, fl.serial)));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[24], fl.serial));
+    m->insert(std::make_shared<tracker_element_uint64>(flow_fields[25], fl.history_time));
+
+    return m;
+}
+
+std::shared_ptr<tracker_element>
+    kis_ethernet_phy::flow_by_key_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    // A key is only lowercase hex and '-', so a URL-encoded one is malformed and isn't decoded;
+    // nothing of it is echoed back
+    wired_flow_tracker::key k;
+    uint64_t serial = 0;
+
+    if (!wired_flow_tracker::parse_key(con->uri_params()[":key"], k, serial)) {
+        con->set_status(400);
+        return std::make_shared<tracker_element_map>();
+    }
+
+    wired_flow_tracker::flow fl;
+    flow_history hist{0};
+    const time_t now = Globalreg::globalreg->last_tv_sec;
+
+    // Gone, or the same addresses and ports are now a later flow
+    if (flows == nullptr || !flows->lookup(k, serial, now, fl, &hist)) {
+        con->set_status(404);
+        return std::make_shared<tracker_element_map>();
+    }
+
+    auto m = flow_row(fl);
+
+    if (fl.history_time != 0) {
+        for (size_t i = 0; i < flow_history::n_series; i++)
+            m->insert(flow_rrd.build(flow_fields[flow_rrd_field + i],
+                        hist.vectors(static_cast<flow_history::series>(i)), now));
+    }
+
+    return m;
 }
 
 std::shared_ptr<tracker_element> kis_ethernet_phy::vlans_endpoint() {
