@@ -2355,7 +2355,8 @@ int kis_database_logfile::log_packet(const std::shared_ptr<kis_packet>& in_pack)
         row.macstring = in_pack->common_info.source.mac_to_string();
         row.deststring = in_pack->common_info.dest.mac_to_string();
         row.transstring = in_pack->common_info.transmitter.mac_to_string();
-        row.frequency = in_pack->common_info.freq_khz;
+        row.frequency = freq_bounds::khz_valid(in_pack->common_info.freq_khz) ?
+            in_pack->common_info.freq_khz : 0;
     } else {
         row.macstring = "00:00:00:00:00:00";
         row.deststring = "00:00:00:00:00:00";

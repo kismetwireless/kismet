@@ -3133,7 +3133,11 @@ bool kis_datasource::handle_sub_signal(mpack_node_t& root, mpack_tree_t *tree,
 
     auto freq_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_FREQ_KHZ);
     if (!mpack_node_is_missing(freq_n)) {
-        siginfo.freq_khz = mpack_node_u64(freq_n);
+        // A helper or remote may send any value; out of range is no frequency
+        const double freq_khz = mpack_node_u64(freq_n);
+
+        if (freq_bounds::khz_valid(freq_khz))
+            siginfo.freq_khz = freq_khz;
     }
 
     auto rate_n = mpack_node_map_uint_optional(sigmap, KIS_EXTERNAL_V3_KDS_SUB_SIGNAL_FIELD_DATARATE);
@@ -4430,7 +4434,8 @@ bool kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig,
         siginfo.noise_rssi = in_sig.noise_rssi();
     }
 
-    if (in_sig.has_freq_khz()) {
+    // A double on the wire: NaN, infinite or out of range is no frequency
+    if (in_sig.has_freq_khz() && freq_bounds::khz_valid(in_sig.freq_khz())) {
         has_siginfo = true;
         siginfo.freq_khz = in_sig.freq_khz();
     }

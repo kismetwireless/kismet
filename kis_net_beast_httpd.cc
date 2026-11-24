@@ -28,6 +28,7 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <random>
 #include <sstream>
 
@@ -41,6 +42,7 @@
 #include "alertracker.h"
 #include "base64.h"
 #include "configfile.h"
+#include "json_number.h"
 #include "kis_external_policy.h"
 #include "messagebus.h"
 #include "util.h"
@@ -2838,14 +2840,26 @@ void kis_net_beast_route::invoke(std::shared_ptr<kis_net_beast_httpd_connection>
 }
 
 
+// A session time as as_json() writes it: an integer that fits an unsigned int.  A
+// negative one would wrap to a far future time, and expires = -1 would never expire.
+static time_t session_db_time(const nlohmann::json& json, const char *key) {
+    auto t = json_number::unsigned_integer(json.at(key), std::numeric_limits<unsigned int>::max());
+
+    if (!t)
+        throw auth_construction_error();
+
+    return static_cast<time_t>(*t);
+}
+
 kis_net_beast_auth::kis_net_beast_auth(const nlohmann::json& json)  {
     try {
-        token_ = json["token"].get<std::string>();
-        name_ = json["name"].get<std::string>();
-        role_ = json["role"].get<std::string>();
-        time_created_ = static_cast<time_t>(json["created"].get<unsigned int>());
-        time_accessed_ = static_cast<time_t>(json["accessed"].get<unsigned int>());
-        time_expires_ = static_cast<time_t>(json["expires"].get<unsigned int>());
+        // at() throws on a missing key, where a const [] would assert
+        token_ = json.at("token").get<std::string>();
+        name_ = json.at("name").get<std::string>();
+        role_ = json.at("role").get<std::string>();
+        time_created_ = session_db_time(json, "created");
+        time_accessed_ = session_db_time(json, "accessed");
+        time_expires_ = session_db_time(json, "expires");
 
     } catch (const std::exception& e) {
         throw auth_construction_error();

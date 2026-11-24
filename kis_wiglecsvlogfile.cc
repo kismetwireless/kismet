@@ -21,6 +21,8 @@
 #include "kis_wiglecsvlogfile.h"
 
 #include "devicetracker.h"
+#include "freq_bounds.h"
+#include "gps_bounds.h"
 #include "phy_80211.h"
 #include "phy_bluetooth.h"
 #include "phy_btle.h"
@@ -30,7 +32,7 @@
 #include "wiglecsv_field.h"
 
 int frequency_to_wifi_channel(double in_freq) {
-    if (in_freq == 0)
+    if (!freq_bounds::khz_valid(in_freq))
         return 0;
 
     in_freq = in_freq / 1000;
@@ -254,7 +256,8 @@ int kis_wiglecsv_logfile::packet_handler(CHAINCALL_PARMS) {
     if (!in_pack->gps_info.gps_info_ok || devs == nullptr)
         return 1;
 
-    if (in_pack->gps_info.lat == 0 || in_pack->gps_info.lon == 0)
+    // WiGLE takes 0,0 as no fix; the equator and the prime meridian are real positions
+    if (gps_bounds::no_position(in_pack->gps_info.lat, in_pack->gps_info.lon))
         return 1;
 
     int signal = 0;

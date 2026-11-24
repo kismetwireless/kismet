@@ -45,6 +45,7 @@
 #include "sqlite3_cpp11.h"
 #include "kis_database_journal.h"
 #include "fmt.h"
+#include "freq_bounds.h"
 #include "packet_ieee80211.h"
 #include "phy_cell_decisions.h"
 #include "version.h"
@@ -62,7 +63,7 @@
 
 // Some conversion functions from Kismet for Wi-Fi channels
 int FrequencyToWifiChannel(double in_freq) {
-    if (in_freq == 0)
+    if (!freq_bounds::khz_valid(in_freq))
         return 0;
 
     in_freq = in_freq / 1000;
@@ -683,7 +684,9 @@ int main(int argc, char *argv[]) {
 
                 const auto& d11 = json["dot11.device"];
 
-                if (!d11["dot11.device.mbssid_transmitter"].is_string())
+                // const lookups assert on a missing key; the log may hold anything
+                if (!d11.is_object() || !d11.contains("dot11.device.mbssid_transmitter") ||
+                        !d11["dot11.device.mbssid_transmitter"].is_string())
                     continue;
 
                 if (d11.value("dot11.device.last_beacon_timestamp", uint64_t{0}) != 0)
@@ -753,6 +756,11 @@ int main(int argc, char *argv[]) {
 
         auto signal = sqlite3_column_as<int>(p, 5);
         auto channel = sqlite3_column_as<double>(p, 6);
+
+        // A damaged or crafted log can hold any value here
+        if (!freq_bounds::khz_valid(channel))
+            channel = 0;
+
         auto frequency = channel;
 
         auto crypt = std::string{""};

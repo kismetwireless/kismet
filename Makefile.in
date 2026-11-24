@@ -316,6 +316,11 @@ TEST_GPSD_TPV = test/gpsd_tpv/tpv_test
 TEST_GPSD_TPV_O = \
 	test/gpsd_tpv/tpv_test.cc.o
 
+# The rtl_433 JSON field and frequency range checks; built on request
+TEST_RTL433_JSON = test/rtl433_json/rtl433_test
+TEST_RTL433_JSON_O = \
+	test/rtl433_json/rtl433_test.cc.o
+
 # The kismetdb log journal: commits with other programs reading the log, WAL checkpoints;
 # built on request
 TEST_KISMETDB_JOURNAL = test/kismetdb_journal/journal_test
@@ -595,6 +600,9 @@ $(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
 
 $(TEST_GPSD_TPV):	$(TEST_GPSD_TPV_O)
 	$(LD) $(LDFLAGS) -o $(TEST_GPSD_TPV) $(TEST_GPSD_TPV_O) $(CXXLIBS)
+
+$(TEST_RTL433_JSON):	$(TEST_RTL433_JSON_O)
+	$(LD) $(LDFLAGS) -o $(TEST_RTL433_JSON) $(TEST_RTL433_JSON_O) $(CXXLIBS)
 
 $(TEST_KISMETDB_JOURNAL):	$(TEST_KISMETDB_JOURNAL_O)
 	$(LD) $(LDFLAGS) -o $(TEST_KISMETDB_JOURNAL) $(TEST_KISMETDB_JOURNAL_O) $(LIBS) $(CXXLIBS)
@@ -1234,6 +1242,7 @@ depclean:
 	@-rm -f test/ethernet/*.d
 	@-rm -f test/entity/*.d
 	@-rm -f test/gpsd_tpv/*.d
+	@-rm -f test/rtl433_json/*.d
 	@-rm -f protobuf_cpp/*.d
 
 clean: all-plugins-clean depclean
@@ -1259,6 +1268,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
+	@-rm -f test/rtl433_json/*.o $(TEST_RTL433_JSON)
 	@-rm -f test/kismetdb_journal/*.o $(TEST_KISMETDB_JOURNAL)
 	@-rm -f test/external_policy/*.o $(TEST_EXTERNAL_POLICY)
 	@-rm -f $(PS)
@@ -1387,6 +1397,7 @@ include $(wildcard $(patsubst %.o,%.d,$(TEST_DEVICE_RULES_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_DATASOURCE_PROBED_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_HTTPD_LOGIN_CONF_O)))
 include $(wildcard $(patsubst %.o,%.d,$(TEST_ENVIRONMENT_O)))
+include $(wildcard $(patsubst %.o,%.d,$(TEST_RTL433_JSON_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))
