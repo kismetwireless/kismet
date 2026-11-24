@@ -244,7 +244,7 @@ public:
     // and count them into our local map
     virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override {
         auto freq = device->get_frequency();
-        if (freq == 0)
+        if (!freq_bounds::khz_valid(freq))
             return false;
 
         auto i = device_count.find(freq);
@@ -462,8 +462,10 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
         }
     };
 
+    const bool freq_ok = freq_bounds::khz_valid(in_pack->signal_info.freq_khz);
+
     // Find or make a frequency record if we know our frequency
-    if (in_pack->signal_info.freq_khz != 0) {
+    if (freq_ok) {
         auto const& imi_idx = cv3->frequency_map.try_emplace(in_pack->signal_info.freq_khz, channel_tracker_v3_channel{});
         auto& freq = imi_idx.first->second;
 
@@ -504,7 +506,7 @@ int channel_tracker_v3::packet_chain_handler(CHAINCALL_PARMS) {
 
             if (smi_idx.second) {
                 chan.channel = in_pack->common_info.channel;
-                chan.frequency = in_pack->signal_info.freq_khz;
+                chan.frequency = freq_ok ? in_pack->signal_info.freq_khz : 0;
             }
 
             chan.signal_data.append_signal(in_pack->signal_info, false, 0);

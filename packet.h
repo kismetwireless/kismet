@@ -37,6 +37,7 @@
 #include "base64.h"
 #include "eventbus.h"
 #include "globalregistry.h"
+#include "freq_bounds.h"
 #include "gps_bounds.h"
 #include "json_adapter_v2.h"
 #include "macaddr.h"

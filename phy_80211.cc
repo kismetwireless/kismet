@@ -1298,8 +1298,17 @@ kis_80211_phy::~kis_80211_phy() {
     timetracker->remove_timer(device_idle_timer);
 }
 
+// Whether the packet's frequency should set the device channel: a valid one that differs
+// from what the device has, or the device has no channel.  Checking validity here keeps
+// a missing or bad frequency (NaN never compares equal) from throwing on every packet.
+static bool freq_sets_channel(double in_khz, const std::shared_ptr<kis_tracked_device_base>& dev) {
+    return freq_bounds::khz_valid(in_khz) &&
+        (in_khz != dev->get_frequency() || dev->get_channel().empty());
+}
+
 std::string kis_80211_phy::khz_to_channel(const double in_khz) {
-    if (in_khz == 0)
+    // Also keeps the int conversion below in range
+    if (!freq_bounds::khz_valid(in_khz))
         throw std::runtime_error("invalid freq");
 
     int mhz = in_khz / 1000;
@@ -1585,8 +1594,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (in_pack->signal_info.data_ok &&
-                    (in_pack->signal_info.freq_khz != dot11info->bssid_dev->get_frequency() ||
-                    dot11info->bssid_dev->get_channel().empty())) {
+                    freq_sets_channel(in_pack->signal_info.freq_khz, dot11info->bssid_dev)) {
                 try {
                     dot11info->bssid_dev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1725,8 +1733,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->source_dev->set_channel(dot11info->channel);
             } else if (in_pack->signal_info.data_ok &&
-                    (in_pack->signal_info.freq_khz != dot11info->source_dev->get_frequency() ||
-                    dot11info->source_dev->get_channel().length() == 0)) {
+                    freq_sets_channel(in_pack->signal_info.freq_khz, dot11info->source_dev)) {
                 try {
                     dot11info->source_dev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -2035,8 +2042,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->bssid_dev->set_channel(dot11info->channel);
             } else if (in_pack->signal_info.data_ok &&
-                    (in_pack->signal_info.freq_khz != dot11info->bssid_dev->get_frequency() ||
-                     dot11info->bssid_dev->get_channel().empty())) {
+                    freq_sets_channel(in_pack->signal_info.freq_khz, dot11info->bssid_dev)) {
                 try {
                     dot11info->bssid_dev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -2131,8 +2137,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 if (!dot11info->channel.empty() && dot11info->channel != "0") {
                     dot11info->source_dev->set_channel(dot11info->channel);
                 } else if (in_pack->signal_info.data_ok &&
-                        (in_pack->signal_info.freq_khz != dot11info->source_dev->get_frequency() ||
-                         dot11info->source_dev->get_channel().length() == 0)) {
+                        freq_sets_channel(in_pack->signal_info.freq_khz, dot11info->source_dev)) {
                     try {
                         dot11info->source_dev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
                     } catch (const std::runtime_error& e) {
@@ -2278,8 +2283,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (!dot11info->channel.empty() && dot11info->channel != "0") {
                 dot11info->transmit_dev->set_channel(dot11info->channel);
             } else if (in_pack->signal_info.data_ok &&
-                    (in_pack->signal_info.freq_khz != dot11info->transmit_dev->get_frequency() ||
-                    dot11info->transmit_dev->get_channel().length() == 0)) {
+                    freq_sets_channel(in_pack->signal_info.freq_khz, dot11info->transmit_dev)) {
 
                 try {
                     dot11info->transmit_dev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
@@ -2696,8 +2700,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         if (!in_pack->signal_info.channel.empty() && in_pack->signal_info.channel != "0") {
             bssid_dev->set_channel(in_pack->signal_info.channel);
-        } else if (in_pack->signal_info.freq_khz != bssid_dev->get_frequency() ||
-                bssid_dev->get_channel().length() == 0) {
+        } else if (freq_sets_channel(in_pack->signal_info.freq_khz, bssid_dev)) {
             try {
                 bssid_dev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
             } catch (const std::runtime_error& e) {
@@ -2955,6 +2958,8 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 enum class dot11_csa_band { unknown, band_24, band_5, band_6 };
 
 static dot11_csa_band csa_band_from_khz(double khz) {
+    if (!freq_bounds::khz_valid(khz))
+        return dot11_csa_band::unknown;
     if (khz >= 2400000 && khz < 2500000)
         return dot11_csa_band::band_24;
     if (khz >= 4900000 && khz < 5925000)
@@ -3577,7 +3582,7 @@ void kis_80211_phy::handle_ssid_s1g(const std::shared_ptr<kis_tracked_device_bas
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
     } else if (in_pack->signal_info.data_ok &&
-            (in_pack->signal_info.freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
+            freq_sets_channel(in_pack->signal_info.freq_khz, basedev)) {
         try {
             basedev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
         } catch (...) { }
@@ -4350,7 +4355,7 @@ void kis_80211_phy::handle_ssid(const std::shared_ptr<kis_tracked_device_base>& 
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
     } else if (in_pack->signal_info.data_ok &&
-            (in_pack->signal_info.freq_khz != basedev->get_frequency() || basedev->get_channel().empty())) {
+            freq_sets_channel(in_pack->signal_info.freq_khz, basedev)) {
         try {
             basedev->set_channel(khz_to_channel(in_pack->signal_info.freq_khz));
         } catch (...) { }

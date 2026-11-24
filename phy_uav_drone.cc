@@ -307,7 +307,8 @@ int kis_uav_phy::common_classifier(CHAINCALL_PARMS) {
             in_pack->common_info.phyid = uavphy->fetch_phy_id();
             in_pack->common_info.datasize = 0;
 
-            in_pack->common_info.freq_khz = freq * 1000;
+            if (freq_bounds::khz_valid(freq * 1000))
+                in_pack->common_info.freq_khz = freq * 1000;
 
             in_pack->common_info.source = dronemac;
             in_pack->common_info.transmitter = dronemac;

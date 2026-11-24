@@ -372,7 +372,12 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         ppi_common->flags = kis_htole16(ppi_common->flags);
 
         ppi_common->rate = kis_htole16(in_pack->signal_info.datarate / 5);
-        ppi_common->freq_mhz = kis_htole16((uint16_t) (in_pack->signal_info.freq_khz / 1000));
+        // A frequency past the 16 bit MHz field is left unset rather than wrapped
+        const double ppi_mhz = in_pack->signal_info.freq_khz / 1000;
+        if (freq_bounds::khz_valid(in_pack->signal_info.freq_khz) && ppi_mhz <= UINT16_MAX)
+            ppi_common->freq_mhz = kis_htole16((uint16_t) ppi_mhz);
+        else
+            ppi_common->freq_mhz = 0;
 
         // Assemble the channel flags then endian swap them
         ppi_common->chan_flags = 0;

@@ -28,6 +28,7 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 #include "messagebus.h"
+#include "rtl433_json.h"
 
 kis_meter_phy::kis_meter_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -93,23 +94,7 @@ mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
 }
 
 bool kis_meter_phy::is_meter(const nlohmann::json &json) {
-    // This list will need to be updated as rtl_433 adds more meter types
-    auto model_j = json["model"];
-
-    if (model_j.is_string()) {
-        if (model_j == "IDM")
-            return true;
-        if (model_j == "NETIDM")
-            return true;
-        if (model_j == "ERT-SCM")
-            return true;
-        if (model_j == "SCMplus")
-            return true;
-        if (model_j == "SCM+")
-            return true;
-    }
-
-    return false;
+    return rtl433_json::is_meter_model(json);
 }
 
 bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) {

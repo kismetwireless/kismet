@@ -27,6 +27,7 @@
 #include "manuf.h"
 #include "messagebus.h"
 #include "phy_meter.h"
+#include "rtl433_json.h"
 
 kis_sensor_phy::kis_sensor_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -143,8 +144,8 @@ mac_addr kis_sensor_phy::json_to_mac(nlohmann::json json) {
     bool set_model = false;
 
     auto idmem = json["id"];
-    if (idmem.is_number()) {
-        *model = kis_hton16((uint16_t) idmem.get<unsigned int>());
+    if (auto id = rtl433_json::id_bits(idmem)) {
+        *model = kis_hton16(*id);
         set_model = true;
     } else if (idmem.is_string()) {
         smodel = munge_to_printable(idmem.get<std::string>());
@@ -162,9 +163,8 @@ mac_addr kis_sensor_phy::json_to_mac(nlohmann::json json) {
     }
 
     if (!set_model && !json["device"].is_null()) {
-        auto d = json["device"];
-        if (d.is_number()) {
-            *model = kis_hton16((uint16_t) d.get<unsigned int>());
+        if (auto d = rtl433_json::id_bits(json["device"])) {
+            *model = kis_hton16(*d);
             set_model = true;
         }
     }
@@ -200,20 +200,10 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     if (channel_j.is_string())
         packet->common_info.channel = munge_to_printable(channel_j);
-    else if (channel_j.is_number()) 
-        packet->common_info.channel = fmt::format("{}", channel_j.get<int>());
+    else if (auto channel = rtl433_json::integer_text(channel_j); !channel.empty())
+        packet->common_info.channel = channel;
 
-    auto freq_j = json["freq"];
-
-    if (!freq_j.is_number())
-        freq_j = json["freq1"];
-
-    if (!freq_j.is_number())
-        freq_j = json["freq2"];
-
-    if (freq_j.is_number() && freq_j.get<double>() != 0) {
-        packet->common_info.freq_khz = freq_j.get<double>() * 1000;
-    }
+    packet->common_info.freq_khz = rtl433_json::freq_khz(json);
 
     packet->common_info.source = rtlmac;
     packet->common_info.transmitter = rtlmac;
@@ -226,21 +216,21 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "sensor_json_to_rtl");
 
     std::string dn = "Sensor";
+    const auto id_text = rtl433_json::integer_text(json["id"]);
 
     if (json["model"].is_string()) {
         if (json["id"].is_string()) {
-            dn = fmt::format("{}-{}", munge_to_printable(json["model"]), 
+            dn = fmt::format("{}-{}", munge_to_printable(json["model"]),
                     munge_to_printable(json["id"]));
-        } else if (json["id"].is_number()) {
-            dn = fmt::format("{}-{}", munge_to_printable(json["model"]), 
-                    json["id"].get<unsigned int>());
+        } else if (!id_text.empty()) {
+            dn = fmt::format("{}-{}", munge_to_printable(json["model"]), id_text);
         } else {
             dn = munge_to_printable(json["model"]);
         }
     } else if (json["id"].is_string()) {
         dn = munge_to_printable(json["id"]);
-    } else if (json["id"].is_number()) {
-        dn = fmt::format("{}", json["id"].get<unsigned int>());
+    } else if (!id_text.empty()) {
+        dn = id_text;
     }
 
     basedev->set_manuf(sensor_manuf);
@@ -271,7 +261,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         auto id_j = json["id"];
 
         if (id_j.is_number())
-            commondev->set_rtlid(fmt::format("{}", id_j.get<int>()));
+            commondev->set_rtlid(rtl433_json::integer_text(id_j));
         else if (id_j.is_string()) {
             commondev->set_rtlid(munge_to_printable(id_j));
             set_id = true;
@@ -281,7 +271,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
             auto device_j = json["device"];
 
             if (device_j.is_number())
-                commondev->set_rtlid(fmt::format("{}", device_j.get<int>()));
+                commondev->set_rtlid(rtl433_json::integer_text(device_j));
             else if (device_j.is_string()) {
                 commondev->set_rtlid(munge_to_printable(device_j));
                 set_id = true;
@@ -303,7 +293,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
 
     if (channel_j.is_number())
-        commondev->set_subchannel(fmt::format("{}", channel_j.get<int>()));
+        commondev->set_subchannel(rtl433_json::integer_text(channel_j));
     else if (channel_j.is_string())
         commondev->set_subchannel(munge_to_printable(channel_j));
     

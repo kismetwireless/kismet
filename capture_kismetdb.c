@@ -43,6 +43,8 @@
 
 #include "config.h"
 #include "capture_framework.h"
+#include "capture_kismetdb_gps.h"
+#include "freq_bounds.h"
 
 #include <sqlite3.h>
 
@@ -353,18 +355,7 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
     }
 
     /* Fill in the GPS */
-    subgps.lat = lat;
-    subgps.lon = lon;
-    subgps.alt = alt;
-    subgps.heading = heading;
-
-    if (lat == 0 || lon == 0) {
-        subgps.fix = 0;
-    } else if (alt != 0) {
-        subgps.fix = 3;
-    } else {
-        subgps.fix = 2;
-    }
+    kismetdb_row_gps(&subgps, lat, lon, alt, heading);
 
     subgps.ts_sec = ts_sec;
     subgps.ts_usec = ts_usec;
@@ -439,15 +430,7 @@ void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
     }
 
     /* Fill in the GPS */
-    subgps.lat = lat;
-    subgps.lon = lon;
-    subgps.alt = alt;
-    subgps.heading = heading;
-
-    if (alt != 0)
-        subgps.fix = 3;
-    else
-        subgps.fix = 2;
+    kismetdb_row_gps(&subgps, lat, lon, alt, heading);
 
     subgps.ts_sec = ts_sec;
     subgps.ts_usec = ts_usec;
@@ -524,10 +507,12 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     /* V4 didn't have speed, heading, etc, and used the normalized encoding */
     const char *basic_packet_sql_v4 =
-        "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet, packet_len FROM packets ORDER BY ts_sec, ts_usec";
+        "SELECT ts_sec, ts_usec, frequency, " KISMETDB_V4_COORD_SQL("lat") ", " KISMETDB_V4_COORD_SQL("lon") ", "
+        "dlt, packet, packet_len FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v4 =
-        "SELECT ts_sec, ts_usec, (lat / 100000.0), (lon / 100000.0), type, json FROM data ORDER BY ts_sec, ts_usec";
+        "SELECT ts_sec, ts_usec, " KISMETDB_V4_COORD_SQL("lat") ", " KISMETDB_V4_COORD_SQL("lon") ", "
+        "type, json FROM data ORDER BY ts_sec, ts_usec";
 
 
     /* V5 has full GPS, and in natural doubles */
@@ -630,8 +615,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             packet_frequency = sqlite3_column_double(packet_stmt, colno++);
 
-            lat = sqlite3_column_double(packet_stmt, colno++);
-            lon = sqlite3_column_double(packet_stmt, colno++);
+            lat = kismetdb_column_coord(packet_stmt, colno++);
+            lon = kismetdb_column_coord(packet_stmt, colno++);
 
             if (local_pcap->db_version >= 5) {
                 alt = sqlite3_column_double(packet_stmt, colno++);
@@ -666,8 +651,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             if (packet_len > 0 && packet_len <= KISMETDB_MAX_RECORD)
                 kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
                         packet_fulllen, packet_len, (const u_char *) packet_data,
-                        /* a damaged or crafted log can hold any value here */
-                        packet_frequency > 0 && packet_frequency < 1e9 ?
+                        /* a damaged or crafted log can hold any value here; the server's
+                         * range (freq_bounds.h), so the uint64 cast is defined */
+                        FREQ_BOUNDS_KHZ_VALID(packet_frequency) ?
                             (uint64_t) packet_frequency : 0,
                         lat, lon, alt, speed, heading);
 
@@ -675,8 +661,8 @@ void capture_thread(kis_capture_handler_t *caph) {
         } else {
             colno = 2;
 
-            lat = sqlite3_column_double(data_stmt, colno++);
-            lon = sqlite3_column_double(data_stmt, colno++);
+            lat = kismetdb_column_coord(data_stmt, colno++);
+            lon = kismetdb_column_coord(data_stmt, colno++);
 
             if (local_pcap->db_version >= 5) {
                 alt = sqlite3_column_double(data_stmt, colno++);

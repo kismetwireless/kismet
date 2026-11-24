@@ -19,9 +19,12 @@
 
 #include "config.h"
 
+#include <climits>
+
 #include "phy_zwave.h"
 #include "devicetracker.h"
 #include "endian_magic.h"
+#include "json_number.h"
 #include "macaddr.h"
 #include "manuf.h"
 #include "messagebus.h"
@@ -74,8 +77,8 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     uint32_t homeid;
     uint8_t devid;
     double frequency;
-    double dest_devid;
-    double datasize;
+    uint8_t dest_devid;
+    int datasize;
 
     // TODO parse the actual payload
     
@@ -91,17 +94,16 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     converter.str(tempstr);
     converter >> std::hex >> homeid;
 
-    auto source_j = json["source"];
-    if (source_j.is_number()) {
-        devid = source_j;
+    // Node ids are a byte; a cast of anything else is undefined or wraps
+    if (auto source = json_number::integral(json["source"], 0, UINT8_MAX)) {
+        devid = static_cast<uint8_t>(*source);
     } else {
         return false;
     }
 
 
-    auto dest_j = json["dest"];
-    if (dest_j.is_number()) {
-        dest_devid = dest_j;
+    if (auto dest = json_number::integral(json["dest"], 0, UINT8_MAX)) {
+        dest_devid = static_cast<uint8_t>(*dest);
     } else {
         return false;
     }
@@ -113,9 +115,8 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
         return false;
     }
 
-    auto datasize_j = json["datasize"];
-    if (datasize_j.is_number()) {
-        datasize = datasize_j;
+    if (auto size = json_number::integral(json["datasize"], 0, INT_MAX)) {
+        datasize = static_cast<int>(*size);
     } else {
         return false;
     }
@@ -141,7 +142,8 @@ bool Kis_Zwave_Phy::json_to_record(nlohmann::json json) {
     pack->common_info.phyid = fetch_phy_id();
     pack->common_info.datasize = datasize;
 
-    pack->common_info.freq_khz = frequency;
+    if (freq_bounds::khz_valid(frequency))
+        pack->common_info.freq_khz = frequency;
     pack->common_info.source = smac;
     pack->common_info.transmitter = smac;
     pack->common_info.dest = dmac;

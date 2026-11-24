@@ -1343,7 +1343,8 @@ void device_tracker::update_location_set(const std::shared_ptr<kis_tracked_locat
             histloc->set_time_sec(in_pack->ts.tv_sec);
 
             if (in_pack->signal_info.data_ok) {
-                histloc->set_frequency(in_pack->signal_info.freq_khz);
+                if (freq_bounds::khz_valid(in_pack->signal_info.freq_khz))
+                    histloc->set_frequency(in_pack->signal_info.freq_khz);
                 if (in_pack->signal_info.signal_dbm != 0)
                     histloc->set_signal(in_pack->signal_info.signal_dbm);
                 else
@@ -1658,7 +1659,8 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
                 device->set_channel(in_pack->common_info.channel);
             }
 
-            if (in_pack->common_info.freq_khz != 0) {
+            // Any phy or source may hand over any value; the int cast needs it in range
+            if (freq_bounds::khz_valid(in_pack->common_info.freq_khz)) {
                 set_freq = true;
                 device->set_frequency(in_pack->common_info.freq_khz);
                 device->inc_frequency_count((int) in_pack->common_info.freq_khz);
@@ -1670,7 +1672,7 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
                 device->set_channel(in_pack->signal_info.channel);
             }
 
-            if (set_freq == false && in_pack->signal_info.freq_khz != 0) {
+            if (set_freq == false && freq_bounds::khz_valid(in_pack->signal_info.freq_khz)) {
                 device->set_frequency(in_pack->signal_info.freq_khz);
                 device->inc_frequency_count((int) in_pack->signal_info.freq_khz);
             }
@@ -1703,7 +1705,7 @@ void device_tracker::update_common_device_locked(const std::shared_ptr<kis_track
 
         packinfo_sig_combo *sc = nullptr;
 
-        if (in_pack->signal_info.data_ok)
+        if (in_pack->signal_info.data_ok && freq_bounds::khz_valid(in_pack->signal_info.freq_khz))
             f = in_pack->signal_info.freq_khz;
 
         if (track_persource_history) {
