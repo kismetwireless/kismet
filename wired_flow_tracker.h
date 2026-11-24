@@ -38,6 +38,9 @@
 // flow gets one on the packet that brings it to history_min_packets, if the pool has room;
 // with the pool 90% full, the expiry pass takes them back from flows idle history_idle
 // seconds.  With the table full, a flow without history is evicted before one with.
+//
+// Each shard also counts bytes, packets, new and refused flows under its own lock, for the
+// table's rates (get_totals, wired_flow_rates).
 
 #include <array>
 #include <atomic>
@@ -156,6 +159,15 @@ public:
         uint64_t histories_released = 0;
     };
 
+    // Running counts since the table was made, for rates; they only grow (modulo 2^64)
+    struct totals {
+        uint64_t bytes = 0;             // of packets counted in a flow
+        uint64_t packets = 0;
+        uint64_t created = 0;
+        uint64_t refused = 0;           // new flows dropped or deferred
+        size_t flows = 0;               // flows now
+    };
+
     // A flow's key and serial as an id for URLs: fixed-width lowercase hex of the family,
     // protocol, ports, VLAN key and both addresses (8 or 32 digits each), '-', then the serial
     static constexpr size_t key_text_len_v4 = 55;
@@ -194,6 +206,9 @@ public:
 
     stats get_stats() const;
 
+    // Takes each shard's lock in turn
+    totals get_totals() const;
+
     const params& get_params() const { return p; }
 
     static constexpr size_t n_shards = 16;
@@ -211,8 +226,14 @@ protected:
         std::unique_ptr<flow_history, history_release> history;
     };
 
+    struct shard_counts {
+        uint64_t bytes = 0, packets = 0, created = 0, refused = 0;
+    };
+
     struct shard {
         mutable std::mutex mutex;
+        // Under mutex, which add() holds anyway, so counting costs no atomics
+        shard_counts counts;
         ankerl::unordered_dense::map<key, flow_entry, key_hash> flows;
         // Hashes of flows waiting for a second packet, while the table is nearly full
         std::array<uint64_t, pending_slots> pending{};
@@ -241,6 +262,46 @@ protected:
     void admit_history(flow_entry& f, time_t now);
 
     static void to_flow(const key& k, const flow_entry& e, flow& out);
+};
+
+// Turns the table's totals, read about once a second at server time, into per-second counts
+// for RRDs that sum their samples, and the flow count for a gauge.  The reader may run late
+// (seconds skipped) or twice in a second, and the clock may step either way.  Not locked:
+// one thread at a time.
+class wired_flow_rates {
+public:
+    enum class series : uint8_t { bytes, packets, created, refused };
+    static constexpr size_t n_series = 4;
+
+    // A gap up to this is a late reader: its counts are spread over the seconds it skipped.
+    // A longer one (a stall, or the clock stepping forward) is counted in its last second.
+    static constexpr time_t max_spread_s = 5;
+    // The clock stepping back up to this much is counted in the last second fed; further back
+    // and the series start over at the new time, as a flow's history does
+    static constexpr time_t max_backstep_s = 60;
+    // Counts per sample are capped where a double (and kis_tracked_rrd's int64 sum) is exact
+    static constexpr uint64_t max_count = UINT64_C(1) << 53;
+
+    struct sample {
+        time_t t = 0;
+        std::array<uint64_t, n_series> v{};
+    };
+
+    struct feed {
+        bool restart = false;           // drop every series and start over at samples[0].t
+        size_t n_samples = 0;
+        std::array<sample, max_spread_s> samples{};
+        time_t gauge_time = 0;          // flows, as of this second; set again for a repeated second
+        uint64_t flows = 0;
+    };
+
+    // Counts since the last call (since the table was made, the first time), from totals read now
+    feed next(time_t now, const wired_flow_tracker::totals& t);
+
+private:
+    bool started = false;
+    time_t last = 0;                    // the last second fed
+    wired_flow_tracker::totals prev;
 };
 
 #endif

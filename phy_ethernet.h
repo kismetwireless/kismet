@@ -41,6 +41,7 @@
 #include "kis_mutex.h"
 #include "packet.h"
 #include "packetchain.h"
+#include "trackedrrd.h"
 #include "unordered_dense.h"
 #include "wired_flow_rrd.h"
 #include "wired_flow_tracker.h"
@@ -571,6 +572,22 @@ protected:
     std::unique_ptr<wired_flow_tracker> flows;
     int expire_timer_id = -1;
 
+    // History of the whole flow table, fed by a 1 s timer.  The set is replaced when the
+    // clock steps back; rates_mutex guards only the pointer, so it never nests with a lock.
+    // RRD locks come after the endpoint's while serializing; the timer takes them after the
+    // shard locks are released.
+    using flow_gauge_rrd = kis_tracked_rrd<kis_tracked_rrd_gauge_aggregator>;
+    struct flow_rate_rrds {
+        std::array<std::shared_ptr<kis_tracked_rrd<>>, wired_flow_rates::n_series> counts;
+        std::shared_ptr<flow_gauge_rrd> active;
+    };
+    kis_mutex rates_mutex{"ethernet flow rates"};
+    std::shared_ptr<flow_rate_rrds> rate_rrds;
+    wired_flow_rates rates;             // the timer's only
+    int rates_timer_id = -1;
+    std::shared_ptr<flow_rate_rrds> make_rate_rrds() const;
+    void sample_flow_rates();
+
     // IP to MAC bindings, from ARP, DHCP and the addresses devices use; seen is server time
     struct ip_binding {
         std::array<uint64_t, max_macs_per_ip> macs{};
@@ -644,6 +661,7 @@ protected:
 
     std::shared_ptr<tracker_element> flows_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> flow_by_key_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> flow_history_endpoint();
     std::shared_ptr<tracker_element> vlans_endpoint();
     std::shared_ptr<tracker_element> by_ip_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     std::shared_ptr<tracker_element> status_endpoint();
@@ -654,6 +672,8 @@ protected:
     int flow_fields[30];
     static constexpr size_t flow_rrd_field = 26;
     wired_flow_rrd flow_rrd;
+    // wired_flow_rates::series order, then the flow count
+    int rate_fields[wired_flow_rates::n_series + 1];
     int vlan_fields[8];
     static constexpr size_t n_status_fields = 24;
     int status_fields[n_status_fields];

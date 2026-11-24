@@ -1,5 +1,6 @@
 /* Tests that a wired flow's history serializes like a kis_tracked_rrd: the same field ids,
- * JSON types and vector lengths, and the same values for the samples both are fed.
+ * JSON types and vector lengths, and the same values for the samples both are fed.  Also
+ * feeds the flow table's rates into real RRDs, as the phy does.
  *
  *   make test/ethernet/flow_rrd_test && test/ethernet/flow_rrd_test
  */
@@ -22,6 +23,7 @@
 #include "trackedrrd.h"
 #include "wired_flow_history.h"
 #include "wired_flow_rrd.h"
+#include "wired_flow_tracker.h"
 
 static int failures = 0;
 
@@ -201,17 +203,71 @@ static void test_idle_day() {
     }
 }
 
+// The flow table's rates into real RRDs, as kis_ethernet_phy::sample_flow_rates feeds them:
+// a second read twice sums the counts and keeps one gauge value; a late read spreads
+static void test_table_rates() {
+    using gauge_rrd = kis_tracked_rrd<kis_tracked_rrd_gauge_aggregator>;
+    auto bytes = std::make_shared<kis_tracked_rrd<>>(field_id("test.flow.real_rrd"));
+    auto active = std::make_shared<gauge_rrd>(field_id("test.flow.gauge_rrd"));
+    bytes->update_before_serialize(false);
+    active->update_before_serialize(false);
+
+    wired_flow_rates rates;
+    const auto read = [&](time_t now, uint64_t total_bytes, size_t n_flows) {
+        wired_flow_tracker::totals t;
+        t.bytes = total_bytes;
+        t.flows = n_flows;
+        const auto f = rates.next(now, t);
+        CHECK(!f.restart);
+        for (size_t s = 0; s < f.n_samples; s++)
+            bytes->add_sample(static_cast<double>(f.samples[s].v[0]), f.samples[s].t);
+        active->add_sample(static_cast<double>(f.flows), f.gauge_time);
+    };
+
+    const time_t t = base_time;
+    read(t, 100, 5);
+    read(t + 1, 300, 7);
+    read(t + 1, 350, 7);
+    read(t + 1, 360, 7);
+    read(t + 4, 460, 4);    // three seconds late
+
+    Globalreg::globalreg->last_tv_sec = t + 4;
+    const auto b = to_json(bytes)["kismet.common.rrd.minute_vec"];
+    const auto g = to_json(active)["kismet.common.rrd.minute_vec"];
+    const auto at = [](time_t s) { return static_cast<size_t>(s % 60); };
+    constexpr double blank = kis_tracked_rrd_gauge_aggregator::blank;
+
+    CHECK(b[at(t)].get<double>() == 100);
+    CHECK(b[at(t + 1)].get<double>() == 260);
+    CHECK(b[at(t + 2)].get<double>() == 33);
+    CHECK(b[at(t + 3)].get<double>() == 33);
+    CHECK(b[at(t + 4)].get<double>() == 34);
+    CHECK(g[at(t)].get<double>() == 5);
+    CHECK(g[at(t + 1)].get<double>() == 7);
+    CHECK(g[at(t + 2)].get<double>() == blank);
+    CHECK(g[at(t + 3)].get<double>() == blank);
+    CHECK(g[at(t + 4)].get<double>() == 4);
+
+    double sum = 0;
+    for (const auto& v : b)
+        sum += v.get<double>();
+    CHECK(sum == 460);
+}
+
 int main() {
     Globalreg::globalreg = new global_registry;
     auto entrytracker = entry_tracker::create_entrytracker();
 
     entrytracker->register_field("test.flow.real_rrd", tracker_element_factory<kis_tracked_rrd<>>(), "real rrd");
     entrytracker->register_field("test.flow.our_rrd", tracker_element_factory<tracker_element_map>(), "flow rrd");
+    entrytracker->register_field("test.flow.gauge_rrd",
+            tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_gauge_aggregator>>(), "gauge rrd");
 
     test_field_ids();
     test_one_minute();
     test_minutes();
     test_idle_day();
+    test_table_rates();
 
     if (failures) {
         fprintf(stderr, "%d check(s) failed\n", failures);

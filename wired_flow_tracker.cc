@@ -226,6 +226,7 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
             const auto tag = pending_tag(h);
             if (slot != tag) {
                 slot = tag;
+                s.counts.refused++;
                 n_deferred.fetch_add(1, std::memory_order_relaxed);
                 return result::deferred;
             }
@@ -243,11 +244,13 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
         }
 
         if (!reserved && !(evict && evict_one(s, o.seen))) {
+            s.counts.refused++;
             n_dropped_full.fetch_add(1, std::memory_order_relaxed);
             return result::dropped;
         }
 
         created = true;
+        s.counts.created++;
 
         flow_entry f;
         f.initiator_a = src_is_a;
@@ -258,6 +261,9 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
     }
 
     auto& f = fi->second;
+
+    s.counts.bytes += o.bytes;
+    s.counts.packets++;
 
     if (src_is_a) {
         f.bytes_ab += o.bytes;
@@ -586,4 +592,77 @@ wired_flow_tracker::stats wired_flow_tracker::get_stats() const {
     st.histories_denied = n_histories_denied.load(std::memory_order_relaxed);
     st.histories_released = n_histories_released.load(std::memory_order_relaxed);
     return st;
+}
+
+wired_flow_tracker::totals wired_flow_tracker::get_totals() const {
+    totals t;
+
+    for (size_t i = 0; i < n_shards; i++) {
+        const auto& s = shards[i];
+        std::lock_guard<std::mutex> lk(s.mutex);
+        t.bytes += s.counts.bytes;
+        t.packets += s.counts.packets;
+        t.created += s.counts.created;
+        t.refused += s.counts.refused;
+        t.flows += s.flows.size();
+    }
+
+    return t;
+}
+
+wired_flow_rates::feed wired_flow_rates::next(time_t now, const wired_flow_tracker::totals& t) {
+    // Unsigned differences stay right across a wrap
+    std::array<uint64_t, n_series> d{
+        t.bytes - prev.bytes, t.packets - prev.packets, t.created - prev.created, t.refused - prev.refused,
+    };
+    for (auto& v : d)
+        v = std::min(v, max_count);
+    prev = t;
+
+    feed f;
+    f.flows = t.flows;
+
+    const auto one = [&f, &d](time_t at) {
+        f.n_samples = 1;
+        f.samples[0].t = at;
+        f.samples[0].v = d;
+        f.gauge_time = at;
+    };
+
+    if (!started) {
+        started = true;
+        last = now;
+        one(now);
+        return f;
+    }
+
+    // Both are server seconds, far from overflowing a time_t
+    const time_t gap = now - last;
+
+    if (gap < -max_backstep_s) {
+        f.restart = true;
+        last = now;
+        one(now);
+    } else if (gap <= 0) {
+        one(last);
+    } else if (gap <= max_spread_s) {
+        const auto n = static_cast<uint64_t>(gap);
+        f.n_samples = static_cast<size_t>(gap);
+        for (size_t i = 0; i < f.n_samples; i++) {
+            auto& s = f.samples[i];
+            s.t = last + 1 + static_cast<time_t>(i);
+            for (size_t k = 0; k < n_series; k++)
+                s.v[k] = d[k] / n;
+        }
+        // The remainder goes in the newest second, so the sum is exact
+        for (size_t k = 0; k < n_series; k++)
+            f.samples[f.n_samples - 1].v[k] += d[k] % n;
+        f.gauge_time = now;
+        last = now;
+    } else {
+        last = now;
+        one(now);
+    }
+
+    return f;
 }
