@@ -45,6 +45,8 @@
 #include <ctime>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "kis_l3_parse.h"
@@ -153,6 +155,15 @@ public:
         uint64_t histories_denied = 0;
         uint64_t histories_released = 0;
     };
+
+    // A flow's key and serial as an id for URLs: fixed-width lowercase hex of the family,
+    // protocol, ports, VLAN key and both addresses (8 or 32 digits each), '-', then the serial
+    static constexpr size_t key_text_len_v4 = 55;
+    static constexpr size_t key_text_len_v6 = 103;
+    static std::string format_key(const key& k, uint64_t serial);
+
+    // False for anything but the text of a key the table could hold and a nonzero serial
+    static bool parse_key(std::string_view text, key& k, uint64_t& serial);
 
     struct filter {
         uint64_t mac = 0;               // 0 for any

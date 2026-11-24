@@ -62,6 +62,58 @@ constexpr uint8_t tcp_rst = 0x04;
 // Pool use, in percent, at which the expiry pass takes histories back from idle flows
 constexpr size_t history_release_pct = 90;
 
+// Key text: hex digits per field
+constexpr size_t family_digits = 2, proto_digits = 2, port_digits = 4, vlan_digits = 10, serial_digits = 16;
+constexpr size_t fixed_digits = family_digits + proto_digits + 2 * port_digits + vlan_digits;
+constexpr char key_serial_sep = '-';
+
+static_assert(fixed_digits + 2 * 4 * 2 + 1 + serial_digits == wired_flow_tracker::key_text_len_v4);
+static_assert(fixed_digits + 2 * 16 * 2 + 1 + serial_digits == wired_flow_tracker::key_text_len_v6);
+
+// The bits vlan_key() can set: the tag count and two 12-bit IDs, all in vlan_digits
+constexpr uint64_t vlan_key_mask = (0xffULL << 32) | 0xffffffULL;
+static_assert(wired_flow_tracker::vlan_key(0xff, 0xfff, 0xfff) == vlan_key_mask);
+static_assert(vlan_key_mask >> (vlan_digits * 4) == 0);
+
+void put_hex(std::string& out, uint64_t v, size_t digits) {
+    constexpr char hex[] = "0123456789abcdef";
+    for (size_t i = digits; i > 0; i--)
+        out.push_back(hex[(v >> ((i - 1) * 4)) & 0xf]);
+}
+
+// digits lowercase hex characters at pos, which moves past them; false on anything else
+bool get_hex(std::string_view s, size_t& pos, size_t digits, uint64_t& out) {
+    if (digits > 16 || pos > s.size() || s.size() - pos < digits)
+        return false;
+
+    uint64_t v = 0;
+    for (size_t i = 0; i < digits; i++) {
+        const char c = s[pos + i];
+        unsigned int d;
+        if (c >= '0' && c <= '9')
+            d = static_cast<unsigned int>(c - '0');
+        else if (c >= 'a' && c <= 'f')
+            d = static_cast<unsigned int>(c - 'a') + 10;
+        else
+            return false;
+        v = (v << 4) | d;
+    }
+
+    pos += digits;
+    out = v;
+    return true;
+}
+
+bool get_addr(std::string_view s, size_t& pos, size_t len, std::array<uint8_t, 16>& out) {
+    for (size_t i = 0; i < len; i++) {
+        uint64_t b;
+        if (!get_hex(s, pos, 2, b))
+            return false;
+        out[i] = static_cast<uint8_t>(b);
+    }
+    return true;
+}
+
 }
 
 wired_flow_tracker::key_hash::key_hash(uint64_t seed) {
@@ -452,6 +504,73 @@ bool wired_flow_tracker::lookup(const key& k, uint64_t serial, time_t now, flow&
         hist_out->advance_to(now);
     }
 
+    return true;
+}
+
+std::string wired_flow_tracker::format_key(const key& k, uint64_t serial) {
+    const size_t addr_len = k.family == 4 ? 4 : 16;
+
+    std::string out;
+    out.reserve(addr_len == 4 ? key_text_len_v4 : key_text_len_v6);
+
+    put_hex(out, k.family, family_digits);
+    put_hex(out, k.proto, proto_digits);
+    put_hex(out, k.port_a, port_digits);
+    put_hex(out, k.port_b, port_digits);
+    put_hex(out, k.vlan & vlan_key_mask, vlan_digits);
+    for (size_t i = 0; i < addr_len; i++)
+        put_hex(out, k.addr_a[i], 2);
+    for (size_t i = 0; i < addr_len; i++)
+        put_hex(out, k.addr_b[i], 2);
+    out.push_back(key_serial_sep);
+    put_hex(out, serial, serial_digits);
+
+    return out;
+}
+
+bool wired_flow_tracker::parse_key(std::string_view text, key& k, uint64_t& serial) {
+    // Length first, so nothing longer is ever read
+    if (text.size() != key_text_len_v4 && text.size() != key_text_len_v6)
+        return false;
+
+    size_t pos = 0;
+    uint64_t family, proto, port_a, port_b, vlan, ser;
+
+    if (!get_hex(text, pos, family_digits, family) || !get_hex(text, pos, proto_digits, proto) ||
+            !get_hex(text, pos, port_digits, port_a) || !get_hex(text, pos, port_digits, port_b) ||
+            !get_hex(text, pos, vlan_digits, vlan))
+        return false;
+
+    if (!((family == 4 && text.size() == key_text_len_v4) || (family == 6 && text.size() == key_text_len_v6)))
+        return false;
+
+    if ((vlan & ~vlan_key_mask) != 0)
+        return false;
+
+    key out;
+    out.family = static_cast<uint8_t>(family);
+    out.proto = static_cast<uint8_t>(proto);
+    out.port_a = static_cast<uint16_t>(port_a);
+    out.port_b = static_cast<uint16_t>(port_b);
+    out.vlan = vlan;
+
+    const size_t addr_len = family == 4 ? 4 : 16;
+    if (!get_addr(text, pos, addr_len, out.addr_a) || !get_addr(text, pos, addr_len, out.addr_b))
+        return false;
+
+    // Side a is the lower address and port, as add() keys every flow
+    if (out.addr_a > out.addr_b || (out.addr_a == out.addr_b && out.port_a > out.port_b))
+        return false;
+
+    if (pos >= text.size() || text[pos] != key_serial_sep)
+        return false;
+    pos++;
+
+    if (!get_hex(text, pos, serial_digits, ser) || ser == 0 || pos != text.size())
+        return false;
+
+    k = out;
+    serial = ser;
     return true;
 }
 

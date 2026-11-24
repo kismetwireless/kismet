@@ -1,4 +1,4 @@
-/* Tests for wired_flow_history and the history pool of wired_flow_tracker.
+/* Tests for wired_flow_history, the history pool of wired_flow_tracker and flow keys.
  *
  *   make test/ethernet/flow_history_test && test/ethernet/flow_history_test
  *
@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cstdio>
 #include <limits>
 #include <random>
@@ -608,6 +609,219 @@ static void test_threads() {
     CHECK(t.get_stats().histories == 0 && t.get_stats().flows == 0);
 }
 
+static bool parses(std::string_view s) {
+    wired_flow_tracker::key k;
+    uint64_t serial = 0;
+    return wired_flow_tracker::parse_key(s, k, serial);
+}
+
+// Parsed keys print back as the same text
+static bool round_trips(std::string_view s) {
+    wired_flow_tracker::key k;
+    uint64_t serial = 0;
+    return wired_flow_tracker::parse_key(s, k, serial) && wired_flow_tracker::format_key(k, serial) == s;
+}
+
+static wired_flow_tracker::key v4_key() {
+    wired_flow_tracker::key k;
+    k.family = 4;
+    k.proto = 17;
+    k.port_a = 1000;
+    k.port_b = 53;
+    k.addr_a = {192, 0, 2, 5};
+    k.addr_b = {198, 51, 100, 1};
+    return k;
+}
+
+static void test_key_known_values() {
+    const std::string v4 = wired_flow_tracker::format_key(v4_key(), 1);
+    CHECK(v4 == "041103e800350000000000c0000205c6336401-0000000000000001");
+    CHECK(v4.size() == wired_flow_tracker::key_text_len_v4);
+
+    auto kv = v4_key();
+    kv.vlan = wired_flow_tracker::vlan_key(2, 100, 200);
+    CHECK(wired_flow_tracker::format_key(kv, 0x10) == "041103e8003502000640c8c0000205c6336401-0000000000000010");
+
+    wired_flow_tracker::key k6;
+    k6.family = 6;
+    k6.proto = 6;
+    k6.port_a = 443;
+    k6.port_b = 50000;
+    k6.addr_a = {0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+    k6.addr_b = {0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2};
+    const std::string v6 = wired_flow_tracker::format_key(k6, 0xfedcba9876543210ULL);
+    CHECK(v6 == "060601bbc3500000000000" "20010db8000000000000000000000001" "20010db8000000000000000000000002"
+            "-fedcba9876543210");
+    CHECK(v6.size() == wired_flow_tracker::key_text_len_v6);
+
+    wired_flow_tracker::key k;
+    uint64_t serial = 0;
+    CHECK(wired_flow_tracker::parse_key(v6, k, serial) && k == k6 && serial == 0xfedcba9876543210ULL);
+    CHECK(wired_flow_tracker::parse_key(v4, k, serial) && k == v4_key() && serial == 1);
+}
+
+static void test_key_round_trip() {
+    std::mt19937_64 rng(test_seed);
+    size_t bad = 0;
+
+    for (int i = 0; i < 20000; i++) {
+        wired_flow_tracker::key k;
+        k.family = (rng() & 1) ? 4 : 6;
+        k.proto = static_cast<uint8_t>(rng());
+        k.port_a = static_cast<uint16_t>(rng());
+        k.port_b = static_cast<uint16_t>(rng());
+        k.vlan = wired_flow_tracker::vlan_key(static_cast<uint8_t>(rng() % 5), static_cast<uint16_t>(rng()),
+                static_cast<uint16_t>(rng()));
+        const size_t len = k.family == 4 ? 4 : 16;
+        for (size_t j = 0; j < len; j++) {
+            // Few distinct bytes, so equal addresses and the port tie-break come up
+            k.addr_a[j] = static_cast<uint8_t>(rng() % 3);
+            k.addr_b[j] = static_cast<uint8_t>(rng() % 3);
+        }
+        if (k.addr_a > k.addr_b)
+            std::swap(k.addr_a, k.addr_b);
+        if (k.addr_a == k.addr_b && k.port_a > k.port_b)
+            std::swap(k.port_a, k.port_b);
+        uint64_t serial = rng();
+        if (serial == 0)
+            serial = 1;
+
+        const auto s = wired_flow_tracker::format_key(k, serial);
+        wired_flow_tracker::key pk;
+        uint64_t ps = 0;
+        if (!wired_flow_tracker::parse_key(s, pk, ps) || !(pk == k) || ps != serial ||
+                wired_flow_tracker::format_key(pk, ps) != s)
+            bad++;
+    }
+
+    CHECK(bad == 0);
+}
+
+static void test_key_hostile() {
+    const std::string v4 = wired_flow_tracker::format_key(v4_key(), 1);
+    const size_t sep = v4.find('-');
+    CHECK(sep == 38);
+
+    CHECK(!parses(""));
+    CHECK(!parses(std::string(8192, '0')));
+    CHECK(!parses(std::string(8192, 'a')));
+    CHECK(!parses(v4.substr(0, 54)));
+    CHECK(!parses(v4 + "0"));
+    CHECK(!parses(v4 + "-"));
+    CHECK(!parses(v4.substr(0, 40) + "0" + v4.substr(40)));      // 17-digit serial
+
+    // Exactly one bad character anywhere
+    std::string up = v4;
+    up[14] = 'C';
+    CHECK(!parses(up));
+    std::string all_up = v4;
+    for (auto& c : all_up)
+        c = static_cast<char>(toupper(static_cast<unsigned char>(c)));
+    CHECK(!parses(all_up));
+    CHECK(!parses(v4.substr(0, 20) + "%00" + v4.substr(23)));
+    CHECK(!parses(v4.substr(0, 20) + "%2f" + v4.substr(23)));
+    CHECK(!parses(v4.substr(0, 20) + "%2F" + v4.substr(23)));
+    std::string nul = v4;
+    nul[30] = '\0';
+    CHECK(!parses(nul));
+
+    // The separator missing, moved or doubled
+    std::string nosep = v4;
+    nosep[sep] = '0';
+    CHECK(!parses(nosep));
+    std::string moved = v4;
+    std::swap(moved[sep], moved[sep + 1]);
+    CHECK(!parses(moved));
+    CHECK(!parses(v4.substr(0, sep) + "--" + v4.substr(sep + 2)));
+
+    // Family against length
+    std::string fam5 = v4;
+    fam5[1] = '5';
+    CHECK(!parses(fam5));
+    std::string fam6 = v4;
+    fam6[1] = '6';
+    CHECK(!parses(fam6));
+    std::string fam0 = v4;
+    fam0[1] = '0';
+    CHECK(!parses(fam0));
+    auto k6 = v4_key();
+    k6.family = 6;
+    std::string v6 = wired_flow_tracker::format_key(k6, 1);
+    CHECK(v6.size() == wired_flow_tracker::key_text_len_v6 && round_trips(v6));
+    v6[1] = '4';
+    CHECK(!parses(v6));
+
+    // Serial 0
+    CHECK(!parses(v4.substr(0, sep + 1) + std::string(16, '0')));
+
+    // VLAN bits vlan_key never sets
+    std::string vl = v4;
+    vl[14] = 'f';                       // bits 28-31 of the VLAN field
+    CHECK(!parses(vl));
+    vl = v4;
+    vl[15] = '1';                       // bit 24
+    CHECK(!parses(vl));
+    vl = v4;
+    vl[13] = 'f';                       // 15 tags: a value vlan_key can make
+    CHECK(round_trips(vl));
+
+    // Sides out of order: add() puts the lower address (then port) on side a
+    auto swapped = v4_key();
+    std::swap(swapped.addr_a, swapped.addr_b);
+    CHECK(!parses(wired_flow_tracker::format_key(swapped, 1)));
+    auto same_addr = v4_key();
+    same_addr.addr_b = same_addr.addr_a;
+    CHECK(!parses(wired_flow_tracker::format_key(same_addr, 1)));        // port 1000 > 53
+    std::swap(same_addr.port_a, same_addr.port_b);
+    CHECK(round_trips(wired_flow_tracker::format_key(same_addr, 1)));
+
+    // Every one-byte change: accepted only as text that round-trips, and never for a byte
+    // outside [0-9a-f-]
+    size_t bad = 0;
+    for (const auto& base : { v4, wired_flow_tracker::format_key(k6, 0x1234) }) {
+        for (size_t pos = 0; pos < base.size(); pos++) {
+            for (int b = 0; b < 256; b++) {
+                std::string m = base;
+                m[pos] = static_cast<char>(b);
+                const bool allowed = (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || b == '-';
+                if (parses(m) && (!allowed || !round_trips(m)))
+                    bad++;
+            }
+        }
+    }
+    CHECK(bad == 0);
+}
+
+// A key from a list row finds that flow, and only while it's the same flow
+static void test_key_lookup() {
+    wired_flow_tracker::params p;
+    p.history_min_packets = 1;
+    wired_flow_tracker t(p, test_seed);
+
+    t.add(obs(5, 1000, base_time));
+    auto v = all_flows(t);
+    CHECK(v.size() == 1);
+    const auto text = wired_flow_tracker::format_key(v[0].k, v[0].serial);
+
+    wired_flow_tracker::key k;
+    uint64_t serial = 0;
+    wired_flow_tracker::flow f;
+    flow_history h(0);
+    CHECK(wired_flow_tracker::parse_key(text, k, serial) && serial == v[0].serial);
+    CHECK(t.lookup(k, serial, base_time, f, &h) && f.packets_ab == 1 && f.history_time == base_time);
+    CHECK(!t.lookup(k, serial + 1, base_time, f, &h));
+
+    // The same addresses and ports later are a new flow, with a new key
+    t.expire(base_time + 1000);
+    CHECK(!t.lookup(k, serial, base_time + 1000, f, &h));
+    t.add(obs(5, 1000, base_time + 1000));
+    v = all_flows(t);
+    CHECK(v.size() == 1 && v[0].serial != serial);
+    CHECK(!t.lookup(k, serial, base_time + 1000, f, &h));
+    CHECK(wired_flow_tracker::format_key(v[0].k, v[0].serial) != text);
+    CHECK(t.lookup(v[0].k, v[0].serial, base_time + 1000, f, nullptr));
+}
+
 int main() {
     test_reference_model();
     test_known_values();
@@ -619,6 +833,10 @@ int main() {
     test_lookup();
     test_destruction();
     test_threads();
+    test_key_known_values();
+    test_key_round_trip();
+    test_key_hostile();
+    test_key_lookup();
 
     if (failures != 0) {
         fprintf(stderr, "%d failures\n", failures);
