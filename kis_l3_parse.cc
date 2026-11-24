@@ -18,6 +18,10 @@
 
 #include "kis_l3_parse.h"
 
+#include <cstring>
+
+#include "unordered_dense.h"
+
 // In this file, a variable named *_len or avail is always a count of captured bytes which
 // bounds reads; header length fields from the wire are named *_wire and only shorten them.
 
@@ -815,6 +819,51 @@ std::string escape_hidden(std::string s) {
     }
 
     return r;
+}
+
+namespace {
+
+// splitmix64 finalizer
+constexpr uint64_t avalanche(uint64_t h) {
+    h ^= h >> 30;
+    h *= 0xbf58476d1ce4e5b9ULL;
+    h ^= h >> 27;
+    h *= 0x94d049bb133111ebULL;
+    h ^= h >> 31;
+    return h;
+}
+
+constexpr uint64_t golden_gamma = 0x9e3779b97f4a7c15ULL;
+
+uint64_t load64(const uint8_t *p) {
+    uint64_t v;
+    std::memcpy(&v, p, sizeof(v));
+    return v;
+}
+
+}
+
+ip_addr_hash::ip_addr_hash(uint64_t seed) {
+    for (auto& k : keys) {
+        seed += golden_gamma;
+        k = avalanche(seed);
+    }
+}
+
+uint64_t ip_addr_hash::operator()(const ip_addr& a) const noexcept {
+    // NH (as in UMAC) over the two address words, as wired_flow_tracker hashes flow keys:
+    // (w0 + k0) * (w1 + k1) in 128 bits, folded, with the family in the last key
+    uint64_t lo = load64(a.a.data()) + keys[0];
+    uint64_t hi = load64(a.a.data() + 8) + keys[1];
+    ankerl::unordered_dense::detail::wyhash::mum(&lo, &hi);
+    return avalanche(lo ^ hi ^ (keys[2] + a.family));
+}
+
+seeded_u64_hash::seeded_u64_hash(uint64_t seed) :
+    key{avalanche(seed + golden_gamma)} { }
+
+uint64_t seeded_u64_hash::operator()(uint64_t v) const noexcept {
+    return avalanche(v + key);
 }
 
 }

@@ -200,18 +200,6 @@ bool ethernet_parse_ip(const std::string& s, kis_l3::ip_addr& out) {
     return false;
 }
 
-uint64_t kis_ethernet_phy::ip_hash::operator()(const kis_l3::ip_addr& a) const noexcept {
-    uint64_t h = 0xcbf29ce484222325ULL ^ a.family;
-    for (auto b : a.a) {
-        h ^= b;
-        h *= 0x100000001b3ULL;
-    }
-    h ^= h >> 32;
-    h *= 0x9e3779b97f4a7c15ULL;
-    h ^= h >> 29;
-    return h;
-}
-
 kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
 
@@ -250,7 +238,10 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
     learn_remote_ips = conf->fetch_opt_bool("wired_learn_remote_ips", false);
 
     std::random_device rd;
-    refused_seed = (static_cast<uint64_t>(rd()) << 32) ^ rd();
+    const auto random_seed = [&rd]() { return (static_cast<uint64_t>(rd()) << 32) ^ rd(); };
+    refused_seed = random_seed();
+    ip_table = decltype(ip_table)(0, kis_l3::ip_addr_hash{random_seed()});
+    vlan_inventory = decltype(vlan_inventory)(0, kis_l3::seeded_u64_hash{random_seed()});
 
     wired_flow_tracker::params fp;
     fp.max_flows = conf->fetch_opt_uint("wired_max_flows", 16384);

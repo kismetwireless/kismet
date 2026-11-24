@@ -110,6 +110,33 @@ struct ip_addr {
     bool operator!=(const ip_addr& o) const { return !(*this == o); }
 };
 
+// Hashes for tables keyed by addresses and ids seen in frames, keyed by a secret seed so keys
+// that share a bucket can't be computed offline.  The default (seed 0) is only a placeholder
+// until the table's owner sets its own.
+struct ip_addr_hash {
+    using is_avalanching = void;
+
+    ip_addr_hash() : ip_addr_hash(0) { }
+    explicit ip_addr_hash(uint64_t seed);
+
+    uint64_t operator()(const ip_addr& a) const noexcept;
+
+private:
+    std::array<uint64_t, 3> keys{};
+};
+
+struct seeded_u64_hash {
+    using is_avalanching = void;
+
+    seeded_u64_hash() : seeded_u64_hash(0) { }
+    explicit seeded_u64_hash(uint64_t seed);
+
+    uint64_t operator()(uint64_t v) const noexcept;
+
+private:
+    uint64_t key = 0;
+};
+
 struct vlan_tag {
     uint16_t tpid;
     uint16_t tci;

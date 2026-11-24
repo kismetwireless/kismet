@@ -575,12 +575,9 @@ protected:
         std::array<uint64_t, max_macs_per_ip> macs{};
         std::array<time_t, max_macs_per_ip> seen{};
     };
-    struct ip_hash {
-        using is_avalanching = void;
-        uint64_t operator()(const kis_l3::ip_addr& a) const noexcept;
-    };
     kis_mutex ip_mutex{"ethernet ip table"};
-    ankerl::unordered_dense::map<kis_l3::ip_addr, ip_binding, ip_hash> ip_table;
+    // Built in the constructor with a hasher seeded at startup, as is vlan_inventory
+    ankerl::unordered_dense::map<kis_l3::ip_addr, ip_binding, kis_l3::ip_addr_hash> ip_table;
     uint64_t ip_table_full = 0;
     void bind_ip(const kis_l3::ip_addr& ip, const mac_addr& mac, time_t now);
     std::vector<mac_addr> lookup_ip(const kis_l3::ip_addr& ip);
@@ -621,7 +618,7 @@ protected:
         uint64_t packets, bytes, devices;
     };
     kis_mutex vlan_mutex{"ethernet vlans"};
-    ankerl::unordered_dense::map<uint64_t, vlan_inv> vlan_inventory;
+    ankerl::unordered_dense::map<uint64_t, vlan_inv, kis_l3::seeded_u64_hash> vlan_inventory;
     uint64_t vlan_inventory_full = 0;
     void count_vlan(const kis_l3::frame& f, uint64_t bytes, time_t ts, bool new_for_device);
 
