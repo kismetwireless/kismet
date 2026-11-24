@@ -68,9 +68,18 @@ public:
         }
     };
 
+    // Keyed by a secret seed, so flows that share a shard or a pending slot can't be computed
+    // offline.  The default (seed 0) is only a placeholder until the tracker sets its own.
     struct key_hash {
         using is_avalanching = void;
+
+        key_hash() : key_hash(0) { }
+        explicit key_hash(uint64_t seed);
+
         uint64_t operator()(const key& k) const noexcept;
+
+    private:
+        std::array<uint64_t, 7> keys{};
     };
 
     // One packet of a flow
@@ -120,7 +129,9 @@ public:
         int vlan = -1;                  // a VLAN ID in either tag, -1 for any
     };
 
+    // Hashes with a random seed; tests pass their own to be repeatable
     explicit wired_flow_tracker(const params& p);
+    wired_flow_tracker(const params& p, uint64_t hash_seed);
 
     result add(const observation& o);
 
@@ -149,6 +160,7 @@ protected:
 
     params p;
     size_t admit_threshold;
+    key_hash hasher;
     std::unique_ptr<shard[]> shards;
 
     std::atomic<size_t> n_flows{0};

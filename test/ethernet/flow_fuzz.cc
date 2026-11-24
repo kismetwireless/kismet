@@ -15,7 +15,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     p.tcp_closed_idle = 2;
     p.udp_idle = 10;
     p.other_idle = 10;
-    wired_flow_tracker t(p);
+    // A fixed seed keeps runs reproducible
+    wired_flow_tracker t(p, 0x5eed);
 
     time_t now = 0;
     std::vector<wired_flow_tracker::flow> out;
