@@ -28,7 +28,9 @@
 //
 // pointLabel: (i) => text turns on a readout: pointing at the graph marks
 // that value and shows its label (a time) with the value of each line.
-// fmt formats the values in it.
+// fmt formats the values in it.  axisFmt formats the left axis labels (a
+// mirror's lower half gets the size of its values), for values with scaled
+// units such as bytes.
 //
 // annotate({ marks, bands }) adds to the next draw():
 //   marks [{ pos, color, label }]       events, as lines across the graph.  pos
@@ -42,7 +44,7 @@ import { el, fitCanvas } from '../core/dom.js';
 import { themeColor, onChange } from '../core/theme.js';
 
 export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = null, title = '', minBar = false,
-    joinGaps = false, fill = false, pointLabel = null, fmt = null } = {}) {
+    joinGaps = false, fill = false, pointLabel = null, fmt = null, axisFmt = null } = {}) {
     const canvas = el('canvas', { class: ['history-graph-canvas', pointLabel && 'pointable'] });
     const legend = el('div', { class: 'graph-legend', hidden: true });
     const tip = el('div', { class: 'graph-tip', hidden: true });
@@ -146,7 +148,8 @@ export function historyGraph({ type = 'bar', unit = '', height = '7rem', min = n
         const [rTop, rBottom] = rightFinite.length ? range(rightFinite) : [top, bottom];
 
         // A mirror's lower half counts down from the axis; label it as a count
-        const axisText = (v) => `${Math.round(type === 'mirror' ? Math.abs(v) : v)}${unit ? ' ' + unit : ''}`;
+        const axisText = (v) => (axisFmt ? axisFmt(type === 'mirror' ? Math.abs(v) : v) :
+            `${Math.round(type === 'mirror' ? Math.abs(v) : v)}${unit ? ' ' + unit : ''}`);
         const rightUnit = rightLines.find((l) => l.unit)?.unit ?? '';
         // A right line's own fmt keeps small values (doses) from rounding to 0
         const rightFmt = rightLines.find((l) => l.fmt)?.fmt;

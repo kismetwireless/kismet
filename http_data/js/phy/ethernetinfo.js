@@ -1,7 +1,8 @@
 // Text for the Ethernet (IEEE802.3) phy's fields: VLAN labels, protocol and
 // role bits, flow endpoints, TCP flags, the status counters worth a warning,
-// and checks for the Ethernet flows window's filters.  No DOM, so it can be tested on
-// its own; js/phy/ethernet.js draws with it.
+// checks for the Ethernet flows window's filters, and the pollers that keep
+// flow windows up to date.  No DOM, so it can be tested on its own;
+// js/phy/ethernet.js draws with it.
 
 const protocolBits = [
     [1 << 0, 'ARP'], [1 << 1, 'IPv4'], [1 << 2, 'IPv6'], [1 << 3, 'TCP'], [1 << 4, 'UDP'],
@@ -367,6 +368,162 @@ export function flowPoller({ post, few = 100, more = 1000, maxReads = 4, seconds
             check() {
                 if (!w.stopped && w.state !== 'checking')
                     lookFurther(w, {});
+            },
+        };
+    }
+
+    return { watch, tick, get size() { return watchers.size; } };
+}
+
+// A flow's server key (ethernet.flow.key: hex, '-', a hex serial), or null
+// from an older server that has none.  It holds both addresses, so it goes
+// into URLs only, never onto the page.
+const serverKeyPattern = /^[0-9a-f]{8,128}-[0-9a-f]{1,32}$/;
+export function serverFlowKey(r) {
+    const k = r?.['ethernet.flow.key'];
+    return typeof k === 'string' && serverKeyPattern.test(k) ? k : null;
+}
+
+// How a flow's traffic history changed between two history_time values:
+// none (still none), same, started, restarted (began again: graphs start
+// over) or stopped (given back)
+export function historyChange(before, after) {
+    const b = num(before);
+    const a = num(after);
+    if (a === b)
+        return a ? 'same' : 'none';
+    if (!a)
+        return 'stopped';
+    return b ? 'restarted' : 'started';
+}
+
+// Why a flow has no traffic history, from the flow and the status endpoint's
+// reply (null before it's read)
+export function historyNote(flow, st) {
+    const has = (k) => !!st && typeof st === 'object' && typeof st[`ethernet.status.${k}`] === 'number';
+    const s = (k) => (has(k) ? num(st[`ethernet.status.${k}`]) : 0);
+    const n = (v) => v.toLocaleString('en-US');
+    const min = s('flow_history_min_packets');
+    const max = s('max_flow_histories');
+    const packets = num(flow?.['ethernet.flow.packets_ab']) + num(flow?.['ethernet.flow.packets_ba']);
+    if (has('max_flow_histories') && max === 0)
+        return 'Traffic history is turned off on this server (wired_flow_history_max is 0).';
+    if (min > 0 && packets < min)
+        return `No traffic history yet: Kismet starts one once a flow has ${n(min)} packets ` +
+            '(wired_flow_history_min_packets).';
+    if (max > 0 && s('flow_histories') >= max)
+        return `No traffic history: all ${n(max)} are in use (wired_flow_history_max).`;
+    if (min > 0)
+        return 'No traffic history: it was given back while the flow was idle, or every history was in use when ' +
+            'the flow qualified.';
+    return 'No traffic history yet: Kismet starts one once a flow has a few packets (wired_flow_history_min_packets).';
+}
+
+// Keeps open flow windows up to date by reading each flow by its server key
+// (serverFlowKey), once when watch() starts and then every `seconds` while
+// visible(): one read per window, at
+// most maxReads of them however many are open (the longest waiting first),
+// each given up after `timeout` seconds.  read(key, signal) gives the
+// endpoint's reply or throws with err.status: 404 is a flow the server has
+// forgotten, 400 a key it can't read.  A flow found gone or invalid is no
+// longer read until check() asks again.
+//
+// watch(flow, onUpdate) gives { stop(), check() }; stop() also aborts a read
+// under way.  onUpdate(w) is called with { flow, state, was, error } as they
+// change, state being found, checking, gone, invalid or error (no reply or an
+// endpoint error; still read every tick), and was the state before a check.
+export function flowKeyPoller({ read, maxReads = 4, seconds = 5, timeout = 15, visible = () => true }) {
+    const watchers = new Set();
+    let ticks = 0;
+    let busy = false;
+    let timer = null;
+
+    function sync() {
+        if (!seconds)
+            return;
+        if (watchers.size && !timer) {
+            timer = setInterval(tick, seconds * 1000);
+        } else if (!watchers.size && timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    function set(w, state, extra = {}) {
+        if (w.stopped)
+            return;
+        if (state === 'checking' && w.state !== 'checking')
+            w.was = w.state;
+        Object.assign(w, { state }, extra);
+        w.onUpdate(w);
+    }
+
+    // One read of a window's flow; never throws
+    async function readOne(w) {
+        const ctl = new AbortController();
+        w.reading = ctl;
+        const limit = setTimeout(() => ctl.abort(), timeout * 1000);
+        try {
+            const reply = await read(w.key, ctl.signal);
+            if (serverFlowKey(reply) !== w.key)
+                set(w, 'error', { error: 'the server sent a different flow' });
+            else
+                set(w, 'found', { flow: reply, error: '' });
+        } catch (err) {
+            if (err?.status === 404)
+                set(w, 'gone', { error: '' });
+            else if (err?.status === 400)
+                set(w, 'invalid', { error: '' });
+            else if (err?.name === 'AbortError' || ctl.signal.aborted)
+                set(w, 'error', { error: 'no reply in time' });
+            else
+                set(w, 'error', { error: err?.message ?? String(err) });
+        } finally {
+            clearTimeout(limit);
+            if (w.reading === ctl)
+                w.reading = null;
+        }
+    }
+
+    async function tick() {
+        if (busy || !visible())
+            return;
+        busy = true;
+        ticks++;
+        try {
+            const due = [...watchers].filter((w) => !w.reading && (w.state === 'found' || w.state === 'error'))
+                .sort((x, y) => x.lastTick - y.lastTick).slice(0, maxReads);
+            for (const w of due)
+                w.lastTick = ticks;
+            await Promise.all(due.map(readOne));
+        } finally {
+            busy = false;
+        }
+    }
+
+    function watch(flow, onUpdate) {
+        const w = { flow, key: serverFlowKey(flow), state: 'found', was: 'found', error: '', stopped: false,
+            lastTick: ticks, reading: null, onUpdate };
+        if (!w.key)
+            w.state = 'invalid';
+        watchers.add(w);
+        sync();
+        // A list row has no history, so a new window reads its flow at once
+        if (w.key && visible())
+            readOne(w);
+        return {
+            stop() {
+                w.stopped = true;
+                w.reading?.abort();
+                watchers.delete(w);
+                sync();
+            },
+            // Read it again now, after it was found gone
+            check() {
+                if (w.stopped || w.reading || w.state === 'checking' || w.state === 'invalid')
+                    return;
+                set(w, 'checking');
+                readOne(w);
             },
         };
     }
