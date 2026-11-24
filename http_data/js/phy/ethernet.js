@@ -12,7 +12,7 @@
 
 import { protocolNames, roleNames, tcpFlagNames, ipProtocolName, vlanLabel, vlanTagText, vlanSortKey,
     endpoint, hostNames, addresses, statusNotes, flowFilter, flowKey, flowPoller, serverFlowKey, historyChange,
-    historyNote, flowKeyPoller } from './ethernetinfo.js';
+    historyNote, flowKeyPoller, tableTime, tableRestarted, tableHistory, tableActive } from './ethernetinfo.js';
 import { statusNotes as entityNotes, statusSummary as entitySummary, peerOf } from '../core/entityinfo.js';
 
 const base = 'kismet.device.base';
@@ -262,7 +262,7 @@ export function register(kismet) {
     const binSeconds = { minute: 1, hour: 60, day: 3600 };
     const pickedSpan = () => {
         const s = settings.get('ethernet.flow.span', 'minute');
-        return binSeconds[s] ? s : 'minute';
+        return Object.hasOwn(binSeconds, s) ? s : 'minute';
     };
     const byteRate = (v) => (Number.isFinite(v) ? `${format.size(v)}/s` : '-');
     const packetRate = (v) => (Number.isFinite(v) ? `${v >= 100 ? Math.round(v).toLocaleString() : +v.toFixed(1)}/s` : '-');
@@ -358,6 +358,206 @@ export function register(kismet) {
         }
 
         return { render, destroy: drop };
+    }
+
+    // ---- flow table history ------------------------------------------------
+
+    const pickedTableSpan = () => {
+        const s = settings.get('ethernet.flows.table_span', 'minute');
+        return Object.hasOwn(binSeconds, s) ? s : 'minute';
+    };
+    const refusedHelp = 'Deferred or dropped flows: new flows held back until their second packet while the table ' +
+        'was nearly full (most are then kept), and new flows not kept at all because it was full.';
+
+    // The Flow table section of the flows tab: the whole table's traffic, new
+    // flows and size over the past minute, hour or day.  Read every
+    // flowSeconds while the section is open, the tab is shown and the page is
+    // visible; graphs start over when the server starts the history over.
+    function tableHistoryView() {
+        const buttons = spans.map(([id, label]) => el('button', { type: 'button', dataset: { span: id }, onclick: () => {
+            settings.set('ethernet.flows.table_span', id);
+            redraw();
+        } }, label));
+        const tabs = el('div', { class: 'graph-tabs' }, buttons);
+        const summary = el('span', { class: 'muted eth-flow-count' });
+        const note = el('p', { class: 'muted eth-table-note', hidden: true });
+        const error = el('p', { class: 'warn-text eth-table-note', hidden: true });
+        const grid = el('div', { class: 'eth-table-graphs', hidden: true });
+        const bar = el('div', { class: 'pk-bar' }, tabs, summary);
+        const section = el('details', { class: 'detail-section eth-table-history',
+            open: settings.get('ethernet.flows.table_open', false) },
+        el('summary', {}, 'Flow table'),
+        bar, note, error, grid);
+        let graphs = null;
+        let reply = null;
+        let shown = null;           // the history drawn, for the readouts
+        let shownTime = 0;
+        let paneShown = false;
+        let gone = false;
+        let timer = null;
+        let reading = null;
+        let alive = true;
+
+        function drop() {
+            for (const g of Object.values(graphs ?? {}))
+                g.destroy();
+            graphs = null;
+            grid.replaceChildren();
+        }
+
+        function pointLabel(i) {
+            const span = pickedTableSpan();
+            const bin = binSeconds[span];
+            const count = shown?.bytes.length ?? 0;
+            const t = (Math.floor((shown?.at ?? 0) / bin) - count + i) * bin;
+            if (span === 'minute')
+                return format.time(t).slice(-8);
+            if (span === 'hour')
+                return format.clock(t);
+            return `${format.clock(t)} to ${format.clock(t + bin)}`;
+        }
+
+        const flowCount = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString() : 'not sampled');
+
+        function build() {
+            const g = (opts) => historyGraph({ height: '6rem', pointLabel, ...opts });
+            graphs = {
+                active: g({ type: 'line', title: 'Flows in the table', min: 0, fill: true, fmt: flowCount,
+                    axisFmt: (v) => Math.round(v).toLocaleString() }),
+                created: g({ type: 'line', title: 'New flows', min: 0, fmt: packetRate, axisFmt: packetRate }),
+                // The unit names the value in the readout
+                bytes: g({ type: 'bar', title: 'Bytes', unit: 'Bytes', minBar: true, fmt: byteRate, axisFmt: byteRate }),
+                packets: g({ type: 'bar', title: 'Packets', unit: 'Packets', minBar: true, fmt: packetRate, axisFmt: packetRate }),
+            };
+            const help = el('p', { class: 'muted eth-table-help' }, icons.icon('info'), el('span', {}, refusedHelp));
+            grid.replaceChildren(graphs.active.node, el('div', {}, graphs.created.node, help),
+                graphs.bytes.node, graphs.packets.node);
+        }
+
+        function redraw() {
+            const span = pickedTableSpan();
+            for (const b of buttons) {
+                b.classList.toggle('active', b.dataset.span === span);
+                b.setAttribute('aria-pressed', String(b.dataset.span === span));
+            }
+            const off = status?.['ethernet.status.max_flows'] === 0;
+            const now = clock.isKnown() ? clock.now() : undefined;
+            shown = off || gone ? null : tableHistory(reply, now, span);
+            note.textContent = gone ? 'This server doesn\'t keep a history of the flow table.' :
+                off ? 'No flow table history while flow tracking is off.' :
+                    !reply ? 'Loading...' : !shown ? 'No flow table history yet.' : '';
+            note.hidden = !note.textContent;
+            grid.hidden = !shown;
+            // No spans to pick from a server that has no history to give
+            bar.hidden = off || gone;
+            const active = shown ? tableActive(reply, now) : null;
+            summary.textContent = active === null ? '' : `${active.toLocaleString()} ${active === 1 ? 'flow' : 'flows'} in the table`;
+            if (!shown) {
+                drop();
+                return;
+            }
+            if (!graphs)
+                build();
+            const labels = spanLabels[span];
+            graphs.active.draw([{ label: 'Flows', color: 'var(--accent)', values: shown.active }], labels);
+            graphs.created.draw([
+                { label: 'Created', color: 'var(--ok)', values: shown.created },
+                { label: 'Deferred or dropped flows', color: 'var(--warn)', values: shown.refused },
+            ], labels);
+            graphs.bytes.draw(shown.bytes, labels);
+            graphs.packets.draw(shown.packets, labels);
+        }
+
+        const wanted = () => alive && !gone && section.open && paneShown && document.visibilityState !== 'hidden' &&
+            status?.['ethernet.status.max_flows'] !== 0;
+
+        async function read() {
+            clearTimeout(timer);
+            timer = null;
+            if (!wanted() || reading)
+                return;
+            const ctl = new AbortController();
+            reading = ctl;
+            try {
+                const r = await api.get('phy/ethernet/flows/history.json', { signal: ctl.signal });
+                if (ctl.signal.aborted)
+                    return;
+                const t = tableTime(r);
+                if (tableRestarted(shownTime, t))
+                    drop();
+                shownTime = t;
+                reply = r;
+                error.hidden = true;
+            } catch (err) {
+                if (ctl.signal.aborted)
+                    return;
+                if (err?.status === 404) {
+                    gone = true;
+                } else {
+                    error.textContent = `Could not read the flow table history: ${String(err?.message ?? err).slice(0, 200)}.`;
+                    error.hidden = false;
+                }
+            } finally {
+                if (reading === ctl)
+                    reading = null;
+            }
+            redraw();
+            if (wanted())
+                timer = setTimeout(read, flowSeconds * 1000);
+        }
+
+        function stop() {
+            clearTimeout(timer);
+            timer = null;
+            reading?.abort();
+            reading = null;
+        }
+
+        // Read at once when it comes into view, stop when it goes out
+        function sync() {
+            if (wanted()) {
+                if (!timer && !reading)
+                    read();
+            } else {
+                stop();
+            }
+        }
+
+        section.addEventListener('toggle', () => {
+            settings.set('ethernet.flows.table_open', section.open);
+            // Drawn from what was read before, until the read comes back
+            if (section.open)
+                redraw();
+            sync();
+        });
+        const onVisible = () => sync();
+        document.addEventListener('visibilitychange', onVisible);
+        const statusDraw = () => {
+            if (section.open)
+                redraw();
+            sync();
+        };
+        statusWatchers.add(statusDraw);
+        redraw();
+
+        return {
+            node: section,
+            show() {
+                paneShown = true;
+                sync();
+            },
+            hide() {
+                paneShown = false;
+                stop();
+            },
+            destroy() {
+                alive = false;
+                stop();
+                drop();
+                document.removeEventListener('visibilitychange', onVisible);
+                statusWatchers.delete(statusDraw);
+            },
+        };
     }
 
     // The flow window's sections, in order; history draws the History section
@@ -733,6 +933,8 @@ export function register(kismet) {
             'or a VLAN ID; the search box then searches the page shown.  Click a flow to open its details window.',
         'Flows are kept in memory only, never logged, and are forgotten after they go idle (wired_flow_tcp_timeout and ' +
             'wired_flow_udp_timeout in kismet_wired.conf).',
+        'Flow table graphs the whole table over the past minute, hour or day: how many flows it held, new flows per ' +
+            'second, and the bytes and packets per second of every flow.  The hour and day are averages per second.',
     ];
 
     let flowView = null;        // the flows tab, once built
@@ -777,6 +979,7 @@ export function register(kismet) {
             'Flow tracking is off on this server (wired_max_flows is 0 in kismet_wired.conf).');
         const about = aboutView({ setting: 'ethernet.flows.about' });
         about.set(flowAbout);
+        const tableView = tableHistoryView();
 
         let filter = {};
         let offset = 0;
@@ -839,7 +1042,7 @@ export function register(kismet) {
         error);
         const bar = el('div', { class: 'pk-bar about-anchor' }, first, prev, next, summary, about.button);
         body.classList.add('eth-flows-tab');
-        body.append(el('div', { class: 'eth-flows-head' }, form, bar, notes.node, off), table.node, about.node);
+        body.append(el('div', { class: 'eth-flows-head' }, form, bar, notes.node, off, tableView.node), table.node, about.node);
 
         const statusDraw = () => showPage();
         statusWatchers.add(statusDraw);
@@ -854,8 +1057,13 @@ export function register(kismet) {
 
         return {
             // Fresh flows at once on returning to the tab, not at the next refresh
-            show: () => table.refresh(),
+            show: () => {
+                table.refresh();
+                tableView.show();
+            },
+            hide: () => tableView.hide(),
             destroy() {
+                tableView.destroy();
                 table.destroy();
                 notes.destroy();
                 statusWatchers.delete(statusDraw);
