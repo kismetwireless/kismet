@@ -648,7 +648,7 @@ protected:
 
     int flow_fields[23];
     int vlan_fields[8];
-    static constexpr size_t n_status_fields = 19;
+    static constexpr size_t n_status_fields = 24;
     int status_fields[n_status_fields];
 };
 

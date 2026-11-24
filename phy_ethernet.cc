@@ -261,6 +261,25 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
         fp.max_flows = 1048576;
     }
 
+    // Each history is about 3.2 KB; more than wired_max_flows is never used
+    constexpr unsigned int max_flow_histories = 65536;
+    fp.max_histories = conf->fetch_opt_uint("wired_flow_history_max", 4096);
+    if (fp.max_histories > max_flow_histories) {
+        _MSG_ERROR("wired_flow_history_max={} is too large; using {}", fp.max_histories, max_flow_histories);
+        fp.max_histories = max_flow_histories;
+    }
+    fp.max_histories = std::min(fp.max_histories, fp.max_flows);
+
+    const auto hist_min = conf->fetch_opt_uint("wired_flow_history_min_packets", 8);
+    fp.history_min_packets = std::clamp(hist_min, 1U, 1000000U);
+    if (fp.history_min_packets != hist_min)
+        _MSG_ERROR("wired_flow_history_min_packets must be 1 to 1000000; using {}", fp.history_min_packets);
+
+    const auto hist_idle = conf->fetch_opt_uint("wired_flow_history_idle", 60);
+    fp.history_idle = std::clamp(hist_idle, 10U, 86400U);
+    if (fp.history_idle != static_cast<time_t>(hist_idle))
+        _MSG_ERROR("wired_flow_history_idle must be 10 to 86400; using {}", fp.history_idle);
+
     if (fp.max_flows != 0)
         flows = std::make_unique<wired_flow_tracker>(fp);
 
@@ -349,6 +368,15 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
             "frames dated more than a minute past the server clock");
     status_fields[18] = reg_u64("ethernet.status.flows_evicted",
             "idle flows forgotten with the table full to make room for a new flow");
+    status_fields[19] = reg_u64("ethernet.status.flow_histories", "flows keeping a traffic history");
+    status_fields[20] = reg_u64("ethernet.status.max_flow_histories",
+            "wired_flow_history_max, 0 when flow history is off");
+    status_fields[21] = reg_u64("ethernet.status.flow_history_min_packets",
+            "packets a flow needs before it gets a traffic history");
+    status_fields[22] = reg_u64("ethernet.status.flow_histories_denied",
+            "flows which qualified for a traffic history while all were in use");
+    status_fields[23] = reg_u64("ethernet.status.flow_histories_released",
+            "traffic histories taken back from idle flows with nearly all in use");
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -1621,6 +1649,9 @@ std::shared_ptr<tracker_element> kis_ethernet_phy::status_endpoint() {
         n_capped.load(), new_device_rate, n_rate_limited.load(), fs.flows,
         flows != nullptr ? flows->get_params().max_flows : 0, fs.created, fs.expired, fs.dropped_full,
         fs.deferred, n_ip, n_ip_full, n_vlan_full, n_evicted.load(), n_future.load(), fs.evicted,
+        fs.histories, flows != nullptr ? flows->get_params().max_histories : 0,
+        flows != nullptr ? flows->get_params().history_min_packets : 0, fs.histories_denied,
+        fs.histories_released,
     };
 
     for (size_t i = 0; i < n_status_fields; i++)

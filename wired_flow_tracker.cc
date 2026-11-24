@@ -59,6 +59,9 @@ uint64_t random_seed() {
 constexpr uint8_t tcp_fin = 0x01;
 constexpr uint8_t tcp_rst = 0x04;
 
+// Pool use, in percent, at which the expiry pass takes histories back from idle flows
+constexpr size_t history_release_pct = 90;
+
 }
 
 wired_flow_tracker::key_hash::key_hash(uint64_t seed) {
@@ -102,6 +105,22 @@ wired_flow_tracker::wired_flow_tracker(const params& in_p, uint64_t hash_seed) :
         p.admit_pct = 100;
 
     admit_threshold = p.max_flows / 100 * p.admit_pct + (p.max_flows % 100) * p.admit_pct / 100;
+
+    p.max_histories = std::min(p.max_histories, p.max_flows);
+    p.history_min_packets = std::max<uint64_t>(p.history_min_packets, 1);
+    release_threshold = p.max_histories / 100 * history_release_pct +
+        (p.max_histories % 100) * history_release_pct / 100;
+}
+
+wired_flow_tracker::~wired_flow_tracker() {
+    shards.reset();
+}
+
+void wired_flow_tracker::history_release::operator()(flow_history* h) const noexcept {
+    auto pool = h->pool;
+    delete h;
+    if (pool != nullptr)
+        pool->fetch_sub(1, std::memory_order_relaxed);
 }
 
 time_t wired_flow_tracker::idle_for(uint8_t proto, const flow_state& f) const {
@@ -178,12 +197,12 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
 
         created = true;
 
-        flow_state f;
+        flow_entry f;
         f.initiator_a = src_is_a;
         f.first_time = o.ts;
         f.last_time = o.ts;
-        fi = s.flows.emplace(k, f).first;
-        n_created.fetch_add(1, std::memory_order_relaxed);
+        fi = s.flows.emplace(k, std::move(f)).first;
+        fi->second.serial = n_created.fetch_add(1, std::memory_order_relaxed) + 1;
     }
 
     auto& f = fi->second;
@@ -217,7 +236,33 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
     if (o.seen > f.seen)
         f.seen = o.seen;
 
+    if (f.history == nullptr && p.max_histories != 0 && f.packets_ab + f.packets_ba >= p.history_min_packets)
+        admit_history(f, o.seen);
+    if (f.history != nullptr)
+        f.history->record(o.seen, src_is_a, o.bytes);
+
     return created ? result::created : result::updated;
+}
+
+void wired_flow_tracker::admit_history(flow_entry& f, time_t now) {
+    auto n = n_histories.load(std::memory_order_relaxed);
+
+    if (n < p.max_histories) {
+        // Allocated before the slot is reserved, so a failed allocation can't leak a slot
+        std::unique_ptr<flow_history, history_release> h{new flow_history(now)};
+
+        while (n < p.max_histories) {
+            if (n_histories.compare_exchange_weak(n, n + 1, std::memory_order_relaxed)) {
+                h->pool = &n_histories;
+                f.history = std::move(h);
+                return;
+            }
+        }
+    }
+
+    // Counted once, on the packet that qualifies the flow; later ones only retry
+    if (f.packets_ab + f.packets_ba == p.history_min_packets)
+        n_histories_denied.fetch_add(1, std::memory_order_relaxed);
 }
 
 bool wired_flow_tracker::evict_one(shard& s, time_t now) {
@@ -243,9 +288,18 @@ bool wired_flow_tracker::evict_one(shard& s, time_t now) {
             continue;
         }
 
+        // Closed TCP first, then flows without history, then the longest idle
         const auto& b = v[best].second;
-        if ((f.closed && !b.closed) || (f.closed == b.closed && f.seen < b.seen))
+        const bool f_hist = f.history != nullptr, b_hist = b.history != nullptr;
+        if (f.closed != b.closed) {
+            if (f.closed)
+                best = idx;
+        } else if (f_hist != b_hist) {
+            if (!f_hist)
+                best = idx;
+        } else if (f.seen < b.seen) {
             best = idx;
+        }
     }
 
     s.evict_cursor = (s.evict_cursor + n_samples) % n;
@@ -260,24 +314,36 @@ bool wired_flow_tracker::evict_one(shard& s, time_t now) {
 
 size_t wired_flow_tracker::expire(time_t now) {
     size_t removed = 0;
+    uint64_t released = 0;
 
     for (size_t i = 0; i < n_shards; i++) {
         auto& s = shards[i];
         std::lock_guard<std::mutex> lk(s.mutex);
 
         for (auto fi = s.flows.begin(); fi != s.flows.end(); ) {
-            if (now - fi->second.seen > idle_for(fi->first.proto, fi->second)) {
+            auto& f = fi->second;
+
+            if (now - f.seen > idle_for(fi->first.proto, f)) {
                 // erase moves the last entry into this slot, so don't advance
                 fi = s.flows.erase(fi);
                 removed++;
-            } else {
-                ++fi;
+                continue;
             }
+
+            // Freeing one lowers n_histories, so this stops once the pool is below the mark
+            if (f.history != nullptr && now - f.seen >= p.history_idle &&
+                    n_histories.load(std::memory_order_relaxed) >= release_threshold) {
+                f.history.reset();
+                released++;
+            }
+
+            ++fi;
         }
     }
 
     n_flows.fetch_sub(removed, std::memory_order_relaxed);
     n_expired.fetch_add(removed, std::memory_order_relaxed);
+    n_histories_released.fetch_add(released, std::memory_order_relaxed);
     return removed;
 }
 
@@ -325,8 +391,7 @@ void wired_flow_tracker::snapshot(const filter& f, size_t start, size_t length,
                     continue;
 
                 flow cand;
-                static_cast<flow_state&>(cand) = fl;
-                cand.k = k;
+                to_flow(k, fl, cand);
 
                 if (!newer(cand, out.front()))
                     continue;
@@ -338,8 +403,7 @@ void wired_flow_tracker::snapshot(const filter& f, size_t start, size_t length,
             }
 
             out.emplace_back();
-            static_cast<flow_state&>(out.back()) = fl;
-            out.back().k = k;
+            to_flow(k, fl, out.back());
             std::push_heap(out.begin(), out.end(), newer);
         }
     }
@@ -354,6 +418,43 @@ void wired_flow_tracker::snapshot(const filter& f, size_t start, size_t length,
     out.erase(out.begin(), out.begin() + start);
 }
 
+void wired_flow_tracker::to_flow(const key& k, const flow_entry& e, flow& out) {
+    static_cast<flow_state&>(out) = e;
+    out.k = k;
+    out.serial = e.serial;
+    out.history_time = e.history != nullptr ? e.history->start_time() : 0;
+}
+
+bool wired_flow_tracker::lookup(const key& k, uint64_t serial, time_t now, flow& out,
+        flow_history* hist_out) const {
+    if (p.max_flows == 0)
+        return false;
+
+    const auto& s = shards[hasher(k) % n_shards];
+    bool copied = false;
+
+    {
+        std::lock_guard<std::mutex> lk(s.mutex);
+
+        const auto fi = s.flows.find(k);
+        if (fi == s.flows.end() || fi->second.serial != serial)
+            return false;
+
+        to_flow(k, fi->second, out);
+        if (hist_out != nullptr && fi->second.history != nullptr) {
+            *hist_out = *fi->second.history;
+            copied = true;
+        }
+    }
+
+    if (copied) {
+        hist_out->pool = nullptr;
+        hist_out->advance_to(now);
+    }
+
+    return true;
+}
+
 wired_flow_tracker::stats wired_flow_tracker::get_stats() const {
     stats st;
     st.flows = n_flows.load(std::memory_order_relaxed);
@@ -362,5 +463,8 @@ wired_flow_tracker::stats wired_flow_tracker::get_stats() const {
     st.dropped_full = n_dropped_full.load(std::memory_order_relaxed);
     st.deferred = n_deferred.load(std::memory_order_relaxed);
     st.evicted = n_evicted.load(std::memory_order_relaxed);
+    st.histories = n_histories.load(std::memory_order_relaxed);
+    st.histories_denied = n_histories_denied.load(std::memory_order_relaxed);
+    st.histories_released = n_histories_released.load(std::memory_order_relaxed);
     return st;
 }

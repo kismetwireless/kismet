@@ -33,6 +33,11 @@
 // Packet times are only shown; a flow goes idle by server time since its last packet, so a
 // capture's clock (skewed, reordered, or days old in a replay) can't expire or keep flows.
 // No Kismet dependencies, so the tests and fuzzers build it alone; hence std::mutex.
+//
+// Up to max_histories flows keep a traffic history (wired_flow_history.h), by server time.  A
+// flow gets one on the packet that brings it to history_min_packets, if the pool has room;
+// with the pool 90% full, the expiry pass takes them back from flows idle history_idle
+// seconds.  With the table full, a flow without history is evicted before one with.
 
 #include <array>
 #include <atomic>
@@ -44,6 +49,7 @@
 
 #include "kis_l3_parse.h"
 #include "unordered_dense.h"
+#include "wired_flow_history.h"
 
 class wired_flow_tracker {
 public:
@@ -60,6 +66,12 @@ public:
         // Seconds without a packet before a flow can be evicted
         time_t evict_idle = 10;
         time_t evict_closed_idle = 1;
+        // Flows with a traffic history, at most max_flows; 0 for none
+        size_t max_histories = 4096;
+        // Packets, both ways, before a flow gets a history; at least 1
+        uint64_t history_min_packets = 8;
+        // Seconds idle before a flow gives its history back, with the pool 90% full
+        time_t history_idle = 60;
     };
 
     // Up to two VLAN IDs and the tag count, packed; 0 is untagged
@@ -121,9 +133,11 @@ public:
         time_t seen = 0;
     };
 
-    // A flow as snapshot() returns it
+    // A flow as snapshot() and lookup() return it
     struct flow : flow_state {
         key k;
+        uint64_t serial = 0;            // nonzero, unique to this flow
+        time_t history_time = 0;        // server time its history began, 0 for none
     };
 
     enum class result : uint8_t { updated, created, deferred, dropped, ignored };
@@ -135,6 +149,9 @@ public:
         uint64_t dropped_full = 0;
         uint64_t deferred = 0;
         uint64_t evicted = 0;
+        size_t histories = 0;
+        uint64_t histories_denied = 0;
+        uint64_t histories_released = 0;
     };
 
     struct filter {
@@ -146,11 +163,18 @@ public:
     // Hashes with a random seed; tests pass their own to be repeatable
     explicit wired_flow_tracker(const params& p);
     wired_flow_tracker(const params& p, uint64_t hash_seed);
+    ~wired_flow_tracker();
 
     result add(const observation& o);
 
-    // Drops flows idle at server time now; returns how many
+    // Drops flows idle at server time now and, with the history pool nearly full, the
+    // histories of flows idle history_idle; returns how many flows were dropped
     size_t expire(time_t now);
+
+    // The flow k with this serial; its history too, moved forward to server time now, into
+    // hist_out when that's set and the flow has one (out.history_time != 0).  False when
+    // there's no such flow, or k is now a different flow.
+    bool lookup(const key& k, uint64_t serial, time_t now, flow& out, flow_history* hist_out) const;
 
     // Flows matching f, most recent packet first, from start (length 0 for all of them);
     // total_matched counts every match.  Only start + length flows are copied out of the table.
@@ -166,9 +190,19 @@ public:
     static constexpr size_t evict_samples = 8;
 
 protected:
+    // Frees a history and gives its place in the pool back
+    struct history_release {
+        void operator()(flow_history* h) const noexcept;
+    };
+
+    struct flow_entry : flow_state {
+        uint64_t serial = 0;
+        std::unique_ptr<flow_history, history_release> history;
+    };
+
     struct shard {
         mutable std::mutex mutex;
-        ankerl::unordered_dense::map<key, flow_state, key_hash> flows;
+        ankerl::unordered_dense::map<key, flow_entry, key_hash> flows;
         // Hashes of flows waiting for a second packet, while the table is nearly full
         std::array<uint64_t, pending_slots> pending{};
         // Where the next eviction starts looking in flows.values()
@@ -177,16 +211,25 @@ protected:
 
     params p;
     size_t admit_threshold;
+    size_t release_threshold = 0;
     key_hash hasher;
+    // Histories hold a pointer to n_histories, so the destructor frees shards first
     std::unique_ptr<shard[]> shards;
 
     std::atomic<size_t> n_flows{0};
     std::atomic<uint64_t> n_created{0}, n_expired{0}, n_dropped_full{0}, n_deferred{0}, n_evicted{0};
+    std::atomic<size_t> n_histories{0};
+    std::atomic<uint64_t> n_histories_denied{0}, n_histories_released{0};
 
     time_t idle_for(uint8_t proto, const flow_state& f) const;
 
     // Call with s.mutex held; removes one idle flow from s, false if none was found
     bool evict_one(shard& s, time_t now);
+
+    // Call with the flow's shard mutex held, on a packet of a flow without history
+    void admit_history(flow_entry& f, time_t now);
+
+    static void to_flow(const key& k, const flow_entry& e, flow& out);
 };
 
 #endif

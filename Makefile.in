@@ -285,7 +285,13 @@ TEST_EXTERNAL_POLICY_O = \
 TEST_ETHERNET = test/ethernet/l3_parse_test
 TEST_ETHERNET_O = \
 	test/ethernet/l3_parse_test.cc.o \
-	kis_l3_parse.cc.o wired_flow_tracker.cc.o
+	kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o
+
+# The wired flow history tests; built on request
+TEST_FLOW_HISTORY = test/ethernet/flow_history_test
+TEST_FLOW_HISTORY_O = \
+	test/ethernet/flow_history_test.cc.o \
+	kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o
 
 # The wired/Wi-Fi record linking graph tests; built on request
 TEST_ENTITY = test/entity/graph_test
@@ -468,7 +474,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_btle_adv.cc.o phy_802154.cc.o phy_ant.cc.o \
 	phy_80211_ssidtracker.cc.o phy_radiation.cc.o phy_meshtastic.cc.o phy_meshcore.cc.o \
 	phy_cell.cc.o phy_cell_decisions.cc.o \
-	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o \
+	phy_ethernet.cc.o kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o \
 	entity_graph.cc.o entity_tracker.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
@@ -558,6 +564,9 @@ $(TEST_EXTERNAL_POLICY):	$(TEST_EXTERNAL_POLICY_O)
 
 $(TEST_ETHERNET):	$(TEST_ETHERNET_O)
 	$(LD) $(LDFLAGS) -o $(TEST_ETHERNET) $(TEST_ETHERNET_O) $(CXXLIBS)
+
+$(TEST_FLOW_HISTORY):	$(TEST_FLOW_HISTORY_O)
+	$(LD) $(LDFLAGS) -o $(TEST_FLOW_HISTORY) $(TEST_FLOW_HISTORY_O) $(CXXLIBS)
 
 $(TEST_ENTITY):	$(TEST_ENTITY_O)
 	$(LD) $(LDFLAGS) -o $(TEST_ENTITY) $(TEST_ENTITY_O) $(CXXLIBS)
@@ -1227,7 +1236,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
-	@-rm -f test/ethernet/*.o $(TEST_ETHERNET)
+	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY)
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
