@@ -19,6 +19,7 @@
 #include "wired_flow_tracker.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <random>
@@ -144,9 +145,12 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
     bool created = false;
 
     if (fi == s.flows.end()) {
+        const bool evict = p.on_full == full_policy::evict;
         auto n = n_flows.load(std::memory_order_relaxed);
 
-        if (n >= admit_threshold && n < p.max_flows) {
+        // Under evict a full table still waits for the second packet, so single packets
+        // can't replace anything
+        if (n >= admit_threshold && (n < p.max_flows || evict)) {
             auto& slot = s.pending[(h / n_shards) % pending_slots];
             const auto tag = pending_tag(h);
             if (slot != tag) {
@@ -157,13 +161,20 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
             slot = 0;
         }
 
-        // Reserve the slot first; other shards add flows at the same time
-        do {
-            if (n >= p.max_flows) {
-                n_dropped_full.fetch_add(1, std::memory_order_relaxed);
-                return result::dropped;
+        // Reserve the slot first; other shards add flows at the same time.  With the table
+        // full, an evicted flow in this shard hands over its slot and the count stays put.
+        bool reserved = false;
+        while (n < p.max_flows) {
+            if (n_flows.compare_exchange_weak(n, n + 1, std::memory_order_relaxed)) {
+                reserved = true;
+                break;
             }
-        } while (!n_flows.compare_exchange_weak(n, n + 1, std::memory_order_relaxed));
+        }
+
+        if (!reserved && !(evict && evict_one(s, o.seen))) {
+            n_dropped_full.fetch_add(1, std::memory_order_relaxed);
+            return result::dropped;
+        }
 
         created = true;
 
@@ -207,6 +218,44 @@ wired_flow_tracker::result wired_flow_tracker::add(const observation& o) {
         f.seen = o.seen;
 
     return created ? result::created : result::updated;
+}
+
+bool wired_flow_tracker::evict_one(shard& s, time_t now) {
+    const auto& v = s.flows.values();
+    const size_t n = v.size();
+
+    if (n == 0)
+        return false;
+
+    const size_t n_samples = std::min(n, evict_samples);
+    size_t best = n;
+
+    for (size_t i = 0; i < n_samples; i++) {
+        const size_t idx = (s.evict_cursor + i) % n;
+        const auto& f = v[idx].second;
+
+        // Negative when another thread stamped a later second; that's recent too
+        if (now - f.seen < (f.closed ? p.evict_closed_idle : p.evict_idle))
+            continue;
+
+        if (best == n) {
+            best = idx;
+            continue;
+        }
+
+        const auto& b = v[best].second;
+        if ((f.closed && !b.closed) || (f.closed == b.closed && f.seen < b.seen))
+            best = idx;
+    }
+
+    s.evict_cursor = (s.evict_cursor + n_samples) % n;
+
+    if (best == n)
+        return false;
+
+    s.flows.erase(s.flows.begin() + static_cast<std::ptrdiff_t>(best));
+    n_evicted.fetch_add(1, std::memory_order_relaxed);
+    return true;
 }
 
 size_t wired_flow_tracker::expire(time_t now) {
@@ -312,5 +361,6 @@ wired_flow_tracker::stats wired_flow_tracker::get_stats() const {
     st.expired = n_expired.load(std::memory_order_relaxed);
     st.dropped_full = n_dropped_full.load(std::memory_order_relaxed);
     st.deferred = n_deferred.load(std::memory_order_relaxed);
+    st.evicted = n_evicted.load(std::memory_order_relaxed);
     return st;
 }

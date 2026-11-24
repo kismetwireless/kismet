@@ -9,10 +9,12 @@
 #include "config.h"
 
 #include <algorithm>
+#include <atomic>
 #include <bit>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "kis_l3_parse.h"
@@ -30,7 +32,10 @@ static int failures = 0;
     } \
 } while (0)
 
-static void put16(bytes& b, unsigned v) { b.push_back(v >> 8); b.push_back(v & 0xff); }
+static void put16(bytes& b, size_t v) {
+    b.push_back(static_cast<uint8_t>(v >> 8));
+    b.push_back(static_cast<uint8_t>(v & 0xff));
+}
 static void put32(bytes& b, uint32_t v) { put16(b, v >> 16); put16(b, v & 0xffff); }
 static void put(bytes& b, const bytes& v) { b.insert(b.end(), v.begin(), v.end()); }
 static void puts_(bytes& b, const char *s) { b.insert(b.end(), s, s + strlen(s)); }
@@ -56,8 +61,8 @@ static bytes eth(const bytes& dst, const bytes& src, std::vector<std::pair<unsig
 static bytes ipv4(const bytes& src, const bytes& dst, uint8_t proto, const bytes& payload,
         const bytes& opts = {}, int total_override = -1, unsigned frag = 0x4000) {
     bytes b;
-    const unsigned ihl = 5 + opts.size() / 4;
-    b.push_back(0x40 | ihl);
+    const size_t ihl = 5 + opts.size() / 4;
+    b.push_back(static_cast<uint8_t>(0x40 | ihl));
     b.push_back(0);
     put16(b, total_override >= 0 ? total_override : ihl * 4 + payload.size());
     put16(b, 1);
@@ -134,7 +139,7 @@ static bytes dns(const char *name) {
         auto d = n.find('.', p);
         if (d == std::string::npos)
             d = n.size();
-        b.push_back(d - p);
+        b.push_back(static_cast<uint8_t>(d - p));
         b.insert(b.end(), n.begin() + p, n.begin() + d);
         p = d + 1;
     }
@@ -199,7 +204,7 @@ static void test_l2() {
     CHECK(f.dclass == dst_class::multicast && f.llc && f.l3 == l3_type::none);
     bytes snap{0xaa, 0xaa, 0x03, 0, 0, 0, 0x08, 0x00};
     put(snap, ipv4(s, d, 17, udp(5, 6, {})));
-    f = parse(1, eth(mac_b, mac_a, {}, snap.size(), snap));
+    f = parse(1, eth(mac_b, mac_a, {}, static_cast<unsigned>(snap.size()), snap));
     CHECK(f.llc && f.ethertype == 0x0800 && f.l4_ok && f.dport == 6);
 
     // runts
@@ -298,7 +303,7 @@ static bytes ipv6(uint8_t nh, const bytes& payload, std::vector<std::pair<uint8_
         if (ext[i].first == 44)
             chain.push_back(0);
         else
-            chain.push_back((ext[i].second.size() + 2) / 8 - 1);
+            chain.push_back(static_cast<uint8_t>((ext[i].second.size() + 2) / 8 - 1));
         put(chain, ext[i].second);
     }
     bytes b;
@@ -561,7 +566,7 @@ static void test_dhcp6() {
         put16(ia, 5);
         put16(ia, 24);
         bytes a(16);
-        a[0] = 0x20; a[1] = 0x01; a[2] = 0x0d; a[3] = 0xb8; a[15] = 0x10 + i;
+        a[0] = 0x20; a[1] = 0x01; a[2] = 0x0d; a[3] = 0xb8; a[15] = static_cast<uint8_t>(0x10 + i);
         put(ia, a);
         put32(ia, 1);
         put32(ia, 2);
@@ -616,6 +621,7 @@ static void test_flows() {
     using r = wired_flow_tracker::result;
     wired_flow_tracker::params p;
     p.max_flows = 100;
+    p.on_full = wired_flow_tracker::full_policy::drop;
     wired_flow_tracker t(p, test_seed);
 
     CHECK(t.add(obs(1, 1, 1000, 53, 10)) == r::created);
@@ -641,22 +647,22 @@ static void test_flows() {
     CHECK(t.add(vo) == r::created);
 
     // fill to 90: still admitted on the first packet
-    for (int i = 0; i < 88; i++)
-        CHECK(t.add(obs(2, 2, 2000 + i, 80, 20, 6)) == r::created);
+    for (uint16_t i = 0; i < 88; i++)
+        CHECK(t.add(obs(2, 2, static_cast<uint16_t>(2000 + i), 80, 20, 6)) == r::created);
     CHECK(t.get_stats().flows == 90);
 
     // past 90%: a new flow waits for its second packet
     CHECK(t.add(obs(3, 3, 1, 1, 21)) == r::deferred);
     CHECK(t.add(obs(3, 3, 1, 1, 21)) == r::created);
 
-    for (int i = 0; i < 9; i++) {
-        t.add(obs(4, 4, 10 + i, 1, 22));
-        t.add(obs(4, 4, 10 + i, 1, 22));
+    for (uint16_t i = 0; i < 9; i++) {
+        t.add(obs(4, 4, static_cast<uint16_t>(10 + i), 1, 22));
+        t.add(obs(4, 4, static_cast<uint16_t>(10 + i), 1, 22));
     }
     CHECK(t.get_stats().flows == 100);
     CHECK(t.add(obs(5, 5, 1, 1, 23)) == r::dropped);
     CHECK(t.add(obs(5, 5, 1, 1, 23)) == r::dropped);
-    CHECK(t.get_stats().dropped_full >= 2);
+    CHECK(t.get_stats().dropped_full == 2 && t.get_stats().evicted == 0);
 
     // filters and paging
     wired_flow_tracker::filter f;
@@ -705,8 +711,8 @@ static void test_flow_seed_collision() {
     // any seed puts them in one slot one time in 16384; none of these do
     for (uint64_t seed = 1; seed <= 8; seed++) {
         wired_flow_tracker t(p, seed);
-        for (int i = 0; i < 90; i++)
-            t.add(obs(2, 2, 2000 + i, 80, 20, 6));
+        for (uint16_t i = 0; i < 90; i++)
+            t.add(obs(2, 2, static_cast<uint16_t>(2000 + i), 80, 20, 6));
 
         CHECK(t.add(obs(10, 10, 40000, 443, 21)) == r::deferred);
         CHECK(t.add(obs(10, 10, 2588, 443, 21)) == r::deferred);
@@ -786,12 +792,12 @@ static void test_flow_forged_keys() {
 
     // a hash-0 key matched an empty pending slot and was admitted on its first packet
     flow_peek t(p, test_seed);
-    for (int i = 0; i < 90; i++)
-        t.add(obs(2, 2, 2000 + i, 80, 20, 6));
+    for (uint16_t i = 0; i < 90; i++)
+        t.add(obs(2, 2, static_cast<uint16_t>(2000 + i), 80, 20, 6));
     for (uint16_t i = 1; i <= 4; i++)
         CHECK(t.add(forged_obs(i, 0)) == r::deferred);
-    for (int i = 0; i < 200; i++)
-        t.add(obs(3, 3, 3000 + i, 53, 21));
+    for (uint16_t i = 0; i < 200; i++)
+        t.add(obs(3, 3, static_cast<uint16_t>(3000 + i), 53, 21));
     CHECK(t.pending_tags_odd());
 
     // keys forged to one hash all went to one shard and one probe chain
@@ -838,7 +844,7 @@ static void test_flow_hash_seed() {
         wired_flow_tracker::key k;
         k.family = 4;
         k.proto = 17;
-        k.port_a = 1024 + i;
+        k.port_a = static_cast<uint16_t>(1024 + i);
         k.port_b = 53;
         k.addr_a[0] = 192; k.addr_a[2] = 2; k.addr_a[3] = 1;
         k.addr_b[0] = 198; k.addr_b[1] = 51; k.addr_b[2] = 100; k.addr_b[3] = 1;
@@ -865,11 +871,11 @@ static void test_flow_hash_seed() {
             wired_flow_tracker::key k;
             k.family = 6;
             k.proto = 6;
-            k.port_a = i * 977;
+            k.port_a = static_cast<uint16_t>(i * 977);
             k.port_b = 443;
-            k.vlan = i * 0x10001;
+            k.vlan = static_cast<uint64_t>(i) * 0x10001;
             k.addr_a[0] = 0x20; k.addr_a[1] = 0x01; k.addr_a[2] = 0x0d; k.addr_a[3] = 0xb8;
-            k.addr_a[15] = i;
+            k.addr_a[15] = static_cast<uint8_t>(i);
             k.addr_b = k.addr_a;
             k.addr_b[14] = 1;
             const auto h = a(k);
@@ -889,12 +895,12 @@ static void test_flow_hash_seed() {
     wired_flow_tracker::params p;
     p.max_flows = 100;
     wired_flow_tracker t1(p, 7), t2(p, 7);
-    for (int i = 0; i < 90; i++) {
-        t1.add(obs(2, 2, 2000 + i, 80, 20, 6));
-        t2.add(obs(2, 2, 2000 + i, 80, 20, 6));
+    for (uint16_t i = 0; i < 90; i++) {
+        t1.add(obs(2, 2, static_cast<uint16_t>(2000 + i), 80, 20, 6));
+        t2.add(obs(2, 2, static_cast<uint16_t>(2000 + i), 80, 20, 6));
     }
-    for (int i = 0; i < 64; i++) {
-        const auto o = obs(10, 10, 3000 + i * 13, 443, 21);
+    for (uint16_t i = 0; i < 64; i++) {
+        const auto o = obs(10, 10, static_cast<uint16_t>(3000 + i * 13), 443, 21);
         CHECK(t1.add(o) == t2.add(o));
     }
     CHECK(t1.get_stats().deferred == t2.get_stats().deferred && t1.get_stats().flows == t2.get_stats().flows);
@@ -920,8 +926,8 @@ static void test_flow_times() {
     fut.ts = 2100000000;
     fut.seen = 1000;
     t.add(fut);
-    for (int i = 0; i < 100; i++) {
-        auto o = obs(2, 2, 100 + i, 53, 0);
+    for (uint16_t i = 0; i < 100; i++) {
+        auto o = obs(2, 2, static_cast<uint16_t>(100 + i), 53, 0);
         o.ts = 1700000000 - 86400;
         o.seen = 1000;
         t.add(o);
@@ -952,6 +958,259 @@ static void test_flow_times() {
         for (size_t i = 0; i < page.size(); i++)
             CHECK(page[i].k == all[start + i].k);
     }
+}
+
+// The shard t puts a flow in, by t's own seeded hash.  obs() puts the lower address on the
+// source side, so its key is in packet order.
+static size_t shard_of(const flow_peek& t, const wired_flow_tracker::observation& o) {
+    wired_flow_tracker::key k;
+    k.family = 4;
+    k.proto = o.proto;
+    k.vlan = o.vlan;
+    k.addr_a = o.src.a;
+    k.addr_b = o.dst.a;
+    k.port_a = o.sport;
+    k.port_b = o.dport;
+    return t.hash_of(k) % wired_flow_tracker::n_shards;
+}
+
+static size_t shard_of(const flow_peek& t, const wired_flow_tracker::flow& f) {
+    return t.hash_of(f.k) % wired_flow_tracker::n_shards;
+}
+
+// Both packets a new flow needs past the admission threshold
+static wired_flow_tracker::result add2(wired_flow_tracker& t, const wired_flow_tracker::observation& o) {
+    auto res = t.add(o);
+    if (res == wired_flow_tracker::result::deferred)
+        res = t.add(o);
+    return res;
+}
+
+// The next flow from port *port up which t puts in shard s
+static wired_flow_tracker::observation in_shard(const flow_peek& t, size_t s, uint8_t b, uint16_t& port, time_t seen,
+        uint8_t proto = 17) {
+    while (true) {
+        auto o = obs(9, b, port++, 7, seen, proto);
+        if (shard_of(t, o) == s)
+            return o;
+    }
+}
+
+static std::vector<wired_flow_tracker::flow> all_flows(const wired_flow_tracker& t) {
+    std::vector<wired_flow_tracker::flow> out;
+    size_t total;
+    t.snapshot({}, 0, 0, out, total);
+    return out;
+}
+
+static bool has_flow(const std::vector<wired_flow_tracker::flow>& v, const wired_flow_tracker::flow& f) {
+    return std::any_of(v.begin(), v.end(), [&](const auto& x) { return x.k == f.k; });
+}
+
+static void test_flow_evict() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 32;
+
+    // A full table of idle flows, each seen a second after the last: a new flow takes the
+    // place of the oldest in its shard
+    flow_peek t(p, test_seed);
+    for (uint16_t i = 0; i < 32; i++)
+        CHECK(add2(t, obs(1, 1, static_cast<uint16_t>(1000 + i), 53, 100 + i)) == r::created);
+    auto before = all_flows(t);
+    CHECK(before.size() == 32);
+
+    uint16_t port = 1;
+    const auto shard = shard_of(t, before[0]);
+    size_t in_s = 0;
+    const wired_flow_tracker::flow *oldest = nullptr;
+    for (const auto& f : before) {
+        if (shard_of(t, f) != shard)
+            continue;
+        in_s++;
+        if (oldest == nullptr || f.seen < oldest->seen)
+            oldest = &f;
+    }
+    CHECK(in_s <= wired_flow_tracker::evict_samples);
+
+    auto nf = in_shard(t, shard, 1, port, 1000);
+    CHECK(t.add(nf) == r::deferred);
+    CHECK(t.add(nf) == r::created);
+    auto after = all_flows(t);
+    auto st = t.get_stats();
+    CHECK(after.size() == 32 && st.flows == 32);
+    CHECK(st.created == 33 && st.evicted == 1 && st.dropped_full == 0 && st.expired == 0);
+    CHECK(oldest != nullptr && !has_flow(after, *oldest));
+    for (const auto& f : before)
+        CHECK(&f == oldest || has_flow(after, f));
+
+    // A flood of new flows replaces idle ones only, never another new one, and never past
+    // the cap; once a shard has only new flows, its new flows are dropped
+    size_t made = 0, dropped = 0;
+    for (uint16_t i = 0; i < 400; i++) {
+        auto res = add2(t, obs(2, 2, static_cast<uint16_t>(3000 + i), 80, 1000));
+        CHECK(res == r::created || res == r::dropped);
+        if (res == r::created)
+            made++;
+        else
+            dropped++;
+        CHECK(t.get_stats().flows == 32);
+    }
+    after = all_flows(t);
+    st = t.get_stats();
+    size_t fresh = 0;
+    for (const auto& f : after)
+        if (f.seen == 1000)
+            fresh++;
+    CHECK(fresh == made + 1);
+    CHECK(st.evicted == made + 1 && st.dropped_full == dropped && st.created == 33 + made);
+    CHECK(st.created - st.evicted - st.expired == st.flows);
+    CHECK(made == 31 && dropped == 400 - 31 && fresh == 32);
+
+    // 9 s later the flood's flows are still too recent; at 10 s they can go
+    st = t.get_stats();
+    CHECK(add2(t, in_shard(t, shard, 3, port, 1009)) == r::dropped);
+    CHECK(t.get_stats().evicted == st.evicted && t.get_stats().dropped_full == st.dropped_full + 1);
+    CHECK(add2(t, in_shard(t, shard, 3, port, 1010)) == r::created);
+    CHECK(t.get_stats().evicted == st.evicted + 1);
+
+    // A flow stamped later than the packet (another thread's clock) is recent, not idle
+    flow_peek c(p, test_seed);
+    for (uint16_t i = 0; i < 32; i++)
+        add2(c, obs(1, 1, static_cast<uint16_t>(1000 + i), 53, 2000));
+    CHECK(add2(c, in_shard(c, shard_of(c, all_flows(c)[0]), 3, port, 1990)) == r::dropped);
+    CHECK(c.get_stats().evicted == 0 && c.get_stats().dropped_full == 1);
+}
+
+static void test_flow_evict_closed() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 32;
+    flow_peek t(p, test_seed);
+    uint16_t port = 1;
+
+    // A closed TCP flow goes before older open ones
+    auto fin = in_shard(t, 0, 4, port, 500, 6);
+    fin.tcp_flags = 0x11;
+    CHECK(add2(t, fin) == r::created);
+    for (uint16_t i = 0; t.get_stats().flows < 32; i++)
+        add2(t, obs(1, 1, static_cast<uint16_t>(1000 + i), 53, 100));
+    auto before = all_flows(t);
+    size_t in_s = 0;
+    for (const auto& f : before)
+        if (shard_of(t, f) == 0)
+            in_s++;
+    CHECK(in_s >= 2 && in_s <= wired_flow_tracker::evict_samples);
+
+    CHECK(add2(t, in_shard(t, 0, 5, port, 1000)) == r::created);
+    auto after = all_flows(t);
+    CHECK(t.get_stats().evicted == 1);
+    for (const auto& f : before)
+        CHECK(has_flow(after, f) == !f.closed);
+
+    // Closed TCP waits a second; open flows wait evict_idle
+    flow_peek u(p, test_seed);
+    fin = in_shard(u, 0, 4, port, 1000, 6);
+    fin.tcp_flags = 0x04;
+    add2(u, fin);
+    for (uint16_t i = 0; u.get_stats().flows < 32; i++)
+        add2(u, obs(1, 1, static_cast<uint16_t>(1000 + i), 53, 1000));
+    CHECK(add2(u, in_shard(u, 0, 5, port, 1000)) == r::dropped);
+    CHECK(add2(u, in_shard(u, 0, 5, port, 1001)) == r::created);
+    auto st = u.get_stats();
+    CHECK(st.evicted == 1 && st.dropped_full == 1);
+    for (const auto& f : all_flows(u))
+        CHECK(!f.closed);
+    CHECK(add2(u, in_shard(u, 0, 5, port, 1002)) == r::dropped);
+}
+
+static void test_flow_full_drop() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 32;
+    p.on_full = wired_flow_tracker::full_policy::drop;
+    wired_flow_tracker t(p, test_seed);
+
+    for (uint16_t i = 0; t.get_stats().flows < 32; i++)
+        add2(t, obs(1, 1, static_cast<uint16_t>(1000 + i), 53, 100));
+    auto before = all_flows(t);
+    auto st = t.get_stats();
+
+    // Idle for 900 s, but drop keeps the table and never defers at the cap
+    CHECK(t.add(obs(2, 2, 1, 1, 1000)) == r::dropped);
+    CHECK(t.add(obs(2, 2, 1, 1, 1000)) == r::dropped);
+    auto st2 = t.get_stats();
+    CHECK(st2.evicted == 0 && st2.dropped_full == st.dropped_full + 2 && st2.deferred == st.deferred);
+    auto after = all_flows(t);
+    CHECK(after.size() == before.size());
+    for (const auto& f : before)
+        CHECK(has_flow(after, f));
+}
+
+static void test_flow_evict_cursor() {
+    using r = wired_flow_tracker::result;
+    wired_flow_tracker::params p;
+    p.max_flows = 64;
+    flow_peek t(p, test_seed);
+    uint16_t port = 1;
+
+    // One shard holds the whole table, the idle flows last: the cursor still reaches every
+    // one of them within a sweep of the shard per idle flow
+    for (int i = 0; i < 56; i++)
+        CHECK(add2(t, in_shard(t, 0, 1, port, 1000)) == r::created);
+    for (int i = 0; i < 8; i++)
+        CHECK(add2(t, in_shard(t, 0, 2, port, 100)) == r::created);
+
+    size_t made = 0;
+    for (int i = 0; i < 64; i++)
+        if (add2(t, in_shard(t, 0, 3, port, 1000)) == r::created)
+            made++;
+    auto st = t.get_stats();
+    CHECK(made == 8 && st.evicted == 8 && st.dropped_full == 56 && st.flows == 64);
+    for (const auto& f : all_flows(t))
+        CHECK(f.seen == 1000);
+}
+
+static void test_flow_threads() {
+    wired_flow_tracker::params p;
+    p.max_flows = 256;
+    p.tcp_idle = p.udp_idle = p.other_idle = 5;
+    p.evict_idle = 2;
+    wired_flow_tracker t(p, test_seed);
+
+    // Adds in every shard while the clock moves, against expiry and listings
+    std::atomic<time_t> clock{1000};
+    std::atomic<bool> done{false};
+    std::vector<std::thread> adders;
+    for (int a = 0; a < 4; a++)
+        adders.emplace_back([&, a] {
+            for (int i = 0; i < 20000; i++) {
+                auto o = obs(static_cast<uint8_t>(10 + a), static_cast<uint8_t>(i >> 8),
+                        static_cast<uint16_t>(i), 1, clock.load(), (i & 1) ? 6 : 17, (i & 2) ? 0x01 : 0);
+                add2(t, o);
+                if (a == 0 && (i % 500) == 0)
+                    clock.fetch_add(1);
+            }
+        });
+    std::thread expirer([&] {
+        std::vector<wired_flow_tracker::flow> out;
+        size_t total;
+        while (!done.load()) {
+            t.expire(clock.load());
+            t.snapshot({}, 0, 50, out, total);
+            if (t.get_stats().flows > p.max_flows)
+                failures++;
+        }
+    });
+    for (auto& th : adders)
+        th.join();
+    done = true;
+    expirer.join();
+
+    auto st = t.get_stats();
+    CHECK(st.flows <= p.max_flows && st.flows == all_flows(t).size());
+    CHECK(st.created - st.evicted - st.expired == st.flows);
+    CHECK(st.evicted > 0);
 }
 
 static void test_escape_hidden() {
@@ -1009,6 +1268,11 @@ int main() {
     test_flow_forged_keys();
     test_flow_hash_seed();
     test_flow_times();
+    test_flow_evict();
+    test_flow_evict_closed();
+    test_flow_full_drop();
+    test_flow_evict_cursor();
+    test_flow_threads();
     test_frame_reuse();
     test_escape_hidden();
 

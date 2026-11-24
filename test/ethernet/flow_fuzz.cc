@@ -1,5 +1,6 @@
 /* libFuzzer harness for wired_flow_tracker: a stream of packets, expiries and snapshots from
- * the input, against a small table.  Build as frame_fuzz.cc.
+ * the input, against a small table.  The first byte picks the full-table policy and eviction
+ * idle times.  Build as frame_fuzz.cc.
  */
 
 #include <cstdint>
@@ -9,14 +10,23 @@
 #include "wired_flow_tracker.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    if (size < 1)
+        return 0;
+
     wired_flow_tracker::params p;
     p.max_flows = 64;
     p.tcp_idle = 30;
     p.tcp_closed_idle = 2;
     p.udp_idle = 10;
     p.other_idle = 10;
+    p.on_full = (data[0] & 1) ? wired_flow_tracker::full_policy::drop : wired_flow_tracker::full_policy::evict;
+    p.evict_idle = (data[0] >> 1) & 0x07;
+    p.evict_closed_idle = (data[0] >> 4) & 0x03;
     // A fixed seed keeps runs reproducible
     wired_flow_tracker t(p, 0x5eed);
+
+    data++;
+    size--;
 
     time_t now = 0;
     std::vector<wired_flow_tracker::flow> out;
@@ -57,7 +67,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             t.add(o);
         }
 
-        if (t.get_stats().flows > p.max_flows)
+        const auto st = t.get_stats();
+        if (st.flows > p.max_flows || st.created - st.evicted - st.expired != st.flows)
+            abort();
+        if (p.on_full == wired_flow_tracker::full_policy::drop && st.evicted != 0)
             abort();
     }
 
