@@ -391,6 +391,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 peeked_sz = kis_simple_ringbuf_peek_zc(localrad->serial_ringbuf, (void **) &buf, newline + 1);
 
                 if (peeked_sz < (size_t) newline + 1) {
+                    kis_simple_ringbuf_peek_free(localrad->serial_ringbuf, buf);
                     snprintf(errstr, STATUS_MAX, "%s unable to fetch output from buffer.", localrad->name);
                     /* printf("DEBUG: %s\n", errstr); */
                     cf_send_message(caph, errstr, MSGFLAG_ERROR);
@@ -422,7 +423,8 @@ void capture_thread(kis_capture_handler_t *caph) {
                 kis_simple_ringbuf_peek_free(localrad->serial_ringbuf, buf);
                 kis_simple_ringbuf_read(localrad->serial_ringbuf, NULL, newline + 1);
 
-                continue;
+                if (fail)
+                    break;
             }
 
             if (fail) {

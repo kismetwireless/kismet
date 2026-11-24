@@ -4078,7 +4078,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
     /* Compare without adding to packet_sz, which can wrap on 32-bit */
     if (len < sizeof(kismet_external_frame_v3_t) ||
             len - sizeof(kismet_external_frame_v3_t) < packet_sz) {
-        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet (%lu / %u)\n",
+        fprintf(stderr, "FATAL: Capture source (%s) malforned too-small v3 packet (%zu / %u)\n",
                 caph->capsource_type, len, packet_sz);
         return -1;
     }
@@ -4093,8 +4093,9 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     size_t rb_available;
 
-    /* Buffer of entire frame, dynamic */
-    uint8_t *frame_buf;
+    /* Buffer of entire frame, dynamic.  Every peek is released with peek_free,
+     * including short ones, or the ring stays mid-peek and input stalls */
+    uint8_t *frame_buf = NULL;
 
     kismet_external_frame_t *external_frame;
     kismet_external_frame_v2_t *external_frame_v2;
@@ -4115,6 +4116,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf,
                 sizeof(kismet_external_frame_t)) != sizeof(kismet_external_frame_t)) {
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         return 0;
     }
 
@@ -4126,6 +4128,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+
         if (cf_tcp_wrong_port(caph))
             return -1;
 
@@ -4139,13 +4143,17 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
         /* explicitly handle a v2 ping no matter what; this is used as a legacy
          * discovery packet to map older local binaries
          *
-         * re-peek a v2 sized header
+         * re-peek a v2 sized header once all of it has arrived
          */
 
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
 
+        if (rb_available < sizeof(kismet_external_frame_v2_t))
+            return 0;
+
         if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf,
                     sizeof(kismet_external_frame_v2_t)) != sizeof(kismet_external_frame_v2_t)) {
+            kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
             return 0;
         }
 
@@ -4156,7 +4164,23 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
             uint32_t seqno = ntohl(external_frame_v2->seqno);
 
             packet_sz = ntohl(external_frame->data_sz);
+
+            /* Bound before adding the header, then consume only a complete frame;
+             * a frame may fill the ring exactly */
+            if (packet_sz > kis_simple_ringbuf_size(caph->in_ringbuf) - sizeof(kismet_external_frame_v2_t)) {
+                kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+                fprintf(stderr, "FATAL: Capture source (%s) incoming v2 packet too large for ringbuf (%u / %zu)\n",
+                        caph->capsource_type, packet_sz, kis_simple_ringbuf_size(caph->in_ringbuf));
+                return -1;
+            }
+
             total_sz = packet_sz + sizeof(kismet_external_frame_v2_t);
+
+            if (rb_available < total_sz) {
+                kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+                return 0;
+            }
+
             pthread_mutex_lock(&(caph->handler_lock));
 
             kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
@@ -4167,6 +4191,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
             return 1;
         }
 
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking the older v2 Kismet protocol, please upgrade the\n"
@@ -4174,6 +4200,8 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
                 caph->capsource_type);
         return -1;
     } else if (ntohs(external_frame_v3->v3_sentinel) != KIS_EXTERNAL_V3_SIG) {
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+
         fprintf(stderr,
                 "FATAL: Capture source (%s) cannot communicate with this Kismet server.\n"
                 "The server is speaking an unknown Kismet protocol, please make sure\n"
@@ -4184,10 +4212,11 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
 
     packet_sz = ntohl(external_frame->data_sz);
 
-    /* Bound packet_sz before adding the header so total_sz can't wrap */
-    if (packet_sz >= kis_simple_ringbuf_size(caph->in_ringbuf) - sizeof(kismet_external_frame_v3_t)) {
+    /* Bound packet_sz before adding the header so total_sz can't wrap; a frame
+     * may fill the ring exactly */
+    if (packet_sz > kis_simple_ringbuf_size(caph->in_ringbuf) - sizeof(kismet_external_frame_v3_t)) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
-        fprintf(stderr, "FATAL: Capture source (%s) incoming packet too large for ringbuf (%u / %lu)\n",
+        fprintf(stderr, "FATAL: Capture source (%s) incoming packet too large for ringbuf (%u / %zu)\n",
 				caph->capsource_type, packet_sz, kis_simple_ringbuf_size(caph->in_ringbuf));
         return -1;
     }

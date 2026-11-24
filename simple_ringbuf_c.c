@@ -484,12 +484,14 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
      * requested, we can't read more than this */
     size_t opsize = kis_simple_ringbuf_used(ringbuf);
 
+    /* Every 0-byte result holds nothing and hands back NULL, which peek_free
+     * ignores; a refused peek leaves the open one to its owner */
+    *ptr = NULL;
+
     if (ringbuf->mid_peek) {
         fprintf(stderr, "ERROR: simple_ringbuf_peek_zc mid-peek already\n");
         return 0;
     }
-    
-    ringbuf->mid_peek = 1;
 
     if (opsize == 0)
         return 0;
@@ -509,6 +511,7 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
 #else
     /* Simple contiguous read */
     if (ringbuf->start_pos + opsize <= ringbuf->buffer_sz) {
+        ringbuf->mid_peek = 1;
         ringbuf->free_peek = 0;
         *ptr = ringbuf->buffer + ringbuf->start_pos;
         return opsize;
@@ -525,6 +528,7 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
             return 0;
         }
 
+        ringbuf->mid_peek = 1;
         ringbuf->free_peek = 1;
 
         memcpy(*ptr, ringbuf->buffer + ringbuf->start_pos, chunk_a);
@@ -538,6 +542,14 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
 }
 
 void kis_simple_ringbuf_peek_free(kis_simple_ringbuf_t *ringbuf, void *ptr) {
+    /* Release of a peek that returned 0; with a peek still open, the caller
+     * peeked twice */
+    if (ptr == NULL) {
+        if (ringbuf->mid_peek)
+            fprintf(stderr, "ERROR: kis_simple_ringbuf_peek_free called with NULL while a peek is open\n");
+        return;
+    }
+
     if (!ringbuf->mid_peek) {
         fprintf(stderr, "ERROR: kis_simple_ringbuf_peek_free called with no peeked data\n");
         return;
