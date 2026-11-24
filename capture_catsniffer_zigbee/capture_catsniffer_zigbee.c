@@ -148,6 +148,55 @@ int get_baud(int baud) {
     }
 }
 
+/* A decimal baudrate= value up to the highest rate get_baud() knows; signs,
+ * trailing junk and values that would wrap are -1; spaces around it are
+ * skipped */
+static int parse_baud(const char *str) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v <= 0 || v > 4000000)
+        return -1;
+
+    return (int) v;
+}
+
+/* A decimal channel from min to max, with spaces around it skipped (as in
+ * "11, 15, 20" lists); anything else is -1 */
+static int parse_channel(const char *str, int min, int max) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v < min || v > max)
+        return -1;
+
+    return (int) v;
+}
+
 // Function to calculate the Frame Check Sequence (FCS)
 uint8_t calculate_fcs(uint8_t *dataBuffer, uint16_t length) {
     uint32_t result = 0;
@@ -340,15 +389,21 @@ int set_channel(kis_capture_handler_t *caph, local_catsniffer_t *catsniffer, uin
 void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan;
+    int parsed;
     char errstr[STATUS_MAX];
 
     // printf("translate %s\n", chanstr); //Debug
 
-    if (sscanf(chanstr, "%u", &parsechan) != 1) {
-        snprintf(errstr, STATUS_MAX, "unable to parse channel; channels are integers");
+    /* Strict apart from surrounding spaces: no signs, trailing junk or
+     * wrapped values; the band
+     * range is checked below */
+    if ((parsed = parse_channel(chanstr, 0, 26)) < 0) {
+        snprintf(errstr, STATUS_MAX, "unable to parse channel; channels are integers from 0 to 26");
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
+
+    parsechan = (unsigned int) parsed;
 
     //Range checks by band for stricter validation:
     local_catsniffer_t *lc = (local_catsniffer_t *)caph->userdata;
@@ -435,6 +490,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     // Only handle our interface type
     if (strstr(interface, "catsniffer_zigbee") != interface) {
@@ -445,7 +504,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
-        // printf("device: %s\n", device);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            free(interface);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
         free(interface);
@@ -471,6 +534,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         *uuid = strdup(errstr);
     }
 
+    free(interface);
+    free(device);
+
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     int n_chans = 0;
     int s_chan  = 0;
 
@@ -485,19 +556,22 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         s_chan = 11;
     }
 
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
+    /* The framework frees the list after the probe, as far as channels_len */
+    if (((*ret_interface)->channels = (char **) calloc(n_chans, sizeof(char *))) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     //iterate i from s_chan to (s_chan + n_chans - 1)
     for (int i = s_chan; i < s_chan + n_chans; i++) {
         char chstr[4];                    // up to "240" safe, but our chans are < 3 digits
         snprintf(chstr, sizeof(chstr), "%d", i);
-        (*ret_interface)->channels[i - s_chan] = strdup(chstr);
+        if (((*ret_interface)->channels[i - s_chan] = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
+        (*ret_interface)->channels_len++;
     }
-    (*ret_interface)->channels_len = n_chans;
-
-    //cleanup temporaries
-    free(interface);
-    free(device);
 
     return 1;
 }
@@ -514,7 +588,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
 
     char *localbaudratestr = NULL;
-    unsigned int localbaudrate = 0;
+    int localbaudrate = 0;
+    int b;
+
+    unsigned int open_chan = START_CHANNEL;
 
     /* 0: 800mhz
      * 1: 900mhz (0-11)
@@ -530,7 +607,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    localcatsniffer->interface = strndup(placeholder, placeholder_len);
+    if ((localcatsniffer->interface = strndup(placeholder, placeholder_len)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         localcatsniffer->name = strndup(placeholder, placeholder_len);
@@ -538,8 +618,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localcatsniffer->name = strdup(localcatsniffer->interface);
     }
 
+    if (localcatsniffer->name == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "%s expected device= path to serial device in definition", localcatsniffer->name);
         return -1;
@@ -548,18 +637,32 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
 
-        if (localbaudratestr == NULL || sscanf(localbaudratestr, "%u", &localbaudrate) != 1 ||
-                get_baud(localbaudrate) < 0) {
-            free(localbaudratestr);
+        if (localbaudratestr == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
             free(device);
-            snprintf(msg, STATUS_MAX, "%s could not parse baudrate option "
-                                      "provided in source definition", localcatsniffer->name);
             return -1;
         }
 
+        localbaudrate = parse_baud(localbaudratestr);
         free(localbaudratestr);
 
-        localcatsniffer->baudrate = get_baud(localbaudrate);
+        if (localbaudrate < 0) {
+            snprintf(msg, STATUS_MAX, "%s invalid baudrate= value in source definition",
+                    localcatsniffer->name);
+            free(device);
+            return -1;
+        }
+
+        b = get_baud(localbaudrate);
+
+        if (b < 0) {
+            snprintf(msg, STATUS_MAX, "%s unsupported baudrate=%d in source definition",
+                    localcatsniffer->name, localbaudrate);
+            free(device);
+            return -1;
+        }
+
+        localcatsniffer->baudrate = (speed_t) b;
     } else {
         localcatsniffer->baudrate = D_BAUDRATE;
     }
@@ -574,6 +677,30 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    /* Only 2.4GHz channels can be tuned at open */
+    if (band == 2 && (placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        char *chanstr = strndup(placeholder, placeholder_len);
+        int parsed;
+
+        if (chanstr == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
+            free(device);
+            return -1;
+        }
+
+        parsed = parse_channel(chanstr, 11, 26);
+        free(chanstr);
+
+        if (parsed < 0) {
+            snprintf(msg, STATUS_MAX, "%s invalid channel= in source definition, expected 11-26",
+                    localcatsniffer->name);
+            free(device);
+            return -1;
+        }
+
+        open_chan = (unsigned int) parsed;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
@@ -584,13 +711,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
+        free(device);
+        return -1;
+    }
+
     /* open for r/w but no tty */
     localcatsniffer->fd = open(device, O_RDWR | O_NOCTTY);
 
     if (localcatsniffer->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s", localcatsniffer->name, strerror(errno));
+        free(device);
         return -1;
     }
+
+    free(device);
 
     tcgetattr(localcatsniffer->fd, &localcatsniffer->oldtio);
     bzero(&localcatsniffer->newtio, sizeof(localcatsniffer->newtio));
@@ -618,13 +754,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (tcsetattr(localcatsniffer->fd, TCSANOW, &localcatsniffer->newtio)) {
         snprintf(msg, STATUS_MAX, "%s failed to set serial device options - %s",
                  localcatsniffer->name, strerror(errno));
-        return -1;
+        goto close_fail;
     }
 
     if (tcflush(localcatsniffer->fd, TCIOFLUSH)) {
         snprintf(msg, STATUS_MAX, "%s failed to flush serial device - %s",
                  localcatsniffer->name, strerror(errno));
-        return -1;
+        goto close_fail;
     }
 
     int n_chans = 0;
@@ -641,14 +777,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         s_chan = 11;
     }
 
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
+    /* The framework frees the list after the open, as far as channels_len */
+    if (((*ret_interface)->channels = (char **) calloc(n_chans, sizeof(char *))) == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
+        goto close_fail;
+    }
+
     for (int i = s_chan; i < s_chan + n_chans; i++) {
         char chstr[3];
         snprintf(chstr, 3, "%d", i);
-        (*ret_interface)->channels[i - s_chan] = strdup(chstr);
+        if (((*ret_interface)->channels[i - s_chan] = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
+            goto close_fail;
+        }
+        (*ret_interface)->channels_len++;
     }
-
-    (*ret_interface)->channels_len = n_chans;
 
     localcatsniffer->band = band;
 
@@ -657,44 +800,38 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     generate_channel_commands();
 
     printf("main: Initializing interface.\n");
-    int result = init_interface(caph, localcatsniffer);
-    if (result < 0) {
-        fprintf(stderr, "main: Failed to initialize interface. Exiting.\n");
-        return result;
+    if (init_interface(caph, localcatsniffer) < 0) {
+        snprintf(msg, STATUS_MAX, "%s failed to initialize the interface", localcatsniffer->name);
+        goto close_fail;
     }
 
     /* Tune to channel= (or the first channel) and start capturing.  The firmware only sniffs
      * after START, which set_channel sends; with hopping Kismet changes the channel right
      * after, without it nothing else would. */
     if (band == 2) {
-        unsigned int open_chan = START_CHANNEL;
         char chstr[4];
-
-        if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
-            char *chanstr = strndup(placeholder, placeholder_len);
-            int parsed = sscanf(chanstr, "%u", &open_chan);
-            free(chanstr);
-
-            if (parsed != 1 || open_chan < 11 || open_chan > 26) {
-                snprintf(msg, STATUS_MAX, "%s invalid channel= in source definition, expected 11-26",
-                        localcatsniffer->name);
-                return -1;
-            }
-        }
 
         /* STOP, PING, CFG_FREQUENCY, START */
         expect_responses(localcatsniffer, 4, open_chan);
 
         if (set_channel(caph, localcatsniffer, open_chan) < 0) {
             snprintf(msg, STATUS_MAX, "%s failed to set channel %u", localcatsniffer->name, open_chan);
-            return -1;
+            goto close_fail;
         }
 
         snprintf(chstr, sizeof(chstr), "%u", open_chan);
-        (*ret_interface)->chanset = strdup(chstr);
+        if (((*ret_interface)->chanset = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localcatsniffer->name);
+            goto close_fail;
+        }
     }
 
     return 1;
+
+close_fail:
+    close(localcatsniffer->fd);
+    localcatsniffer->fd = -1;
+    return -1;
 }
 
 /* TI Packet Sniffer 2 frames: SOF (0x40 0x53), packet info, 16 bit length (LE), payload,

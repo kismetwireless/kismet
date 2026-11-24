@@ -169,6 +169,55 @@ int get_baud(int baud) {
     }
 }
 
+/* A decimal baud= value up to the highest rate get_baud() knows; signs,
+ * trailing junk and values that would wrap are -1; spaces around it are
+ * skipped */
+static int parse_baud(const char *str) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v <= 0 || v > 4000000)
+        return -1;
+
+    return (int) v;
+}
+
+/* A decimal channel= value from min to max, with spaces around it skipped;
+ * anything else is -1 */
+static int parse_channel(const char *str, int min, int max) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v < min || v > max)
+        return -1;
+
+    return (int) v;
+}
+
 /* ---- Minimal standard base64 codec (Sniffle's protocol requires no
  * variant/URL-safe alphabet, just plain RFC 4648 with '=' padding) ---- */
 
@@ -429,6 +478,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if (strstr(interface, "sniffle_ble") != interface) {
         snprintf(msg, STATUS_MAX, "Expected a 'sniffle_ble' interface, not matching");
@@ -440,6 +493,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
         return 0;
@@ -457,14 +514,27 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     free(device);
 
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     // Primary advertising channels only -- this datasource doesn't hop
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
+    /* The framework frees the list after the probe, as far as channels_len */
+    if (((*ret_interface)->channels = (char **) calloc(3, sizeof(char *))) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     for (int i = 37; i < 40; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 37] = strdup(chstr);
+        if (((*ret_interface)->channels[i - 37] = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
+        (*ret_interface)->channels_len++;
     }
-    (*ret_interface)->channels_len = 3;
 
     return 1;
 }
@@ -490,7 +560,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    localsniffle->interface = strndup(placeholder, placeholder_len);
+    if ((localsniffle->interface = strndup(placeholder, placeholder_len)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         localsniffle->name = strndup(placeholder, placeholder_len);
@@ -498,8 +571,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localsniffle->name = strdup(localsniffle->interface);
     }
 
+    if (localsniffle->name == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localsniffle->name);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX,
             "%s expected device= path to serial device in definition", localsniffle->name);
@@ -513,12 +596,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     localsniffle->channel = 37;
     if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
         char *chanstr = strndup(placeholder, placeholder_len);
-        int chan = atoi(chanstr);
+        if (chanstr == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localsniffle->name);
+            free(device);
+            return -1;
+        }
+        int chan = parse_channel(chanstr, 37, 39);
         free(chanstr);
-        if (chan < 37 || chan > 39) {
+        if (chan < 0) {
             snprintf(msg, STATUS_MAX,
                 "%s channel= must be 37, 38, or 39 (primary advertising channels only)",
                 localsniffle->name);
+            free(device);
             return -1;
         }
         localsniffle->channel = chan;
@@ -534,6 +623,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             localsniffle->phy = PHY_CODED_S8;
         } else {
             snprintf(msg, STATUS_MAX, "%s phy= must be 1m or coded", localsniffle->name);
+            free(device);
             return -1;
         }
     }
@@ -541,11 +631,24 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     // Baud rate: Sniffle's own default (2,000,000) works for CP2102N based dongles
     if ((placeholder_len = cf_find_flag(&placeholder, "baud", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
-        int req_baud = atoi(localbaudratestr);
+        if (localbaudratestr == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localsniffle->name);
+            free(device);
+            return -1;
+        }
+        int req_baud = parse_baud(localbaudratestr);
+        if (req_baud < 0) {
+            snprintf(msg, STATUS_MAX, "%s invalid baud= value in source definition",
+                    localsniffle->name);
+            free(localbaudratestr);
+            free(device);
+            return -1;
+        }
         free(localbaudratestr);
         int b = get_baud(req_baud);
         if (b < 0) {
-            snprintf(msg, STATUS_MAX, "%s unsupported baud= value", localsniffle->name);
+            snprintf(msg, STATUS_MAX, "%s unsupported baud=%d", localsniffle->name, req_baud);
+            free(device);
             return -1;
         }
         localsniffle->baudrate = b;
@@ -561,6 +664,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 strlen("kismet_cap_sniffle_ble")) & 0xFFFFFFFF,
             adler32_csum((unsigned char *) device, strlen(device)));
         *uuid = strdup(errstr);
+    }
+
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localsniffle->name);
+        free(device);
+        return -1;
     }
 
     pthread_mutex_lock(&localsniffle->serial_mutex);
@@ -598,6 +707,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (tcsetattr(localsniffle->fd, TCSANOW, &localsniffle->newtio) < 0) {
         snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
             localsniffle->name, strerror(errno));
+        close(localsniffle->fd);
+        localsniffle->fd = -1;
         pthread_mutex_unlock(&(localsniffle->serial_mutex));
         return -1;
     }

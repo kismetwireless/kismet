@@ -216,6 +216,31 @@ int get_baud(int baud) {
     }
 }
 
+/* A decimal baud= value up to the highest rate get_baud() knows; signs,
+ * trailing junk and values that would wrap are -1; spaces around it are
+ * skipped */
+static int parse_baud(const char *str) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v <= 0 || v > 4000000)
+        return -1;
+
+    return (int) v;
+}
+
 static uint64_t monotonic_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -1170,7 +1195,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     interface = strndup(placeholder, placeholder_len);
     if (interface == NULL) {
         snprintf(msg, STATUS_MAX, "Out of memory");
-        return 0;
+        return -1;
     }
 
     if (strstr(interface, "lorapipe") != interface) {
@@ -1185,7 +1210,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         device = strndup(placeholder, placeholder_len);
         if (device == NULL) {
             snprintf(msg, STATUS_MAX, "Out of memory");
-            return 0;
+            return -1;
         }
     } else {
         snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
@@ -1203,6 +1228,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     free(device);
+
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     /* channels depend on region= and are provided at open */
 
@@ -1233,12 +1263,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    local->interface = strndup(placeholder, placeholder_len);
+    if ((local->interface = strndup(placeholder, placeholder_len)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         local->name = strndup(placeholder, placeholder_len);
     } else {
         local->name = strdup(local->interface);
+    }
+
+    if (local->name == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
@@ -1260,11 +1298,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             free(device);
             return -1;
         }
-        int req_baud = atoi(localbaudratestr);
+        int req_baud = parse_baud(localbaudratestr);
+        if (req_baud < 0) {
+            snprintf(msg, STATUS_MAX, "%s invalid baud= value in source definition",
+                    local->name);
+            free(localbaudratestr);
+            free(device);
+            return -1;
+        }
         free(localbaudratestr);
         int b = get_baud(req_baud);
         if (b < 0) {
-            snprintf(msg, STATUS_MAX, "%s unsupported baud= value", local->name);
+            snprintf(msg, STATUS_MAX, "%s unsupported baud=%d", local->name, req_baud);
             free(device);
             return -1;
         }
@@ -1310,6 +1355,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 strlen("kismet_cap_lorapipe")) & 0xFFFFFFFF,
             adler32_csum((unsigned char *) device, strlen(device)));
         *uuid = strdup(errstr);
+    }
+
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", local->name);
+        free(device);
+        return -1;
     }
 
     /* start on channel=, or the first usable channels= entry, or the region default */
