@@ -10980,8 +10980,8 @@ printf '%s\n' "$ac_cv_lib_websockets_lws_client_connect_via_info" >&6; }
 if test "x$ac_cv_lib_websockets_lws_client_connect_via_info" = xyes
 then :
 
-                     LIBWSLIBS=`pkg-config --libs libwebsockets`
-                     LIBWSCFLAGS=`pkg-config --cflags libwebsockets`
+                     LIBWSLIBS=`$PKG_CONFIG --libs libwebsockets`
+                     LIBWSCFLAGS=`$PKG_CONFIG --cflags libwebsockets`
 
                      have_libwebsockets="yes"
 
@@ -11082,8 +11082,8 @@ printf '%s\n' "yes" >&6; }
 printf '%s\n' "#define HAVE_LIBPCAP 1" >>confdefs.h
 
 
-    PCAPLIBS=`pkg-config --libs libpcap`
-    PCAPCFLAGS=`pkg-config --cflags libpcap`
+    PCAPLIBS=`$PKG_CONFIG --libs libpcap`
+    PCAPCFLAGS=`$PKG_CONFIG --cflags libpcap`
     pcap=yes
 
 fi
@@ -11400,8 +11400,8 @@ fi
         PROTOCBIN=$with_protoc
     fi
 
-    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
-    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
+    PROTOLIBS=`$PKG_CONFIG --libs ${PROTOBUF}`
+    PROTOCFLAGS=`$PKG_CONFIG --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
@@ -11515,8 +11515,8 @@ printf '%s\n' "yes" >&6; }
 
 fi
 
-    BLADERFLIBS=`pkg-config --libs libbladeRF`
-    BLADERFCFLAGS=`pkg-config --cflags libbladeRF`
+    BLADERFLIBS=`$PKG_CONFIG --libs libbladeRF`
+    BLADERFCFLAGS=`$PKG_CONFIG --cflags libbladeRF`
 
     OCFL="$CFLAGS"
 
@@ -11813,8 +11813,8 @@ fi
 if test "x$havelibnm" = "xyes"
 then :
 
-    NMLIBS=`pkg-config --libs libnm`
-    NMCFLAGS=`pkg-config --cflags libnm`
+    NMLIBS=`$PKG_CONFIG --libs libnm`
+    NMCFLAGS=`$PKG_CONFIG --cflags libnm`
 
 else case e in #(
   e)
@@ -12276,8 +12276,8 @@ printf '%s\n' "#define HAVE_LIBNL10 1" >>confdefs.h
         if test "$picked_nl" = "tiny"; then
             NLLIBS="-lnl-tiny"
         else
-		    NLLIBS=`pkg-config --libs $nlname`
-		    NLCFLAGS=`pkg-config --cflags $nlname`
+		    NLLIBS=`$PKG_CONFIG --libs $nlname`
+		    NLCFLAGS=`$PKG_CONFIG --cflags $nlname`
         fi
 	fi
 fi
@@ -12462,8 +12462,8 @@ fi
     if test x"$have_libusb_pkg" != "xyes"; then
         as_fn_error $? "missing libusb-1.0" "$LINENO" 5
     else
-        LIBUSBLIBS=`pkg-config --libs libusb-1.0`
-        LIBUSBCFLAGS=`pkg-config --cflags libusb-1.0`
+        LIBUSBLIBS=`$PKG_CONFIG --libs libusb-1.0`
+        LIBUSBCFLAGS=`$PKG_CONFIG --cflags libusb-1.0`
 
         have_usb="yes"
     fi
@@ -13252,8 +13252,8 @@ fi
     if test x"$have_librtlsdr_pkg" != "xyes"; then
         as_fn_error $? "missing librtlsdr" "$LINENO" 5
     else
-        LIBRTLLIBS=`pkg-config --libs librtlsdr`
-        LIBRTLCFLAGS=`pkg-config --cflags librtlsdr`
+        LIBRTLLIBS=`$PKG_CONFIG --libs librtlsdr`
+        LIBRTLCFLAGS=`$PKG_CONFIG --cflags librtlsdr`
 
         have_rtlsdr="yes"
 
@@ -13649,9 +13649,9 @@ printf '%s\n' "$ac_cv_lib_mosquitto_mosquitto_lib_init" >&6; }
 if test "x$ac_cv_lib_mosquitto_mosquitto_lib_init" = xyes
 then :
 
-                      LIBS="$LIBS `pkg-config --libs libmosquitto`"
-                      CPPFLAGS="$CPPFLAGS `pkg-config --cflags libmosquitto`"
-                      CFLAGS="$CFLAGS `pkg-config --cflags libmosquitto`"
+                      LIBS="$LIBS `$PKG_CONFIG --libs libmosquitto`"
+                      CPPFLAGS="$CPPFLAGS `$PKG_CONFIG --cflags libmosquitto`"
+                      CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libmosquitto`"
 
                       have_mosquitto="yes"
 

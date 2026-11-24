@@ -1185,8 +1185,8 @@ AS_IF([test "x$want_libwebsockets" != "xno"], [
     else
         AC_CHECK_LIB([websockets], [lws_client_connect_via_info],
                      [
-                     LIBWSLIBS=`pkg-config --libs libwebsockets`
-                     LIBWSCFLAGS=`pkg-config --cflags libwebsockets`
+                     LIBWSLIBS=`$PKG_CONFIG --libs libwebsockets`
+                     LIBWSCFLAGS=`$PKG_CONFIG --cflags libwebsockets`
 
                      have_libwebsockets="yes"
                      AC_DEFINE(HAVE_LIBWEBSOCKETS, 1, libwebsockets)
@@ -1203,8 +1203,8 @@ PKG_CHECK_MODULES([libpcap], [libpcap], [
     have_libpcap=yes
     AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
 
-    PCAPLIBS=`pkg-config --libs libpcap`
-    PCAPCFLAGS=`pkg-config --cflags libpcap`
+    PCAPLIBS=`$PKG_CONFIG --libs libpcap`
+    PCAPCFLAGS=`$PKG_CONFIG --cflags libpcap`
     pcap=yes
     ], [
     AC_MSG_WARN(No libpcap found in pkg-config, will check system paths.)
@@ -1318,8 +1318,8 @@ AS_IF([test "$want_protobuf"x = "yes"x], [
         PROTOCBIN=$with_protoc
     fi
 
-    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
-    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
+    PROTOLIBS=`$PKG_CONFIG --libs ${PROTOBUF}`
+    PROTOCFLAGS=`$PKG_CONFIG --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
@@ -1353,8 +1353,8 @@ AS_IF([test "x$want_bladerf" = "xyes"], [
          AC_MSG_ERROR([missing libbladeRF package])
         ])
 
-    BLADERFLIBS=`pkg-config --libs libbladeRF`
-    BLADERFCFLAGS=`pkg-config --cflags libbladeRF`
+    BLADERFLIBS=`$PKG_CONFIG --libs libbladeRF`
+    BLADERFCFLAGS=`$PKG_CONFIG --cflags libbladeRF`
 
     OCFL="$CFLAGS"
 
@@ -1460,8 +1460,8 @@ AS_IF([test "x$want_libnm" != "xno"], [
 # Do we want to check it
 PKG_CHECK_MODULES([libnm], [libnm], havelibnm=yes, havelibnm=no)
 AS_IF([test "x$havelibnm" = "xyes"], [
-    NMLIBS=`pkg-config --libs libnm`
-    NMCFLAGS=`pkg-config --cflags libnm`
+    NMLIBS=`$PKG_CONFIG --libs libnm`
+    NMCFLAGS=`$PKG_CONFIG --cflags libnm`
 ], [
     LIBNM_MISSING_REASON="libnm package not found"
 ])
@@ -1576,8 +1576,8 @@ if test "$havenetlink" = "yes"; then
         if test "$picked_nl" = "tiny"; then
             NLLIBS="-lnl-tiny"
         else
-		    NLLIBS=`pkg-config --libs $nlname`
-		    NLCFLAGS=`pkg-config --cflags $nlname`
+		    NLLIBS=`$PKG_CONFIG --libs $nlname`
+		    NLCFLAGS=`$PKG_CONFIG --cflags $nlname`
         fi
 	fi
 fi
@@ -1641,8 +1641,8 @@ AS_IF([test "x$want_usb" != "xno"], [
     if test x"$have_libusb_pkg" != "xyes"; then
         AC_MSG_ERROR([missing libusb-1.0])
     else
-        LIBUSBLIBS=`pkg-config --libs libusb-1.0`
-        LIBUSBCFLAGS=`pkg-config --cflags libusb-1.0`
+        LIBUSBLIBS=`$PKG_CONFIG --libs libusb-1.0`
+        LIBUSBCFLAGS=`$PKG_CONFIG --cflags libusb-1.0`
 
         have_usb="yes"
     fi
@@ -1936,8 +1936,8 @@ AS_IF([test "x$want_rtlsdr" != "xno"], [
     if test x"$have_librtlsdr_pkg" != "xyes"; then
         AC_MSG_ERROR([missing librtlsdr])
     else
-        LIBRTLLIBS=`pkg-config --libs librtlsdr`
-        LIBRTLCFLAGS=`pkg-config --cflags librtlsdr`
+        LIBRTLLIBS=`$PKG_CONFIG --libs librtlsdr`
+        LIBRTLCFLAGS=`$PKG_CONFIG --cflags librtlsdr`
 
         have_rtlsdr="yes"
 
@@ -2148,9 +2148,9 @@ AS_IF([test "x$want_mosquitto" != "xno"], [
     else
         AC_CHECK_LIB([mosquitto], [mosquitto_lib_init],
                      [
-                      LIBS="$LIBS `pkg-config --libs libmosquitto`"
-                      CPPFLAGS="$CPPFLAGS `pkg-config --cflags libmosquitto`"
-                      CFLAGS="$CFLAGS `pkg-config --cflags libmosquitto`"
+                      LIBS="$LIBS `$PKG_CONFIG --libs libmosquitto`"
+                      CPPFLAGS="$CPPFLAGS `$PKG_CONFIG --cflags libmosquitto`"
+                      CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libmosquitto`"
 
                       have_mosquitto="yes"
                       AC_DEFINE(HAVE_LIBMOSQUITTO, 1, libmosquitto)
