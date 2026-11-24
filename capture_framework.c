@@ -615,6 +615,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 #endif
 
 	ch->announced_uuid = NULL;
+    ch->source_label[0] = 0;
 
     ch->cli_sourcedef = NULL;
 
@@ -720,6 +721,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->channel_hop_list_sz = 0;
     ch->channel_hop_shuffle = 0;
     ch->channel_hop_shuffle_spacing = 1;
+    ch->channel_hop_rate = 0;
+    ch->channel_hop_offset = 0;
     ch->channel_hop_failure_list = NULL;
     ch->channel_hop_failure_list_sz = 0;
     ch->max_channel_hop_rate = 0;
@@ -1022,8 +1025,47 @@ static cf_ipc_t *cf_ipc_kill_detach(kis_capture_handler_t *caph) {
     return list;
 }
 
-void cf_handler_free(kis_capture_handler_t *caph) {
+/* Free one hop list entry; a channel the source refused has no private data */
+static void cf_free_hop_entry(kis_capture_handler_t *caph, char *chan, void *privchan) {
+    free(chan);
+
+    if (privchan == NULL)
+        return;
+
+    if (caph->chanfree_cb != NULL)
+        (*(caph->chanfree_cb))(privchan);
+    else
+        free(privchan);
+}
+
+static void cf_free_hop_lists(kis_capture_handler_t *caph, char **chans, void **privchans,
+        size_t chan_sz) {
     size_t szi;
+
+    for (szi = 0; szi < chan_sz; szi++)
+        cf_free_hop_entry(caph, chans != NULL ? chans[szi] : NULL,
+                privchans != NULL ? privchans[szi] : NULL);
+
+    free(chans);
+    free(privchans);
+}
+
+/* Forget which positions of the hop list failed; under handler_lock */
+static void cf_hop_clear_failures(kis_capture_handler_t *caph) {
+    struct cf_channel_error *err, *errnext;
+
+    err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+    while (err != NULL) {
+        errnext = err->next;
+        free(err);
+        err = errnext;
+    }
+
+    caph->channel_hop_failure_list = NULL;
+    caph->channel_hop_failure_list_sz = 0;
+}
+
+void cf_handler_free(kis_capture_handler_t *caph) {
     int threads_gone;
     cf_ipc_t *ipc_list;
 
@@ -1109,24 +1151,17 @@ void cf_handler_free(kis_capture_handler_t *caph) {
             kis_simple_ringbuf_free(caph->out_ringbuf);
         caph->out_ringbuf = NULL;
 
-        for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
-            if (caph->channel_hop_list[szi] != NULL)
-                free(caph->channel_hop_list[szi]);
-
-            if (caph->chanfree_cb != NULL) {
-                (*(caph->chanfree_cb))(caph->custom_channel_hop_list[szi]);
-            } else if (caph->custom_channel_hop_list[szi] != NULL) {
-                free(caph->custom_channel_hop_list[szi]);
-            }
-        }
-
-        free(caph->channel_hop_list);
+        cf_free_hop_lists(caph, caph->channel_hop_list, caph->custom_channel_hop_list,
+                caph->channel_hop_list_sz);
         caph->channel_hop_list = NULL;
-
-        free(caph->custom_channel_hop_list);
         caph->custom_channel_hop_list = NULL;
-
         caph->channel_hop_list_sz = 0;
+
+        cf_hop_clear_failures(caph);
+
+        /* A hop thread's configure report reads it */
+        free(caph->channel);
+        caph->channel = NULL;
 
         free(caph->hop_clock);
         caph->hop_clock = NULL;
@@ -1338,8 +1373,6 @@ int cf_handler_close_requested(kis_capture_handler_t *caph) {
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
         void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing,
         int offset) {
-    size_t szi;
-
     /*
     fprintf(stderr, "debug - assign hop channels\n");
     for (szi = 0; szi < chan_sz; szi++) {
@@ -1349,22 +1382,10 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
 
     pthread_mutex_lock(&(caph->handler_lock));
 
-    /* Purge any existing data */
-    for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
-        if (caph->channel_hop_list[szi] != NULL)
-            free(caph->channel_hop_list[szi]);
-
-        if (caph->chanfree_cb != NULL) {
-            (*(caph->chanfree_cb))(caph->custom_channel_hop_list[szi]);
-        } else if (caph->custom_channel_hop_list[szi] != NULL) {
-            free(caph->custom_channel_hop_list[szi]);
-        }
-    }
-
-    if (caph->channel_hop_list)
-        free(caph->channel_hop_list);
-    if (caph->custom_channel_hop_list)
-        free(caph->custom_channel_hop_list);
+    /* Purge any existing data; failed positions belong to the old list */
+    cf_free_hop_lists(caph, caph->channel_hop_list, caph->custom_channel_hop_list,
+            caph->channel_hop_list_sz);
+    cf_hop_clear_failures(caph);
 
     caph->channel_hop_list = stringchans;
     caph->custom_channel_hop_list = privchans;
@@ -1380,7 +1401,8 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
 
     caph->channel_hop_shuffle = shuffle;
     caph->channel_hop_shuffle_spacing = shuffle_spacing;
-    caph->channel_hop_offset = offset;
+    /* Kept inside the list; the hop cycle uses it modulo the list size anyway */
+    caph->channel_hop_offset = (offset > 0 && chan_sz != 0) ? (int) ((size_t) offset % chan_sz) : 0;
 
     if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing && chan_sz != 0) {
         /* To find a proper randomization number, take the length of the channel
@@ -1388,10 +1410,10 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
          *
          * We then need to find the closest number to the skipping distance that
          * is not a factor of the maximum so that we get full coverage.
+         *
+         * A spacing >= the list size is kept as configured, so a later list
+         * without one inherits it; the hop cycle treats it as no shuffle.
          */
-
-        if (caph->channel_hop_shuffle_spacing >= chan_sz)
-            caph->channel_hop_shuffle_spacing = 1;
 
         /* this math is wrong, fix it in the hop iterator by offsetting the loop start
 
@@ -2278,6 +2300,28 @@ static size_t cf_chanhop_index(size_t pos, size_t list_sz, int shuffle, size_t s
     return 0;
 }
 
+/* Position in the hop cycle of list index idx; the inverse of cf_chanhop_index */
+static size_t cf_chanhop_pos(size_t idx, size_t list_sz, int shuffle, size_t spacing) {
+    size_t pass, pos;
+
+    if (!shuffle || spacing <= 1 || spacing >= list_sz)
+        return idx;
+
+    for (pass = 0, pos = 0; pass < idx % spacing; pass++)
+        pos += (list_sz - pass + spacing - 1) / spacing;
+
+    return pos + idx / spacing;
+}
+
+/* The shuffle spacing in effect for a list of list_sz: cf_chanhop_index treats
+ * one >= the size as no shuffle, which reports show as 1 */
+static size_t cf_hop_valid_spacing(int shuffle, size_t spacing, size_t list_sz) {
+    if (shuffle && spacing != 0 && list_sz != 0 && spacing >= list_sz)
+        return 1;
+
+    return spacing;
+}
+
 static uint64_t cf_clock_ns(clockid_t clk) {
     struct timespec ts;
     clock_gettime(clk, &ts);
@@ -2324,7 +2368,8 @@ static uint64_t cf_hop_server_ns(const struct cf_hop_clock *c, uint64_t mono) {
 static uint64_t cf_hop_dwell_ns(kis_capture_handler_t *caph) {
     double d;
 
-    if (caph->channel_hop_rate <= 0)
+    /* Also refuses NaN and infinity from the server */
+    if (!(caph->channel_hop_rate > 0) || !isfinite(caph->channel_hop_rate))
         return CF_HOP_MAX_DWELL_NS;
 
     d = (double) CF_NS_PER_SEC / caph->channel_hop_rate;
@@ -2632,9 +2677,26 @@ static uint64_t cf_hop_report_step(kis_capture_handler_t *caph, uint64_t now) {
     return t->next_report_ns;
 }
 
+/* ASCII letters, digits and the listed punctuation only */
+static int cf_name_chars_ok(const char *s, size_t len, const char *punct) {
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) s[i];
+
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))
+            continue;
+
+        if (c == 0 || strchr(punct, c) == NULL)
+            return 0;
+    }
+
+    return 1;
+}
+
 /* The same checks the server makes, so a reading it would skip isn't sent */
 static int cf_env_reading_valid(const cf_env_reading_t *r) {
-    size_t i, len;
+    size_t len;
 
     if (r->id == NULL)
         return 0;
@@ -2644,12 +2706,8 @@ static int cf_env_reading_valid(const cf_env_reading_t *r) {
     if (len == 0 || len > 32 || r->id[0] == '.')
         return 0;
 
-    for (i = 0; i < len; i++) {
-        unsigned char c = (unsigned char) r->id[i];
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-                    c == '_' || c == '.' || c == '-'))
-            return 0;
-    }
+    if (!cf_name_chars_ok(r->id, len, "_.-"))
+        return 0;
 
     if (!isfinite(r->value))
         return 0;
@@ -3027,6 +3085,117 @@ static int cf_hop_is_failed(kis_capture_handler_t *caph, size_t hopidx) {
     return 0;
 }
 
+/* Failed positions inside the current list; an entry outside it is stale.
+ * Positions are unique, as cf_hop_note_failure keeps them */
+static size_t cf_hop_failed_in_list(kis_capture_handler_t *caph) {
+    struct cf_channel_error *err;
+    size_t n = 0;
+
+    for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+            err != NULL; err = err->next) {
+        if (err->channel_pos < caph->channel_hop_list_sz)
+            n++;
+    }
+
+    return n;
+}
+
+/* Whether list entry i survives a compaction: refused entries (no private data)
+ * leave a new list, failed ones the current list */
+static int cf_hop_kept(kis_capture_handler_t *caph, void **privchans, size_t i) {
+    if (privchans != NULL)
+        return privchans[i] != NULL;
+
+    return !cf_hop_is_failed(caph, i);
+}
+
+/* The offset into the compacted list which starts on the channel the old offset
+ * started on, or on the first kept one after it in the old hop cycle.  Walks the
+ * cycle pass by pass, so it costs O(list + spacing) lookups. */
+static size_t cf_hop_remap_offset(kis_capture_handler_t *caph, void **privchans,
+        size_t offset, size_t old_sz, int shuffle, size_t old_spacing,
+        size_t new_sz, size_t new_spacing) {
+    size_t s, p, pass, pass_sz, j, k, idx = 0, i, c;
+    int found = 0;
+
+    if (old_sz == 0 || new_sz == 0)
+        return 0;
+
+    s = (!shuffle || old_spacing <= 1 || old_spacing >= old_sz) ? 1 : old_spacing;
+
+    p = offset % old_sz;
+    pass = 0;
+    pass_sz = (old_sz + s - 1) / s;
+    while (p >= pass_sz && pass + 1 < s) {
+        p -= pass_sz;
+        pass++;
+        pass_sz = (old_sz - pass + s - 1) / s;
+    }
+    j = p;
+
+    for (k = 0; k < old_sz; k++) {
+        idx = pass + j * s;
+
+        if (idx < old_sz && cf_hop_kept(caph, privchans, idx)) {
+            found = 1;
+            break;
+        }
+
+        if (++j >= pass_sz) {
+            pass = (pass + 1) % s;
+            j = 0;
+            pass_sz = (old_sz - pass + s - 1) / s;
+        }
+    }
+
+    if (!found)
+        return 0;
+
+    for (i = 0, c = 0; i < idx; i++) {
+        if (cf_hop_kept(caph, privchans, i))
+            c++;
+    }
+
+    if (c >= new_sz)
+        return 0;
+
+    return cf_chanhop_pos(c, new_sz, shuffle, new_spacing);
+}
+
+/* Drop the channels the source refused (no private data) from a new hop list, in
+ * place; returns the size left.  The offset is moved onto the compacted list, so
+ * the source starts where the server meant; the configured spacing is kept, as
+ * the prune keeps it. */
+static size_t cf_hop_drop_refused(kis_capture_handler_t *caph, char **chans,
+        void **privchans, size_t chan_sz, int shuffle, int spacing, int *offset) {
+    size_t i, ni, old_spacing, new_spacing, new_offset;
+
+    for (i = 0, ni = 0; i < chan_sz; i++) {
+        if (privchans[i] != NULL)
+            ni++;
+    }
+
+    old_spacing = spacing > 0 ? (size_t) spacing : 0;
+    new_spacing = cf_hop_valid_spacing(shuffle, old_spacing, ni);
+    new_offset = cf_hop_remap_offset(caph, privchans, *offset > 0 ? (size_t) *offset : 0,
+            chan_sz, shuffle, old_spacing, ni, new_spacing);
+
+    for (i = 0, ni = 0; i < chan_sz; i++) {
+        if (privchans[i] == NULL) {
+            cf_free_hop_entry(caph, chans[i], NULL);
+            continue;
+        }
+
+        chans[ni] = chans[i];
+        privchans[ni] = privchans[i];
+        ni++;
+    }
+
+    *offset = (int) new_offset;
+
+    return ni;
+}
+
 /* Drop the channels which failed from the hop list.  Only for hopping on our own
  * timer; a synced source keeps its list so it stays on the shared schedule.
  * Returns -1 if hopping must stop. */
@@ -3034,23 +3203,35 @@ static int cf_hop_prune_failures(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
     char **channel_hop_list_new;
     void **custom_channel_hop_list_new;
-    size_t new_sz;
-    size_t i, ni;
-    struct cf_channel_error *err, *errnext;
+    size_t new_sz, new_spacing, new_offset;
+    size_t i, ni, failed;
 
-    if (caph->channel_hop_failure_list_sz > caph->channel_hop_list_sz) {
-        snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
-                "in error state, but there were more error channels (%lu) than "
-                "assigned channels (%lu), something is wrong internally.",
-                caph->channel_hop_failure_list_sz,
-                caph->channel_hop_list_sz);
+    /* Failed positions always lie in the current list; one that doesn't is
+     * stale, and only the positions inside the list are dropped */
+    failed = cf_hop_failed_in_list(caph);
+
+    if (failed != caph->channel_hop_failure_list_sz) {
+        snprintf(errstr, STATUS_MAX, "Ignoring %lu of the %lu channel errors, which are "
+                "not in the %lu assigned channels",
+                (unsigned long) (caph->channel_hop_failure_list_sz - failed),
+                (unsigned long) caph->channel_hop_failure_list_sz,
+                (unsigned long) caph->channel_hop_list_sz);
+        fprintf(stderr, "WARNING: %s\n", errstr);
+        cf_send_warning(caph, errstr);
+    }
+
+    if (failed == 0) {
+        cf_hop_clear_failures(caph);
+        return 0;
+    }
+
+    new_sz = caph->channel_hop_list_sz - failed;
+
+    if (new_sz == 0) {
+        snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
         cf_send_error(caph, 0, errstr);
         return -1;
     }
-
-    /* shrink the channel list and the custom list, and copy only the
-     * valid ones, eliminating the bogus ones */
-    new_sz = caph->channel_hop_list_sz - caph->channel_hop_failure_list_sz;
 
     channel_hop_list_new = (char **) malloc(sizeof(char *) * new_sz);
     custom_channel_hop_list_new = (void **) malloc(sizeof(void *) * new_sz);
@@ -3061,14 +3242,21 @@ static int cf_hop_prune_failures(kis_capture_handler_t *caph) {
         return 0;
     }
 
-    for (i = 0, ni = 0; i < caph->channel_hop_list_sz && ni < new_sz; i++) {
+    /* The offset follows the shorter list.  The configured spacing stays, since
+     * a later list without one inherits it; the cycle and the reports use
+     * the effective one */
+    new_spacing = cf_hop_valid_spacing(caph->channel_hop_shuffle,
+            caph->channel_hop_shuffle_spacing, new_sz);
+    new_offset = cf_hop_remap_offset(caph, NULL,
+            caph->channel_hop_offset > 0 ? (size_t) caph->channel_hop_offset : 0,
+            caph->channel_hop_list_sz, caph->channel_hop_shuffle,
+            caph->channel_hop_shuffle_spacing, new_sz, new_spacing);
+
+    /* Every entry is visited, so failed ones at the end are freed too */
+    for (i = 0, ni = 0; i < caph->channel_hop_list_sz; i++) {
         /* If it's in error, free it */
         if (cf_hop_is_failed(caph, i)) {
-            free(caph->channel_hop_list[i]);
-            if (caph->chanfree_cb != NULL)
-                (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
-            else
-                free(caph->custom_channel_hop_list[i]);
+            cf_free_hop_entry(caph, caph->channel_hop_list[i], caph->custom_channel_hop_list[i]);
             continue;
         }
 
@@ -3084,23 +3272,15 @@ static int cf_hop_prune_failures(kis_capture_handler_t *caph) {
 
     caph->channel_hop_list = channel_hop_list_new;
     caph->custom_channel_hop_list = custom_channel_hop_list_new;
-    caph->channel_hop_list_sz = new_sz;
+    caph->channel_hop_list_sz = ni;
+    caph->channel_hop_offset = (int) new_offset;
 
     /* Spam a configresp which should trigger a reconfigure */
     snprintf(errstr, STATUS_MAX, "Removed %lu channels from the channel list "
-            "because the source could not tune to them",
-            caph->channel_hop_failure_list_sz);
+            "because the source could not tune to them", (unsigned long) failed);
     cf_send_configresp(caph, 0, 1, errstr);
 
-    /* Clear out the old list */
-    err = (struct cf_channel_error *) caph->channel_hop_failure_list;
-    while (err != NULL) {
-        errnext = err->next;
-        free(err);
-        err = errnext;
-    }
-    caph->channel_hop_failure_list = NULL;
-    caph->channel_hop_failure_list_sz = 0;
+    cf_hop_clear_failures(caph);
 
     return 0;
 }
@@ -3153,7 +3333,7 @@ static void cf_int_chanhop_loop(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
 
     int r = 0;
-    int skip, joining;
+    int skip, joining, noted;
 
     /* Cancelled only while sleeping; see cf_hop_sleep_until */
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -3269,6 +3449,17 @@ static void cf_int_chanhop_loop(kis_capture_handler_t *caph) {
                     caph->channel_hop_shuffle, caph->channel_hop_shuffle_spacing);
         }
 
+        /* Channels the source refused are marked failed (synced) or dropped (not
+         * synced) when a configure request assigns the list.  A NULL slot from
+         * any other path is marked failed here, so a synced source sits it out
+         * and the prune drops it; never hand one to channel control */
+        noted = 0;
+
+        if (caph->custom_channel_hop_list[hopidx] == NULL) {
+            skip = 1;
+            noted = cf_hop_note_failure(caph, hopidx);
+        }
+
         if (!skip) {
             errstr[0] = 0;
             r = cf_timed_chancontrol(caph, 0, caph->custom_channel_hop_list[hopidx], errstr);
@@ -3284,22 +3475,25 @@ static void cf_int_chanhop_loop(kis_capture_handler_t *caph) {
                 cf_handler_spindown(caph);
                 return;
             } else if (r == 0) {
-                if (cf_hop_note_failure(caph, hopidx) && caph->hop_sync) {
+                noted = cf_hop_note_failure(caph, hopidx);
+
+                if (noted && caph->hop_sync) {
                     snprintf(errstr, STATUS_MAX, "Could not tune to channel %s; skipping it "
                             "while hopping", caph->channel_hop_list[hopidx]);
                     cf_send_warning(caph, errstr);
                 }
-
-                /* Safety net */
-                if (caph->channel_hop_failure_list_sz >= caph->channel_hop_list_sz) {
-                    snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
-                    cf_send_error(caph, 0, errstr);
-                    caph->hopping_running = 0;
-                    pthread_mutex_unlock(&caph->handler_lock);
-                    cf_handler_spindown(caph);
-                    return;
-                }
             }
+        }
+
+        /* Stop once every position of the list has failed; stale entries outside
+         * it don't count, as in the prune */
+        if (noted && cf_hop_failed_in_list(caph) >= caph->channel_hop_list_sz) {
+            snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
+            cf_send_error(caph, 0, errstr);
+            caph->hopping_running = 0;
+            pthread_mutex_unlock(&caph->handler_lock);
+            cf_handler_spindown(caph);
+            return;
         }
 
         if (!caph->hop_sync) {
@@ -3374,6 +3568,72 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     pthread_attr_destroy(&attr);
 
     return 1;
+}
+
+/* Copy a plain name (serial device paths included) into the source label; the
+ * label only reaches message text */
+static int cf_try_source_label(kis_capture_handler_t *caph, const char *s, int len) {
+    if (s == NULL || len <= 0 || (size_t) len >= sizeof(caph->source_label))
+        return 0;
+
+    if (!cf_name_chars_ok(s, (size_t) len, "_.-:/"))
+        return 0;
+
+    memcpy(caph->source_label, s, (size_t) len);
+    caph->source_label[len] = 0;
+
+    return 1;
+}
+
+/* Remember the source's name, else its interface, else its UUID, for the
+ * framework's own messages; under handler_lock.  The server already names a
+ * remote source in front of each of its messages, so a remote source gets none */
+static void cf_set_source_label(kis_capture_handler_t *caph, char *definition,
+        const char *uuid) {
+    char *val = NULL;
+    int len;
+
+    caph->source_label[0] = 0;
+
+    if (caph->remote_host != NULL)
+        return;
+
+    if (definition != NULL) {
+        len = cf_find_flag(&val, "name", definition);
+        if (cf_try_source_label(caph, val, len))
+            return;
+
+        val = NULL;
+        len = cf_parse_interface(&val, definition);
+        if (cf_try_source_label(caph, val, len))
+            return;
+    }
+
+    if (uuid != NULL)
+        cf_try_source_label(caph, uuid, (int) strnlen(uuid, sizeof(caph->source_label)));
+}
+
+static const char *cf_source_label(kis_capture_handler_t *caph) {
+    return caph->source_label[0] != 0 ? caph->source_label : "Source";
+}
+
+/* Answer a configure request whose channels the source refused.  The report
+ * succeeds, with a warning: a failed one makes the server close the source, and
+ * the current channel and hop list, which it carries, are still in force.  The
+ * report's text reaches no log, so the warning also goes out as a message, after
+ * the report so a full ring drops the message first */
+static int cf_send_chan_refused(kis_capture_handler_t *caph, uint32_t seqno, const char *msg) {
+    char warn[STATUS_MAX];
+    int r;
+
+    snprintf(warn, sizeof(warn), "%s %s; keeping the current channel configuration",
+            cf_source_label(caph), msg);
+
+    r = cf_send_configresp(caph, seqno, 1, warn);
+
+    cf_send_warning(caph, warn);
+
+    return r;
 }
 
 /* Common dispatch layer */
@@ -3615,6 +3875,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             if (!mpack_tree_try_parse(&tree)) {
                 fprintf(stderr, "FATAL: Invalid open request received, unable to unpack command.\n");
                 cbret = -1;
+                mpack_tree_destroy(&tree);
                 goto finish;
             }
 
@@ -3669,6 +3930,8 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             cbret = (*(caph->open_cb))(caph, seqno, definition,
                     msgstr, &dlt, &uuid, &interfaceparams, &spectrumparams);
 
+            cf_set_source_label(caph, definition, uuid);
+
             /* Capture thread first, so a refused launch is a failed open and not
              * a success followed by an error.  Its sends wait on handler_lock (the
              * seqno), held here, so the openresp still goes out first. */
@@ -3709,38 +3972,32 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
         double chanhop_rate = 0;
         char **chanhop_channels = NULL;
         void **chanhop_priv_channels = NULL;
-        size_t chanhop_channels_sz = 0, szi = 0;
+        size_t chanhop_channels_sz = 0, chanhop_refused = 0, chanhop_assign_sz = 0, szi = 0;
         int chanhop_shuffle = 0, chanhop_shuffle_spacing = 1, chanhop_offset = 0;
-        int chanhop_sync = 0;
+        int chanhop_sync = 0, chanhop_rate_bad = 0;
         uint64_t chanhop_sync_epoch = 0;
         void *translate_chan = NULL;
 
         mpack_tree_t tree;
         mpack_node_t root;
 
-        if (caph->chancontrol_cb == NULL) {
-            if (caph->verbose) {
-                fprintf(stderr, "ERROR:  Capture source (%s) does not support channel configuration\n",
-                        caph->capsource_type);
-            }
-
-            pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_configresp(caph, seqno, 0, "source does not support channel configuration");
-            pthread_mutex_lock(&(caph->handler_lock));
-
-            cbret = -1;
-            goto finish;
-        }
-
         mpack_tree_init_data(&tree, (const char *) data, packet_sz);
 
         if (!mpack_tree_try_parse(&tree)) {
             fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack command.\n");
             cbret = -1;
+            mpack_tree_destroy(&tree);
             goto finish;
         }
 
         root = mpack_tree_root(&tree);
+
+        if (mpack_node_type(root) != mpack_type_map) {
+            fprintf(stderr, "FATAL: Invalid configure request received, not a map.\n");
+            cbret = -1;
+            mpack_tree_destroy(&tree);
+            goto finish;
+        }
 
         /* Only a server which takes hop timing reports asks for them */
         if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_REPORT_MS)) {
@@ -3762,6 +4019,25 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             caph->hop_report_ms = report_ms;
         }
 
+        /* Without channel control only a request with nothing to tune succeeds */
+        if (caph->chancontrol_cb == NULL &&
+                (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL) ||
+                 mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANHOPBLOCK))) {
+            if (caph->verbose) {
+                fprintf(stderr, "ERROR:  Capture source (%s) does not support channel configuration\n",
+                        caph->capsource_type);
+            }
+
+            mpack_tree_destroy(&tree);
+
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_configresp(caph, seqno, 0, "source does not support channel configuration");
+            pthread_mutex_lock(&(caph->handler_lock));
+
+            cbret = -1;
+            goto finish;
+        }
+
         if (mpack_node_map_contains_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL)) {
             char channel[1024];
             mpack_node_copy_cstr(mpack_node_map_uint(root, KIS_EXTERNAL_V3_KDS_CONFIGREQ_FIELD_CHANNEL), channel, 1024);
@@ -3777,6 +4053,22 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
                 translate_chan = (*(caph->chantranslate_cb))(caph, channel);
             } else {
                 translate_chan = strdup(channel);
+            }
+
+            /* A channel the source refuses changes nothing: the current
+             * channel and any hopping stay as they are */
+            if (translate_chan == NULL) {
+                if (cf_send_chan_refused(caph, seqno, strchr(channel, '=') != NULL ?
+                            "could not process the requested setting" :
+                            "could not use the requested channel") < 0) {
+                    cbret = -1;
+                    fprintf(stderr, "FATAL: Unable to send configure response.\n");
+                } else {
+                    cbret = 1;
+                }
+
+                mpack_tree_destroy(&tree);
+                goto finish;
             }
 
             /* Cancel channel hopping when told a single channel.
@@ -3880,6 +4172,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
                 if (mpack_tree_error(&tree) != mpack_ok) {
                     fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack channel hop list.\n");
+                    cf_free_hop_lists(caph, chanhop_channels, NULL, chanhop_channels_sz);
                     cbret = -1;
                     mpack_tree_destroy(&tree);
                     goto finish;
@@ -3891,9 +4184,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             if (chanhop_priv_channels == NULL) {
                 fprintf(stderr, "FATAL: Could not allocate channel hop list.\n");
-                for (szi = 0; szi < chanhop_channels_sz; szi++)
-                    free(chanhop_channels[szi]);
-                free(chanhop_channels);
+                cf_free_hop_lists(caph, chanhop_channels, NULL, chanhop_channels_sz);
                 cbret = -1;
                 mpack_tree_destroy(&tree);
                 goto finish;
@@ -3910,6 +4201,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             /* default to current values for unspecified fields */
             if (mpack_node_map_contains_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE)) {
                 chanhop_rate = mpack_node_float(mpack_node_map_uint(chanhop, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_RATE));
+                chanhop_rate_bad = !isfinite(chanhop_rate) || chanhop_rate < 0;
             } else {
                 chanhop_rate = caph->channel_hop_rate;
             }
@@ -3941,7 +4233,32 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
 
             if (mpack_tree_error(&tree) != mpack_ok) {
                 fprintf(stderr, "FATAL: Invalid configure request received, unable to process channel hop command.\n");
+                cf_free_hop_lists(caph, chanhop_channels, chanhop_priv_channels, chanhop_channels_sz);
                 cbret = -1;
+                mpack_tree_destroy(&tree);
+                goto finish;
+            }
+
+            chanhop_refused = 0;
+            for (szi = 0; szi < chanhop_channels_sz; szi++) {
+                if (chanhop_priv_channels[szi] == NULL)
+                    chanhop_refused++;
+            }
+
+            /* A rate which isn't a finite number >= 0, or nothing usable, keeps
+             * the current channel and hopping as they are */
+            if (chanhop_rate_bad || chanhop_refused == chanhop_channels_sz) {
+                cf_free_hop_lists(caph, chanhop_channels, chanhop_priv_channels, chanhop_channels_sz);
+
+                if (cf_send_chan_refused(caph, seqno, chanhop_rate_bad ?
+                            "could not use the requested hop rate" :
+                            "could not use any channel in the hop list") < 0) {
+                    cbret = -1;
+                    fprintf(stderr, "FATAL: Unable to send configure response.\n");
+                } else {
+                    cbret = 1;
+                }
+
                 mpack_tree_destroy(&tree);
                 goto finish;
             }
@@ -3949,24 +4266,69 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, unsigned int cmd,
             caph->hop_sync = chanhop_sync;
             caph->hop_sync_epoch_ns = chanhop_sync_epoch;
 
-            /* Set the hop data, which will handle our thread */
+            /* Synced, refused channels stay in the list as NULL slots marked
+             * failed, so the source keeps the shared schedule and sits them out.
+             * On its own timer they're dropped now, costing no dwell and leaving
+             * the prune's report to channels which fail to tune.  The hop thread
+             * waits on handler_lock, held here, so it never sees them unmarked.
+             * Set the hop data, which will handle our thread */
+            chanhop_assign_sz = chanhop_channels_sz;
+            if (!chanhop_sync && chanhop_refused > 0)
+                chanhop_assign_sz = cf_hop_drop_refused(caph, chanhop_channels,
+                        chanhop_priv_channels, chanhop_channels_sz, chanhop_shuffle,
+                        chanhop_shuffle_spacing, &chanhop_offset);
+
             cf_handler_assign_hop_channels(caph, chanhop_channels,
-                    chanhop_priv_channels, chanhop_channels_sz, chanhop_rate,
+                    chanhop_priv_channels, chanhop_assign_sz, chanhop_rate,
                     chanhop_shuffle, chanhop_shuffle_spacing, chanhop_offset);
+
+            if (chanhop_sync && chanhop_refused > 0) {
+                for (szi = 0; szi < caph->channel_hop_list_sz; szi++) {
+                    if (caph->custom_channel_hop_list[szi] == NULL)
+                        cf_hop_note_failure(caph, szi);
+                }
+            }
+
+            msgstr[0] = 0;
+            if (chanhop_refused > 0)
+                snprintf(msgstr, STATUS_MAX, "%s could not use %lu of the %lu channels in the "
+                        "hop list; skipping them while hopping", cf_source_label(caph),
+                        (unsigned long) chanhop_refused, (unsigned long) chanhop_channels_sz);
 
             /* Return a completion, and we do NOT free the channel lists we
              * dynamically allocated out of the buffer with cf_get_CHANHOP, as
-             * we're now using them for keeping the channel record in the caph */
-            if (cf_send_configresp(caph, seqno, 1, NULL) < 0) {
+             * we're now using them for keeping the channel record in the caph.
+             * The report goes first, so a full ring drops the message instead */
+            cbret = 1;
+            if (cf_send_configresp(caph, seqno, 1, chanhop_refused > 0 ? msgstr : NULL) < 0) {
                 cbret = -1;
                 fprintf(stderr, "FATAL: Unable to send configure response.\n");
             }
-            cbret = 1;
+
+            if (chanhop_refused > 0)
+                cf_send_warning(caph, msgstr);
 
             mpack_tree_destroy(&tree);
 
             goto finish;
         }
+
+        /* Neither a channel nor a hop list: only the report interval, or fields
+         * from a newer server, which must not close the source */
+        if (mpack_tree_error(&tree) != mpack_ok) {
+            fprintf(stderr, "FATAL: Invalid configure request received, unable to unpack command.\n");
+            cbret = -1;
+            mpack_tree_destroy(&tree);
+            goto finish;
+        }
+
+        cbret = 1;
+        if (cf_send_configresp(caph, seqno, 1, NULL) < 0) {
+            cbret = -1;
+            fprintf(stderr, "FATAL: Unable to send configure response.\n");
+        }
+
+        mpack_tree_destroy(&tree);
     } else {
         cbret = -1;
 
@@ -6285,7 +6647,8 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         mpack_write_uint(&writer, caph->channel_hop_offset);
 
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
-        mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
+        mpack_write_uint(&writer, cf_hop_valid_spacing(caph->channel_hop_shuffle,
+                    caph->channel_hop_shuffle_spacing, caph->channel_hop_list_sz));
 
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_ENABLED);
         mpack_write_bool(&writer, true);
@@ -7112,7 +7475,8 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int in_seqno,
         mpack_write_uint(&writer, caph->channel_hop_offset);
 
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_SKIP);
-        mpack_write_uint(&writer, caph->channel_hop_shuffle_spacing);
+        mpack_write_uint(&writer, cf_hop_valid_spacing(caph->channel_hop_shuffle,
+                    caph->channel_hop_shuffle_spacing, caph->channel_hop_list_sz));
 
         mpack_write_uint(&writer, KIS_EXTERNAL_V3_KDS_SUB_CHANHOP_FIELD_ENABLED);
         mpack_write_uint(&writer, true);

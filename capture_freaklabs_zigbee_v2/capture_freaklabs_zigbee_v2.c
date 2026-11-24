@@ -90,6 +90,55 @@ int get_baud(int baud) {
     }
 }
 
+/* A decimal baudrate= value up to the highest rate get_baud() knows; signs,
+ * trailing junk and values that would wrap are -1; spaces around it are
+ * skipped */
+static int parse_baud(const char *str) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v <= 0 || v > 4000000)
+        return -1;
+
+    return (int) v;
+}
+
+/* A decimal channel from min to max, as in the catsniffer helper, with spaces
+ * around it skipped (as in "11, 15, 20" lists); anything else is -1 */
+static int parse_channel(const char *str, int min, int max) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v < min || v > max)
+        return -1;
+
+    return (int) v;
+}
+
 int write_command(kis_capture_handler_t *caph, local_freaklabs_t *freak, uint8_t *cmd,
                   size_t len) {
     char errstr[STATUS_MAX];
@@ -164,17 +213,26 @@ uint8_t get_channel(kis_capture_handler_t *caph, local_freaklabs_t *freak) {
 void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
     local_channel_t *ret_localchan;
     unsigned int parsechan;
+    int parsed;
     char errstr[STATUS_MAX];
 
-    printf("translate %s\n", chanstr);
-
-    if (sscanf(chanstr, "%u", &parsechan) != 1) {
-        snprintf(errstr, STATUS_MAX, "unable to parse channel; freaklabs channels are integers");
+    /* Strict apart from surrounding spaces: no signs, trailing junk or
+     * wrapped values; the band
+     * range is checked when the channel is set */
+    if ((parsed = parse_channel(chanstr, 0, 26)) < 0) {
+        snprintf(errstr, STATUS_MAX, "unable to parse channel; freaklabs channels are integers from 0 to 26");
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
 
+    parsechan = (unsigned int) parsed;
+
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    if (ret_localchan == NULL) {
+        cf_send_message(caph, "out of memory creating channel object", MSGFLAG_ERROR);
+        return NULL;
+    }
+
     ret_localchan->channel = parsechan;
 
     return ret_localchan;
@@ -234,6 +292,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     /* Look for the interface type */
     if (strstr(interface, "freaklabs") != interface) {
@@ -242,8 +304,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
+    free(interface);
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
         return 0;
@@ -269,6 +337,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         *uuid = strdup(errstr);
     }
 
+    free(device);
+
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     int n_chans = 0;
     int s_chan = 0;
 
@@ -283,14 +358,21 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         s_chan = 11;
     }
 
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
+    /* The framework frees the list after the probe, as far as channels_len */
+    if (((*ret_interface)->channels = (char **) calloc(n_chans, sizeof(char *))) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     for (int i = s_chan; i < s_chan + n_chans; i++) {
         char chstr[3];
         snprintf(chstr, 3, "%d", i);
-        (*ret_interface)->channels[i - s_chan] = strdup(chstr);
+        if (((*ret_interface)->channels[i - s_chan] = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
+        (*ret_interface)->channels_len++;
     }
-
-    (*ret_interface)->channels_len = n_chans;
 
     return 1;
 }
@@ -307,7 +389,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
 
     char *localbaudratestr = NULL;
-    unsigned int *localbaudrate = NULL;
+    int localbaudrate;
+    int b;
 
     /* 0: 800mhz
      * 1: 900mhz (0-11)
@@ -323,7 +406,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    localfreak->interface = strndup(placeholder, placeholder_len);
+    if ((localfreak->interface = strndup(placeholder, placeholder_len)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         localfreak->name = strndup(placeholder, placeholder_len);
@@ -331,8 +417,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localfreak->name = strdup(localfreak->interface);
     }
 
+    if (localfreak->name == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localfreak->name);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "%s expected device= path to serial device in definition", localfreak->name);
         return -1;
@@ -340,19 +436,34 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
-        localbaudrate = (unsigned int *) malloc(sizeof(unsigned int));
-        *localbaudrate = atoi(localbaudratestr);
-        free(localbaudratestr);
 
-        if (localbaudrate == NULL) {
+        if (localbaudratestr == NULL) {
             snprintf(msg, STATUS_MAX, "%s could not parse baudrate option "
                                       "provided in source definition", localfreak->name);
+            free(device);
             return -1;
         }
 
-        localfreak->baudrate = get_baud(*localbaudrate);
+        localbaudrate = parse_baud(localbaudratestr);
+        free(localbaudratestr);
 
-        free(localbaudrate);
+        if (localbaudrate < 0) {
+            snprintf(msg, STATUS_MAX, "%s invalid baudrate= value in source definition",
+                    localfreak->name);
+            free(device);
+            return -1;
+        }
+
+        b = get_baud(localbaudrate);
+
+        if (b < 0) {
+            snprintf(msg, STATUS_MAX, "%s unsupported baudrate=%d in source definition",
+                    localfreak->name, localbaudrate);
+            free(device);
+            return -1;
+        }
+
+        localfreak->baudrate = (speed_t) b;
     } else {
         localfreak->baudrate = D_BAUDRATE;
     }
@@ -377,13 +488,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localfreak->name);
+        free(device);
+        return -1;
+    }
+
     /* open for r/w but no tty */
     localfreak->fd = open(device, O_RDWR | O_NOCTTY);
 
     if (localfreak->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s", localfreak->name, strerror(errno));
+        free(device);
         return -1;
     }
+
+    free(device);
 
     tcgetattr(localfreak->fd, &localfreak->oldtio);
     bzero(&localfreak->newtio, sizeof(localfreak->newtio));
@@ -411,13 +531,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (tcsetattr(localfreak->fd, TCSANOW, &localfreak->newtio)) {
         snprintf(msg, STATUS_MAX, "%s failed to set serial device options - %s",
                  localfreak->name, strerror(errno));
-        return -1;
+        goto close_fail;
     }
 
     if (tcflush(localfreak->fd, TCIOFLUSH)) {
         snprintf(msg, STATUS_MAX, "%s failed to flush serial device - %s",
                  localfreak->name, strerror(errno));
-        return -1;
+        goto close_fail;
     }
 
     int n_chans = 0;
@@ -434,18 +554,30 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         s_chan = 11;
     }
 
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * n_chans);
+    /* The framework frees the list after the open, as far as channels_len */
+    if (((*ret_interface)->channels = (char **) calloc(n_chans, sizeof(char *))) == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localfreak->name);
+        goto close_fail;
+    }
+
     for (int i = s_chan; i < s_chan + n_chans; i++) {
         char chstr[3];
         snprintf(chstr, 3, "%d", i);
-        (*ret_interface)->channels[i - s_chan] = strdup(chstr);
+        if (((*ret_interface)->channels[i - s_chan] = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localfreak->name);
+            goto close_fail;
+        }
+        (*ret_interface)->channels_len++;
     }
-
-    (*ret_interface)->channels_len = n_chans;
 
     localfreak->band = band;
 
     return 1;
+
+close_fail:
+    close(localfreak->fd);
+    localfreak->fd = -1;
+    return -1;
 }
 
 /* Work around serial port oddness and keep spinning reading from the serial 

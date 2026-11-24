@@ -113,6 +113,31 @@ int get_baud(int baud) {
     }
 }
 
+/* A decimal baudrate= value up to the highest rate get_baud() knows; signs,
+ * trailing junk and values that would wrap are -1; spaces around it are
+ * skipped */
+static int parse_baud(const char *str) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v <= 0 || v > 4000000)
+        return -1;
+
+    return (int) v;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     char *definition, char *msg, char **uuid,
     cf_params_interface_t **ret_interface,
@@ -132,6 +157,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     /* Look for the interface type */
     if (strstr(interface, "radview") != interface) {
@@ -139,8 +168,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
+    free(interface);
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "Radview requires a device= field in the capture "
                 "definition with a path to the serial device");
@@ -161,6 +196,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     free(device);
 
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     return 1;
 }
 
@@ -174,7 +214,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
 
     char *localbaudratestr = NULL;
-    unsigned int *localbaudrate = NULL;
+    int localbaudrate;
+    int b;
 
     local_radview_t *localrad = (local_radview_t *) caph->userdata;
 
@@ -186,7 +227,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    localrad->interface = strndup(placeholder, placeholder_len);
+    if ((localrad->interface = strndup(placeholder, placeholder_len)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if (strstr(localrad->interface, "radview") != localrad->interface) {
         return -1;
@@ -198,8 +242,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localrad->name = strdup(localrad->interface);
     }
 
+    if (localrad->name == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localrad->name);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX,
             "%s requires a device= field in the capture definition with a path to the serial device",
@@ -209,24 +263,37 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) > 0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
-        localbaudrate = (unsigned int *) malloc(sizeof(unsigned int));
 
-        *localbaudrate = atoi(localbaudratestr);
+        if (localbaudratestr == NULL) {
+            snprintf(msg, STATUS_MAX,
+                "radview could not parse baudrate= option provided in source "
+                "definition");
+            free(device);
+            return -1;
+        }
+
+        localbaudrate = parse_baud(localbaudratestr);
 
         free(localbaudratestr);
         localbaudratestr = NULL;
 
-        if (localbaudrate == NULL) {
+        if (localbaudrate < 0) {
             snprintf(msg, STATUS_MAX,
-                "radview could not parse baudrate= option provided in source "
-                "definition");
+                "radview invalid baudrate= value in source definition");
+            free(device);
             return -1;
         }
 
-        localrad->baudrate = get_baud(*localbaudrate);
+        b = get_baud(localbaudrate);
 
-        free(localbaudrate);
-        localbaudrate = NULL;
+        if (b < 0) {
+            snprintf(msg, STATUS_MAX,
+                "radview unsupported baudrate=%d in source definition", localbaudrate);
+            free(device);
+            return -1;
+        }
+
+        localrad->baudrate = (speed_t) b;
     } else {
         localrad->baudrate = D_BAUDRATE;
     }
@@ -245,25 +312,28 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localrad->name);
+        free(device);
+        return -1;
+    }
+
     localrad->fd = open(device, O_RDWR | O_NOCTTY);
 
     if (localrad->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
             localrad->name, strerror(errno));
+        free(device);
         return -1;
     }
 
-    tcgetattr(localrad->fd, &localrad->oldtio); 
+    tcgetattr(localrad->fd, &localrad->oldtio);
     bzero(&localrad->newtio, sizeof(localrad->newtio));
 
-    /* set the baud rate and flags */
-#if defined(SYS_OPENBSD)
+    /* set the flags, then the speed; B* values are only cflag bits on Linux */
     localrad->newtio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-    cfsetspeed(&localrad->newtio, localrad->baudrate);
-#else
-    localrad->newtio.c_cflag =
-        localrad->baudrate | CRTSCTS | CS8 | CLOCAL | CREAD;
-#endif
+    cfsetispeed(&localrad->newtio, localrad->baudrate);
+    cfsetospeed(&localrad->newtio, localrad->baudrate);
 
     /* ignore parity errors */
     localrad->newtio.c_iflag = IGNPAR;
@@ -279,12 +349,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (tcsetattr(localrad->fd, TCSANOW, &localrad->newtio)) {
         snprintf(msg, STATUS_MAX, "%s failed to set serial device options - %s",
                  localrad->name, strerror(errno));
+        close(localrad->fd);
+        localrad->fd = -1;
+        free(device);
         return -1;
     }
 
     if (tcflush(localrad->fd, TCIFLUSH)) {
         snprintf(msg, STATUS_MAX, "%s failed to flush serial device - %s",
                  localrad->name, strerror(errno));
+        close(localrad->fd);
+        localrad->fd = -1;
+        free(device);
         return -1;
     }
 
@@ -456,7 +532,13 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    localrad.serial_ringbuf = kis_simple_ringbuf_create(8192); 
+    localrad.serial_ringbuf = kis_simple_ringbuf_create(8192);
+
+    if (localrad.serial_ringbuf == NULL) {
+        fprintf(stderr, "FATAL: Could not allocate the serial buffer\n");
+        cf_handler_free(caph);
+        return -1;
+    }
 
     localrad.caph = caph;
 

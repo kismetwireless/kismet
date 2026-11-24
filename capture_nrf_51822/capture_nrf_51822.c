@@ -83,6 +83,31 @@ int get_baud(int baud) {
     }
 }
 
+/* A decimal baudrate= value up to the highest rate get_baud() knows; signs,
+ * trailing junk and values that would wrap are -1; spaces around it are
+ * skipped */
+static int parse_baud(const char *str) {
+    char *end;
+    long v;
+
+    if (str == NULL)
+        return -1;
+
+    str += strspn(str, " \t\r\n");
+
+    if (str[0] < '0' || str[0] > '9')
+        return -1;
+
+    errno = 0;
+    v = strtol(str, &end, 10);
+    end += strspn(end, " \t\r\n");
+
+    if (errno != 0 || *end != '\0' || v <= 0 || v > 4000000)
+        return -1;
+
+    return (int) v;
+}
+
 bool ping_check(kis_capture_handler_t *caph) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     /**
@@ -176,6 +201,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     }
 
     interface = strndup(placeholder, placeholder_len);
+    if (interface == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     /* Look for the interface type */
     if (strstr(interface, "nrf51822") != interface) {
@@ -184,8 +213,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
+    free(interface);
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
         return 0;
@@ -204,15 +239,29 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         *uuid = strdup(errstr);
     }
 
-    /* TI CC 2540 supports 37-39 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
+    free(device);
+
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
+    /* TI CC 2540 supports 37-39; the framework frees the list after the probe,
+     * as far as channels_len */
+    if (((*ret_interface)->channels = (char **) calloc(3, sizeof(char *))) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     for (int i = 37; i < 40; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 37] = strdup(chstr);
+        if (((*ret_interface)->channels[i - 37] = strdup(chstr)) == NULL) {
+            snprintf(msg, STATUS_MAX, "Out of memory");
+            return -1;
+        }
+        (*ret_interface)->channels_len++;
     }
-
-    (*ret_interface)->channels_len = 3;
 
     return 1;
 }
@@ -227,7 +276,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char errstr[STATUS_MAX];
 
     char *localbaudratestr = NULL;
-    unsigned int *localbaudrate = NULL;
+    int localbaudrate;
     int b;
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
@@ -237,7 +286,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    localnrf->interface = strndup(placeholder, placeholder_len);
+    if ((localnrf->interface = strndup(placeholder, placeholder_len)) == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) >
         0) {
@@ -246,9 +298,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         localnrf->name = strdup(localnrf->interface);
     }
 
+    if (localnrf->name == NULL) {
+        snprintf(msg, STATUS_MAX, "Out of memory");
+        return -1;
+    }
+
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) >
         0) {
         device = strndup(placeholder, placeholder_len);
+
+        if (device == NULL) {
+            snprintf(msg, STATUS_MAX, "%s out of memory", localnrf->name);
+            return -1;
+        }
     } else {
         snprintf(msg, STATUS_MAX,
             "%s expected device= path to serial device in definition",
@@ -260,29 +322,36 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) >
         0) {
         localbaudratestr = strndup(placeholder, placeholder_len);
-        localbaudrate = (unsigned int *) malloc(sizeof(unsigned int));
-        *localbaudrate = atoi(localbaudratestr);
-        free(localbaudratestr);
 
-        if (localbaudrate == NULL) {
+        if (localbaudratestr == NULL) {
             snprintf(msg, STATUS_MAX,
                 "nrf51822 could not parse baudrate= option provided in source "
                 "definition");
+            free(device);
             return -1;
         }
-        // better way of doing this?
-        b = get_baud(*localbaudrate);
+
+        localbaudrate = parse_baud(localbaudratestr);
+        free(localbaudratestr);
+
+        if (localbaudrate < 0) {
+            snprintf(msg, STATUS_MAX,
+                "nrf51822 invalid baudrate= value in source definition");
+            free(device);
+            return -1;
+        }
+
+        b = get_baud(localbaudrate);
 
         if (b < 0) {
             snprintf(msg, STATUS_MAX,
-                "nrf51822 unsupported baudrate=%u in source definition",
-                *localbaudrate);
-            free(localbaudrate);
+                "nrf51822 unsupported baudrate=%d in source definition",
+                localbaudrate);
+            free(device);
             return -1;
         }
 
         localnrf->baudrate = (speed_t) b;
-        free(localbaudrate);
     } else {
         localnrf->baudrate = D_BAUDRATE;
     }
@@ -302,6 +371,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    if (*uuid == NULL) {
+        snprintf(msg, STATUS_MAX, "%s out of memory", localnrf->name);
+        free(device);
+        return -1;
+    }
+
 	pthread_mutex_lock(&localnrf->serial_mutex);
 
     /* open for r/w but no tty */
@@ -310,8 +385,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (localnrf->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
             localnrf->name, strerror(errno));
+        pthread_mutex_unlock(&(localnrf->serial_mutex));
+        free(device);
         return -1;
     }
+
+    free(device);
 
     tcgetattr(localnrf->fd, &localnrf->oldtio); /* save current serial port settings */
 	localnrf->newtio = localnrf->oldtio;
@@ -333,6 +412,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 	if (tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio) < 0) {
 		snprintf(msg, STATUS_MAX, "%s tcsetattr failed - %s",
 				localnrf->name, strerror(errno));
+		close(localnrf->fd);
+		localnrf->fd = -1;
 		pthread_mutex_unlock(&(localnrf->serial_mutex));
 		return -1;
 	}

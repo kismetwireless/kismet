@@ -347,6 +347,8 @@ struct kis_capture_handler {
     /* Announced UUID, if one is required */
     char *announced_uuid;
 
+    /* Names the open source in the framework's own messages; under handler_lock */
+    char source_label[65];
 
     /* Specified commandline source, used for remote cap */
     char *cli_sourcedef;
