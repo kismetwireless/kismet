@@ -2,7 +2,8 @@
 // VLANs, addresses, names and DHCP details, the Ethernet flows tab and the
 // Ethernet VLANs window, and the "On the wire" section of a device linked to
 // an Ethernet record (a Wi-Fi client, say).  Clicking a flow opens its own
-// details window, laid out like the device panel.
+// details window, laid out like the device panel, with graphs of its traffic
+// history when the server keeps one.
 //
 // The server names no UI module for this phy, so js/core/modules.js loads
 // this one when the server lists the IEEE802.3 phy.  The tab and the window's
@@ -10,7 +11,8 @@
 // no location, so there's no map source for them.
 
 import { protocolNames, roleNames, tcpFlagNames, ipProtocolName, vlanLabel, vlanTagText, vlanSortKey,
-    endpoint, hostNames, addresses, statusNotes, flowFilter, flowKey, flowPoller } from './ethernetinfo.js';
+    endpoint, hostNames, addresses, statusNotes, flowFilter, flowKey, flowPoller, serverFlowKey, historyChange,
+    historyNote, flowKeyPoller } from './ethernetinfo.js';
 import { statusNotes as entityNotes, statusSummary as entitySummary, peerOf } from '../core/entityinfo.js';
 
 const base = 'kismet.device.base';
@@ -23,8 +25,10 @@ const statusSeconds = 10;
 const flowPage = 200;
 const deviceFlows = 100;
 const flowSeconds = 5;
-// Flow windows' shared reads a tick, at most, however many are open
+// Flow windows' reads a tick, at most, however many are open
 const flowReads = 4;
+// A flow's history: bytes and packets each way, as the server names them
+const historySeries = ['bytes_ab', 'bytes_ba', 'packets_ab', 'packets_ba'];
 
 const macPattern = /^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/;
 
@@ -32,10 +36,10 @@ const ipSources = { arp: 'ARP', dhcp: 'DHCP', dhcpv6: 'DHCPv6', traffic: 'Traffi
 const nameSources = { dhcp_hostname: 'DHCP hostname', dhcp_fqdn: 'DHCP FQDN', dhcpv6_fqdn: 'DHCPv6 FQDN' };
 
 export function register(kismet) {
-    const { ui, api, dom, icons, format, settings } = kismet;
+    const { ui, api, dom, icons, format, settings, rrd, clock } = kismet;
     const { el } = dom;
     const { dialog } = kismet.widgets.dialog;
-    const { listTable, aboutView } = kismet.widgets;
+    const { listTable, aboutView, historyGraph } = kismet.widgets;
     const muted = ui.muted;
 
     icons.define('ethernet', '<rect x="4" y="5" width="16" height="12" rx="1.5"/><path d="M9 17v3h6v-3"/>' +
@@ -251,8 +255,113 @@ export function register(kismet) {
                 'seen on Wi-Fi, say.  A possible link is below entity_link_min_confidence.' },
     ];
 
-    // The flow window's sections, in order
-    const flowSections = [
+    // ---- flow history ------------------------------------------------------
+
+    const spans = [['minute', 'Past minute'], ['hour', 'Past hour'], ['day', 'Past day']];
+    const spanLabels = { minute: ['-60s', 'now'], hour: ['-60m', 'now'], day: ['-24h', 'now'] };
+    const binSeconds = { minute: 1, hour: 60, day: 3600 };
+    const pickedSpan = () => {
+        const s = settings.get('ethernet.flow.span', 'minute');
+        return binSeconds[s] ? s : 'minute';
+    };
+    const byteRate = (v) => (Number.isFinite(v) ? `${format.size(v)}/s` : '-');
+    const packetRate = (v) => (Number.isFinite(v) ? `${v >= 100 ? Math.round(v).toLocaleString() : +v.toFixed(1)}/s` : '-');
+    const hasHistory = (x) => historySeries.every((k) => Array.isArray(x?.[`${fl}.${k}.rrd`]?.['kismet.common.rrd.minute_vec']));
+
+    // The History section of one flow window: bytes and packets each way,
+    // per second, over the past minute, hour or day (one setting for every
+    // flow window).  Graphs start over when the flow's history begins again.
+    function flowHistory() {
+        const since = el('p', { class: 'muted eth-flow-since' });
+        const buttons = spans.map(([id, label]) => el('button', { type: 'button', dataset: { span: id }, onclick: () => {
+            settings.set('ethernet.flow.span', id);
+            redraw();
+        } }, label));
+        const tabs = el('div', { class: 'graph-tabs' }, buttons);
+        const note = el('p', { class: 'muted' });
+        let graphs = null;
+        let shownTime = 0;
+        let last = null;
+
+        function drop() {
+            graphs?.bytes.destroy();
+            graphs?.packets.destroy();
+            graphs = null;
+        }
+
+        // The server time of each value shown, for the readout
+        function pointLabel(i) {
+            const span = pickedSpan();
+            const bin = binSeconds[span];
+            const at = last?.[`${fl}.bytes_ab.rrd`]?.['kismet.common.rrd.serial_time'] ?? 0;
+            const t = (Math.floor(at / bin) - (graphs?.count ?? 0) + i) * bin;
+            if (span === 'minute')
+                return format.time(t).slice(-8);
+            if (span === 'hour')
+                return format.clock(t);
+            return `${format.clock(t)} to ${format.clock(t + bin)}`;
+        }
+
+        function redraw() {
+            const span = pickedSpan();
+            for (const b of buttons) {
+                b.classList.toggle('active', b.dataset.span === span);
+                b.setAttribute('aria-pressed', String(b.dataset.span === span));
+            }
+            if (!graphs || !last)
+                return;
+            const now = clock.isKnown() ? clock.now() : undefined;
+            // The last bin is still filling
+            const h = (k) => rrd.history(last[`${fl}.${k}.rrd`], now, span).slice(0, -1);
+            const [bab, bba, pab, pba] = historySeries.map(h);
+            graphs.count = bab.length;
+            graphs.bytes.draw([
+                { label: 'A to B', color: 'var(--accent)', values: bab },
+                { label: 'B to A', color: 'var(--ok)', values: bba },
+            ], spanLabels[span]);
+            graphs.packets.draw([
+                { label: 'A to B', color: 'var(--accent)', values: pab },
+                { label: 'B to A', color: 'var(--ok)', values: pba },
+            ], spanLabels[span]);
+        }
+
+        function render(x, cell) {
+            const t = x?.[`${fl}.history_time`] ?? 0;
+            if (historyChange(shownTime, t) !== 'same')
+                drop();
+            shownTime = t;
+            if (!t) {
+                last = null;
+                note.textContent = historyNote(x, status);
+                dom.replace(cell, note);
+                return;
+            }
+            if (!hasHistory(x)) {
+                // A list row has no history; the first read of the flow brings it
+                note.textContent = 'Reading the history…';
+                dom.replace(cell, note);
+                return;
+            }
+            last = x;
+            since.textContent = `Since ${format.time(t)}, per second.  Side A's traffic is above the line, side B's below.`;
+            if (!graphs) {
+                graphs = {
+                    count: 0,
+                    bytes: historyGraph({ type: 'mirror', height: '7rem', minBar: true, title: 'Bytes',
+                        fmt: byteRate, axisFmt: byteRate, pointLabel }),
+                    packets: historyGraph({ type: 'mirror', height: '7rem', minBar: true, title: 'Packets',
+                        fmt: packetRate, axisFmt: packetRate, pointLabel }),
+                };
+                dom.replace(cell, since, tabs, graphs.bytes.node, graphs.packets.node);
+            }
+            redraw();
+        }
+
+        return { render, destroy: drop };
+    }
+
+    // The flow window's sections, in order; history draws the History section
+    const flowSections = (history) => [
         { id: 'flow', title: 'Flow', fields: [
             { title: 'Protocol', value: (x) => ipProtocolName(x[`${fl}.proto`]) },
             { title: 'Address family', field: `${fl}.family`, format: (v) => (v === 6 ? 'IPv6' : v === 4 ? 'IPv4' : '-') },
@@ -277,6 +386,9 @@ export function register(kismet) {
             { title: 'Flags from B', value: (x) => tcpFlagNames(x[`${fl}.tcp_flags_ba`]).join(' ') || '-',
                 show: (_v, x) => x[`${fl}.proto`] === 6, help: 'Every TCP flag side B sent in this flow.' },
         ] },
+        // Only a server that reads flows by key keeps their history
+        { id: 'history', title: 'History', match: (x) => serverFlowKey(x) !== null,
+            render: (x, cell) => history.render(x, cell) },
     ];
 
     const flowTitle = (x) => `${endpoint(x[`${fl}.addr_a`], x[`${fl}.port_a`], x[`${fl}.proto`])} ↔ ` +
@@ -284,7 +396,16 @@ export function register(kismet) {
 
     const openFlowWindows = new Map();      // flow key -> window
 
-    // Every open flow window is read through this, sharing reads of the same address
+    // Open flow windows are read one flow each, by the server's key for it
+    const keyReader = flowKeyPoller({
+        read: (key, signal) => api.get(`phy/ethernet/flows/by-key/${encodeURIComponent(key)}/flow.json`, { signal }),
+        seconds: flowSeconds,
+        maxReads: flowReads,
+        visible: () => document.visibilityState !== 'hidden',
+    });
+
+    // An older server's flows have no key: they're read through this, sharing
+    // reads of the same address
     const flowReader = flowPoller({
         post: (body) => api.post('phy/ethernet/flows/flows.json', body),
         seconds: flowSeconds,
@@ -295,7 +416,8 @@ export function register(kismet) {
     // A flow's details window, like the device panel: one per flow, read
     // again while it's open and the page is visible, until it's found gone
     function openFlow(r) {
-        const key = flowKey(r);
+        const serverKey = serverFlowKey(r);
+        const key = serverKey ?? flowKey(r);
         const had = openFlowWindows.get(key);
         if (had?.node.isConnected) {
             had.raise();
@@ -307,6 +429,8 @@ export function register(kismet) {
         const again = el('button', { type: 'button', hidden: true, onclick: () => watcher.check() }, 'Check again');
         const note = el('div', { class: 'eth-flow-note', hidden: true }, noteText, again);
         const sections = kismet.widgets.detailSections({ closed: 'ethernet.flow.closed', what: 'flow' });
+        const history = flowHistory();
+        const sectionList = flowSections(history);
         const content = el('div', {}, subtitle, note, sections.node);
         let flow = r;
         let state = 'found';
@@ -332,6 +456,7 @@ export function register(kismet) {
             onClose: () => {
                 watcher.stop();
                 clearInterval(ticker);
+                history.destroy();
                 resized.disconnect();
                 if (openFlowWindows.get(key) === d)
                     openFlowWindows.delete(key);
@@ -358,6 +483,7 @@ export function register(kismet) {
             gone: 'Kismet no longer tracks this flow: it went idle and was forgotten.  These are the last numbers read.',
             unknown: 'This flow is no longer among the newest flows of either of its addresses, so it can\'t be read ' +
                 'again.  These are the last numbers read.',
+            invalid: 'Kismet couldn\'t look this flow up.  These are the last numbers read.',
         };
 
         function draw() {
@@ -375,12 +501,12 @@ export function register(kismet) {
             again.hidden = shown !== 'gone' && shown !== 'unknown';
             again.disabled = state === 'checking';
             again.textContent = state === 'checking' ? 'Checking…' : 'Check again';
-            sections.render(flow, flowSections);
+            sections.render(flow, sectionList);
             if (d.body.scrollTop !== scrollTop)
                 d.body.scrollTop = scrollTop;
         }
 
-        const watcher = flowReader.watch(r, (w) => {
+        const watcher = (serverKey ? keyReader : flowReader).watch(r, (w) => {
             ({ flow, state, was } = w);
             failed = w.error;
             if (d.node.isConnected)
