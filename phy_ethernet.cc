@@ -347,6 +347,22 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
         flow_fields[flow_rrd_field + i] = entrytracker->register_field(rrd_names[i][0],
                 tracker_element_factory<tracker_element_map>(), rrd_names[i][1]);
 
+    // In wired_flow_rates::series order
+    const char *rate_names[][2] = {
+        { "ethernet.flows.bytes.rrd", "bytes in flows per second, history" },
+        { "ethernet.flows.packets.rrd", "packets in flows per second, history" },
+        { "ethernet.flows.created.rrd", "flows created per second, history" },
+        { "ethernet.flows.refused.rrd", "new flows dropped or deferred per second, history" },
+    };
+    static_assert(sizeof(rate_names) / sizeof(rate_names[0]) == wired_flow_rates::n_series);
+    for (size_t i = 0; i < wired_flow_rates::n_series; i++)
+        rate_fields[i] = entrytracker->register_field(rate_names[i][0],
+                tracker_element_factory<kis_tracked_rrd<>>(), rate_names[i][1]);
+    rate_fields[wired_flow_rates::n_series] = entrytracker->register_field("ethernet.flows.active.rrd",
+            tracker_element_factory<flow_gauge_rrd>(), "flows in the table, history");
+
+    rate_rrds = make_rate_rrds();
+
     vlan_fields[0] = reg_u64("ethernet.vlan.tags", "VLAN tags, 0 untagged");
     vlan_fields[1] = reg_u64("ethernet.vlan.vid", "outer VLAN ID");
     vlan_fields[2] = reg_u64("ethernet.vlan.inner_vid", "second VLAN ID");
@@ -408,6 +424,12 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
                     return flow_by_key_endpoint(con);
                 }));
 
+    httpd->register_route("/phy/ethernet/flows/history", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
+                    return flow_history_endpoint();
+                }));
+
     httpd->register_route("/phy/ethernet/vlans/vlans", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
@@ -426,13 +448,22 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
                     return status_endpoint();
                 }));
 
+    if (flows != nullptr)
+        rates_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, nullptr, 1, [this](int) -> int {
+                sample_flow_rates();
+                return 1;
+            });
+
     _MSG_INFO("Tracking Ethernet devices from DLT_EN10MB and Linux cooked captures (at most {} devices, "
             "{} new per second, {} flows{})", max_devices, new_device_rate, fp.max_flows,
             learn_remote_ips ? ", listing remote addresses" : "");
 }
 
 kis_ethernet_phy::~kis_ethernet_phy() {
+    // remove_timer waits out a running callback, so neither timer outlives the flows or RRDs
     auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+    if (timetracker != nullptr && rates_timer_id >= 0)
+        timetracker->remove_timer(rates_timer_id);
     if (timetracker != nullptr && expire_timer_id >= 0)
         timetracker->remove_timer(expire_timer_id);
 
@@ -1631,6 +1662,66 @@ std::shared_ptr<tracker_element>
             m->insert(flow_rrd.build(flow_fields[flow_rrd_field + i],
                         hist.vectors(static_cast<flow_history::series>(i)), now));
     }
+
+    return m;
+}
+
+std::shared_ptr<kis_ethernet_phy::flow_rate_rrds> kis_ethernet_phy::make_rate_rrds() const {
+    auto r = std::make_shared<flow_rate_rrds>();
+
+    // The timer keeps them current, so serializing doesn't add a blank second; that would
+    // leave the gauge's last value blank
+    for (size_t i = 0; i < wired_flow_rates::n_series; i++) {
+        r->counts[i] = std::make_shared<kis_tracked_rrd<>>(rate_fields[i]);
+        r->counts[i]->update_before_serialize(false);
+    }
+    r->active = std::make_shared<flow_gauge_rrd>(rate_fields[wired_flow_rates::n_series]);
+    r->active->update_before_serialize(false);
+
+    return r;
+}
+
+void kis_ethernet_phy::sample_flow_rates() {
+    const time_t now = Globalreg::globalreg->last_tv_sec;
+    // Takes and releases each shard lock before any RRD lock
+    const auto f = rates.next(now, flows->get_totals());
+
+    std::shared_ptr<flow_rate_rrds> r = f.restart ? make_rate_rrds() : nullptr;
+    // The replaced set is freed after the lock, once no request still holds it
+    std::shared_ptr<flow_rate_rrds> old;
+
+    {
+        kis_lock_guard<kis_mutex> lk(rates_mutex, "ethernet sample_flow_rates");
+        if (r != nullptr) {
+            old = std::move(rate_rrds);
+            rate_rrds = r;
+        } else {
+            r = rate_rrds;
+        }
+    }
+
+    for (size_t s = 0; s < f.n_samples; s++) {
+        const auto& smp = f.samples[s];
+        for (size_t i = 0; i < wired_flow_rates::n_series; i++)
+            r->counts[i]->add_sample(static_cast<double>(smp.v[i]), smp.t);
+    }
+
+    // The gauge keeps the last value in a second, so a second read twice isn't counted twice
+    r->active->add_sample(static_cast<double>(f.flows), f.gauge_time);
+}
+
+std::shared_ptr<tracker_element> kis_ethernet_phy::flow_history_endpoint() {
+    std::shared_ptr<flow_rate_rrds> r;
+
+    {
+        kis_lock_guard<kis_mutex> lk(rates_mutex, "ethernet flow_history_endpoint");
+        r = rate_rrds;
+    }
+
+    auto m = std::make_shared<tracker_element_map>();
+    for (const auto& c : r->counts)
+        m->insert(c);
+    m->insert(r->active);
 
     return m;
 }

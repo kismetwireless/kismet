@@ -35,6 +35,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     // Server time starts past 0, so history_time 0 always means none
     time_t now = 1000000;
     std::vector<wired_flow_tracker::flow> out;
+    uint64_t bytes = 0, packets = 0;
 
     for (size_t i = 0; i + 8 <= size; i += 8) {
         const uint8_t *r = data + i;
@@ -90,7 +91,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             o.ts = (r[7] & 0x80) ? INT64_C(0x7fffffff) * (r[7] & 0x03) : now + (r[7] & 0x03);
             // Packet threads read the clock a little apart; 80 s back restarts a history
             o.seen = now - 20 * ((r[6] >> 1) & 0x07);
-            t.add(o);
+            const auto res = t.add(o);
+            if (res == wired_flow_tracker::result::created || res == wired_flow_tracker::result::updated) {
+                bytes += o.bytes;
+                packets++;
+            }
         }
 
         const auto st = t.get_stats();
@@ -99,6 +104,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         if (p.on_full == wired_flow_tracker::full_policy::drop && st.evicted != 0)
             abort();
         if (st.histories > p.max_histories || st.histories > st.flows)
+            abort();
+
+        // The totals the phy's rates come from agree with the stats
+        const auto tot = t.get_totals();
+        if (tot.flows != st.flows || tot.created != st.created || tot.refused != st.deferred + st.dropped_full ||
+                tot.bytes != bytes || tot.packets != packets)
             abort();
     }
 

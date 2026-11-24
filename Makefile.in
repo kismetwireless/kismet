@@ -293,6 +293,12 @@ TEST_FLOW_HISTORY_O = \
 	test/ethernet/flow_history_test.cc.o \
 	kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o
 
+# The flow table's totals and rates tests; built on request
+TEST_FLOW_RATES = test/ethernet/flow_rates_test
+TEST_FLOW_RATES_O = \
+	test/ethernet/flow_rates_test.cc.o \
+	kis_l3_parse.cc.o wired_flow_tracker.cc.o wired_flow_history.cc.o
+
 # The wired/Wi-Fi record linking graph tests; built on request
 TEST_ENTITY = test/entity/graph_test
 TEST_ENTITY_O = \
@@ -360,7 +366,7 @@ TEST_ENVIRONMENT_O = \
 # same objects
 TEST_FLOW_RRD = test/ethernet/flow_rrd_test
 TEST_FLOW_RRD_O = \
-	test/ethernet/flow_rrd_test.cc.o wired_flow_rrd.cc.o wired_flow_history.cc.o \
+	test/ethernet/flow_rrd_test.cc.o wired_flow_rrd.cc.o wired_flow_history.cc.o wired_flow_tracker.cc.o \
 	$(filter-out test/datasource_probed/probed_test.cc.o,$(TEST_DATASOURCE_PROBED_O))
 
 LOGTOOL_KISMETDB_JSON =log_tools/kismetdb_dump_devices
@@ -574,6 +580,9 @@ $(TEST_ETHERNET):	$(TEST_ETHERNET_O)
 
 $(TEST_FLOW_HISTORY):	$(TEST_FLOW_HISTORY_O)
 	$(LD) $(LDFLAGS) -o $(TEST_FLOW_HISTORY) $(TEST_FLOW_HISTORY_O) $(CXXLIBS)
+
+$(TEST_FLOW_RATES):	$(TEST_FLOW_RATES_O)
+	$(LD) $(LDFLAGS) -o $(TEST_FLOW_RATES) $(TEST_FLOW_RATES_O) $(CXXLIBS)
 
 $(TEST_ENTITY):	$(TEST_ENTITY_O)
 	$(LD) $(LDFLAGS) -o $(TEST_ENTITY) $(TEST_ENTITY_O) $(CXXLIBS)
@@ -1246,7 +1255,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
-	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY) $(TEST_FLOW_RRD)
+	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY) $(TEST_FLOW_RATES) $(TEST_FLOW_RRD)
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
