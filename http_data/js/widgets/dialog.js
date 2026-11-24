@@ -11,7 +11,8 @@
 // would cover nearly the whole window (most panels on a phone) fills it
 // instead, below the menu and name.  A placed panel is kept wholly on
 // screen, made smaller if the window is smaller than it; it goes back to the
-// size and place it was given when the window grows again.  A new panel moves to the nearest spot
+// size and place it was given when the window grows again; one as tall as
+// the window allowed stays as tall as the window.  A new panel moves to the nearest spot
 // clear of the panels already open, when there is one.  fullSize: true gives
 // a panel a button to fill the window and go back.  Modal dialogs keep the
 // size their content gives them.
@@ -132,25 +133,39 @@ export function dialog({ title, body, modal = true, closable = true, className =
         return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-bottom')) || 0;
     }
 
+    // Where a panel may be drawn, and the tallest it can be, measured now
+    function room() {
+        const s = safeInsets();
+        const r = { left: s.left, top: minTop(), right: window.innerWidth - s.right, bottom: window.innerHeight - s.bottom };
+        r.tallest = r.bottom - r.top - 8;
+        return r;
+    }
+
+    // A position taken from the screen.  A panel as tall as the window
+    // allows (docked, or dragged to the bottom) is marked fullHeight, so it
+    // opens as tall as the window is then, not as tall as it was
+    function measured(p, drawn = p.height) {
+        return { ...p, fullHeight: drawn >= room().tallest - 24 };
+    }
+
     // Pin the panel at a position, instead of docked to the side of the
     // window.  All of it stays on screen, below the top bar and clear of the
     // notch: no bigger than the window (its CSS minimum size still wins), then
     // moved in.  Only what's drawn changes, not `wanted`.
-    function place({ left, top, width, height }) {
-        const s = safeInsets();
-        const room = { left: s.left, top: minTop(), right: window.innerWidth - s.right, bottom: window.innerHeight - s.bottom };
+    function place({ left, top, width, height, fullHeight }) {
+        const r = room();
         // A saved position from an older or damaged setting may not be numbers
         const num = (v, d) => (Number.isFinite(v) ? v : d);
-        const w = Math.min(num(width, node.offsetWidth), room.right - room.left - 16);
-        const h = Math.min(num(height, node.offsetHeight), room.bottom - room.top - 8);
+        const w = Math.min(num(width, node.offsetWidth), r.right - r.left - 16);
+        const h = fullHeight === true ? r.tallest : Math.min(num(height, node.offsetHeight), r.tallest);
         node.classList.add('placed');
         Object.assign(node.style, { right: 'auto', bottom: 'auto', width: `${w}px`, height: `${h}px` });
         const ow = node.offsetWidth, oh = node.offsetHeight;
         // Narrowed to fit: centred, rather than against one edge
         if (num(width, 0) > w)
-            left = room.left + Math.round((room.right - room.left - ow) / 2);
-        left = Math.max(room.left, Math.min(num(left, room.left), room.right - ow));
-        top = Math.max(room.top, Math.min(num(top, room.top), room.bottom - oh));
+            left = r.left + Math.round((r.right - r.left - ow) / 2);
+        left = Math.max(r.left, Math.min(num(left, r.left), r.right - ow));
+        top = Math.max(r.top, Math.min(num(top, r.top), r.bottom - oh));
         Object.assign(node.style, { left: `${left}px`, top: `${top}px` });
     }
 
@@ -236,7 +251,8 @@ export function dialog({ title, body, modal = true, closable = true, className =
         }
         if (!best || better(best.s, here) >= 0)
             return;
-        wanted = { left: Math.round(best.x), top: Math.round(best.y), width: wanted?.width ?? w, height: wanted?.height ?? h };
+        const at = { left: Math.round(best.x), top: Math.round(best.y) };
+        wanted = wanted ? { ...wanted, ...at } : measured({ ...at, width: w, height: h });
         fill();
     }
 
@@ -280,7 +296,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 // Moved, not resized: keep the size it was given, though the
                 // window may be showing it smaller
                 const now = currentPosition();
-                wanted = { ...now, width: wanted?.width ?? now.width, height: wanted?.height ?? now.height };
+                wanted = measured({ ...now, width: wanted?.width ?? now.width, height: wanted?.height ?? now.height }, now.height);
                 onMove?.({ ...wanted });
             };
             header.addEventListener('pointermove', move);
@@ -312,8 +328,8 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 // Only a size the user set (by dragging the corner), not the
                 // window changing size around a docked panel
                 if (node.isConnected && !node.classList.contains('moving') && node.style.height && Date.now() - filled > 600) {
-                    wanted = currentPosition();
-                    onMove?.(wanted);
+                    wanted = measured(currentPosition());
+                    onMove?.({ ...wanted });
                 }
             }, 300);
         }).observe(node);
@@ -358,7 +374,7 @@ export function dialog({ title, body, modal = true, closable = true, className =
                 parseFloat(pad.paddingBottom) + node.offsetHeight - node.clientHeight);
             if (h === p.height || (!grow && h > p.height))
                 return;
-            wanted = { ...(wanted ?? p), height: h };
+            wanted = { ...(wanted ?? p), height: h, fullHeight: false };
             fill();
         },
     };
