@@ -163,6 +163,7 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
         peeked_sz = kis_simple_ringbuf_peek_zc(ipc->in_ringbuf, (void **) &buf, newline + 1);
 
         if (peeked_sz < (size_t) newline + 1) {
+            kis_simple_ringbuf_peek_free(ipc->in_ringbuf, buf);
             snprintf(errstr, STATUS_MAX, "%s unable to fetch rtl_433 data from buffer", local433->name);
             cf_send_message(caph, errstr, MSGFLAG_ERROR);
             fail = 1;
@@ -180,6 +181,7 @@ int ipc_handle_rx(kis_capture_handler_t *caph, cf_ipc_t *ipc, uint32_t read_sz) 
          */
         r = cf_send_json(caph, NULL, 0, NULL, NULL, tv, "RTL433", (char *) buf);
         if (r < 0) {
+            kis_simple_ringbuf_peek_free(ipc->in_ringbuf, buf);
             snprintf(errstr, STATUS_MAX, "%s unable to send JSON frame to Kismet", local433->name);
             fprintf(stderr, "%s", errstr);
             cf_send_error(caph, 0, errstr);

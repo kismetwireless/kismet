@@ -132,13 +132,21 @@ size_t kis_simple_ringbuf_peek(kis_simple_ringbuf_t *ringbuf, void *ptr, size_t 
 /* Peeks at data, using a zero-copy method if possible.  Does NOT advance ringbuf
  * or consume data.
  *
- * Peeked data MUST BE 'returned' via kis_simple_ringbuf_peek_free.
+ * Peeked data MUST BE 'returned' via kis_simple_ringbuf_peek_free, also when
+ * fewer bytes than requested were peeked; until then every other peek_zc is
+ * refused.
+ *
+ * A peek that returns 0 (empty ring, refused because another peek is open, or
+ * a failed split-peek copy) sets *ptr to NULL and holds nothing.  peek_free
+ * ignores NULL, so every peek can be released unconditionally and releasing
+ * a refused one leaves the open peek to its owner.
  *
  * Returns amount peeked.
  */
 size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, size_t size);
 
-/* Frees peeked zc data.  Must be called after peeking.
+/* Frees peeked zc data.  Must be called after peeking; a NULL ptr (from a
+ * 0-byte peek) is a no-op.
  *
  */
 void kis_simple_ringbuf_peek_free(kis_simple_ringbuf_t *ringbuf, void *ptr);

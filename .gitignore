@@ -32,6 +32,8 @@ test/capture_framework/capture_exit_test
 test/capture_framework/out_reserve_test
 test/capture_framework/out_reserve_mt_test
 test/capture_framework/rx_full_fuzz
+test/capture_framework/rx_split_fuzz
+test/capture_framework/rx_v2_partial_test
 test/ethernet/l3_parse_test
 test/ethernet/flow_history_test
 test/ethernet/flow_rates_test
