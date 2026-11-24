@@ -5,6 +5,7 @@ MONITOR_OBJS = \
 	../wifi_ht_channels.c.o \
 	linux_wireless_control.c.o \
 	linux_netlink_control.c.o \
+	linux_chanlist.c.o \
 	linux_nexmon_control.c.o \
 	linux_wireless_rfkill.c.o \
 	capture_linux_wifi.c.o
@@ -17,7 +18,40 @@ TEST_FREQ_TO_CHAN = ../test/linuxwifi_channels/freq_to_chan_test
 TEST_FREQ_TO_CHAN_O = \
 	../test/linuxwifi_channels/freq_to_chan_test.c.o \
 	../wifi_ht_channels.c.o \
-	linux_netlink_control.c.o
+	linux_netlink_control.c.o \
+	linux_chanlist.c.o
+
+# The HT/VHT hop list expansion test (make -C capture_linux_wifi chanlist_test)
+TEST_CHANLIST = ../test/linuxwifi_channels/chanlist_test
+TEST_CHANLIST_O = \
+	../test/linuxwifi_channels/chanlist_test.c.o \
+	../wifi_ht_channels.c.o \
+	linux_chanlist.c.o
+
+# The nl80211 dump collector test; it builds linux_netlink_control.c in
+# (make -C capture_linux_wifi freqlist_dump_test)
+TEST_FREQLIST_DUMP = ../test/linuxwifi_channels/freqlist_dump_test
+TEST_FREQLIST_DUMP_O = \
+	../test/linuxwifi_channels/freqlist_dump_test.c.o \
+	../wifi_ht_channels.c.o \
+	linux_chanlist.c.o
+
+# The band= filter test; it builds capture_linux_wifi.c in and replaces the
+# netlink and WEXT channel fetches.  Like the helper it links
+# ../libkismetdatasource.a, which is built at the top level (make
+# libkismetdatasource.a, then make -C capture_linux_wifi populate_filter_test)
+TEST_POPULATE_FILTER = ../test/linuxwifi_channels/populate_filter_test
+TEST_POPULATE_FILTER_O = \
+	../test/linuxwifi_channels/populate_filter_test.c.o \
+	$(filter-out capture_linux_wifi.c.o,$(MONITOR_OBJS))
+
+# Test .d files too: freqlist_dump_test and populate_filter_test #include
+# helper sources and must rebuild when those change
+TEST_OBJS = \
+	../test/linuxwifi_channels/freq_to_chan_test.c.o \
+	../test/linuxwifi_channels/chanlist_test.c.o \
+	../test/linuxwifi_channels/freqlist_dump_test.c.o \
+	../test/linuxwifi_channels/populate_filter_test.c.o
 
 PCAPLIBS=@PCAPLIBS@
 NMLIBS=@NMLIBS@
@@ -34,8 +68,25 @@ freq_to_chan_test: $(TEST_FREQ_TO_CHAN)
 $(TEST_FREQ_TO_CHAN): $(TEST_FREQ_TO_CHAN_O)
 		$(CCLD) $(LDFLAGS) -o $@ $(TEST_FREQ_TO_CHAN_O) $(NETLINKLIBS)
 
+chanlist_test: $(TEST_CHANLIST)
+
+$(TEST_CHANLIST): $(TEST_CHANLIST_O)
+		$(CCLD) $(LDFLAGS) -o $@ $(TEST_CHANLIST_O)
+
+freqlist_dump_test: $(TEST_FREQLIST_DUMP)
+
+$(TEST_FREQLIST_DUMP): $(TEST_FREQLIST_DUMP_O)
+		$(CCLD) $(LDFLAGS) -o $@ $(TEST_FREQLIST_DUMP_O) $(NETLINKLIBS)
+
+populate_filter_test: $(TEST_POPULATE_FILTER)
+
+$(TEST_POPULATE_FILTER): $(TEST_POPULATE_FILTER_O) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -Wl,--wrap=mac80211_get_chanlist,--wrap=iwconfig_get_chanlist \
+			-o $@ $(TEST_POPULATE_FILTER_O) \
+			../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
+
 clean:
-	@-rm -f $(MONITOR_BIN) $(TEST_FREQ_TO_CHAN)
+	@-rm -f $(MONITOR_BIN) $(TEST_FREQ_TO_CHAN) $(TEST_CHANLIST) $(TEST_FREQLIST_DUMP) $(TEST_POPULATE_FILTER)
 	@-rm -f ../test/linuxwifi_channels/*.o ../test/linuxwifi_channels/*.d
 	@-rm -f *.o
 	@-rm -f *.d
@@ -48,5 +99,5 @@ clean:
 
 .PRECIOUS: %.c.d
 
-include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS) $(TEST_OBJS)))
 

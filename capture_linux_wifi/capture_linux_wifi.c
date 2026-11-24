@@ -642,7 +642,8 @@ enum wifi_chan_band wifi_freq_to_band(unsigned int in_freq) {
         return wifi_band_5ghz;
     }
 
-    if (in_freq >= 5180 && in_freq <= 5865) {
+    /* same 5 GHz edges as the netlink path, so ch 34 and 177 stay in band=5 */
+    if (in_freq >= 5150 && in_freq <= 5925) {
         return wifi_band_5ghz;
     }
 
@@ -825,7 +826,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, const char *chanstr) {
                 (ret_localchan)->center_freq1 = (ret_localchan)->control_freq - 10;
 
                 /* Search for the ht channel record */
-                for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
+                for (ci = 0; ci <= MAX_WIFI_HT_CHANNEL; ci++) {
                     if (wifi_ht_channels[ci].chan == parsechan ||
                             wifi_ht_channels[ci].freq == parsechan) {
 
@@ -1045,6 +1046,25 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     }
 }
 
+/* The band= filter for automatic channel lists.  With bands set, only
+ * channels in an enabled 2.4, 5 or 6GHz band are kept; raw frequencies
+ * outside those bands are dropped. */
+static bool band_filter_keep(const local_wifi_t *local_wifi, enum wifi_chan_band band) {
+    if (local_wifi->band_any)
+        return true;
+
+    switch (band) {
+        case wifi_band_2ghz:
+            return local_wifi->band_2_4;
+        case wifi_band_5ghz:
+            return local_wifi->band_5;
+        case wifi_band_6ghz:
+            return local_wifi->band_6;
+        default:
+            return false;
+    }
+}
+
 int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         unsigned int default_ht20, unsigned int expand_ht20,
         char ***chanlist, size_t *chanlist_sz) {
@@ -1091,41 +1111,21 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
             return -1;
         }
 
-        /* If we're filtering bands, count the number of channels */
-        if (!local_wifi->band_any) {
-            mod_chan_sz = 0;
+        /* One pass, bounded by the full WEXT list; only the kept channels
+         * are counted */
+        *chanlist = (char **) calloc(chan_sz, sizeof(char *));
 
-            for (ci = 0; ci < chan_sz; ci++) {
-                enum wifi_chan_band band = wifi_freq_to_band(iw_chanlist[ci]);
-
-                if (band == wifi_band_2ghz && local_wifi->band_2_4)
-                    mod_chan_sz++;
-                if (band == wifi_band_5ghz && local_wifi->band_5)
-                    mod_chan_sz++;
-                if (band == wifi_band_6ghz && local_wifi->band_6)
-                    mod_chan_sz++;
-            }
-        } else {
-            mod_chan_sz = chan_sz;
+        if (*chanlist == NULL) {
+            free(iw_chanlist);
+            snprintf(msg, STATUS_MAX, "out of memory building the channel list");
+            return -1;
         }
-
-        *chanlist = (char **) malloc(sizeof(char *) * mod_chan_sz);
 
         cp = 0;
 
         for (ci = 0; ci < chan_sz; ci++) {
-            if (!local_wifi->band_any) {
-                enum wifi_chan_band band = wifi_freq_to_band(iw_chanlist[ci]);
-
-                if (band == wifi_band_2ghz && !local_wifi->band_2_4)
-                    continue;
-
-                if (band == wifi_band_5ghz && !local_wifi->band_5)
-                    continue;
-
-                if (band == wifi_band_6ghz && !local_wifi->band_6)
-                    continue;
-            }
+            if (!band_filter_keep(local_wifi, wifi_freq_to_band(iw_chanlist[ci])))
+                continue;
 
             /* 60GHz channel numbers would be taken for 2.4GHz ones, and 6GHz
              * ones are named as the netlink list names them */
@@ -1135,13 +1135,23 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
                 snprintf(conv_chan, 16, "%uW6e", wifi_freq_to_chan(iw_chanlist[ci]));
             else
                 snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
-            (*chanlist)[cp] = strdup(conv_chan);
+
+            if (((*chanlist)[cp] = strdup(conv_chan)) == NULL) {
+                for (ci = 0; ci < cp; ci++)
+                    free((*chanlist)[ci]);
+                free(*chanlist);
+                *chanlist = NULL;
+                free(iw_chanlist);
+                snprintf(msg, STATUS_MAX, "out of memory building the channel list");
+                return -1;
+            }
+
             cp++;
         }
 
         free(iw_chanlist);
 
-        *chanlist_sz = mod_chan_sz;
+        *chanlist_sz = cp;
 #else
         snprintf(status, STATUS_MAX, "%s could not fetch channels over netlink (%s) and "
                 "was not compiled with WEXT ioctls.  To control this device, try rebuilding "
@@ -1165,29 +1175,44 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         for (ci = 0; ci < chanlist_fetch_sz; ci++) {
             local_channel_t *lchan = chantranslate_callback(caph, chanlist_fetch[ci]);
 
-            if (lchan->chan_band == wifi_band_2ghz && local_wifi->band_2_4) {
-                mod_chan_sz++;
-            } else if (lchan->chan_band == wifi_band_5ghz && local_wifi->band_5) {
-                mod_chan_sz++;
-            } else if (lchan->chan_band == wifi_band_6ghz && local_wifi->band_6) {
+            /* A name we can't parse can't be tuned either; drop it */
+            if (lchan == NULL) {
+                free(chanlist_fetch[ci]);
+                chanlist_fetch[ci] = NULL;
+                continue;
+            }
+
+            if (band_filter_keep(local_wifi, lchan->chan_band)) {
                 mod_chan_sz++;
             } else {
                 free(chanlist_fetch[ci]);
                 chanlist_fetch[ci] = NULL;
             }
+
+            free(lchan);
         }
 
-        *chanlist = (char **) malloc(sizeof(char *) * mod_chan_sz);
-        *chanlist_sz = mod_chan_sz;
+        *chanlist = (char **) calloc(mod_chan_sz ? mod_chan_sz : 1, sizeof(char *));
 
+        if (*chanlist == NULL) {
+            for (ci = 0; ci < chanlist_fetch_sz; ci++)
+                free(chanlist_fetch[ci]);
+            free(chanlist_fetch);
+            snprintf(msg, STATUS_MAX, "out of memory building the channel list");
+            return -1;
+        }
+
+        /* Every name left in chanlist_fetch was counted above */
         cp = 0;
-        for (ci = 0; ci < chanlist_fetch_sz; ci++) {
+        for (ci = 0; ci < chanlist_fetch_sz && cp < mod_chan_sz; ci++) {
             if (chanlist_fetch[ci] == NULL)
                 continue;
 
             (*chanlist)[cp] = chanlist_fetch[ci];
             cp++;
         }
+
+        *chanlist_sz = cp;
 
         free(chanlist_fetch);
     }

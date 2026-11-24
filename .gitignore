@@ -22,6 +22,10 @@ test/btle_expire/expire_test
 test/dot11_karma/karma_test
 test/device_rules/baseline_test
 test/linuxwifi_channels/freq_to_chan_test
+test/linuxwifi_channels/chanlist_test
+test/linuxwifi_channels/freqlist_dump_test
+test/linuxwifi_channels/populate_filter_test
+test/wifi_ht_channels/ht_table_test
 test/datasource_probed/probed_test
 test/httpd_login_conf/login_conf_test
 test/environment/env_test

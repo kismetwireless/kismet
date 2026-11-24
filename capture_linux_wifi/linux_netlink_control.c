@@ -48,6 +48,7 @@
 #include <string.h>
 #include <errno.h>
 
+#include "linux_chanlist.h"
 #include "linux_netlink_control.h"
 #include "../wifi_ht_channels.h"
 
@@ -716,33 +717,53 @@ nla_put_failure:
 }
 
 
-struct nl80211_channel_list {
-    char *channel;
-    struct nl80211_channel_list *next;
-};
-
+/* The enabled frequencies of the phy, collected over the whole dump: the
+ * partner channels of an HT40 or VHT channel can arrive in a later split
+ * message */
 struct nl80211_channel_block {
 	char *phyname;
 
-	int nfreqs;
-    unsigned int extended_flags;
+    struct mac80211_freq_info *freqs;
+    size_t nfreqs;
+    size_t freqs_sz;
+    int oom;
 
-    struct nl80211_channel_list *channel_list;
-    struct nl80211_channel_list *chan_list_last;
+    /* Dump state, all zero for a new dump.  A split dump names the phy in
+     * every message and sends a band's capabilities once, ahead of its
+     * frequencies, as MAC80211_BAND_* in band_caps */
+    int in_proper_phy;
+    int have_band;
+    int band;
+    unsigned int band_caps;
 };
 
 
 #ifdef HAVE_LINUX_NETLINK
-/* Really ugly non-thread-safe (but we don't thread this ever) non-thread-safe way
- * to pass HT20 behavior down into the callback builder, because we don't really 
- * want to rewrite the whole thing into a multi-list pass 
- */
-unsigned int glob_freqlist_default_ht20 = 0;
-unsigned int glob_freqlist_expand_ht20 = 0;
+static int nl80211_freqlist_add(struct nl80211_channel_block *chanb, const struct mac80211_freq_info *fi) {
+    struct mac80211_freq_info *nf;
+    size_t nsz;
 
-unsigned int glob_in_proper_phy = 0;
-int glob_band = -1;
-unsigned int glob_band_ht40 = 0, glob_band_ht80 = 0, glob_band_ht160 = 0;
+    if (chanb->nfreqs >= MAC80211_MAX_FREQS)
+        return 0;
+
+    if (chanb->nfreqs == chanb->freqs_sz) {
+        nsz = chanb->freqs_sz ? chanb->freqs_sz * 2 : 64;
+        if (nsz > MAC80211_MAX_FREQS)
+            nsz = MAC80211_MAX_FREQS;
+
+        nf = (struct mac80211_freq_info *) realloc(chanb->freqs, nsz * sizeof(*nf));
+        if (nf == NULL) {
+            chanb->oom = 1;
+            return -1;
+        }
+
+        chanb->freqs = nf;
+        chanb->freqs_sz = nsz;
+    }
+
+    chanb->freqs[chanb->nfreqs++] = *fi;
+    return 0;
+}
 
 static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
     struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
@@ -753,24 +774,21 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
     int rem_band, rem_freq;
     uint32_t freq;
     struct nl80211_channel_block *chanb = (struct nl80211_channel_block *) arg;
-    char channel_str[32];
-    unsigned int hti;
-
-    struct nl80211_channel_list *chan_list_new;
+    struct mac80211_freq_info fi;
 
     nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
             genlmsg_attrlen(gnlh, 0), NULL);
 
     if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
         if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), chanb->phyname) != 0) {
-            glob_in_proper_phy = 0;
+            chanb->in_proper_phy = 0;
             return NL_SKIP;
         } else {
-            glob_in_proper_phy = 1;
+            chanb->in_proper_phy = 1;
         }
     }
 
-    if (!glob_in_proper_phy) {
+    if (!chanb->in_proper_phy || chanb->oom) {
         /* fprintf(stderr, "DEBUG - message not for our phy, skipping\n"); */
         return NL_SKIP;
     }
@@ -784,11 +802,12 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
             nla_parse(tb_band, NL80211_BAND_ATTR_MAX, nla_data(nl_band),
                     nla_len(nl_band), NULL);
 
-            if (nl_band->nla_type != glob_band) {
+            if (!chanb->have_band || nl_band->nla_type != chanb->band) {
                 /* fprintf(stderr, "DEBUG - new band %u\n", nl_band->nla_type + 1); */
-                glob_band = nl_band->nla_type;
+                chanb->have_band = 1;
+                chanb->band = nl_band->nla_type;
 
-                glob_band_ht40 = glob_band_ht80 = glob_band_ht160 = 0;
+                chanb->band_caps = 0;
 
 
                 /* If we have a HT capability field, examine it for HT40 */
@@ -799,7 +818,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     /* bit 1 is the HT40 bit */
                     if (cap & (1 << 1))
-                        glob_band_ht40 = 1;
+                        chanb->band_caps |= MAC80211_BAND_HT40;
                 }
 
                 /* If we have a VHT field, we can assume we have HT80 and then we need
@@ -810,15 +829,15 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                 if (tb_band[NL80211_BAND_ATTR_VHT_CAPA]) {
                     /* fprintf(stderr, "debug - HT80\n"); */
 
-                    glob_band_ht80 = 1;
+                    chanb->band_caps |= MAC80211_BAND_HT80;
 
                     __u16 cap = nla_get_u32(tb_band[NL80211_BAND_ATTR_VHT_CAPA]);
 
                     if (((cap >> 2) & 3) == 1) {
-                        glob_band_ht160 = 1;
+                        chanb->band_caps |= MAC80211_BAND_HT160;
                     } else if (((cap >> 2) & 3) == 2) {
                         /* fprintf(stderr, "debug - your device supports 160(80+80) mode\n"); */
-                        glob_band_ht160 = 1;
+                        chanb->band_caps |= MAC80211_BAND_HT160;
                     }
                 }
 
@@ -851,116 +870,24 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     if (mac80211_freq_to_chan(freq) == 0)
                         continue;
 
-                    chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
+                    memset(&fi, 0, sizeof(fi));
+                    fi.freq = freq;
+                    fi.chan = mac80211_freq_to_chan(freq);
 
-                    /* Default to HT20 if we support HT and are always using it, otherwise default to 
-                     * basic channels */
-		    if (freq >= 58320) {
-                        /* Kismet takes 60GHz channel numbers for 2.4GHz ones, so
-                         * list them by frequency */
-                        snprintf(channel_str, 32, "%u", freq);
-		    } else if (freq >= 5935) {
-                        snprintf(channel_str, 32, "%uW6e", mac80211_freq_to_chan(freq));
-		    } else if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20) {
-                        snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
-		    } else {
-                        snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
-		    }
+                    if (tb_freq[NL80211_FREQUENCY_ATTR_NO_HT40_MINUS])
+                        fi.flags |= MAC80211_FREQ_NO_HT40MINUS;
+                    if (tb_freq[NL80211_FREQUENCY_ATTR_NO_HT40_PLUS])
+                        fi.flags |= MAC80211_FREQ_NO_HT40PLUS;
+                    if (tb_freq[NL80211_FREQUENCY_ATTR_NO_80MHZ])
+                        fi.flags |= MAC80211_FREQ_NO_80MHZ;
+                    if (tb_freq[NL80211_FREQUENCY_ATTR_NO_160MHZ])
+                        fi.flags |= MAC80211_FREQ_NO_160MHZ;
 
-                    chan_list_new->channel = strdup(channel_str);
+                    fi.band_caps = chanb->band_caps;
 
-                    /* fprintf(stderr, "DEBUG - %s\n", channel_str); */
-
-                    chan_list_new->next = NULL;
-                    chanb->nfreqs++;
-                    chanb->chan_list_last->next = chan_list_new;
-                    chanb->chan_list_last = chan_list_new;
-
-                    /* If we support HT, and expand HT20 instead of default to it, add a HT20 channel */
-                    if ((chanb->extended_flags & MAC80211_GET_HT) && !glob_freqlist_default_ht20 &&
-                            glob_freqlist_expand_ht20 && freq < 5925) {
-
-                        chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
-                        snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
-                        chan_list_new->channel = strdup(channel_str);
-
-                        /* fprintf(stderr, "DEBUG - %s\n", channel_str); */
-
-                        chan_list_new->next = NULL;
-                        chanb->nfreqs++;
-                        chanb->chan_list_last->next = chan_list_new;
-                        chanb->chan_list_last = chan_list_new;
-                    }
-
-                    /* Look us up in the wifi_ht_channels list and add channels if we
-                     * need to add HT capabilities.  We could convert this to a channel
-                     * but it's better to do a frequency lookup */
-                    for (hti = 0; hti < MAX_WIFI_HT_CHANNEL; hti++) {
-                        if (wifi_ht_channels[hti].freq == freq) {
-                            if (glob_band_ht40 && (chanb->extended_flags & MAC80211_GET_HT)) {
-                                if (wifi_ht_channels[hti].flags & WIFI_HT_HT40MINUS) {
-                                    chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
-                                    snprintf(channel_str, 32, 
-                                            "%uHT40-", mac80211_freq_to_chan(freq));
-                                    chan_list_new->channel = strdup(channel_str);
-
-                                    /* fprintf(stderr, "DEBUG - %s\n", channel_str); */
-
-                                    chan_list_new->next = NULL;
-                                    chanb->nfreqs++;
-                                    chanb->chan_list_last->next = chan_list_new;
-                                    chanb->chan_list_last = chan_list_new;
-                                }
-
-                                if (wifi_ht_channels[hti].flags & WIFI_HT_HT40PLUS) {
-                                    chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
-
-                                    snprintf(channel_str, 32, 
-                                            "%uHT40+", mac80211_freq_to_chan(freq));
-                                    chan_list_new->channel = strdup(channel_str);
-
-                                    /* fprintf(stderr, "DEBUG - %s\n", channel_str); */
-
-                                    chan_list_new->next = NULL;
-                                    chanb->nfreqs++;
-                                    chanb->chan_list_last->next = chan_list_new;
-                                    chanb->chan_list_last = chan_list_new;
-                                }
-                            }
-
-                            if (glob_band_ht80 && wifi_ht_channels[hti].flags & WIFI_HT_HT80 &&
-                                    (chanb->extended_flags & MAC80211_GET_VHT)) {
-                                chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
-                                snprintf(channel_str, 32, 
-                                        "%uVHT80", mac80211_freq_to_chan(freq));
-                                chan_list_new->channel = strdup(channel_str);
-
-                                /* fprintf(stderr, "DEBUG - %s\n", channel_str); */
-
-                                chan_list_new->next = NULL;
-                                chanb->nfreqs++;
-                                chanb->chan_list_last->next = chan_list_new;
-                                chanb->chan_list_last = chan_list_new;
-                            }
-
-                            if (glob_band_ht160 && wifi_ht_channels[hti].flags & WIFI_HT_HT160 &&
-                                    (chanb->extended_flags & MAC80211_GET_VHT)) {
-                                chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
-                                snprintf(channel_str, 32, 
-                                        "%uVHT160", mac80211_freq_to_chan(freq));
-                                chan_list_new->channel = strdup(channel_str);
-
-                                /* fprintf(stderr, "DEBUG - %s\n", channel_str); */
-
-                                chan_list_new->next = NULL;
-                                chanb->nfreqs++;
-                                chanb->chan_list_last->next = chan_list_new;
-                                chanb->chan_list_last = chan_list_new;
-                            }
-
-                            break;
-                        }
-                    }
+                    /* Out of memory; let the dump drain and fail after it */
+                    if (nl80211_freqlist_add(chanb, &fi) < 0)
+                        return NL_SKIP;
                 }
             }
         }
@@ -975,13 +902,18 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
         char ***ret_chan_list, size_t *ret_num_chans) {
     struct nl80211_channel_block cblock = {
         .phyname = NULL,
+        .freqs = NULL,
         .nfreqs = 0,
-        .channel_list = NULL,
-        .chan_list_last = NULL
+        .freqs_sz = 0,
+        .oom = 0,
+        .in_proper_phy = 0,
+        .have_band = 0,
+        .band = 0,
+        .band_caps = 0
     };
 
-    unsigned int num_freq;
-    struct nl80211_channel_list *chan_list_cur, *chan_list_old;
+    *ret_chan_list = NULL;
+    *ret_num_chans = 0;
 
 #ifndef HAVE_LINUX_NETLINK
     snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/nl80211 "
@@ -993,14 +925,8 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     int nl80211_id;
 
     struct nl_cb *cb;
-    int err;
+    int err, ret;
     struct nl_msg *msg;
-
-    /* Set the globals */
-    glob_freqlist_default_ht20 = default_ht20;
-    glob_freqlist_expand_ht20 = expand_ht20;
-
-    cblock.extended_flags = extended_flags;
 
     cblock.phyname = mac80211_find_parent(interface);
     if (cblock.phyname == NULL || strlen(cblock.phyname) == 0) {
@@ -1057,12 +983,6 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     nla_put_flag(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
     nlmsg_hdr(msg)->nlmsg_flags |= NLM_F_DUMP;
 
-    /* Initialize the empty first channel list item */
-    cblock.channel_list = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
-    cblock.channel_list->channel = NULL;
-    cblock.channel_list->next = NULL;
-    cblock.chan_list_last = cblock.channel_list;
-
     if (nl_send_auto_complete((struct nl_sock *) nl_sock, msg) < 0) {
         snprintf(errstr, STATUS_MAX, 
                 "failed to fetch channels from interface '%s': failed to "
@@ -1085,59 +1005,31 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     nlmsg_free(msg);
     nl_socket_free(nl_sock);
 
-    /* Convert our linked list into a channel block */
-
-    /* fprintf(stderr, "DEBUG - done processing, %u freqs\n", cblock.nfreqs); */
-
-    (*ret_num_chans) = cblock.nfreqs;
-    (*ret_chan_list) = malloc(sizeof(char *) * cblock.nfreqs);
-
-    num_freq = 0;
-
-    /* Skip the first item which is our placeholder */
-    chan_list_cur = cblock.channel_list->next;
-
-    while (chan_list_cur != NULL && num_freq < cblock.nfreqs) {
-        /* Use the dup'd string directly */
-        (*ret_chan_list)[num_freq++] = chan_list_cur->channel;
-
-	/*fprintf(stderr, "DEBUG - copying over channel %s\n", chan_list_cur->channel); */
-
-        /* Shuffle the pointers */
-        chan_list_old = chan_list_cur;
-        chan_list_cur = chan_list_cur->next;
-        free(chan_list_old);
-    }
-
-    /* If we didn't process all the channels before we hit the end of the list... */
-    if (chan_list_cur != NULL || num_freq != cblock.nfreqs) {
-        fprintf(stderr, "ERROR - linux_netlink_control miscalculated the number of "
-                "channels somehow...\n");
-
-        /* Clean up list overrun */
-        while (chan_list_cur != NULL) {
-            chan_list_old = chan_list_cur;
-            chan_list_cur = chan_list_cur->next;
-            free(chan_list_old);
-        }
-
-        /* Clean up list underrun */
-        for ( ; num_freq < cblock.nfreqs; num_freq++) {
-            (*ret_chan_list)[num_freq] = NULL;
-        }
-    }
-
-    /* remove the list head ptr */
-    free(cblock.channel_list);
-    /* Remove the phyname */
     free(cblock.phyname);
 
-    // (*ret_chan_list)[0] = strdup("45");
-  
-    if (err < 0)
+    if (err < 0) {
+        snprintf(errstr, STATUS_MAX, "failed to fetch channels from interface '%s': "
+                "netlink error %d", interface, err);
+        free(cblock.freqs);
         return err;
+    }
 
-    return (*ret_num_chans);
+    if (cblock.oom) {
+        snprintf(errstr, STATUS_MAX, "failed to fetch channels from interface '%s': "
+                "out of memory", interface);
+        free(cblock.freqs);
+        return -1;
+    }
+
+    ret = mac80211_build_chanlist(cblock.freqs, cblock.nfreqs, extended_flags,
+            default_ht20, expand_ht20, ret_chan_list, ret_num_chans);
+    free(cblock.freqs);
+
+    if (ret < 0)
+        snprintf(errstr, STATUS_MAX, "failed to build the channel list for interface '%s': "
+                "out of memory", interface);
+
+    return ret;
 #endif
 }
 
