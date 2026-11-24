@@ -23,6 +23,13 @@
 // than max_flows entries.  Past admit_pct of the cap a new flow is only admitted on its second
 // packet (like conntrack's early drop), so a scan of single packets can't fill the table.
 //
+// With the table full, an admitted flow takes the place of an idle one in its shard (evict),
+// or is dropped (drop).  Eviction looks at evict_samples entries from a cursor that walks the
+// shard, and takes a closed TCP flow before an open one, then the longest idle.  A flow with a
+// packet in the last evict_idle seconds (evict_closed_idle once closed) is never evicted; if
+// every sampled flow is that recent, the new flow is dropped.  So a flood can only replace
+// idle flows, at most one per admitted flow, and each admitted flow costs it two packets.
+//
 // Packet times are only shown; a flow goes idle by server time since its last packet, so a
 // capture's clock (skewed, reordered, or days old in a replay) can't expire or keep flows.
 // No Kismet dependencies, so the tests and fuzzers build it alone; hence std::mutex.
@@ -40,6 +47,8 @@
 
 class wired_flow_tracker {
 public:
+    enum class full_policy : uint8_t { evict, drop };
+
     struct params {
         size_t max_flows = 16384;
         time_t tcp_idle = 300;
@@ -47,6 +56,10 @@ public:
         time_t udp_idle = 60;
         time_t other_idle = 60;
         unsigned int admit_pct = 90;
+        full_policy on_full = full_policy::evict;
+        // Seconds without a packet before a flow can be evicted
+        time_t evict_idle = 10;
+        time_t evict_closed_idle = 1;
     };
 
     // Up to two VLAN IDs and the tag count, packed; 0 is untagged
@@ -121,6 +134,7 @@ public:
         uint64_t expired = 0;
         uint64_t dropped_full = 0;
         uint64_t deferred = 0;
+        uint64_t evicted = 0;
     };
 
     struct filter {
@@ -149,6 +163,7 @@ public:
 
     static constexpr size_t n_shards = 16;
     static constexpr size_t pending_slots = 1024;
+    static constexpr size_t evict_samples = 8;
 
 protected:
     struct shard {
@@ -156,6 +171,8 @@ protected:
         ankerl::unordered_dense::map<key, flow_state, key_hash> flows;
         // Hashes of flows waiting for a second packet, while the table is nearly full
         std::array<uint64_t, pending_slots> pending{};
+        // Where the next eviction starts looking in flows.values()
+        size_t evict_cursor = 0;
     };
 
     params p;
@@ -164,9 +181,12 @@ protected:
     std::unique_ptr<shard[]> shards;
 
     std::atomic<size_t> n_flows{0};
-    std::atomic<uint64_t> n_created{0}, n_expired{0}, n_dropped_full{0}, n_deferred{0};
+    std::atomic<uint64_t> n_created{0}, n_expired{0}, n_dropped_full{0}, n_deferred{0}, n_evicted{0};
 
     time_t idle_for(uint8_t proto, const flow_state& f) const;
+
+    // Call with s.mutex held; removes one idle flow from s, false if none was found
+    bool evict_one(shard& s, time_t now);
 };
 
 #endif

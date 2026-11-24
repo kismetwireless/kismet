@@ -259,6 +259,12 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
     fp.udp_idle = std::clamp(conf->fetch_opt_uint("wired_flow_udp_timeout", 60), 1U, 86400U);
     fp.other_idle = fp.udp_idle;
 
+    const auto on_full = str_lower(conf->fetch_opt_dfl("wired_flow_full", "evict"));
+    if (on_full == "drop")
+        fp.on_full = wired_flow_tracker::full_policy::drop;
+    else if (on_full != "evict")
+        _MSG_ERROR("wired_flow_full must be evict or drop; using evict");
+
     if (fp.max_flows > 1048576) {
         _MSG_ERROR("wired_max_flows={} is too large; using 1048576", fp.max_flows);
         fp.max_flows = 1048576;
@@ -337,7 +343,8 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
     status_fields[8] = reg_u64("ethernet.status.max_flows", "wired_max_flows, 0 when flows are off");
     status_fields[9] = reg_u64("ethernet.status.flows_created", "flows created");
     status_fields[10] = reg_u64("ethernet.status.flows_expired", "flows expired");
-    status_fields[11] = reg_u64("ethernet.status.flows_dropped", "new flows dropped with the table full");
+    status_fields[11] = reg_u64("ethernet.status.flows_dropped",
+            "new flows dropped with the table full and no idle flow to replace");
     status_fields[12] = reg_u64("ethernet.status.flows_deferred",
             "new flows held for a second packet with the table nearly full");
     status_fields[13] = reg_u64("ethernet.status.ip_bindings", "IP to MAC bindings");
@@ -349,6 +356,8 @@ kis_ethernet_phy::kis_ethernet_phy(int in_phyid) :
             "for a new source MAC which kept sending");
     status_fields[17] = reg_u64("ethernet.status.future_timestamps",
             "frames dated more than a minute past the server clock");
+    status_fields[18] = reg_u64("ethernet.status.flows_evicted",
+            "idle flows forgotten with the table full to make room for a new flow");
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -1620,7 +1629,7 @@ std::shared_ptr<tracker_element> kis_ethernet_phy::status_endpoint() {
         n_frames.load(), n_malformed.load(), devicetracker->count_phy_devices(phyid), max_devices,
         n_capped.load(), new_device_rate, n_rate_limited.load(), fs.flows,
         flows != nullptr ? flows->get_params().max_flows : 0, fs.created, fs.expired, fs.dropped_full,
-        fs.deferred, n_ip, n_ip_full, n_vlan_full, n_evicted.load(), n_future.load(),
+        fs.deferred, n_ip, n_ip_full, n_vlan_full, n_evicted.load(), n_future.load(), fs.evicted,
     };
 
     for (size_t i = 0; i < n_status_fields; i++)
