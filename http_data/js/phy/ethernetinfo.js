@@ -1,8 +1,10 @@
 // Text for the Ethernet (IEEE802.3) phy's fields: VLAN labels, protocol and
 // role bits, flow endpoints, TCP flags, the status counters worth a warning,
-// checks for the Ethernet flows window's filters, and the pollers that keep
-// flow windows up to date.  No DOM, so it can be tested on its own;
-// js/phy/ethernet.js draws with it.
+// checks for the Ethernet flows window's filters, the pollers that keep
+// flow windows up to date, and the flow table's history for its graphs.  No
+// DOM, so it can be tested on its own; js/phy/ethernet.js draws with it.
+
+import { history as rrdHistory } from '../core/rrd.js';
 
 const protocolBits = [
     [1 << 0, 'ARP'], [1 << 1, 'IPv4'], [1 << 2, 'IPv6'], [1 << 3, 'TCP'], [1 << 4, 'UDP'],
@@ -529,4 +531,53 @@ export function flowKeyPoller({ read, maxReads = 4, seconds = 5, timeout = 15, v
     }
 
     return { watch, tick, get size() { return watchers.size; } };
+}
+
+// ---- the flow table's history ----------------------------------------------
+
+// The series of phy/ethernet/flows/history.json: per-second sums, and the
+// number of flows in the table, a gauge
+export const tableSums = ['bytes', 'packets', 'created', 'refused'];
+const tableRrd = (reply, k) => {
+    const r = reply?.[`ethernet.flows.${k}.rrd`];
+    return r && typeof r === 'object' ? r : null;
+};
+const tableSeries = [...tableSums, 'active'];
+
+// The newest last_time of the table's history, 0 when it has none
+export function tableTime(reply) {
+    return Math.max(0, ...tableSeries.map((k) => num(tableRrd(reply, k)?.['kismet.common.rrd.last_time'])));
+}
+
+// A history that went back in time was started over by the server (its clock
+// stepped back): graphs of the old one start over
+export const tableRestarted = (before, after) => num(before) > 0 && num(after) < num(before);
+
+// The table's history over a span (minute, hour or day), oldest first, without
+// the bin still filling: { bytes, packets, created, refused, active, at }.
+// Seconds the flow count wasn't sampled hold the RRD's blank value; they're
+// NaN, drawn as gaps, never as a count.  at is the server time the history was
+// sent, for the times of its values.  null when the reply has no history.
+export function tableHistory(reply, now, span) {
+    if (!tableTime(reply))
+        return null;
+    const out = {};
+    for (const k of tableSums)
+        out[k] = rrdHistory(tableRrd(reply, k), now, span).slice(0, -1)
+            .map((v) => (Number.isFinite(v) && v >= 0 ? v : 0));
+    // A count is never below zero, whatever blank value the server uses
+    out.active = rrdHistory(tableRrd(reply, 'active'), now, span, { blank: NaN }).slice(0, -1)
+        .map((v) => (Number.isFinite(v) && v >= 0 ? v : NaN));
+    out.at = Math.max(0, ...tableSeries.map((k) => num(tableRrd(reply, k)?.['kismet.common.rrd.serial_time'])));
+    return out;
+}
+
+// The latest flow count: the newest second sampled in the past minute, or null
+export function tableActive(reply, now) {
+    const h = rrdHistory(tableRrd(reply, 'active'), now, 'minute', { blank: NaN });
+    for (let i = h.length - 1; i >= 0; i--) {
+        if (Number.isFinite(h[i]) && h[i] >= 0)
+            return h[i];
+    }
+    return null;
 }

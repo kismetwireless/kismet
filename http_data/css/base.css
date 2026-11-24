@@ -1769,6 +1769,17 @@ body.ov-no-messages #split, body.ov-no-messages #bottom { display: none; }
 .eth-flow-filter input { max-width: 100%; }
 .eth-flows-head { flex: none; display: flex; flex-direction: column; gap: 0.6rem; padding: 0.6rem 0.75rem 0.4rem; }
 .eth-flows-tab > .list-table { margin: 0 0.75rem 0.5rem; }
+/* With the Flow table graphs open on a short screen, the tab scrolls rather than squeezing the flows away */
+.main-area .tab-body.eth-flows-tab { overflow-y: auto; }
+.eth-flows-tab:has(.eth-table-history[open] > .eth-table-graphs:not([hidden])) > .list-table.fill { min-height: min(22rem, 70vh); }
+.eth-table-history { padding: 0; border-bottom: none; }
+.eth-table-history .graph-tabs { margin: 0; }
+.eth-table-note { margin: 0.3rem 0 0; }
+.eth-table-graphs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.2rem 1rem; }
+@media (max-width: 760px) { .eth-table-graphs { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 1700px) { .eth-table-graphs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.eth-table-help { display: flex; gap: 0.3em; align-items: baseline; margin: 0.1rem 0 0; font-size: 0.82em; }
+.eth-table-help .icon { flex: none; width: 1em; height: 1em; align-self: center; }
 .eth-flows-tab > .about-view { position: relative; bottom: auto; flex: none; margin: 0; padding: 0.3rem 0.75rem 0.4rem; }
 .eth-flows-tab > .about-view > .about-view-body { padding: 0.2rem 0.75rem 0.6rem; }
 a.eth-mac { color: var(--accent); text-decoration: none; }
