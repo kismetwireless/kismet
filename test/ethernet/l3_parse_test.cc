@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "kis_l3_parse.h"
+#include "unordered_dense.h"
 #include "wired_flow_tracker.h"
 
 using namespace kis_l3;
@@ -916,6 +917,131 @@ static void test_flow_hash_seed() {
     CHECK(d1.maps_use_hasher(k) && d2.maps_use_hasher(k) && s1.maps_use_hasher(k));
 }
 
+// phy_ethernet's IP table hash before it was seeded: FNV-1a and a fixed mix
+static uint64_t unseeded_ip_hash(const ip_addr& a) {
+    uint64_t h = 0xcbf29ce484222325ULL ^ a.family;
+    for (auto b : a.a) {
+        h ^= b;
+        h *= 0x100000001b3ULL;
+    }
+    h ^= h >> 32;
+    h *= 0x9e3779b97f4a7c15ULL;
+    h ^= h >> 29;
+    return h;
+}
+
+// fe80::/64 with chosen low bits
+static ip_addr link_local(uint64_t lo) {
+    ip_addr a;
+    a.family = 6;
+    a.a[0] = 0xfe;
+    a.a[1] = 0x80;
+    for (size_t k = 0; k < 8; k++)
+        a.a[8 + k] = static_cast<uint8_t>(lo >> (56 - 8 * k));
+    return a;
+}
+
+// Keys in the fullest of 2^bits buckets, chosen by the top bits of the hash as unordered_dense
+// chooses them
+template<typename K, typename H>
+static size_t fullest_bucket(const std::vector<K>& keys, const H& h, unsigned bits) {
+    std::vector<size_t> n(size_t{1} << bits);
+    size_t most = 0;
+    for (const auto& k : keys)
+        most = std::max(most, ++n[h(k) >> (64 - bits)]);
+    return most;
+}
+
+// Keys whose hash under h has top bits target, ground offline from make(1), make(2), ...
+template<typename K, typename M, typename H>
+static std::vector<K> grind(const M& make, const H& h, unsigned bits, uint64_t target, size_t count) {
+    std::vector<K> r;
+    for (uint64_t i = 1; r.size() < count; i++) {
+        const K k = make(i);
+        if ((h(k) >> (64 - bits)) == target)
+            r.push_back(k);
+    }
+    return r;
+}
+
+// The IP table and VLAN inventory used to hash with fixed functions, so addresses chosen
+// offline piled into one probe chain under ip_mutex; seeded, the same keys spread out.
+// 256 keys in 4096 buckets put 4 or more in the fullest bucket about one seed in 300.
+static void test_ip_hash_seed() {
+    constexpr unsigned bits = 12;
+    constexpr size_t n_keys = 256;
+    constexpr size_t max_spread = 6;
+
+    const auto forged = grind<ip_addr>(link_local, unseeded_ip_hash, bits, 0x123, n_keys);
+    CHECK(fullest_bucket(forged, unseeded_ip_hash, bits) == n_keys);
+
+    std::vector<ip_addr> v4;
+    for (uint32_t i = 0; i < 4096; i++) {
+        ip_addr a;
+        a.family = 4;
+        a.a[0] = 10;
+        a.a[2] = static_cast<uint8_t>(i >> 8);
+        a.a[3] = static_cast<uint8_t>(i);
+        v4.push_back(a);
+    }
+
+    for (uint64_t seed = 1; seed <= 8; seed++) {
+        const ip_addr_hash h(seed);
+        CHECK(fullest_bucket(forged, h, bits) <= max_spread);
+        // 4096 in 4096: the fullest bucket of a random hash holds about 7
+        CHECK(fullest_bucket(v4, h, bits) <= 12);
+    }
+
+    const ip_addr_hash a(1), a2(1), b(2), placeholder;
+    const auto k = link_local(0x1234);
+    CHECK(a(k) == a2(k) && a(k) != b(k) && a(k) != placeholder(k));
+
+    // v4 10.0.0.1 and a v6 address with the same bytes
+    ip_addr k4 = v4[1], k6 = v4[1];
+    k6.family = 6;
+    CHECK(a(k4) != a(k6));
+
+    // the family and every address bit flip about half of the hash
+    uint64_t total = 0;
+    unsigned weak = 0;
+    for (unsigned bit = 0; bit < 136; bit++) {
+        unsigned flipped = 0;
+        for (uint64_t i = 0; i < 64; i++) {
+            ip_addr x = link_local(i * 0x9e3779b97f4a7c15ULL);
+            const auto h = a(x);
+            if (bit < 128)
+                x.a[bit / 8] ^= static_cast<uint8_t>(1U << (bit % 8));
+            else
+                x.family ^= static_cast<uint8_t>(1U << (bit - 128));
+            flipped += std::popcount(h ^ a(x));
+        }
+        total += flipped;
+        if (flipped < 64 * 28 || flipped > 64 * 36)
+            weak++;
+    }
+    const double mean = static_cast<double>(total) / (136 * 64);
+    CHECK(mean > 31.5 && mean < 32.5);
+    CHECK(weak == 0);
+
+    // VLAN inventory keys, laid out as phy_ethernet's vlan_inv_key: tags, outer and inner VID
+    const auto vlan_key = [](uint64_t i) {
+        return (uint64_t{2} << 32) | (((i >> 12) & 0xfff) << 16) | (i & 0xfff);
+    };
+    const ankerl::unordered_dense::hash<uint64_t> unseeded_u64;
+    const auto forged_vlans = grind<uint64_t>(vlan_key, unseeded_u64, bits, 0x123, n_keys);
+    CHECK(fullest_bucket(forged_vlans, unseeded_u64, bits) == n_keys);
+
+    for (uint64_t seed = 1; seed <= 8; seed++)
+        CHECK(fullest_bucket(forged_vlans, seeded_u64_hash(seed), bits) <= max_spread);
+
+    const seeded_u64_hash u(1), u2(1), w(2), u_placeholder;
+    CHECK(u(5) == u2(5) && u(5) != w(5) && u(5) != u_placeholder(5));
+
+    // a map built with a seeded hasher hashes with it
+    ankerl::unordered_dense::map<ip_addr, int, ip_addr_hash> m(0, ip_addr_hash(7));
+    CHECK(m.hash_function()(k) == ip_addr_hash(7)(k) && m.hash_function()(k) != placeholder(k));
+}
+
 static void test_flow_times() {
     wired_flow_tracker::params p;
     p.max_flows = 1000;
@@ -1267,6 +1393,7 @@ int main() {
     test_flow_seed_collision();
     test_flow_forged_keys();
     test_flow_hash_seed();
+    test_ip_hash_seed();
     test_flow_times();
     test_flow_evict();
     test_flow_evict_closed();
