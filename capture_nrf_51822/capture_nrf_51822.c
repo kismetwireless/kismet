@@ -228,6 +228,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     char *localbaudratestr = NULL;
     unsigned int *localbaudrate = NULL;
+    int b;
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
@@ -270,7 +271,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
         // better way of doing this?
-        localnrf->baudrate = get_baud(*localbaudrate);
+        b = get_baud(*localbaudrate);
+
+        if (b < 0) {
+            snprintf(msg, STATUS_MAX,
+                "nrf51822 unsupported baudrate=%u in source definition",
+                *localbaudrate);
+            free(localbaudrate);
+            return -1;
+        }
+
+        localnrf->baudrate = (speed_t) b;
+        free(localbaudrate);
     } else {
         localnrf->baudrate = D_BAUDRATE;
     }
@@ -306,8 +318,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
 	cfmakeraw(&localnrf->newtio);
 
-	cfsetispeed(&localnrf->newtio, B115200);
-	cfsetospeed(&localnrf->newtio, B115200);
+	cfsetispeed(&localnrf->newtio, localnrf->baudrate);
+	cfsetospeed(&localnrf->newtio, localnrf->baudrate);
 
 	localnrf->newtio.c_cflag |= (CLOCAL | CREAD | CS8);
 	localnrf->newtio.c_cflag &= ~(PARENB | PARODD | CSTOPB | CRTSCTS);
