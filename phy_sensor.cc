@@ -28,6 +28,7 @@
 #include "messagebus.h"
 #include "phy_meter.h"
 #include "rtl433_json.h"
+#include "rtl433_signal.h"
 
 kis_sensor_phy::kis_sensor_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -208,6 +209,8 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     packet->common_info.source = rtlmac;
     packet->common_info.transmitter = rtlmac;
 
+    rtl433_json::apply_levels(json, packet->signal_info, packet->common_info.freq_khz);
+
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(rtlmac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -311,24 +314,14 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         commondev->set_battery(fmt::format("{}", battery_j.get<bool>()));
     }
 
-    auto rssi_j = json["rssi"];
-    if (rssi_j.is_number())
-        commondev->set_rssi(fmt::format("{}", rssi_j.get<int>()));
-    else if (rssi_j.is_string())
-        commondev->set_rssi(munge_to_printable(rssi_j));
+    if (auto t = rtl433_json::level_text(json, "rssi", rtl433_json::level_min_dbfs, rtl433_json::level_max_dbfs))
+        commondev->set_rssi(munge_to_printable(*t));
 
-    auto snr_j = json["snr"];
-    if (snr_j.is_number())
-        commondev->set_snr(fmt::format("{}", snr_j.get<int>()));
-    else if (snr_j.is_string())
-        commondev->set_snr(munge_to_printable(snr_j));
+    if (auto t = rtl433_json::level_text(json, "snr", rtl433_json::snr_min_db, rtl433_json::snr_max_db))
+        commondev->set_snr(munge_to_printable(*t));
 
-
-    auto noise_j = json["noise"];
-    if (noise_j.is_number())
-        commondev->set_noise(fmt::format("{}", noise_j.get<int>()));
-    else if (noise_j.is_string())
-        commondev->set_noise(munge_to_printable(noise_j));
+    if (auto t = rtl433_json::level_text(json, "noise", rtl433_json::level_min_dbfs, rtl433_json::level_max_dbfs))
+        commondev->set_noise(munge_to_printable(*t));
 
     if (is_thermometer(json))
         add_thermometer(json, rtlholder);

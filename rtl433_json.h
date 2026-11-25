@@ -19,7 +19,9 @@
 #ifndef __RTL433_JSON_H__
 #define __RTL433_JSON_H__
 
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -107,6 +109,102 @@ namespace rtl433_json {
         if (auto f = float_id(j))
             return fmt::format("{}", *f);
         return {};
+    }
+
+    // rtl_433 -M level reports rssi and noise in dB relative to full scale.  One sample
+    // count is about -42 dBFS with 8-bit samples and -84 with 16-bit, so -150 leaves
+    // room for float inputs.  Integer samples clip a few dB above 0, but float inputs
+    // (SoapySDR CF32, replayed .cf32) don't clip: +60 is a sample 1000 times full scale,
+    // past any real front end.  snr is rssi - noise.  Anything outside these is a
+    // damaged or hostile record.
+    constexpr double level_min_dbfs = -150.0;
+    constexpr double level_max_dbfs = 60.0;
+    constexpr double snr_max_db = level_max_dbfs - level_min_dbfs;
+    constexpr double snr_min_db = -snr_max_db;
+
+    // A finite number in [lo, hi]; NaN fails both compares
+    inline std::optional<double> number_in(const nlohmann::json& j, double lo, double hi) {
+        if (!j.is_number())
+            return std::nullopt;
+
+        const double v = j.get<double>();
+
+        if (!(v >= lo && v <= hi))
+            return std::nullopt;
+
+        return v;
+    }
+
+    inline std::optional<double> number_in(const nlohmann::json& json, const char *key,
+            double lo, double hi) {
+        if (auto j = field(json, key))
+            return number_in(*j, lo, hi);
+
+        return std::nullopt;
+    }
+
+    // A number as reported; nullopt when not a number or out of range
+    inline std::optional<std::string> number_text(const nlohmann::json& j, double lo, double hi) {
+        if (auto v = number_in(j, lo, hi))
+            return fmt::format("{}", *v);
+
+        return std::nullopt;
+    }
+
+    // A level (rssi, snr, noise) for display: the number as reported, or a string as sent
+    // for the caller to make printable.  A level thrown away (out of range, not finite, or
+    // neither a number nor a string) is empty, so the last record's doesn't stay shown.
+    // nullopt when the record has no such field.
+    inline std::optional<std::string> level_text(const nlohmann::json& json, const char *key,
+            double lo, double hi) {
+        auto j = field(json, key);
+
+        if (j == nullptr)
+            return std::nullopt;
+
+        if (j->is_string())
+            return j->get<std::string>();
+
+        if (auto t = number_text(*j, lo, hi))
+            return t;
+
+        return std::string{};
+    }
+
+    // rssi and noise as the integer the signal tracker keeps, where 0 means no value
+    struct signal_levels {
+        int rssi = 0;
+        int noise = 0;
+    };
+
+    // floor() of any accepted level, and the -1 it may become, must fit an int
+    static_assert(level_min_dbfs >= static_cast<double>(std::numeric_limits<int>::min()) &&
+            level_max_dbfs < static_cast<double>(std::numeric_limits<int>::max()) &&
+            level_min_dbfs <= -1.0 && level_min_dbfs < level_max_dbfs,
+            "rtl_433 level bounds must keep the int conversion defined");
+
+    // A level rounded down so one just under 0 dBFS isn't 0 ("no value"): -0.13 is -1.
+    // Levels in [0, 1) round the same way, to -1; from 1 up they stay positive.
+    inline int level_to_int(double dbfs) {
+        const int v = static_cast<int>(std::floor(dbfs));
+        return v == 0 ? -1 : v;
+    }
+
+    // The record's levels; nullopt without a usable rssi.  noise stays 0 when missing or
+    // out of range.
+    inline std::optional<signal_levels> levels(const nlohmann::json& json) {
+        auto rssi = number_in(json, "rssi", level_min_dbfs, level_max_dbfs);
+
+        if (!rssi)
+            return std::nullopt;
+
+        signal_levels l;
+        l.rssi = level_to_int(*rssi);
+
+        if (auto noise = number_in(json, "noise", level_min_dbfs, level_max_dbfs))
+            l.noise = level_to_int(*noise);
+
+        return l;
     }
 }
 

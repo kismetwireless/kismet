@@ -29,6 +29,7 @@
 #include "manuf.h"
 #include "messagebus.h"
 #include "rtl433_json.h"
+#include "rtl433_signal.h"
 
 kis_meter_phy::kis_meter_phy(int in_phyid) :
     kis_phy_handler(in_phyid) {
@@ -112,7 +113,6 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     auto consumption_2_j = json["Consumption"];
     auto consumption_data_j = json["consumption_data"];
 	auto last_consumption_j = json["LastConsumptionCount"];
-	auto freq_j = json["freq"];
 
     if (model_j.is_null())
         return false;
@@ -122,8 +122,6 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     // internal decoded type
     // 0 unknown 1 elec 2 gas 3 water
     int decoded_type = -1;
-
-	double freq_khz = 0;
 
     // Look for the ID, consumption records, and type for the different variant types
     if (!id_j.is_null() && id_j.is_number()) {
@@ -237,8 +235,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
         packet->common_info.phyid = fetch_phy_id();
         packet->common_info.datasize = 0;
 
-        if (!freq_j.is_null())
-            freq_khz = freq_j.get<double>() * 1000;
+        const double freq_khz = rtl433_json::freq_khz(json);
 
         if (freq_khz != 0) {
             packet->common_info.freq_khz = freq_khz;
@@ -248,6 +245,8 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
             packet->common_info.source = mac;
         if (packet->common_info.transmitter == mac_addr(0))
             packet->common_info.transmitter = mac;
+
+        rtl433_json::apply_levels(json, packet->signal_info, packet->common_info.freq_khz);
 
         basedev = devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
