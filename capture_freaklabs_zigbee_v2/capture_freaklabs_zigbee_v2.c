@@ -14,11 +14,6 @@
 #include "../config.h"
 #include "capture_freaklabs_zigbee_v2.h"
 
-#if defined (SYS_OPENBSD)
-#include <sys/stat.h>
-mode_t _permit_setugid = S_ISUID;
-#endif
-
 #define BUFFER_SIZE 256
 
 #ifndef CRTSCTS

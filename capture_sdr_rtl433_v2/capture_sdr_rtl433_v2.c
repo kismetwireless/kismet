@@ -29,11 +29,6 @@
 #include <rtl-sdr.h>
 #include <zlib.h>
 
-#if defined (SYS_OPENBSD)
-#include <sys/stat.h>
-mode_t _permit_setugid = S_ISUID;
-#endif
-
 #include "../capture_framework.h"
 #include "../simple_ringbuf_c.h"
 

@@ -14,11 +14,6 @@
 
 #include "../capture_framework.h"
 
-#if defined (SYS_OPENBSD)
-#include <sys/stat.h>
-mode_t _permit_setugid = S_ISUID;
-#endif
-
 /* Unique instance data passed around by capframework */
 typedef struct {
 	libusb_context *libusb_ctx;

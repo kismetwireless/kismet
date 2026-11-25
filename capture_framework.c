@@ -81,6 +81,22 @@ int unshare(int);
 /* Default: no per-binary suffix.  See capture_framework.h. */
 const char *cf_version_extra = NULL;
 
+#if defined(SYS_OPENBSD)
+/* OpenBSD libc aborts a setuid binary at startup unless it defines this
+ * (execve(2)); it only matters for helpers installed by 'make suidinstall'.
+ * Defined in the same object as cf_handler_init so every helper links it;
+ * 'retain', where the compiler has it, keeps it through --gc-sections. */
+#if defined(__has_attribute)
+#if __has_attribute(retain)
+#define CF_ATTR_RETAIN __attribute__((retain))
+#endif
+#endif
+#ifndef CF_ATTR_RETAIN
+#define CF_ATTR_RETAIN
+#endif
+__attribute__((used, visibility("default"))) CF_ATTR_RETAIN mode_t _permit_setugid = S_ISUID;
+#endif
+
 void cf_version_string(char *buf, size_t len) {
     snprintf(buf, len, "%s.%s.%s-%s%s%s",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT,
