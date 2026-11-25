@@ -1816,6 +1816,8 @@ if test x"$want_usbserial" = x"yes"; then
 
     # openpty is in libutil on older glibc and the BSDs
     OLIBS="$LIBS"
+    # setproctitle may already have put -lutil in LIBS on the BSDs
+    LIBS=""
     AC_SEARCH_LIBS([openpty], [util],
         [AS_IF([test x"$ac_cv_search_openpty" != x"none required"],
             [USBSERIAL_LIBS="$ac_cv_search_openpty"])],
