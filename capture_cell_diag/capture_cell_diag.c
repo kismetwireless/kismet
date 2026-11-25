@@ -229,6 +229,11 @@
 #include "diag_portadmit.h"
 #include "diag_replayfifo.h"
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
 /* Compiled-in default dir holding the capture_cell_at/profiles/<model>.json
  * files, overridable via the profiles= source option or $CELLDIAG_PROFILES.
  * Empty default: per-modem mask=/f3= defaults are simply not consulted unless a

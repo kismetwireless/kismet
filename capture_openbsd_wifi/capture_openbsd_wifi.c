@@ -88,6 +88,8 @@
 
 #define MAX_PACKET_LEN  8192
 
+mode_t _permit_setugid = S_ISUID;
+
 #ifndef nitems
 #define nitems(_a)      (sizeof((_a)) / sizeof((_a)[0]))
 #endif

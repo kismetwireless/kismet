@@ -476,8 +476,9 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                 case IEEE80211_RADIOTAP_RSSI:
                     /* Convert to Kismet units...  No reason to use RSSI units
                      * here since we know the conversion factor */
-                    radioheader->signal_type = kis_l1_signal_type_dbm;
-                    radioheader->signal_dbm = int((float(static_cast<uint8_t>(val)) / float(static_cast<uint8_t>(val2)) * 255));
+                    in_pack->signal_info.data_ok = true;
+                    in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+                    in_pack->signal_info.signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
                     break;
 #endif
                 default:

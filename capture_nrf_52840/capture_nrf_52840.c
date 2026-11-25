@@ -17,6 +17,11 @@
 
 #include "../capture_framework.h"
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
 volatile int STOP=FALSE;
 
 #ifndef CRTSCTS

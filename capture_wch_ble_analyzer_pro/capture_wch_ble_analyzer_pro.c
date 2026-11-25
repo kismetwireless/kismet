@@ -44,6 +44,11 @@
 
 #include <libusb-1.0/libusb.h>
 
+#if defined (SYS_OPENBSD)
+#include <sys/stat.h>
+mode_t _permit_setugid = S_ISUID;
+#endif
+
 /* arbitrary max number of wch devices we support on a single system; whenever
  * someone manages to break this limit we'll just increase it */
 #define MAX_AGGREGATE_DEVICES       10

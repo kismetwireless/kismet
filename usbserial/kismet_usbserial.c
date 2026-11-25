@@ -34,7 +34,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__OpenBSD__)
 #include <util.h>
 #elif defined(__linux__)
 #include <pty.h>
