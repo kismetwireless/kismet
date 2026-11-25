@@ -12809,6 +12809,8 @@ if test x"$want_usbserial" = x"yes"; then
 
     # openpty is in libutil on older glibc and the BSDs
     OLIBS="$LIBS"
+    # setproctitle may already have put -lutil in LIBS on the BSDs
+    LIBS=""
     { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for library containing openpty" >&5
 printf %s "checking for library containing openpty... " >&6; }
 if test ${ac_cv_search_openpty+y}
