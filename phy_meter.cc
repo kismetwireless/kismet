@@ -231,6 +231,9 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     }
 
     if (basedev == nullptr) {
+        // The device tracker only takes the frequency and the other common fields when
+        // they're marked valid
+        packet->common_info.common_info_ok = true;
         packet->common_info.type = packet_basic_data;
         packet->common_info.phyid = fetch_phy_id();
         packet->common_info.datasize = 0;

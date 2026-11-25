@@ -263,9 +263,10 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         bool set_id = false;
         auto id_j = json["id"];
 
-        if (id_j.is_number())
+        if (id_j.is_number()) {
             commondev->set_rtlid(rtl433_json::integer_text(id_j));
-        else if (id_j.is_string()) {
+            set_id = true;
+        } else if (id_j.is_string()) {
             commondev->set_rtlid(munge_to_printable(id_j));
             set_id = true;
         }
@@ -273,9 +274,10 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
         if (!set_id) {
             auto device_j = json["device"];
 
-            if (device_j.is_number())
+            if (device_j.is_number()) {
                 commondev->set_rtlid(rtl433_json::integer_text(device_j));
-            else if (device_j.is_string()) {
+                set_id = true;
+            } else if (device_j.is_string()) {
                 commondev->set_rtlid(munge_to_printable(device_j));
                 set_id = true;
             }
