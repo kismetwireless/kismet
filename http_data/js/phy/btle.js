@@ -113,7 +113,7 @@ export function register(kismet) {
             if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
                 try {
                     const rows = await kismet.api.post(`phy/btle/${kind}-of/${encodeURIComponent(selfKey)}/devices.json`,
-                        { fields: relatedFields });
+                        { fields: relatedFields }, {}, { alive: () => node.isConnected });
                     const t = now();
                     members = (rows ?? []).map((r) => {
                         const mac = r[`${base}.macaddr`];

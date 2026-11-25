@@ -647,7 +647,8 @@ export function createMap(container, area = null, { sidebar = true, prefs = {} }
         if (src.regex)
             body.regex = src.regex;
         const path = `devices/views/${encodeURIComponent(src.view)}/last-time/${-Math.round(maxAge(src))}/devices.json`;
-        const reply = await api.post(path, body);
+        // a list the busy server turned away is asked for again while the map still reads
+        const reply = await api.post(path, body, {}, { alive: () => Boolean(timer || collectTimer) });
         const list = Array.isArray(reply) ? reply : [];
         fetched.set(src.id, { at: Date.now(), list });
         return list;
@@ -668,6 +669,9 @@ export function createMap(container, area = null, { sidebar = true, prefs = {} }
                 try {
                     return { src, list: await fetchSource(src) };
                 } catch (err) {
+                    // Given up when the map or tab was hidden: keep the last list
+                    if (err?.stopped)
+                        return { src, list: fetched.get(src.id)?.list ?? [] };
                     console.error(`map source ${src.id}:`, err);
                     return { src, list: [], error: err };
                 }

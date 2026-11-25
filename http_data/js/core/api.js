@@ -4,6 +4,9 @@
 //   const page = await api.post('devices/views/all/devices.json',
 //       { fields: [...] }, { page: 0, length: 50 });
 //
+// A read the server turns away while busy (503 with Retry-After) is tried again
+// a few times; pass { alive: () => shown } so a closed view stops asking.
+//
 // Paths are relative to the Kismet server root, set by the
 // <meta name="kismet-root"> tag in index.html, so the UI works behind a
 // reverse proxy or from a sub-directory.  The installed app can use another
@@ -85,7 +88,70 @@ function withAuth(options) {
     return { ...options, credentials: 'omit', headers };
 }
 
+// A server already building as many large lists as it allows (httpd_max_large_lists)
+// answers a request for another with 503 and Retry-After.  Reads wait and ask again a
+// few times while the caller keeps showing what it has.  They give up early, throwing
+// the 503 with err.stopped set, when options.alive() turns false or the tab is hidden,
+// and throw an AbortError when options.signal aborts.
+const busyTries = 3;
+const busyDefaultMs = 2000;
+const busyMaxMs = 10000;
+
+function retryAfterMs(value, attempt) {
+    // Seconds, or an HTTP date; anything else gets the default
+    let ms = busyDefaultMs;
+    if (/^\s*\d+(\.\d+)?\s*$/.test(value))
+        ms = Number(value) * 1000;
+    else if (/[a-z]/i.test(value) && Number.isFinite(Date.parse(value)))
+        ms = Math.max(0, Date.parse(value) - Date.now());
+    return Math.min(busyMaxMs, ms * (1 + attempt / 2) + Math.random() * 1000);
+}
+
+// Resolves true after ms, or false at once if the tab is hidden; rejects if the
+// caller aborts
+function busyWait(ms, signal) {
+    return new Promise((resolve, reject) => {
+        const finish = (fn) => {
+            clearTimeout(timer);
+            document.removeEventListener('visibilitychange', onVisibility);
+            signal?.removeEventListener('abort', onAbort);
+            fn();
+        };
+        const onVisibility = () => {
+            if (document.visibilityState === 'hidden')
+                finish(() => resolve(false));
+        };
+        const onAbort = () => finish(() => reject(new DOMException('The request was aborted', 'AbortError')));
+        const timer = setTimeout(() => finish(() => resolve(true)), ms);
+        document.addEventListener('visibilitychange', onVisibility);
+        signal?.addEventListener('abort', onAbort);
+        if (signal?.aborted)
+            onAbort();
+        else
+            onVisibility();
+    });
+}
+
 async function request(path, options = {}) {
+    const tries = options.busyTries ?? busyTries;
+    for (let attempt = 0; ; attempt++) {
+        const response = await send(path, options);
+        if (response.ok)
+            return response;
+        const err = new ApiError(response.status, await errorText(response));
+        const after = response.headers.get('Retry-After');
+        if (response.status !== 503 || after === null || attempt >= tries)
+            throw err;
+        const alive = () => !options.alive || options.alive();
+        if (!alive() || !await busyWait(retryAfterMs(after, attempt), options.signal) || !alive()) {
+            err.stopped = true;
+            throw err;
+        }
+    }
+}
+
+// One request; HTTP errors come back as the Response
+async function send(path, options) {
     let response;
     try {
         response = await fetch(url(path), withAuth({
@@ -105,11 +171,8 @@ async function request(path, options = {}) {
     // An older server without the marked endpoints
     if (response.status === 404 && markedPath.test(path)) {
         noMarked = true;
-        return request(path.replace(markedPath, '$1/'), options);
+        return send(path.replace(markedPath, '$1/'), options);
     }
-
-    if (!response.ok)
-        throw new ApiError(response.status, await errorText(response));
 
     return response;
 }
@@ -159,7 +222,7 @@ export async function command(path, json = null) {
     const body = new URLSearchParams();
     if (json !== null)
         body.set('json', JSON.stringify(json));
-    return (await request(path, { method: 'POST', ...formBody(body) })).text();
+    return (await request(path, { method: 'POST', busyTries: 0, ...formBody(body) })).text();
 }
 
 // A form-encoded request body.  The Content-Type is set by hand because

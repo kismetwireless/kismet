@@ -103,7 +103,7 @@ const loaders = {
     channels: () => api.get('channels/channels.json'),
     alerts: () => api.get('alerts/last-time/-3600/alerts.json'),
     sources: () => api.post('datasource/all_sources.json', { fields: sourceFields }),
-    talkers: () => api.post('devices/views/all/last-time/-15/devices.json', { fields: talkerFields }),
+    talkers: (options) => api.post('devices/views/all/last-time/-15/devices.json', { fields: talkerFields }, {}, options),
     cpu: () => orMissing(api.get('system/cpu.json')),
     thermal: () => orMissing(api.get('system/thermal.json')),
     environment: () => orMissing(api.get('system/environment.json')),
@@ -817,10 +817,10 @@ export function createOverview(container, area = null) {
         return set;
     }
 
-    async function scanDevices() {
+    async function scanDevices(options) {
         const w = Number(settings.get('overview.window', 3600));
         const path = w ? `devices/views/all/last-time/${-w}/devices.json` : 'devices/views/all/devices.json';
-        const list = await api.post(path, { fields: deviceFields });
+        const list = await api.post(path, { fields: deviceFields }, {}, options);
         data.window = w;
         return Array.isArray(list) ? list : [];
     }
@@ -828,7 +828,7 @@ export function createOverview(container, area = null) {
     let round = 0;
 
     async function refresh() {
-        if (busy || !visible)
+        if (busy || !visible || document.visibilityState === 'hidden')
             return;
         busy = true;
         const thisRound = ++round;
@@ -870,13 +870,22 @@ export function createOverview(container, area = null) {
             };
 
             const failures = [];
-            await Promise.allSettled([...fetch].map(([name, load]) => load().then((v) => {
+            // A list the busy server turned away is asked for again until the overview is hidden
+            const options = { alive: () => visible };
+            await Promise.allSettled([...fetch].map(([name, load]) => load(options).then((v) => {
                 data[name] = v;
                 for (const c of shown)
                     if (!c.ready && (c.entry.needs ?? []).includes(name))
                         c.loader.retry();
                 settle(name);
             }, (err) => {
+                // Stopped by hiding the overview: keep what's shown, scan again when it's back
+                if (err?.stopped) {
+                    if (name === 'devices')
+                        scanAt = 0;
+                    settle(name);
+                    return;
+                }
                 failures.push(err);
                 for (const c of shown)
                     if (!c.ready && (c.entry.needs ?? []).includes(name))

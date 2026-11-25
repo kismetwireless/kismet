@@ -30,6 +30,7 @@ test/datasource_probed/probed_test
 test/httpd_login_conf/login_conf_test
 test/environment/env_test
 test/util_utf8/utf8_test
+test/httpd_abort/abort_test
 test/ringbuf_c/ringbuf_wrap_test
 test/ringbuf_c/ringbuf_reserve_test
 test/capture_framework/capture_exit_test

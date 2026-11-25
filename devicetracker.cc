@@ -584,13 +584,16 @@ device_tracker::device_tracker() :
 
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));
-                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
                     scoped_streamer stream_reg(streamtracker, pcapng, fmt::format("kismet-device-{}.pcapng", devkey),
                             "pcapng", "httpd",
                             fmt::format("pcapng of packets for dev key {}", devkey));
 
                     pcapng->start_stream();
+
+                    // Once the packet handler exists to stop; runs at once if the client already left
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
                     pcapng->block_until_stream_done();
 
                 }));

@@ -267,6 +267,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     max_websockets_per_addr_ =
         Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("httpd_max_websockets_per_ip",
                 max_websockets_per_addr_);
+    large_lists_.set_max(
+        Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("httpd_max_large_lists",
+                large_lists_.max()));
     ws_max_queue_ =
         static_cast<size_t>(Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("httpd_websocket_max_queue_mb",
                     ws_max_queue_ / (1024 * 1024))) * 1024 * 1024;
@@ -1795,6 +1798,7 @@ namespace {
 
     endpoint_error_limiter endpoint_client_error_limit;
     endpoint_error_limiter endpoint_server_error_limit;
+    endpoint_error_limiter large_list_refused_limit;
 
     void log_endpoint_error(const endpoint_error& err) {
         if (err.detail.empty())
@@ -2062,8 +2066,53 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(tls_stream_t& soc
 
 kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() {
     Globalreg::n_tracked_http_connections.fetch_sub(1, std::memory_order_relaxed);
-    if (closure_cb)
-        closure_cb();
+
+    try {
+        closure_cb.fire();
+    } catch (...) {
+        ;
+    }
+}
+
+bool kis_net_beast_httpd_connection::claim_list_slot(size_t n_elements, concurrency_limit::slot& slot) {
+    if (n_elements <= kis_net_beast_httpd::large_list_min)
+        return true;
+
+    auto& limit = httpd->large_list_limit();
+
+    slot = limit.try_acquire();
+
+    if (slot.held())
+        return true;
+
+    set_status(503);
+    append_header("Retry-After", fmt::format("{}", kis_net_beast_httpd::large_list_retry_s));
+
+    std::ostream os(&response_stream_);
+    os << "ERROR: Too many large lists are being built at once; retry shortly, or request "
+        "the list in pages\n";
+
+    // Endpoints may hold a lock here, so the generator thread logs it once the endpoint returns
+    list_refused_ = n_elements;
+
+    return false;
+}
+
+void kis_net_beast_httpd_connection::log_list_refused() {
+    if (list_refused_ == 0)
+        return;
+
+    unsigned int suppressed = 0;
+
+    if (!large_list_refused_limit.admit(suppressed))
+        return;
+
+    constexpr size_t max_log_uri = 128;
+
+    _MSG_INFO("(HTTP) Turned away a request for a list of {} ({}): the server is already building "
+            "httpd_max_large_lists={} large lists ({} more turned away since the last report)",
+            list_refused_, munge_to_printable(uri_.data(), std::min(uri_.size(), max_log_uri)),
+            httpd->large_list_limit().max(), suppressed);
 }
 
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
@@ -2259,7 +2308,8 @@ bool kis_net_beast_httpd_connection::start() {
 
     httpd->map_legacy_uri(trimmed_uri);
 
-    uri_ = boost::beast::string_view(trimmed_uri);
+    uri_storage_ = std::move(trimmed_uri);
+    uri_ = boost::beast::string_view(uri_storage_);
 
     // Process close headers - http 1.0 always closes unless keepalive, 1.1 never closes unless specified
     bool client_req_close = false;
@@ -2603,6 +2653,8 @@ bool kis_net_beast_httpd_connection::start() {
             os << "ERROR: unknown error";
         }
 
+        log_list_refused();
+
         response_stream_.complete();
     });
     tr.detach();
@@ -2653,8 +2705,15 @@ bool kis_net_beast_httpd_connection::start() {
 
         // If the buffer has any pending data, regardless of error or completeness,
         // this will instantly return, otherwise it will stall waiting for it to be
-        // populated
-        response_stream_.wait();
+        // populated.  A large response can take seconds to build before its first byte,
+        // and with nothing to write a client that gave up is never noticed, so look for it
+        // while waiting; the generator sees the cancel and stops.
+        while (response_stream_.wait_for(peer_check_interval) == 0 && response_stream_.running()) {
+            if (socket_peer_closed(stream_.socket().native_handle())) {
+                response_stream_.cancel();
+                return do_close();
+            }
+        }
     }
 
     // _MSG_INFO("(DEBUG) {} {} - Out of buffer poll loop, remaining {}, running {}", verb_, uri_, response_stream_.size(), response_stream_.running());
@@ -2678,10 +2737,7 @@ bool kis_net_beast_httpd_connection::start() {
 }
 
 bool kis_net_beast_httpd_connection::do_close() {
-    if (closure_cb) {
-        closure_cb();
-        closure_cb = nullptr;
-    }
+    closure_cb.fire();
 
     try {
         stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
@@ -2913,8 +2969,13 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
     if (use_mutex)
         lk.lock();
 
+    // Requests queue on the endpoint mutex; one whose client left while it waited is done
+    if (con->cancelled())
+        return;
+
     std::ostream os(&con->response_stream());
     endpoint_error error_detail;
+    concurrency_limit::slot list_slot;
 
     try {
         auto output_content = std::shared_ptr<tracker_element>();
@@ -2934,7 +2995,34 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
         if (pre_func)
             pre_func(output_content);
 
-        auto summary = con->summarize_with_json(output_content, rename_map);
+        std::shared_ptr<tracker_element> summary;
+
+        if (output_content != nullptr && output_content->get_type() == tracker_type::tracker_vector) {
+            // Summarized one element at a time, as summarize_with_json would, so a list whose
+            // client has gone away stops early
+            auto in_vec = std::static_pointer_cast<tracker_element_vector>(output_content);
+
+            if (!con->claim_list_slot(in_vec->size(), list_slot))
+                return;
+
+            const auto summary_vec = con->summary_fields();
+            auto out_vec = Globalreg::new_from_pool<tracker_element_vector>();
+            out_vec->reserve(in_vec->size());
+
+            for (const auto& i : *in_vec) {
+                if (con->cancelled())
+                    return;
+
+                out_vec->push_back(summarize_tracker_element(i, summary_vec, rename_map));
+            }
+
+            summary = out_vec;
+        } else {
+            summary = con->summarize_with_json(output_content, rename_map);
+        }
+
+        // A cancelled stream throws out of the serializer instead of writing the rest
+        os.exceptions(std::ios::badbit);
 
         Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os,
                 summary, rename_map);
@@ -2944,6 +3032,9 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
         if (post_func)
             post_func(output_content);
 
+    } catch (const future_chainbuf::cancelled_error&) {
+        // The client went away part way through; there's no one to tell
+        ;
     } catch (const std::exception& e) {
         error_detail = write_endpoint_error(*con, os, e);
     }
@@ -2969,6 +3060,9 @@ void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast
 
         if (post_func != nullptr)
             post_func();
+    } catch (const future_chainbuf::cancelled_error&) {
+        // The client went away part way through; there's no one to tell
+        ;
     } catch (const std::exception& e) {
         std::ostream os(&con->response_stream());
         error_detail = write_endpoint_error(*con, os, e);

@@ -989,10 +989,20 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
             (*next_work_vec)[i] = keyed[i].second;
     }
 
+    // A full list holds about its output size in memory until it's sent; the server only
+    // builds so many at once, and stops one whose client has gone away
+    concurrency_limit::slot list_slot;
+
+    if (!con->claim_list_slot(static_cast<size_t>(std::distance(si, ei)), list_slot))
+        return;
+
     // Summarize into the output element
     auto final_devices_vec = std::make_shared<tracker_element_vector>();
 
     for (auto i = si; i != ei; ++i) {
+        if (con->cancelled())
+            return;
+
         final_devices_vec->push_back(*i);
         output_devices_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
     }
@@ -1001,6 +1011,9 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // If the transmit wasn't assigned to a wrapper...
     if (transmit == nullptr)
         transmit = output_devices_elem;
+
+    // A cancelled stream throws out of the serializer instead of writing the rest
+    os.exceptions(std::ios::badbit);
 
     // Done
     Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, transmit, rename_map);
