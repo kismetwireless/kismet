@@ -74,24 +74,9 @@ mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
 	// Derive a MAC from the ID; previously we used the model as well but
 	// rtl_433 decodes multiple meter models from a single signal so we
 	// use the decoded ID only
+    const auto bytes = rtl433_json::meter_mac_bytes(id);
 
-    uint8_t bytes[6];
-    uint32_t *deviceid = (uint32_t *) (bytes + 2);
-
-    memset(bytes, 0, 6);
-
-    try {
-		*deviceid = (uint32_t) id;
-    } catch (const std::exception& e) {
-        mac_addr m;
-        m.state.error = true;
-        return m;
-    }
-
-    // Set the local bit
-    bytes[0] |= 0x2;
-
-    return mac_addr(bytes, 6);
+    return mac_addr(bytes.data(), bytes.size());
 }
 
 bool kis_meter_phy::is_meter(const nlohmann::json &json) {
@@ -102,8 +87,6 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     std::string err;
     std::string v;
 
-    auto id_j = json["id"];
-    auto ert_serial_j = json["ERTSerialNumber"];
     auto model_j = json["model"];
     auto type_j = json["MeterType"];
     auto endp_type_j = json["EndpointType"];
@@ -117,20 +100,18 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
     if (model_j.is_null())
         return false;
 
-    uint64_t decoded_id = 0;
     int64_t decoded_consumption = 0;
     // internal decoded type
     // 0 unknown 1 elec 2 gas 3 water
     int decoded_type = -1;
 
     // Look for the ID, consumption records, and type for the different variant types
-    if (!id_j.is_null() && id_j.is_number()) {
-        decoded_id = id_j.get<uint64_t>();
-    } else if (!ert_serial_j.is_null() && ert_serial_j.is_number()) {
-        decoded_id = ert_serial_j.get<uint64_t>();
-    } else {
+    const auto record_id = rtl433_json::meter_record_id(json);
+
+    if (!record_id)
         return false;
-    }
+
+    const uint64_t decoded_id = *record_id;
 
     if (!consumption_j.is_null() && consumption_j.is_number()) {
         decoded_consumption = consumption_j.get<int64_t>();
@@ -293,7 +274,7 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
                 basedev->get_display_type_string(), censor::ident(meterdev->get_meter_id()));
     }
 
-    meterdev->get_model_vec()->insert(model_j, nullptr);
+    meterdev->get_model_vec()->insert(rtl433_json::printable(model_j), nullptr);
 
     // Only set consumption if we're non-zero to trim out error readings
     if (decoded_consumption != 0 && decoded_consumption >= meterdev->get_consumption()) {

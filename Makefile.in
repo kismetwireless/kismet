@@ -319,7 +319,7 @@ TEST_GPSD_TPV_O = \
 # The rtl_433 JSON field and frequency range checks; built on request
 TEST_RTL433_JSON = test/rtl433_json/rtl433_test
 TEST_RTL433_JSON_O = \
-	test/rtl433_json/rtl433_test.cc.o
+	test/rtl433_json/rtl433_test.cc.o util.cc.o
 
 # The kismetdb log journal: commits with other programs reading the log, WAL checkpoints;
 # built on request

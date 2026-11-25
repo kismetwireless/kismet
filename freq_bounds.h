@@ -29,11 +29,34 @@
 #define FREQ_BOUNDS_KHZ_VALID(v) ((v) >= FREQ_BOUNDS_MIN_KHZ && (v) <= FREQ_BOUNDS_MAX_KHZ)
 
 #ifdef __cplusplus
+#include <cstddef>
+
 namespace freq_bounds {
     constexpr double min_khz = FREQ_BOUNDS_MIN_KHZ;
     constexpr double max_khz = FREQ_BOUNDS_MAX_KHZ;
 
     constexpr bool khz_valid(double v) { return FREQ_BOUNDS_KHZ_VALID(v); }
+
+    // Distinct frequencies counted per device and per seen-by source.  Every 20 MHz Wi-Fi
+    // channel in 2.4, 4.9, 5 and 6 GHz is about 130, BTLE 40; rtl_433 reports measured
+    // frequencies that drift by a few kHz.  Any source can send any frequency, so without
+    // a cap one device grows without bound; 256 is about 6 KB at most.
+    constexpr size_t max_counted_freqs = 256;
+
+    // Count a packet on a frequency: a frequency already in the map is always counted, a
+    // new one only while the map is under the cap.  One lookup, as before the cap.
+    template<typename M, typename K>
+    void count_freq(M& map, const K& freq) {
+        auto i = map.find(freq);
+
+        if (i != map.end()) {
+            i->second += 1;
+            return;
+        }
+
+        if (map.size() < max_counted_freqs)
+            map.insert({freq, 1});
+    }
 }
 #endif
 

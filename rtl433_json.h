@@ -19,16 +19,20 @@
 #ifndef __RTL433_JSON_H__
 #define __RTL433_JSON_H__
 
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "fmt.h"
 #include "freq_bounds.h"
 #include "json_number.h"
 #include "nlohmann/json.hpp"
+#include "util.h"
 
 // Fields of an rtl_433 JSON record, which comes from a helper, a remote or a replayed
 // log and may hold anything.  Lookups use find(): a const operator[] on a missing key
@@ -109,6 +113,114 @@ namespace rtl433_json {
         if (auto f = float_id(j))
             return fmt::format("{}", *f);
         return {};
+    }
+
+    // The field a sensor's rtl_433 id is shown from: id, else device, whichever is a
+    // string or a number integer_text() takes, the same numbers id_bits() keys the
+    // device on.  nullptr when neither is.
+    inline const nlohmann::json *rtlid_field(const nlohmann::json& json) {
+        for (const char *key : {"id", "device"}) {
+            auto j = field(json, key);
+
+            if (j != nullptr && (j->is_string() || !integer_text(*j).empty()))
+                return j;
+        }
+
+        return nullptr;
+    }
+
+    // rtl_433 model names and string ids are short ("Fineoffset-WH51", "da22b333"); a
+    // longer one is cut here before it becomes a device name, model, rtlid, channel or
+    // log text.  Printable escaping can make the result up to 6 times this.
+    constexpr size_t max_text_len = 64;
+
+    // The first max_text_len bytes, cut back so a UTF-8 character isn't split
+    constexpr std::string_view capped(std::string_view s) {
+        if (s.size() <= max_text_len)
+            return s;
+
+        size_t len = max_text_len;
+
+        // s[len] exists as len < size; back up over up to 3 continuation bytes
+        for (unsigned int back = 0; back < 3 && len > 0 &&
+                (static_cast<unsigned char>(s[len]) & 0xC0) == 0x80; back++)
+            len--;
+
+        return s.substr(0, len);
+    }
+
+    // Capped and made printable as munge_to_printable does.  A JSON value converts to the
+    // string argument as before, throwing when it isn't a string.
+    inline std::string printable(const std::string& s) {
+        const auto c = capped(s);
+        return munge_to_printable(c.data(), c.size());
+    }
+
+    // A meter id: an unsigned integer as it is, a signed one that isn't negative, or a
+    // float that is an exact integer a double holds exactly (up to 2^53).  Negative,
+    // fractional, NaN and larger floats give nullopt; get<uint64_t>() of those wrapped or
+    // was undefined.
+    inline std::optional<uint64_t> meter_id(const nlohmann::json& j) {
+        if (auto v = json_number::unsigned_integer(j, std::numeric_limits<uint64_t>::max()))
+            return v;
+
+        if (!j.is_number_float())
+            return std::nullopt;
+
+        const double d = j.get<double>();
+
+        if (!(d >= 0 && d <= json_number::max_exact_double) || std::trunc(d) != d)
+            return std::nullopt;
+
+        return static_cast<uint64_t>(d);
+    }
+
+    // A meter record's id: id, else ERTSerialNumber.  An id that meter_id() rejects counts
+    // as missing, as a non-numeric one always did, so a valid ERTSerialNumber still names
+    // the meter; nullopt (the record is skipped) when neither is valid.
+    inline std::optional<uint64_t> meter_record_id(const nlohmann::json& json) {
+        for (const char *key : {"id", "ERTSerialNumber"}) {
+            if (auto f = field(json, key)) {
+                if (auto v = meter_id(*f))
+                    return v;
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    // splitmix64's finalizer: every bit of the input moves about half the output bits
+    constexpr uint64_t mix64(uint64_t z) {
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+        return z ^ (z >> 31);
+    }
+
+    // The locally administered MAC a meter is keyed on.  Ids below 2^32 keep the layout
+    // they always had (bytes 2-5 the id in host order, bytes 0-1 0x02 0x00), so their keys
+    // don't change.  Larger ids, once cut to their low 32 bits, take 46 bits of a mix of
+    // the whole id, with the 14 free bits of bytes 0-1 never all zero so they can't land
+    // on a smaller id's key.  Unicast either way.
+    inline std::array<uint8_t, 6> meter_mac_bytes(uint64_t id) {
+        constexpr uint64_t low_mask = 0xFFFFFFFFULL;
+        constexpr uint32_t high_tag_values = 0x3FFF;
+
+        std::array<uint8_t, 6> bytes{};
+        uint32_t low = static_cast<uint32_t>(id & low_mask);
+        uint32_t tag = 0;
+
+        if (id > low_mask) {
+            const uint64_t m = mix64(id);
+            low = static_cast<uint32_t>(m & low_mask);
+            tag = 1 + static_cast<uint32_t>((m >> 32) % high_tag_values);
+        }
+
+        std::memcpy(bytes.data() + 2, &low, sizeof(low));
+
+        bytes[0] = static_cast<uint8_t>(0x02 | ((tag & 0x3F) << 2));
+        bytes[1] = static_cast<uint8_t>(tag >> 6);
+
+        return bytes;
     }
 
     // rtl_433 -M level reports rssi and noise in dB relative to full scale.  One sample
