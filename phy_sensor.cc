@@ -19,6 +19,8 @@
 
 #include "config.h"
 
+#include <cmath>
+
 #include "phy_sensor.h"
 #include "devicetracker.h"
 #include "endian_magic.h"
@@ -179,6 +181,23 @@ mac_addr kis_sensor_phy::json_to_mac(nlohmann::json json) {
     return mac_addr(bytes, 6);
 }
 
+// rtl_433 reports the level in dB relative to full scale (0 or below), not dBm; hand
+// it on as an rssi-type signal so the device gets one.  The signal is an integer and
+// 0 means no value to the signal tracker, so round down: -0.13 is -1, not 0.
+static void rtl433_signal_info(const nlohmann::json& json, kis_layer1_packinfo& sig) {
+    auto rssi_j = json["rssi"];
+    if (!rssi_j.is_number())
+        return;
+
+    sig.data_ok = true;
+    sig.signal_type = kis_l1_signal_type_rssi;
+    sig.signal_rssi = (int) std::floor(rssi_j.get<double>());
+
+    auto noise_j = json["noise"];
+    if (noise_j.is_number())
+        sig.noise_rssi = (int) std::floor(noise_j.get<double>());
+}
+
 bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
@@ -207,6 +226,8 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     packet->common_info.source = rtlmac;
     packet->common_info.transmitter = rtlmac;
+
+    rtl433_signal_info(json, packet->signal_info);
 
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(rtlmac, this, packet,
@@ -313,20 +334,20 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     auto rssi_j = json["rssi"];
     if (rssi_j.is_number())
-        commondev->set_rssi(fmt::format("{}", rssi_j.get<int>()));
+        commondev->set_rssi(fmt::format("{}", rssi_j.get<double>()));
     else if (rssi_j.is_string())
         commondev->set_rssi(munge_to_printable(rssi_j));
 
     auto snr_j = json["snr"];
     if (snr_j.is_number())
-        commondev->set_snr(fmt::format("{}", snr_j.get<int>()));
+        commondev->set_snr(fmt::format("{}", snr_j.get<double>()));
     else if (snr_j.is_string())
         commondev->set_snr(munge_to_printable(snr_j));
 
 
     auto noise_j = json["noise"];
     if (noise_j.is_number())
-        commondev->set_noise(fmt::format("{}", noise_j.get<int>()));
+        commondev->set_noise(fmt::format("{}", noise_j.get<double>()));
     else if (noise_j.is_string())
         commondev->set_noise(munge_to_printable(noise_j));
 

@@ -19,6 +19,8 @@
 
 #include "config.h"
 
+#include <cmath>
+
 #include "fmt.h"
 #include "nlohmann/json.hpp"
 #include "phy_meter.h"
@@ -95,6 +97,23 @@ mac_addr kis_meter_phy::synth_mac(std::string model_s, uint64_t id) {
 
 bool kis_meter_phy::is_meter(const nlohmann::json &json) {
     return rtl433_json::is_meter_model(json);
+}
+
+// rtl_433 reports the level in dB relative to full scale (0 or below), not dBm; hand
+// it on as an rssi-type signal so the device gets one.  The signal is an integer and
+// 0 means no value to the signal tracker, so round down: -0.13 is -1, not 0.
+static void rtl433_signal_info(const nlohmann::json& json, kis_layer1_packinfo& sig) {
+    auto rssi_j = json["rssi"];
+    if (!rssi_j.is_number())
+        return;
+
+    sig.data_ok = true;
+    sig.signal_type = kis_l1_signal_type_rssi;
+    sig.signal_rssi = (int) std::floor(rssi_j.get<double>());
+
+    auto noise_j = json["noise"];
+    if (noise_j.is_number())
+        sig.noise_rssi = (int) std::floor(noise_j.get<double>());
 }
 
 bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_packet> packet) {
@@ -248,6 +267,8 @@ bool kis_meter_phy::rtl433_json_to_phy(nlohmann::json json, std::shared_ptr<kis_
             packet->common_info.source = mac;
         if (packet->common_info.transmitter == mac_addr(0))
             packet->common_info.transmitter = mac;
+
+        rtl433_signal_info(json, packet->signal_info);
 
         basedev = devicetracker->update_common_device(mac, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
