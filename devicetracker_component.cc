@@ -32,6 +32,7 @@
 
 #include "datasourcetracker.h"
 #include "devicetracker_component.h"
+#include "freq_bounds.h"
 #include "kis_datasource.h"
 #include "devicetracker.h"
 
@@ -383,14 +384,7 @@ void kis_tracked_seenby_data::set_datasource_alias(std::shared_ptr<kis_datasourc
 }
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
-    auto m = get_tracker_freq_khz_map();
-    auto i = m->find(frequency);
-
-    if (i == m->end()) {
-        m->insert(frequency, 1);
-    } else {
-        i->second += 1;
-    }
+    freq_bounds::count_freq(*get_tracker_freq_khz_map(), static_cast<double>(frequency));
 }
 
 void kis_tracked_seenby_data::register_fields() {
@@ -420,13 +414,7 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
     if (frequency <= 0)
         return;
 
-    auto i = freq_khz_map->find(frequency);
-
-    if (i == freq_khz_map->end()) {
-        freq_khz_map->insert(frequency, 1);
-    } else {
-        i->second += 1;
-    }
+    freq_bounds::count_freq(*freq_khz_map, frequency);
 }
 
 void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,

@@ -1,9 +1,11 @@
 /* Tests for rtl433_json.h, json_number.h and freq_bounds.h: rtl_433 records are hostile
  * JSON, so a missing model is not a meter (and doesn't abort on a const lookup), a
  * frequency is taken only when finite and in range, numeric ids only where master's cast
- * was defined, range-checked numbers (Z-Wave ids, session times) never wrap, and levels
- * (rssi, snr, noise) are used only when finite and plausible, as an rssi signal that
- * replaces a source's dBm values.
+ * was defined, a sensor's rtlid from the same id or device the key uses, meter ids only
+ * when exact and not negative, keyed on all 64 bits, display strings are capped,
+ * per-device frequency counts are capped, range-checked numbers (Z-Wave ids, session
+ * times) never wrap, and levels (rssi, snr, noise) are used only when finite and
+ * plausible, as an rssi signal that replaces a source's dBm values.
  *
  *   make test/rtl433_json/rtl433_test && test/rtl433_json/rtl433_test
  *
@@ -14,8 +16,12 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <limits>
+#include <map>
+#include <set>
 #include <string>
+#include <unordered_map>
 
 #include "freq_bounds.h"
 #include "json_number.h"
@@ -138,6 +144,216 @@ static void test_ids() {
     CHECK(rtl433_json::integer_text(nlohmann::json(std::nan(""))).empty());
     CHECK(rtl433_json::integer_text(j(R"("a")")).empty());
     CHECK(rtl433_json::integer_text(j("true")).empty());
+}
+
+// The text json_to_rtl stores as a new sensor's rtlid; strings go through
+// munge_to_printable there, which this test doesn't link
+static std::string rtlid_of(const nlohmann::json& json) {
+    auto f = rtl433_json::rtlid_field(json);
+
+    if (f == nullptr)
+        return "<none>";
+
+    if (f->is_string())
+        return "s:" + f->get<std::string>();
+
+    return rtl433_json::integer_text(*f);
+}
+
+static void test_rtlid() {
+    CHECK(rtlid_of(j(R"({"model":"x","id":129})")) == "129");
+    CHECK(rtlid_of(j(R"({"model":"x","id":0})")) == "0");
+    CHECK(rtlid_of(j(R"({"model":"x","id":3000000000})")) == "3000000000");
+    CHECK(rtlid_of(j(R"({"model":"x","id":18446744073709551615})")) == "18446744073709551615");
+    CHECK(rtlid_of(j(R"({"model":"x","id":-5,"device":7})")) == "-5");
+    CHECK(rtlid_of(j(R"({"model":"x","id":12.5,"device":7})")) == "12");
+    CHECK(rtlid_of(j(R"({"model":"x","id":"da22b333","device":7})")) == "s:da22b333");
+    CHECK(rtlid_of(j(R"({"model":"x","id":"","device":7})")) == "s:");
+
+    // Floats id_bits() rejects fall back to device, as the device key does
+    for (const char *id : {"1e306", "-1e306", "-1.0", "4294967296.0"}) {
+        auto rec = j(fmt::format(R"({{"model":"x","id":{},"device":42}})", id));
+        CHECK(rtlid_of(rec) == "42");
+        CHECK(!rtl433_json::id_bits(rec["id"]));
+    }
+
+    {
+        nlohmann::json rec{{"model", "x"}, {"id", std::nan("")}, {"device", 42}};
+        CHECK(rtlid_of(rec) == "42");
+    }
+
+    CHECK(rtlid_of(j(R"({"model":"x","id":1e306,"device":"ab"})")) == "s:ab");
+    CHECK(rtlid_of(j(R"({"model":"x","id":1e306,"device":1e306})")) == "<none>");
+    CHECK(rtlid_of(j(R"({"model":"x","id":1e306})")) == "<none>");
+    CHECK(rtlid_of(j(R"({"model":"x","id":null,"device":-3})")) == "-3");
+    CHECK(rtlid_of(j(R"({"model":"x","id":true,"device":3.9})")) == "3");
+    CHECK(rtlid_of(j(R"({"model":"x","id":[1],"device":{}})")) == "<none>");
+    CHECK(rtlid_of(j(R"({"model":"x"})")) == "<none>");
+    CHECK(rtlid_of(j("[1]")) == "<none>");
+    CHECK(rtlid_of(j("5")) == "<none>");
+}
+
+static void test_meter_id() {
+    using rtl433_json::meter_id;
+    using rtl433_json::meter_record_id;
+
+    CHECK(meter_id(j("0")) == 0u);
+    CHECK(meter_id(j("12345678")) == 12345678u);
+    CHECK(meter_id(j("4294967297")) == 4294967297u);
+    CHECK(meter_id(j("18446744073709551615")) == UINT64_MAX);
+    CHECK(meter_id(nlohmann::json(int64_t{5})) == 5u);
+    CHECK(meter_id(j("12.0")) == 12u);
+    CHECK(meter_id(j("-0.0")) == 0u);
+    CHECK(meter_id(j("9007199254740992.0")) == 9007199254740992u);
+
+    // Negative, fractional, past 2^53 or not finite: get<uint64_t>() wrapped or was undefined
+    for (const char *v : {"-1", "-9223372036854775808", "-1.0", "12.5", "1e306", "-1e306",
+            "9007199254740994.0", "1.8446744073709552e19", "\"12\"", "null", "true", "[1]", "{}"})
+        CHECK(!meter_id(j(v)));
+    CHECK(!meter_id(nlohmann::json(std::nan(""))));
+    CHECK(!meter_id(nlohmann::json(std::numeric_limits<double>::infinity())));
+
+    // id first, else ERTSerialNumber; an id meter_id() rejects counts as missing
+    CHECK(meter_record_id(j(R"({"id":7,"ERTSerialNumber":9})")) == 7u);
+    CHECK(meter_record_id(j(R"({"ERTSerialNumber":9})")) == 9u);
+    CHECK(meter_record_id(j(R"({"id":"7","ERTSerialNumber":9})")) == 9u);
+    for (const char *id : {"1e306", "-1", "12.5"})
+        CHECK(meter_record_id(j(fmt::format(R"({{"id":{},"ERTSerialNumber":9}})", id))) == 9u);
+    CHECK(meter_record_id(nlohmann::json{{"id", std::nan("")}, {"ERTSerialNumber", 9}}) == 9u);
+    CHECK(!meter_record_id(j(R"({"id":1e306})")));
+    CHECK(!meter_record_id(j(R"({"id":-1,"ERTSerialNumber":-1})")));
+    CHECK(!meter_record_id(j(R"({"model":"SCM+"})")));
+    CHECK(!meter_record_id(j("[7]")));
+    CHECK(!meter_record_id(j("7")));
+}
+
+// The MAC master's synth_mac built: the id cut to 32 bits in bytes 2-5, host order
+static std::array<uint8_t, 6> master_meter_mac(uint64_t id) {
+    std::array<uint8_t, 6> b{};
+    const uint32_t low = (uint32_t) id;
+    memcpy(b.data() + 2, &low, 4);
+    b[0] |= 0x2;
+    return b;
+}
+
+static void test_meter_mac() {
+    using rtl433_json::meter_mac_bytes;
+
+    // Meters below 2^32 keep their keys
+    for (uint64_t id : {uint64_t{0}, uint64_t{1}, uint64_t{12345678}, uint64_t{0x80000000},
+            uint64_t{0xFFFFFFFE}, uint64_t{0xFFFFFFFF}})
+        CHECK(meter_mac_bytes(id) == master_meter_mac(id));
+
+    // Ids that master cut to the same 32 bits get their own keys
+    CHECK(meter_mac_bytes(1) != meter_mac_bytes(4294967297ULL));
+    CHECK(meter_mac_bytes(0) != meter_mac_bytes(4294967296ULL));
+    CHECK(meter_mac_bytes(0xFFFFFFFF) != meter_mac_bytes(UINT64_MAX));
+    CHECK(meter_mac_bytes(4294967297ULL) != meter_mac_bytes(8589934593ULL));
+    CHECK(meter_mac_bytes(4294967297ULL) == meter_mac_bytes(4294967297ULL));
+
+    // Larger ids: locally administered, unicast, and never in the layout of a smaller id
+    std::set<std::array<uint8_t, 6>> seen;
+    // Starts low enough that 4096 steps don't wrap past 2^64
+    const uint64_t starts[] = {0x100000000ULL, 0xFFFFF00000000000ULL, 0x8000000000000000ULL,
+        0x0123456789ABCDEFULL};
+
+    for (uint64_t start : starts) {
+        for (uint64_t k = 0; k < 4096; k++) {
+            const auto b = meter_mac_bytes(start + k * 0x100000001ULL);
+            CHECK((b[0] & 0x03) == 0x02);
+            CHECK((b[0] & 0xFC) != 0 || b[1] != 0);
+            seen.insert(b);
+        }
+    }
+
+    // 16384 different ids; 46 bits of mix make a repeat here vanishingly unlikely
+    CHECK(seen.size() == 4 * 4096);
+}
+
+static void test_text_cap() {
+    using rtl433_json::capped;
+    using rtl433_json::max_text_len;
+    using rtl433_json::printable;
+
+    static_assert(capped("Acurite-Tower") == "Acurite-Tower");
+    CHECK(capped("") == "");
+
+    const std::string at(max_text_len, 'a');
+    const std::string over = at + "bcdef";
+    CHECK(capped(at) == at);
+    CHECK(capped(over) == at);
+    CHECK(capped(std::string(100000, 'x')).size() == max_text_len);
+
+    // A cut never splits a UTF-8 character (2, 3 and 4 bytes across the limit)
+    const std::string e_acute = "\xc3\xa9", euro = "\xe2\x82\xac", grin = "\xf0\x9f\x98\x80";
+    CHECK(capped(std::string(max_text_len - 1, 'a') + e_acute) == std::string(max_text_len - 1, 'a'));
+    CHECK(capped(std::string(max_text_len - 2, 'a') + euro) == std::string(max_text_len - 2, 'a'));
+    CHECK(capped(std::string(max_text_len - 1, 'a') + euro) == std::string(max_text_len - 1, 'a'));
+    CHECK(capped(std::string(max_text_len - 3, 'a') + grin) == std::string(max_text_len - 3, 'a'));
+    CHECK(capped(std::string(max_text_len - 4, 'a') + grin + "b") ==
+            std::string(max_text_len - 4, 'a') + grin);
+    CHECK(capped(std::string(max_text_len - 2, 'a') + e_acute + "b") ==
+            std::string(max_text_len - 2, 'a') + e_acute);
+
+    // Only continuation bytes: at most 3 are backed over, as munge_to_display does
+    const std::string cont(max_text_len + 8, '\x80');
+    CHECK(capped(cont).size() == max_text_len - 3);
+
+    // Made printable after the cut, as munge_to_printable did
+    CHECK(printable("Fineoffset-WH51") == "Fineoffset-WH51");
+    CHECK(printable("a\"b\\c") == "a\\\"b\\\\c");
+    CHECK(printable(std::string("a\nb\x01", 4)) == "a\\nb\\u0001");
+    CHECK(printable(over) == at);
+    CHECK(printable(std::string(1000, '\x01')).size() == max_text_len * 6);
+
+    // A JSON string converts as munge_to_printable(json) did; anything else throws
+    CHECK(printable(j(R"("da22b333")")) == "da22b333");
+    bool threw = false;
+    try {
+        (void) printable(j("5"));
+    } catch (const nlohmann::json::exception&) {
+        threw = true;
+    }
+    CHECK(threw);
+}
+
+template<typename M>
+static void check_freq_cap(M& m) {
+    using freq_bounds::count_freq;
+    using freq_bounds::max_counted_freqs;
+
+    for (size_t f = 1; f <= max_counted_freqs; f++)
+        count_freq(m, f * 1000);
+    CHECK(m.size() == max_counted_freqs);
+
+    // A new frequency past the cap is ignored, the ones counted still count
+    count_freq(m, 999999999);
+    CHECK(m.size() == max_counted_freqs);
+    CHECK(m.find(999999999) == m.end());
+
+    count_freq(m, 1000);
+    count_freq(m, 1000);
+    count_freq(m, max_counted_freqs * 1000);
+    CHECK(m.find(1000)->second == 3);
+    CHECK(m.find(max_counted_freqs * 1000)->second == 2);
+    CHECK(m.find(2000)->second == 1);
+}
+
+static void test_freq_cap() {
+    std::unordered_map<uint64_t, uint64_t> v2;
+    check_freq_cap(v2);
+
+    std::map<double, double> v1;
+    check_freq_cap(v1);
+
+    std::unordered_map<uint64_t, uint64_t> small;
+    freq_bounds::count_freq(small, 433920);
+    freq_bounds::count_freq(small, 433920);
+    freq_bounds::count_freq(small, 433921);
+    CHECK(small.size() == 2 && small[433920] == 2 && small[433921] == 1);
+
+    // Wi-Fi in every band with its 20 MHz channels fits with room to spare
+    static_assert(freq_bounds::max_counted_freqs >= 192);
 }
 
 static void test_json_number() {
@@ -364,6 +580,30 @@ static void fuzz_number(const nlohmann::json& v) {
     if (rtl433_json::integer_text(v).empty() != !rtl433_json::id_bits(v).has_value())
         __builtin_trap();
 
+    // A meter id is the exact, non-negative value; a key below 2^32 is master's
+    if (auto m = rtl433_json::meter_id(v)) {
+        if (v.is_number_unsigned()) {
+            if (*m != v.get<uint64_t>())
+                __builtin_trap();
+        } else if (v.is_number_integer()) {
+            if (v.get<int64_t>() < 0 || *m != (uint64_t) v.get<int64_t>())
+                __builtin_trap();
+        } else {
+            const double d = v.get<double>();
+            if (!v.is_number_float() || !(d >= 0) || d > json_number::max_exact_double ||
+                    (double) *m != d)
+                __builtin_trap();
+        }
+
+        const auto b = rtl433_json::meter_mac_bytes(*m);
+        if ((b[0] & 0x03) != 0x02)
+            __builtin_trap();
+        if ((*m <= 0xFFFFFFFFULL) != (b == master_meter_mac(*m)))
+            __builtin_trap();
+    } else if (v.is_number_unsigned() || (v.is_number_integer() && v.get<int64_t>() >= 0)) {
+        __builtin_trap();
+    }
+
     if (auto n = json_number::integral(v, 0, 255)) {
         if (*n < 0 || *n > 255 || !v.is_number())
             __builtin_trap();
@@ -454,6 +694,30 @@ static void fuzz_walk(const nlohmann::json& j, int depth) {
 
     fuzz_number(j);
 
+    (void) rtl433_json::meter_record_id(j);
+
+    // A capped string is a prefix of at most max_text_len bytes, cut where the string's
+    // next byte isn't a continuation byte (or after backing over 3 of them)
+    if (j.is_string()) {
+        const auto& s = j.get_ref<const std::string&>();
+        const auto c = rtl433_json::capped(s);
+        if (c.size() > rtl433_json::max_text_len || s.compare(0, c.size(), c) != 0 ||
+                (c.size() < s.size() && s.size() <= rtl433_json::max_text_len))
+            __builtin_trap();
+        if (c.size() < s.size() && c.size() < rtl433_json::max_text_len - 3)
+            __builtin_trap();
+        if (c.size() < s.size() && c.size() > rtl433_json::max_text_len - 3 &&
+                ((unsigned char) s[c.size()] & 0xC0) == 0x80)
+            __builtin_trap();
+        if (rtl433_json::printable(s).size() > rtl433_json::max_text_len * 6)
+            __builtin_trap();
+    }
+
+    // A numeric rtlid is never empty and comes from a number the device key also uses
+    if (auto f = rtl433_json::rtlid_field(j); f != nullptr && !f->is_string() &&
+            (rtl433_json::integer_text(*f).empty() || !rtl433_json::id_bits(*f)))
+        __builtin_trap();
+
     if (j.is_structured()) {
         for (const auto& e : j)
             fuzz_walk(e, depth + 1);
@@ -479,6 +743,11 @@ int main() {
     test_freq_bounds();
     test_freq();
     test_ids();
+    test_rtlid();
+    test_meter_id();
+    test_meter_mac();
+    test_text_cap();
+    test_freq_cap();
     test_json_number();
     test_levels();
     test_apply_levels();

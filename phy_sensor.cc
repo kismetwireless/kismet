@@ -200,7 +200,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     auto channel_j = json["channel"];
 
     if (channel_j.is_string())
-        packet->common_info.channel = munge_to_printable(channel_j);
+        packet->common_info.channel = rtl433_json::printable(channel_j);
     else if (auto channel = rtl433_json::integer_text(channel_j); !channel.empty())
         packet->common_info.channel = channel;
 
@@ -223,15 +223,15 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
     if (json["model"].is_string()) {
         if (json["id"].is_string()) {
-            dn = fmt::format("{}-{}", munge_to_printable(json["model"]),
-                    munge_to_printable(json["id"]));
+            dn = fmt::format("{}-{}", rtl433_json::printable(json["model"]),
+                    rtl433_json::printable(json["id"]));
         } else if (!id_text.empty()) {
-            dn = fmt::format("{}-{}", munge_to_printable(json["model"]), id_text);
+            dn = fmt::format("{}-{}", rtl433_json::printable(json["model"]), id_text);
         } else {
-            dn = munge_to_printable(json["model"]);
+            dn = rtl433_json::printable(json["model"]);
         }
     } else if (json["id"].is_string()) {
-        dn = munge_to_printable(json["id"]);
+        dn = rtl433_json::printable(json["id"]);
     } else if (!id_text.empty()) {
         dn = id_text;
     }
@@ -260,31 +260,14 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
 
         commondev->set_model(dn);
 
-        bool set_id = false;
-        auto id_j = json["id"];
+        auto rtlid_j = rtl433_json::rtlid_field(json);
 
-        if (id_j.is_number())
-            commondev->set_rtlid(rtl433_json::integer_text(id_j));
-        else if (id_j.is_string()) {
-            commondev->set_rtlid(munge_to_printable(id_j));
-            set_id = true;
-        }
-
-        if (!set_id) {
-            auto device_j = json["device"];
-
-            if (device_j.is_number())
-                commondev->set_rtlid(rtl433_json::integer_text(device_j));
-            else if (device_j.is_string()) {
-                commondev->set_rtlid(munge_to_printable(device_j));
-                set_id = true;
-            }
-
-        }
-
-        if (!set_id) {
+        if (rtlid_j == nullptr)
             commondev->set_rtlid("");
-        }
+        else if (rtlid_j->is_string())
+            commondev->set_rtlid(rtl433_json::printable(rtlid_j->get_ref<const std::string&>()));
+        else
+            commondev->set_rtlid(rtl433_json::integer_text(*rtlid_j));
 
         commondev->set_subchannel("0");
     }
@@ -298,7 +281,7 @@ bool kis_sensor_phy::json_to_rtl(nlohmann::json json, std::shared_ptr<kis_packet
     if (channel_j.is_number())
         commondev->set_subchannel(rtl433_json::integer_text(channel_j));
     else if (channel_j.is_string())
-        commondev->set_subchannel(munge_to_printable(channel_j));
+        commondev->set_subchannel(rtl433_json::printable(channel_j));
     
 
     auto battery_j = json["battery"];

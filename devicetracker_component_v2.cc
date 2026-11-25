@@ -373,7 +373,7 @@ void kis_tracked_seenby_data_v2::inc_seenby(uint64_t frequency, uint64_t time,
     if (time > last_time_)
         last_time_ = time;
     num_packets_++;
-    freq_khz_map_[frequency]++;
+    freq_bounds::count_freq(freq_khz_map_, frequency);
     signal_data_ = signal;
 }
 

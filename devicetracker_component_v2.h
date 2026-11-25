@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include "fmt/base.h"
+#include "freq_bounds.h"
 #include "json_adapter_v2.h"
 #include "macaddr.h"
 #include "packet.h"
@@ -451,7 +452,7 @@ public:
     template<typename T> void set_frequency_khz(T freq) { frequency_khz_ = freq; }
 
     auto& freq_khz_distribution() { return freq_khz_distribution_; }
-    void inc_freq_khz_distribution(uint64_t freq) { freq_khz_distribution_[freq]++; }
+    void inc_freq_khz_distribution(uint64_t freq) { freq_bounds::count_freq(freq_khz_distribution_, freq); }
 
     auto& signal() { return signal_; }
 
