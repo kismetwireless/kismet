@@ -59,6 +59,7 @@
 #include <string_view>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include <sys/time.h>
 
@@ -492,6 +493,11 @@ size_t hex_to_bytes(const std::string_view& in, uint8_t *buf_begin, size_t buf_l
 
 void thread_set_process_name(const std::string& name);
 
+// Without blocking or reading anything, whether the peer of a connected socket has
+// closed it, reset it, or shut down its sending side; data waiting to be read (such as
+// a pipelined request) doesn't count as closed
+bool socket_peer_closed(int fd);
+
 // Closure promise; executes a function as it leaves scope
 class closure_promise {
 public:
@@ -503,6 +509,47 @@ public:
     }
 protected:
     std::function<void (void)> promise;
+};
+
+// A callback that runs once when an event fires, on whichever side comes second: fire()
+// runs the callback already set, and set() after fire() runs its callback at once.  The
+// callback always runs outside the lock.
+class closure_once {
+public:
+    // Store cb, or run it now when fire() already happened or run_now is set.  Replaces a
+    // callback set earlier and not yet run.
+    void set(std::function<void ()> cb, bool run_now = false) {
+        {
+            std::lock_guard<std::mutex> lk(mutex_);
+
+            if (!fired_ && !run_now) {
+                cb_ = std::move(cb);
+                return;
+            }
+        }
+
+        if (cb)
+            cb();
+    }
+
+    // Run the stored callback, if any; every later set() runs its own at once
+    void fire() {
+        std::function<void ()> cb;
+
+        {
+            std::lock_guard<std::mutex> lk(mutex_);
+            fired_ = true;
+            cb = std::exchange(cb_, nullptr);
+        }
+
+        if (cb)
+            cb();
+    }
+
+protected:
+    std::mutex mutex_;
+    bool fired_{false};
+    std::function<void ()> cb_;
 };
 
 // Basic constant-time string compare for passwords and session keys

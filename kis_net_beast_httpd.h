@@ -42,6 +42,7 @@
 #include "jwt-cpp/traits/kazuho-picojson/traits.h"
 #include "nlohmann/json.hpp"
 
+#include "concurrency_limit.h"
 #include "entrytracker.h"
 #include "future_chainbuf.h"
 #include "globalregistry.h"
@@ -202,6 +203,15 @@ public:
     // Bytes a websocket may have waiting to send before it's closed as too slow; 0 is no limit
     size_t websocket_max_queue() const { return ws_max_queue_; }
 
+    // A response summarizing more than large_list_min elements (a full device list) holds
+    // memory about the size of its output until it's sent, so only so many are built at
+    // once; the rest are sent a 503 asking them to retry.  Pages of a list stay under it.
+    static constexpr size_t large_list_min = 1000;
+    static constexpr unsigned int default_max_large_lists = 4;
+    static constexpr unsigned int large_list_retry_s = 2;
+
+    concurrency_limit& large_list_limit() { return large_lists_; }
+
     // Websockets told when an API key is revoked, so ones using it close at once
     void watch_websocket_auth(const std::shared_ptr<kis_net_web_websocket_endpoint>& ws);
 
@@ -295,6 +305,9 @@ protected:
     std::unordered_map<std::string, unsigned int> ws_by_addr_;
     time_t ws_limit_warned_;
     size_t ws_max_queue_;
+
+    // Large lists being built at once (httpd_max_large_lists)
+    concurrency_limit large_lists_{default_max_large_lists};
 
     kis_mutex ws_auth_mutex;
     std::vector<std::weak_ptr<kis_net_web_websocket_endpoint>> ws_auth_watch_;
@@ -419,6 +432,15 @@ public:
     // Stream suitable for std::ostream
     future_chainbuf& response_stream() { return response_stream_; }
 
+    // The client went away before the response was sent; generators building something
+    // large check this and stop
+    bool cancelled() const { return response_stream_.cancelled(); }
+
+    // A response of more than large_list_min elements holds one of the server's large list
+    // slots while it's built.  False when they're all taken, with a 503 and Retry-After
+    // already written, and the caller sends nothing more.  Call before writing any output.
+    [[nodiscard]] bool claim_list_slot(size_t n_elements, concurrency_limit::slot& slot);
+
     // Login validity
     bool login_valid() const { return login_valid_; }
     const std::string& login_role() const { return login_role_; }
@@ -445,9 +467,10 @@ public:
     nlohmann::json& json() { return json_; }
 
     // Optional closure callback to signal to an async operation that there's a problem (for example
-    // long-running packet streams)
+    // long-running packet streams).  Runs once, when the connection closes; set on a connection
+    // that has already closed, or whose client has gone away, it runs at once.
     void set_closure_cb(std::function<void ()> cb) {
-        closure_cb = cb;
+        closure_cb.set(std::move(cb), cancelled());
     }
 
     static std::string escape_html(const boost::beast::string_view& html) {
@@ -492,6 +515,14 @@ public:
 protected:
     static constexpr unsigned int write_timeout_sec = 30;
 
+    // How often a connection waiting on its generator checks that the client is still there
+    static constexpr std::chrono::milliseconds peer_check_interval{100};
+
+    // Size of the list claim_list_slot turned away, logged by log_list_refused once the
+    // endpoint has returned; only touched by the generator thread
+    size_t list_refused_{0};
+    void log_list_refused();
+
     // Set by clear_timeout() from the endpoint thread for long-running streams
     std::atomic<bool> timeout_cleared_{false};
 
@@ -526,7 +557,8 @@ protected:
 
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
-    std::function<void ()> closure_cb;
+    // Set by the generator thread, run by the connection thread's close or the destructor
+    closure_once closure_cb;
 
     boost::beast::tcp_stream& stream_;
     tls_stream_t *tls_;
@@ -549,6 +581,9 @@ protected:
     nlohmann::json json_;
     kis_net_beast_httpd::http_cookie_map_t cookies_;
     std::string auth_token_;
+    // The decoded request path; uri_ views it once set, and the generator thread can still
+    // read it after start() returns
+    std::string uri_storage_;
     boost::beast::string_view uri_;
     uri_param_t uri_params_;
 
@@ -630,7 +665,11 @@ public:
     template<typename T>
     std::shared_ptr<tracker_element> summarize_with_json(std::shared_ptr<T> in_data,
             std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+        return summarize_tracker_element(in_data, summary_fields(), rename_map);
+    }
 
+    // The summarization dictionary from the request's "fields"; may throw if it's malformed
+    std::vector<SharedElementSummary> summary_fields() {
         auto summary_vec = std::vector<SharedElementSummary>{};
 
         auto fields = json_["fields"];
@@ -651,7 +690,7 @@ public:
 
         }
 
-        return summarize_tracker_element(in_data, summary_vec, rename_map);
+        return summary_vec;
     }
 
     // Convert JSON summarization to the new basic string/string pairing used in the v2 json model.

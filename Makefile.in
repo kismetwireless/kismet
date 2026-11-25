@@ -276,6 +276,11 @@ TEST_UTIL_UTF8 = test/util_utf8/utf8_test
 TEST_UTIL_UTF8_O = \
 	test/util_utf8/utf8_test.cc.o util.cc.o
 
+# The http client abort and large list limit tests; built on request
+TEST_HTTPD_ABORT = test/httpd_abort/abort_test
+TEST_HTTPD_ABORT_O = \
+	test/httpd_abort/abort_test.cc.o util.cc.o
+
 # The external protocol command policy and plugin route/header checks; built on request
 TEST_EXTERNAL_POLICY = test/external_policy/policy_test
 TEST_EXTERNAL_POLICY_O = \
@@ -576,6 +581,9 @@ $(TEST_DOT11_KARMA):	$(TEST_DOT11_KARMA_O)
 
 $(TEST_UTIL_UTF8):	$(TEST_UTIL_UTF8_O)
 	$(LD) $(LDFLAGS) -o $(TEST_UTIL_UTF8) $(TEST_UTIL_UTF8_O) $(LIBS) $(CXXLIBS) $(KSLIBS)
+
+$(TEST_HTTPD_ABORT):	$(TEST_HTTPD_ABORT_O)
+	$(LD) $(LDFLAGS) -o $(TEST_HTTPD_ABORT) $(TEST_HTTPD_ABORT_O) $(LIBS) $(CXXLIBS) $(KSLIBS)
 
 $(TEST_EXTERNAL_POLICY):	$(TEST_EXTERNAL_POLICY_O)
 	$(LD) $(LDFLAGS) -o $(TEST_EXTERNAL_POLICY) $(TEST_EXTERNAL_POLICY_O) $(CXXLIBS)
@@ -1264,6 +1272,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/httpd_login_conf/*.o $(TEST_HTTPD_LOGIN_CONF)
 	@-rm -f test/environment/*.o $(TEST_ENVIRONMENT)
 	@-rm -f test/util_utf8/*.o $(TEST_UTIL_UTF8)
+	@-rm -f test/httpd_abort/*.o $(TEST_HTTPD_ABORT)
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY) $(TEST_FLOW_RATES) $(TEST_FLOW_RRD)
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)

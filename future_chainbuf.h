@@ -21,7 +21,9 @@
 
 #include "config.h"
 
+#include <chrono>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <mutex>
 #include <future>
@@ -45,7 +47,18 @@
 // wait() - waits until data is *present in the buffer*, should be called by the consumer
 // wait_write() - waits until the buffer *has flushed data*, should be called by a producer
 //  looking to throttle size buffer size.
+//
+// Once cancelled, stream writes throw cancelled_error; a std::ostream turns that into
+// badbit, or passes it on when its exceptions() include badbit, which lets a long
+// serialize to a consumer that has gone away stop part way.
 class future_chainbuf : public std::stringbuf {
+public:
+    class cancelled_error : public std::runtime_error {
+    public:
+        cancelled_error() :
+            std::runtime_error{"stream cancelled"} { }
+    };
+
 protected:
     class data_chunk {
     public:
@@ -292,6 +305,9 @@ public:
         if (packet_)
             throw std::runtime_error("cannot use stream methods in packet mode");
 
+        if (cancel_)
+            throw cancelled_error();
+
         // put_data wakes the consumer once enough data is buffered
         put_data(s, n);
 
@@ -304,6 +320,9 @@ public:
 
         if (traits_type::eq_int_type(ch, traits_type::eof()))
             return traits_type::not_eof(ch);
+
+        if (cancel_)
+            throw cancelled_error();
 
         const char c = traits_type::to_char_type(ch);
         put_data(&c, 1);
@@ -319,6 +338,11 @@ public:
 
     bool running() const {
         return (!complete_ && !cancel_);
+    }
+
+    // The consumer gave up, such as an http client that went away
+    bool cancelled() const {
+        return cancel_;
     }
 
     size_t size() {
@@ -376,6 +400,31 @@ public:
         lk.unlock();
 
         ft.wait();
+
+        return total_sz_;
+    }
+
+    // As wait(), but gives up after timeout, so the consumer can look in on its own peer
+    // while a slow producer has nothing for it yet
+    size_t wait_for(std::chrono::milliseconds timeout) {
+        std::unique_lock<std::recursive_mutex> lk(mutex_);
+        if (waiting_)
+            throw std::runtime_error("future_stream already blocking");
+
+        if (total_sz_ > 0 || !running()) {
+            return total_sz_;
+        }
+
+        waiting_ = true;
+        wait_promise_ = std::promise<void>();
+        auto ft = wait_promise_.get_future();
+        lk.unlock();
+
+        if (ft.wait_for(timeout) == std::future_status::timeout) {
+            // A notify between the timeout and here has already cleared it
+            lk.lock();
+            waiting_ = false;
+        }
 
         return total_sz_;
     }

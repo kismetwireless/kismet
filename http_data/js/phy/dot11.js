@@ -504,7 +504,7 @@ function registerDetails(kismet) {
             if (node.isConnected && onScreen && document.visibilityState !== 'hidden') {
                 try {
                     const rows = await api.post(`phy/phy80211/clients-of/${encodeURIComponent(apKey)}/clients.json`,
-                        { fields: timelineFields });
+                        { fields: timelineFields }, {}, { alive: () => node.isConnected });
                     const t = clock.isKnown() ? clock.now() : Date.now() / 1000;
                     clients = (rows ?? []).map((r) => {
                         // The client's record for this access point

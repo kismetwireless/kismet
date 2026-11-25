@@ -23,6 +23,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <math.h>
 #include <cmath>
@@ -1388,6 +1391,46 @@ void thread_set_process_name(const std::string& name) {
 #else
 void thread_set_process_name(const std::string& name) { }
 #endif
+
+bool socket_peer_closed(int fd) {
+    if (fd < 0)
+        return true;
+
+    struct pollfd pfd;
+    memset(&pfd, 0, sizeof(pfd));
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+
+#ifdef POLLRDHUP
+    // Reports the peer's FIN even with data still queued in front of it, which a peek
+    // can't see past (a TLS close_notify, a pipelined request)
+    pfd.events |= POLLRDHUP;
+#endif
+
+    if (poll(&pfd, 1, 0) <= 0)
+        return false;
+
+    if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
+        return true;
+
+#ifdef POLLRDHUP
+    if (pfd.revents & POLLRDHUP)
+        return true;
+#endif
+
+    if (pfd.revents & POLLIN) {
+        char c;
+        auto r = recv(fd, &c, 1, MSG_PEEK | MSG_DONTWAIT);
+
+        if (r == 0)
+            return true;
+
+        if (r < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
+            return true;
+    }
+
+    return false;
+}
 
 bool iequals(const std::string& a, const std::string& b) {
     return std::equal(a.begin(), a.end(),

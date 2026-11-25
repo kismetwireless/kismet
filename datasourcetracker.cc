@@ -1194,13 +1194,16 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     con->clear_timeout();
                     con->set_target_file("kismet-all-packets.pcapng");
-                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
                     scoped_streamer stream_reg(streamtracker, pcapng, "kismet-all-packets.pcapng",
                             "pcapng", "httpd",
                             fmt::format("pcapng of all packets"));
 
                     pcapng->start_stream();
+
+                    // Once the packet handler exists to stop; runs at once if the client already left
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
                     pcapng->block_until_stream_done();
 
                 }));
@@ -1225,7 +1228,6 @@ void datasource_tracker::trigger_deferred_startup() {
                     con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-datasource-{}-{}.pcapng",
                                 ds->get_source_name(), dsuuid));
-                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
                     scoped_streamer stream_reg(streamtracker, pcapng, fmt::format("kismet-datasource-{}-{}.pcapng",
                                 ds->get_source_name(), dsuuid),
@@ -1233,6 +1235,10 @@ void datasource_tracker::trigger_deferred_startup() {
                             fmt::format("pcapng of packets for datasource {} {}", ds->get_source_name(), dsuuid));
 
                     pcapng->start_stream();
+
+                    // Once the packet handler exists to stop; runs at once if the client already left
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
                     pcapng->block_until_stream_done();
 
                 }));
