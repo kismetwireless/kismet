@@ -352,6 +352,12 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
                     iter += sizeof(uint64_t);
                     break;
 #if defined(SYS_OPENBSD)
+                case IEEE80211_RADIOTAP_FCS:
+                    /* Skipped, not decoded */
+                    if (!field_fits(4, 4))
+                        break;
+                    iter += sizeof(uint32_t);
+                    break;
                 case IEEE80211_RADIOTAP_RSSI:
                     if (!field_fits(1, 2))
                         break;
@@ -473,12 +479,27 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
                     break;
 #if defined(SYS_OPENBSD)
-                case IEEE80211_RADIOTAP_RSSI:
-                    /* Convert to Kismet units...  No reason to use RSSI units
-                     * here since we know the conversion factor */
-                    radioheader->signal_type = kis_l1_signal_type_dbm;
-                    radioheader->signal_dbm = int((float(static_cast<uint8_t>(val)) / float(static_cast<uint8_t>(val2)) * 255));
+                case IEEE80211_RADIOTAP_RSSI: {
+                    // OpenBSD relative RSSI (rssi, max_rssi), unitless; scaled to 0-255 and
+                    // reported as RSSI, not dBm.  A dBm antenna signal in the same header wins:
+                    // it's applied after this record's fields, or already was.  A scaled 0 is
+                    // dropped since the trackers read 0 as no signal.
+                    const auto rssi = static_cast<uint8_t>(val);
+                    const auto max_rssi = static_cast<uint8_t>(val2);
+
+                    if (assigned_signal || max_rssi == 0)
+                        break;
+
+                    const int scaled_rssi = int(std::min(rssi, max_rssi)) * 255 / max_rssi;
+
+                    if (scaled_rssi == 0)
+                        break;
+
+                    in_pack->signal_info.data_ok = true;
+                    in_pack->signal_info.signal_type = kis_l1_signal_type_rssi;
+                    in_pack->signal_info.signal_rssi = scaled_rssi;
                     break;
+                }
 #endif
                 default:
                     break;
