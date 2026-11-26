@@ -37,6 +37,24 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#define ST_CTIME_SEC(st)  ((st)->st_ctimespec.tv_sec)
+#define ST_CTIME_NSEC(st) ((st)->st_ctimespec.tv_nsec)
+#else
+#define ST_CTIME_SEC(st)  ((st)->st_ctim.tv_sec)
+#define ST_CTIME_NSEC(st) ((st)->st_ctim.tv_nsec)
+#endif
+
+/* macOS moves a tty's change time on every write, so the fake node's
+ * identity (rdev, inode, ctime) no longer matches a record once a session
+ * has written to it, and a stale id is never released there.  That is the
+ * safe outcome: a pty's rdev and inode alone get reused. */
+#ifdef __APPLE__
+#define TTY_WRITE_MOVES_CTIME 1
+#else
+#define TTY_WRITE_MOVES_CTIME 0
+#endif
+
 #include "../capture_cell_diag/cell_discover.h"
 #include "mbim_obs.h"
 #include "mbim_wire.h"
@@ -1198,12 +1216,20 @@ static void test_cid_record(void) {
     int ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400,
                                       state, err, sizeof(err));
     CHECK(ok, "after sigkill: open (%s)", err);
-    CHECK(ok && s.stale_released && s.stale_cid == 8 && s.stale_answered,
-          "after sigkill: the open reports releasing id 8 (released=%d cid=%u)",
-          ok ? s.stale_released : -1, ok ? s.stale_cid : 0);
-    fake_seen(&fk, &a, &r, &last);
-    CHECK(r == 1 && last == 8 && a == 1, "after sigkill: the node saw one release "
-          "of id 8 and one request (releases=%d last=%d allocs=%d)", r, last, a);
+    if (TTY_WRITE_MOVES_CTIME) {
+        CHECK(ok && !s.stale_released, "after sigkill: the node's ctime moved, so "
+              "nothing is released (released=%d)", ok ? s.stale_released : -1);
+        fake_seen(&fk, &a, &r, &last);
+        CHECK(r == 0 && a == 1, "after sigkill: the node saw one request and no "
+              "release (releases=%d allocs=%d)", r, a);
+    } else {
+        CHECK(ok && s.stale_released && s.stale_cid == 8 && s.stale_answered,
+              "after sigkill: the open reports releasing id 8 (released=%d cid=%u)",
+              ok ? s.stale_released : -1, ok ? s.stale_cid : 0);
+        fake_seen(&fk, &a, &r, &last);
+        CHECK(r == 1 && last == 8 && a == 1, "after sigkill: the node saw one release "
+              "of id 8 and one request (releases=%d last=%d allocs=%d)", r, last, a);
+    }
     if (ok)
         qmi_session_close(&s);
     CHECK(file_size(state) == 0, "clean close: the record is emptied");
@@ -1243,7 +1269,7 @@ static void test_cid_record(void) {
         fprintf(f, "cellqmi-cid 1 %llu %llu %lld %ld 3 9\n",
                 (unsigned long long) st.st_rdev + (field == 0),
                 (unsigned long long) st.st_ino + (field == 1),
-                (long long) st.st_ctim.tv_sec + (field == 2), (long) st.st_ctim.tv_nsec);
+                (long long) ST_CTIME_SEC(&st) + (field == 2), (long) ST_CTIME_NSEC(&st));
         fclose(f);
         ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
                                       err, sizeof(err));
@@ -1262,12 +1288,16 @@ static void test_cid_record(void) {
     if (f != NULL) {
         fprintf(f, "cellqmi-cid 1 %llu %llu %lld %ld 3 9\n",
                 (unsigned long long) st.st_rdev, (unsigned long long) st.st_ino,
-                (long long) st.st_ctim.tv_sec, (long) st.st_ctim.tv_nsec);
+                (long long) ST_CTIME_SEC(&st), (long) ST_CTIME_NSEC(&st));
         fclose(f);
     }
     ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
                                   err, sizeof(err));
-    CHECK(ok && s.stale_released && s.stale_cid == 9, "matching record: id 9 released");
+    if (TTY_WRITE_MOVES_CTIME)
+        CHECK(ok && !s.stale_released, "matching record: the node's ctime moved "
+              "since, so nothing released");
+    else
+        CHECK(ok && s.stale_released && s.stale_cid == 9, "matching record: id 9 released");
     if (ok)
         qmi_session_close(&s);
     fake_seen(&fk, &a, &r, &last);

@@ -475,7 +475,14 @@ static int proxy_connect(qmi_transport_t *t, const char *name, char *err,
         return 0;
     }
 
+#ifdef SOCK_CLOEXEC
     const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#else
+    /* macOS has no SOCK_CLOEXEC; set the flag right after */
+    const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd >= 0)
+        fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
     if (fd < 0) {
         seterr(err, errsz, "socket: %s", strerror(errno));
         return 0;
