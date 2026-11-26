@@ -792,14 +792,16 @@ protected:
             const std::shared_ptr<dot11_packinfo>& dot11info);
 
     // Map a device as a client of an access point, fill in any data in the
-    // per-client records
+    // per-client records.  With existing_only, only update a client record that
+    // already exists and never create one.
     void process_client(const std::shared_ptr<kis_tracked_device_base>& bssiddev,
             const std::shared_ptr<dot11_tracked_device>& bssiddot11,
             const std::shared_ptr<kis_tracked_device_base>& clientdev,
             const std::shared_ptr<dot11_tracked_device>& clientdot11,
             const std::shared_ptr<kis_packet>& in_pack,
             const std::shared_ptr<dot11_packinfo>& dot11info,
-            const std::shared_ptr<kis_data_packinfo>& pack_datainfo);
+            const std::shared_ptr<kis_data_packinfo>& pack_datainfo,
+            bool existing_only = false);
 
     // A broadcast DHCP offer or ACK names its client only in chaddr
     void process_broadcast_dhcp_lease(const std::shared_ptr<dot11_packinfo>& dot11info,
