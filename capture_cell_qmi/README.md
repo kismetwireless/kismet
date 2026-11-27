@@ -18,7 +18,8 @@ kismet -c cellqmi:device=/dev/wwan0qmi0
 A source names the modem's control node: `cdc-wdmN` (USB, `qmi_wwan` or
 `cdc_mbim`), `wwanNqmiM` / `wwanNmbimM` (the kernel WWAN subsystem), or
 `mhi_QMIN` / `mhi_MBIMN` (Quectel's PCIe MHI driver). The node is root-only, so
-the source runs as root.
+the source runs as root. A `device=` path, links followed, must end at one of
+those nodes in `/dev`, with or without `framing=`.
 
 | option | default | |
 |---|---|---|
@@ -49,6 +50,16 @@ The source detects a proxy from `/proc/net/unix` and never starts one: a started
 `mbim-proxy` outlives its client and keeps the node open. Holders are read from
 `/proc/<pid>/fd` before the helper drops its privileges.
 
+The proxies run as root, and the source uses one only if the process listening
+on its name does: while ModemManager is not running any local user can listen
+on `@qmi-proxy` or `@mbim-proxy`, and what that process answered would be sent
+on as the modem's cells. Such a listener is refused, with its uid and pid;
+stop it, or set `open=direct`.
+
+The node is opened by the capture thread after the source reports open, so a
+slow node (below) never holds up the helper's answers to the server. A failed
+open is reported as the source's error.
+
 Rules that follow from sharing a modem:
 
 - The source never sends QMI CTL Sync. Through a proxy it would reset every
@@ -62,9 +73,19 @@ Rules that follow from sharing a modem:
   before asking for its own, and says so in the Kismet messages. The record
   names the node by device number, inode and change time, so after a modem
   re-enumerates (its node is made again, and the reset freed its IDs) an old
-  number is never released. The record is emptied on every release. Through a
-  proxy nothing is recorded, because other clients share the modem's IDs
-  there. Without a `~/.kismet` directory nothing is recorded.
+  number is never released. An ID leaves the record once its release is sent.
+  Through a proxy nothing is recorded, because other clients share the
+  modem's IDs there. Without a `~/.kismet` directory nothing is recorded.
+- A client ID request is recorded too, until it is answered: a request whose
+  answer never came may still have been granted. The modem is expected to
+  answer in order (not yet confirmed on hardware), so a late grant arrives
+  before the answer to any later request; if it doesn't, an ID can leak, but
+  none is released wrongly. The next
+  open watches for it, releases the ID it names, and says so.
+- Closing the source while it waits for a client ID does not drop the request:
+  it waits up to 1.8 s more for the answer and releases the ID, which fits the
+  3 s close. An answer later than that is left to the record, as above
+  (direct opens only; through a proxy such an ID stays allocated).
 - On a direct QMUX node it asks for a client ID once and waits for the answer
   through whatever the node delivers first. While a node is closed, the modem
   queues indications for every client nobody released, and `cdc-wdm` hands

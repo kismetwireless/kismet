@@ -48,14 +48,14 @@ public:
     datasource_cell_qmi_builder() :
         kis_datasource_builder() {
         register_fields();
-        reserve_fields(NULL);
+        reserve_fields(nullptr);
         initialize();
     }
 
     datasource_cell_qmi_builder(int in_id) :
         kis_datasource_builder(in_id) {
         register_fields();
-        reserve_fields(NULL);
+        reserve_fields(nullptr);
         initialize();
     }
 
