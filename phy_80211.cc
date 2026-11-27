@@ -1796,11 +1796,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            // Probe responses come from every AP in range while the client scans; like
-            // process_client() below, don't treat them as a link to that BSS
-            if (dot11info->bssid_dev != nullptr && dot11info->subtype != packet_sub_probe_resp)
-                dot11info->dest_dot11->set_last_bssid(dot11info->bssid_mac);
-
             // If it's receiving a management packet, it must be a wifi device
             dot11info->dest_dev->set_display_type_ifnotany(d11phy->devtype_client, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             dot11info->dest_dev->bitset_basic_type_radio(KIS_DEVICE_BASICTYPE_CLIENT);
@@ -1823,6 +1818,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->source_dev, dot11info->source_dot11,
                         in_pack, dot11info, pack_datainfo);
 
+            // An AP sends deauths, disassocs and auth responses to stations that were never
+            // associated (reason 7, class 3 frame from a nonassociated STA), so a management
+            // frame to an address only updates a client record created by a frame from it;
+            // it never makes it a client (client map, last_bssid) on its own.  Probe responses
+            // come from every AP in range while the client scans, so they don't count at all.
             if (dot11info->dest_dev != nullptr) {
                 if (dot11info->type == packet_management &&
                         dot11info->subtype == packet_sub_probe_resp) {
@@ -1830,7 +1830,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 } else {
                     d11phy->process_client(dot11info->bssid_dev, dot11info->bssid_dot11,
                             dot11info->dest_dev, dot11info->dest_dot11,
-                            in_pack, dot11info, pack_datainfo);
+                            in_pack, dot11info, pack_datainfo, true);
                 }
             }
 
@@ -6117,7 +6117,8 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
         const std::shared_ptr<dot11_tracked_device>& clientdot11,
         const std::shared_ptr<kis_packet>& in_pack,
         const std::shared_ptr<dot11_packinfo>& dot11info,
-        const std::shared_ptr<kis_data_packinfo>& pack_datainfo) {
+        const std::shared_ptr<kis_data_packinfo>& pack_datainfo,
+        bool existing_only) {
 
     // Sanity check
     if (bssiddev == nullptr || bssiddot11 == nullptr || clientdev == nullptr || clientdot11 == nullptr)
@@ -6134,6 +6135,9 @@ void kis_80211_phy::process_client(const std::shared_ptr<kis_tracked_device_base
     bool new_client_record = false;
 
     if (cmi == client_map->end()) {
+        if (existing_only)
+            return;
+
         client_record = clientdot11->new_client();
         new_client_record = true;
         client_map->insert(bssiddev->get_macaddr(), client_record);
