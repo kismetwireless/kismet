@@ -27,7 +27,10 @@
                    node, then carries MBIM.  It answers MBIM_OPEN and
                    MBIM_CLOSE itself, so neither is sent through it.
     Both stream their messages: reads are split on the message length, not
-    taken one per read().  Both accept only clients whose effective uid is 0.
+    taken one per read().  Both accept only clients whose effective uid is 0,
+    and the source accepts only a proxy running as root: any local user can
+    listen on an abstract name while ModemManager is not running, and what the
+    listener answers would be sent on as the modem's cells.
 
     Client ids: neither a proxy nor the modem frees a client id when its
     holder dies, and each service has only a few.  The session releases its
@@ -45,6 +48,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #include "mbim_wire.h"
 #include "qmi_node.h"
@@ -53,6 +57,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Client ids, and client id requests left unanswered, a record holds */
+#define QMI_REC_SLOTS 4
 
 typedef enum {
     QMI_T_NONE = 0,
@@ -72,7 +79,31 @@ typedef struct {
     int mbim_ready;         /* direct MBIM: the function is known to be open */
     int mbim_opened;        /* direct MBIM: this session sent the MBIM_OPEN */
     mbim_reasm_t reasm;     /* MBIM: a reply arriving in fragments */
+    int opening;            /* an open is under way: qmi_transport_set_open_cancel */
+    uint32_t sent;          /* whole messages written */
+    int hold_cancel;        /* a client id request is out: a cancel waits for it */
+    int cancelled;          /* the open saw a cancel */
+    long cancel_by;         /* held: the latest its answer is waited for */
+    /* Client id grants read while waiting for something else: answers to
+     * requests that timed out, here or in a session that died */
+    struct { uint8_t tid, cid; } late[QMI_REC_SLOTS];
+    int nlate;
 } qmi_transport_t;
+
+/* `cancelled(arg)` returning non-zero ends an open early: its waits poll it
+ * every 100 ms, and no request is sent once it is set.  A client id request
+ * already sent is the exception: its answer is waited for up to
+ * QMI_CANCEL_HOLD_MS more, and an id it grants is released.  Only opens are
+ * cancelled; a close still sends its release.  NULL (the default) never
+ * cancels. */
+#define QMI_CANCEL_HOLD_MS 1800
+void qmi_transport_set_open_cancel(int (*cancelled)(void *), void *arg);
+
+#ifdef QMI_TRANSPORT_SELFTEST
+/* Selftest builds only: connect to @<prefix>qmi-proxy and @<prefix>mbim-proxy,
+ * and accept a proxy run by `uid` instead of root */
+void qmi_transport_selftest_proxy(const char *prefix, uid_t uid);
+#endif
 
 typedef struct {
     qmi_transport_t t;
@@ -92,6 +123,20 @@ typedef struct {
     int stale_released;
     uint8_t stale_cid;
     int stale_answered;     /* the modem answered that release */
+    /* For the record: ids still to release (not the session's own), and the
+     * CTL transaction ids of client id requests with no answer yet, 0 when
+     * empty.  Either can be an earlier session's. */
+    uint8_t held[QMI_REC_SLOTS];
+    uint8_t wait[QMI_REC_SLOTS];
+    int late_released;      /* ids released that the modem granted late */
+    int waits_dropped;      /* requests never answered, given up on */
+    /* The node the record names, and the record once the session's own id
+     * is released, for qmi_session_release_now() */
+    unsigned long long rec_rdev, rec_ino;
+    long long rec_csec;
+    long rec_cnsec;
+    char rec_after[192];
+    size_t rec_after_len;
 } qmi_session_t;
 
 /* How long a cold open's client id request may wait while the node keeps
@@ -121,12 +166,25 @@ int qmi_session_open(qmi_session_t *s, const char *dev, qmi_framing_t framing,
  * someone else.  A direct open happens only when no other program holds the
  * node (the open order refuses otherwise), so the recorded id has no live
  * holder.  Through a proxy, other clients share the modem's ids, and nothing
- * is recorded.  The record is emptied whenever the id is released: on close,
- * and by qmi_session_release_now().  A NULL `state_path`, or a record that
- * cannot be opened, tracks nothing. */
+ * is recorded.  The session's own id leaves the record whenever it is
+ * released: on close, and by qmi_session_release_now().  A NULL
+ * `state_path`, or a record that cannot be opened, tracks nothing.
+ *
+ * A client id request is recorded before it is sent, by its CTL transaction
+ * id, until it is answered: a request whose answer never came (a session
+ * killed or cancelled while it waited, or a timeout) may still have been
+ * granted.  The modem is expected to answer CTL requests in order (not yet
+ * confirmed on hardware; out of order only leaks an id), so the grant arrives
+ * before the answer to any later request; the open watches for it, releases
+ * the id it names, and forgets requests still unanswered once its own is.
+ *
+ * `rdev`, when not NULL, is the device number the direct node must have: it
+ * is opened without following a link, and refused unless it is that
+ * character device. */
 int qmi_session_open_tracked(qmi_session_t *s, const char *dev,
                              qmi_framing_t framing, int via_proxy, int timeout_ms,
-                             const char *state_path, char *err, size_t errsz);
+                             const char *state_path, const dev_t *rdev, char *err,
+                             size_t errsz);
 
 /* Send NAS request `msg_id` (no TLVs) and wait for its reply, which is parsed
  * into `out` and points into `buf`.  1 on a reply, 0 on a timeout, -1 if the
@@ -139,7 +197,8 @@ int qmi_session_nas(qmi_session_t *s, uint16_t msg_id, uint8_t *buf, size_t cap,
 void qmi_session_close(qmi_session_t *s);
 
 /* Async-signal-safe: write the prebuilt release (and MBIM_CLOSE) without
- * waiting for replies, and empty the client id record.  For a signal handler
+ * waiting for replies, and drop the session's own id from the record.  For a
+ * signal handler
  * on the way out. */
 void qmi_session_release_now(const qmi_session_t *s);
 
@@ -168,8 +227,9 @@ typedef struct {
     size_t close_len;
 } mbim_session_t;
 
+/* `rdev` as for qmi_session_open_tracked() */
 int mbim_session_open(mbim_session_t *s, const char *dev, int via_proxy, int timeout_ms,
-                      char *err, size_t errsz);
+                      const dev_t *rdev, char *err, size_t errsz);
 
 /* A query: 1 with the reply in `done` (whose status may be an error), 0 on
  * a timeout, -1 if the transport failed */

@@ -57,6 +57,10 @@ typedef enum {
  * cdc-wdmN, wwanNqmiM, wwanNmbimM, mhi_QMIN, mhi_MBIMN. */
 int qmi_node_name_ok(const char *name);
 
+/* 1 if `path`, already resolved (realpath), is /dev/<a name qmi_node_name_ok
+ * takes>: the only nodes the source opens, whatever framing= says. */
+int qmi_node_path_ok(const char *path);
+
 /* The framing of node `dev`.  `driver` gets what decided it (the USB driver,
  * or "wwan" / "mhi" for a node named by its framing).  QMI_FRAMING_NONE for a
  * cdc-wdm node whose driver is unknown or speaks neither. */

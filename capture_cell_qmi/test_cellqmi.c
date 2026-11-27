@@ -31,7 +31,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <time.h>
@@ -820,6 +823,16 @@ static void test_node_names(void) {
           "wwan MBIM");
     CHECK(qmi_node_framing("/dev/mhi_QMI0", drv, sizeof(drv)) == QMI_FRAMING_QMUX &&
           strcmp(drv, "mhi") == 0, "MHI QMI");
+
+    /* What a resolved device= path may be, framing= or not */
+    CHECK(qmi_node_path_ok("/dev/cdc-wdm0") && qmi_node_path_ok("/dev/wwan0qmi0") &&
+          qmi_node_path_ok("/dev/mhi_MBIM1"), "control nodes in /dev");
+    CHECK(!qmi_node_path_ok("/dev/watchdog") && !qmi_node_path_ok("/dev/pts/3") &&
+          !qmi_node_path_ok("/dev/ttyUSB2") && !qmi_node_path_ok("/tmp/cdc-wdm0") &&
+          !qmi_node_path_ok("/dev/x/cdc-wdm0") && !qmi_node_path_ok("/dev/") &&
+          !qmi_node_path_ok("/dev") && !qmi_node_path_ok("cdc-wdm0") &&
+          !qmi_node_path_ok("/devcdc-wdm0") && !qmi_node_path_ok(NULL),
+          "any other path refused");
 }
 
 static void test_node_sysfs(void) {
@@ -982,6 +995,18 @@ static void fake_node(int master, int count_fd, long backlog_ms, int answer) {
                 if (npending < sizeof(pending))
                     pending[npending++] = (uint8_t) m.tid;
             }
+            /* qmi-proxy's open of the node, when the fake serves as the proxy */
+            if (qmux_parse(in, fl, &m) && m.service == QMI_SVC_CTL &&
+                m.msg_id == QMI_CTL_PROXY_OPEN) {
+                tlvbuf_t t = { .n = 0 };
+                tlv_result(&t, 0, 0);
+                size_t n = qmux_build(f, sizeof(f), QMI_SVC_CTL, 0, (uint8_t) m.tid,
+                                      QMI_CTL_PROXY_OPEN, t.b, t.n);
+                f[3] = 0x80;
+                f[6] = 0x01;
+                if (write(master, f, n) < 0)
+                    _exit(0);
+            }
             /* A release is reported as 'r' and the id it names */
             if (qmux_parse(in, fl, &m) && m.service == QMI_SVC_CTL &&
                 m.msg_id == QMI_CTL_RELEASE_CLIENT_ID && fl >= 6 + 6 + 5) {
@@ -1097,7 +1122,7 @@ typedef struct {
     char slave_name[128];
 } fake_t;
 
-static int fake_start(fake_t *fk) {
+static int fake_start_backlog(fake_t *fk, long backlog_ms) {
     int c[2];
     struct termios tio;
 
@@ -1118,12 +1143,16 @@ static int fake_start(fake_t *fk) {
     if (fk->pid == 0) {
         close(c[0]);
         close(fk->slave);
-        fake_node(fk->master, c[1], 0, 1);
+        fake_node(fk->master, c[1], backlog_ms, 1);
         _exit(0);
     }
     close(c[1]);
     fk->counts = c[0];
     return 1;
+}
+
+static int fake_start(fake_t *fk) {
+    return fake_start_backlog(fk, 0);
 }
 
 /* What the node saw since the last call: client id requests, releases, and
@@ -1170,7 +1199,7 @@ static void child_session(fake_t *fk, const char *state, char how) {
         char err[256];
         close(ready[0]);
         const int ok = qmi_session_open_tracked(&s, fk->slave_name, QMI_FRAMING_QMUX,
-                                                0, 400, state, err, sizeof(err));
+                                                0, 400, state, NULL, err, sizeof(err));
         if (ok && how == 't')
             qmi_session_release_now(&s);
         if (ok && how == 'c')
@@ -1214,7 +1243,7 @@ static void test_cid_record(void) {
 
     /* The next open releases the dead session's id 8, then takes its own */
     int ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400,
-                                      state, err, sizeof(err));
+                                      state, NULL, err, sizeof(err));
     CHECK(ok, "after sigkill: open (%s)", err);
     if (TTY_WRITE_MOVES_CTIME) {
         CHECK(ok && !s.stale_released, "after sigkill: the node's ctime moved, so "
@@ -1237,7 +1266,7 @@ static void test_cid_record(void) {
 
     /* After a clean close there is nothing to release */
     ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
-                                  err, sizeof(err));
+                                  NULL, err, sizeof(err));
     CHECK(ok && !s.stale_released, "after a clean close: nothing released");
     if (ok)
         qmi_session_close(&s);
@@ -1250,7 +1279,7 @@ static void test_cid_record(void) {
     fake_seen(&fk, &a, &r, &last);
     CHECK(file_size(state) == 0, "sigterm path: the record is emptied");
     ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
-                                  err, sizeof(err));
+                                  NULL, err, sizeof(err));
     CHECK(ok && !s.stale_released, "after the sigterm path: nothing released");
     if (ok)
         qmi_session_close(&s);
@@ -1272,7 +1301,7 @@ static void test_cid_record(void) {
                 (long long) ST_CTIME_SEC(&st) + (field == 2), (long) ST_CTIME_NSEC(&st));
         fclose(f);
         ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
-                                      err, sizeof(err));
+                                      NULL, err, sizeof(err));
         CHECK(ok && !s.stale_released, "another node's record (%s differs): nothing "
               "released", kField[field]);
         if (ok)
@@ -1292,7 +1321,7 @@ static void test_cid_record(void) {
         fclose(f);
     }
     ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, state,
-                                  err, sizeof(err));
+                                  NULL, err, sizeof(err));
     if (TTY_WRITE_MOVES_CTIME)
         CHECK(ok && !s.stale_released, "matching record: the node's ctime moved "
               "since, so nothing released");
@@ -1311,6 +1340,612 @@ static void test_cid_record(void) {
 
     fake_stop(&fk);
 }
+
+/* ------------------------------------------------------------ open cancel */
+
+static long g_cancel_at_ms;
+
+static int cancel_at(void *arg) {
+    (void) arg;
+    return fake_now_ms() >= g_cancel_at_ms;
+}
+
+static void test_open_cancel(void) {
+    /* The helper opens in its capture thread, where a close must not wait
+     * out the backlog cap: a cancel ends the open within a poll */
+    qmi_transport_set_open_cancel(cancel_at, NULL);
+    g_cancel_at_ms = fake_now_ms() + 300;
+    cold_open_t r = cold_open(-1, 0, 400);
+    CHECK(!r.opened && r.elapsed_ms < 1000, "cancelled open: ends in %ld ms",
+          r.elapsed_ms);
+
+    /* Cancelled before anything is asked: nothing is sent */
+    g_cancel_at_ms = 0;
+    r = cold_open(0, 1, 400);
+    CHECK(!r.opened && r.alloc_requests == 0, "cancelled at once: opened=%d, %d client "
+          "id requests", r.opened, r.alloc_requests);
+
+    fake_t fk;
+    qmi_session_t s;
+    char state[300], err[256] = "";
+    int a, rel, last;
+
+    if (!fake_start(&fk)) {
+        printf("FAIL: cannot make a pty for the fake node\n");
+        failures++;
+        qmi_transport_set_open_cancel(NULL, NULL);
+        return;
+    }
+
+    /* A cancel once the open is done does not stop the close's release */
+    g_cancel_at_ms = fake_now_ms() + 60000;
+    int ok = qmi_session_open(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400, err,
+                              sizeof(err));
+    CHECK(ok, "open before the cancel (%s)", err);
+    g_cancel_at_ms = 0;
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    CHECK(a == 1 && rel == 1 && last == 8, "cancel after the open: the close still "
+          "released id 8 (allocs=%d releases=%d last=%d)", a, rel, last);
+
+    /* A recorded id whose release never went out stays recorded */
+    if (!TTY_WRITE_MOVES_CTIME) {
+        struct stat st;
+        snprintf(state, sizeof(state), "%s/cellqmi-cancel.cid", g_tmp);
+        stat(fk.slave_name, &st);
+        FILE *f = fopen(state, "w");
+        if (f != NULL) {
+            fprintf(f, "cellqmi-cid 1 %llu %llu %lld %ld 3 9\n",
+                    (unsigned long long) st.st_rdev, (unsigned long long) st.st_ino,
+                    (long long) ST_CTIME_SEC(&st), (long) ST_CTIME_NSEC(&st));
+            fclose(f);
+        }
+        ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400,
+                                      state, NULL, err, sizeof(err));
+        fake_seen(&fk, &a, &rel, &last);
+        CHECK(!ok && a == 0 && rel == 0, "cancelled with a record: nothing sent "
+              "(opened=%d allocs=%d releases=%d)", ok, a, rel);
+        if (ok)
+            qmi_session_close(&s);
+
+        /* The id is still recorded: the next open releases it */
+        g_cancel_at_ms = fake_now_ms() + 60000;
+        ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 400,
+                                      state, NULL, err, sizeof(err));
+        CHECK(ok && s.stale_released && s.stale_cid == 9, "cancelled with a record: "
+              "the next open releases id 9 (opened=%d released=%d cid=%u)", ok,
+              ok ? s.stale_released : -1, ok ? s.stale_cid : 0);
+        if (ok)
+            qmi_session_close(&s);
+        fake_seen(&fk, &a, &rel, &last);
+    }
+
+    fake_stop(&fk);
+    qmi_transport_set_open_cancel(NULL, NULL);
+}
+
+/* A cancel after the client id request went out (audit round 1, M1): the
+ * grant must still be read and released, or the id leaks */
+static void test_cancel_after_alloc(void) {
+    fake_t fk;
+    qmi_session_t s;
+    char state[300], err[256] = "";
+    int a, rel, last;
+
+    qmi_transport_set_open_cancel(cancel_at, NULL);
+
+    /* The grant comes 1.4 s after the cancel, inside the hold */
+    if (!fake_start_backlog(&fk, 4000)) {
+        printf("FAIL: cannot make a pty for the fake node\n");
+        failures++;
+        qmi_transport_set_open_cancel(NULL, NULL);
+        return;
+    }
+    long t0 = fake_now_ms();
+    g_cancel_at_ms = t0 + 2600;
+    int ok = qmi_session_open(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 3000, err,
+                              sizeof(err));
+    const long took = fake_now_ms() - t0;
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    CHECK(!ok && strstr(err, "cancelled") != NULL, "cancel after the alloc: the open "
+          "is cancelled (opened=%d, %s)", ok, err);
+    CHECK(a == 1 && rel == 1 && last == 8, "cancel after the alloc: the late grant is "
+          "released (allocs=%d releases=%d last=%d)", a, rel, last);
+    CHECK(took < 2600 + QMI_CANCEL_HOLD_MS + 1000, "cancel after the alloc: done in "
+          "%ld ms", took);
+    fake_stop(&fk);
+
+    /* The grant comes after the hold: the open gives up, the request stays
+     * recorded, and the next open releases what the grant names */
+    snprintf(state, sizeof(state), "%s/cellqmi-held.cid", g_tmp);
+    unlink(state);
+    if (!fake_start_backlog(&fk, 6000)) {
+        printf("FAIL: cannot make a pty for the fake node\n");
+        failures++;
+        qmi_transport_set_open_cancel(NULL, NULL);
+        return;
+    }
+    t0 = fake_now_ms();
+    g_cancel_at_ms = t0 + 2600;
+    ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 3000, state,
+                                  NULL, err, sizeof(err));
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    CHECK(!ok && a == 1 && rel == 0, "hold expired: cancelled, nothing to release yet "
+          "(opened=%d allocs=%d releases=%d)", ok, a, rel);
+    CHECK(file_size(state) > 0, "hold expired: the request is recorded");
+
+    /* the grant is now waiting on the node */
+    while (fake_now_ms() < t0 + 6400)
+        usleep(50 * 1000);
+    g_cancel_at_ms = fake_now_ms() + 60000;
+    ok = qmi_session_open_tracked(&s, fk.slave_name, QMI_FRAMING_QMUX, 0, 1000, state,
+                                  NULL, err, sizeof(err));
+    const int released = ok && !s.stale_released && s.late_released == 1;
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    if (TTY_WRITE_MOVES_CTIME) {
+        CHECK(ok, "hold expired: the next open (%s)", err);
+    } else {
+        CHECK(ok && released, "hold expired: the next open releases the late grant "
+              "(opened=%d released=%d, %s)", ok, released, err);
+        CHECK(a == 1 && rel == 2, "hold expired: the late id and the session's own "
+              "are released (allocs=%d releases=%d)", a, rel);
+    }
+    CHECK(file_size(state) == 0, "hold expired: the record is empty after the close");
+    fake_stop(&fk);
+
+    /* A cancel while a release waits for its answer (not held): the release
+     * counts as sent and the open ends at once.  Nothing answers here. */
+    int master = posix_openpt(O_RDWR | O_NOCTTY);
+    if (master >= 0 && grantpt(master) == 0 && unlockpt(master) == 0) {
+        struct termios tio;
+        struct stat st;
+        const char *slave_name = ptsname(master);
+        const int slave = open(slave_name, O_RDWR | O_NOCTTY);
+        if (slave >= 0 && tcgetattr(slave, &tio) == 0) {
+            cfmakeraw(&tio);
+            tcsetattr(slave, TCSANOW, &tio);
+            tcsetattr(master, TCSANOW, &tio);
+            FILE *f = stat(slave_name, &st) == 0 ? fopen(state, "w") : NULL;
+            if (f != NULL) {
+                fprintf(f, "cellqmi-cid 1 %llu %llu %lld %ld 3 9\n",
+                        (unsigned long long) st.st_rdev, (unsigned long long) st.st_ino,
+                        (long long) ST_CTIME_SEC(&st), (long) ST_CTIME_NSEC(&st));
+                fclose(f);
+            }
+            t0 = fake_now_ms();
+            g_cancel_at_ms = t0 + 400;
+            ok = qmi_session_open_tracked(&s, slave_name, QMI_FRAMING_QMUX, 0, 3000,
+                                          state, NULL, err, sizeof(err));
+            const long t = fake_now_ms() - t0;
+            if (ok)
+                qmi_session_close(&s);
+
+            uint8_t in[4096];
+            int nalloc = 0, nrelease = 0;
+            fcntl(master, F_SETFL, O_NONBLOCK);
+            const ssize_t n = read(master, in, sizeof(in));
+            for (size_t off = 0; n > 0 && off < (size_t) n;) {
+                int bad = 0;
+                const size_t fl = qmux_frame_len(in + off, (size_t) n - off, &bad);
+                qmux_msg_t m;
+                if (bad || fl == 0)
+                    break;
+                if (qmux_parse(in + off, fl, &m) && m.service == QMI_SVC_CTL) {
+                    nalloc += m.msg_id == QMI_CTL_GET_CLIENT_ID;
+                    nrelease += m.msg_id == QMI_CTL_RELEASE_CLIENT_ID;
+                }
+                off += fl;
+            }
+            if (!TTY_WRITE_MOVES_CTIME) {
+                CHECK(!ok && t < 1500 && nrelease == 1 && nalloc == 0, "cancel in a "
+                      "release's wait: ends in %ld ms, %d release(s), %d alloc(s)",
+                      t, nrelease, nalloc);
+                CHECK(file_size(state) == 0, "cancel in a release's wait: the sent "
+                      "release leaves the record");
+            }
+        }
+        if (slave >= 0)
+            close(slave);
+        close(master);
+    }
+
+    qmi_transport_set_open_cancel(NULL, NULL);
+}
+
+static size_t mbim_done_build(uint8_t *out, size_t cap, uint32_t tid, const uint8_t uuid[16],
+                              uint32_t cid, uint32_t status, const uint8_t *info,
+                              size_t info_len);
+static size_t devsvc_build(uint8_t *out, int with_qmi, int with_bsi, int with_atds);
+
+static uint32_t rd32le(const uint8_t *p) {
+    return p[0] | (p[1] << 8) | (p[2] << 16) | ((uint32_t) p[3] << 24);
+}
+
+/* A fake MBIM node, already open, that carries QMI: it answers
+ * DEVICE_SERVICES (QMI offered) and QMI CTL client id requests and releases
+ * wrapped in MBIM.  The first grant comes `first_delay_ms` after its
+ * request, later ones at once.  Reports 'a' per request and 'r' and the id
+ * per release on `count_fd`. */
+static void fake_qmbim_node(int fd, int count_fd, long first_delay_ms) {
+    uint8_t in[8192], out[512], info[512], q[128];
+    size_t inlen = 0;
+    uint32_t due_tid = 0;
+    uint8_t due_ctl = 0;
+    long due_at = -1;
+    int grants = 0;
+
+    for (;;) {
+        if (due_at >= 0 && fake_now_ms() >= due_at) {
+            tlvbuf_t t = { .n = 0 };
+            tlv_result(&t, 0, 0);
+            size_t s = tlv_begin(&t, 0x01);
+            put8(&t, QMI_SVC_NAS);
+            put8(&t, 8);
+            tlv_end(&t, s);
+            size_t n = qmux_build(q, sizeof(q), QMI_SVC_CTL, 0, due_ctl,
+                                  QMI_CTL_GET_CLIENT_ID, t.b, t.n);
+            q[3] = 0x80;
+            q[6] = 0x01;
+            const size_t ol = mbim_done_build(out, sizeof(out), due_tid, mbim_uuid_qmi,
+                                              MBIM_CID_QMI_MSG, 0, q, n);
+            if (write(fd, out, ol) < 0)
+                _exit(0);
+            due_at = -1;
+        }
+
+        struct pollfd p = { .fd = fd, .events = POLLIN };
+        if (poll(&p, 1, 5) > 0) {
+            const ssize_t r = read(fd, in + inlen, sizeof(in) - inlen);
+            if (r <= 0)
+                _exit(0);
+            inlen += (size_t) r;
+        }
+
+        for (;;) {
+            int bad = 0;
+            const size_t fl = mbim_frame_len(in, inlen, &bad);
+            if (bad)
+                _exit(1);
+            if (fl == 0 || fl > inlen)
+                break;
+
+            /* A host command: header, fragment header, service, cid, type,
+             * information length, information */
+            const uint32_t type = rd32le(in);
+            const uint32_t info_len = fl >= 48 ? rd32le(in + 44) : 0;
+            if (type == MBIM_COMMAND_MSG && fl >= 48 && info_len <= fl - 48) {
+                const struct {
+                    uint32_t tid, cid;
+                    const uint8_t *uuid, *info;
+                    uint32_t info_len;
+                } m = { rd32le(in + 8), rd32le(in + 36), in + 20, in + 48, info_len };
+                qmux_msg_t qm;
+                if (memcmp(m.uuid, mbim_uuid_basic_connect, 16) == 0) {
+                    const size_t il = devsvc_build(info, 1, 0, 0);
+                    const size_t ol = mbim_done_build(out, sizeof(out), m.tid, m.uuid,
+                                                      m.cid, 0, info, il);
+                    if (write(fd, out, ol) < 0)
+                        _exit(0);
+                } else if (memcmp(m.uuid, mbim_uuid_qmi, 16) == 0 &&
+                           qmux_parse(m.info, m.info_len, &qm) &&
+                           qm.service == QMI_SVC_CTL) {
+                    if (qm.msg_id == QMI_CTL_GET_CLIENT_ID) {
+                        if (write(count_fd, "a", 1) < 0)
+                            _exit(0);
+                        due_tid = m.tid;
+                        due_ctl = (uint8_t) qm.tid;
+                        due_at = fake_now_ms() + (grants++ == 0 ? first_delay_ms : 0);
+                    } else if (qm.msg_id == QMI_CTL_RELEASE_CLIENT_ID) {
+                        const uint8_t cid = m.info[m.info_len - 1];
+                        const uint8_t rep[2] = { 'r', cid };
+                        if (write(count_fd, rep, 2) < 0)
+                            _exit(0);
+                        tlvbuf_t t = { .n = 0 };
+                        tlv_result(&t, 0, 0);
+                        size_t s = tlv_begin(&t, 0x01);
+                        put8(&t, QMI_SVC_NAS);
+                        put8(&t, cid);
+                        tlv_end(&t, s);
+                        size_t n = qmux_build(q, sizeof(q), QMI_SVC_CTL, 0, (uint8_t) qm.tid,
+                                              QMI_CTL_RELEASE_CLIENT_ID, t.b, t.n);
+                        q[3] = 0x80;
+                        q[6] = 0x01;
+                        const size_t ol = mbim_done_build(out, sizeof(out), m.tid,
+                                                          mbim_uuid_qmi, MBIM_CID_QMI_MSG,
+                                                          0, q, n);
+                        if (write(fd, out, ol) < 0)
+                            _exit(0);
+                    }
+                }
+            }
+            memmove(in, in + fl, inlen - fl);
+            inlen -= fl;
+        }
+    }
+}
+
+/* One QMI over MBIM open (qmi_session_adopt) on `fk`'s node, cancelled at
+ * `cancel_ms` after it starts (-1 never) */
+static int adopt_open(const char *node, long cancel_ms, const char *state,
+                      qmi_session_t *s, char *err, size_t errsz) {
+    mbim_session_t ms;
+
+    g_cancel_at_ms = fake_now_ms() + (cancel_ms < 0 ? 600000 : cancel_ms);
+    if (!mbim_session_open(&ms, node, 0, 1500, NULL, err, errsz))
+        return 0;
+    if (!ms.caps.have_qmi) {
+        snprintf(err, errsz, "the fake offered no QMI");
+        mbim_session_close(&ms);
+        return 0;
+    }
+    return qmi_session_adopt(s, &ms, 2500, state, err, errsz);
+}
+
+static int fake_qmbim_start(fake_t *fk, long first_delay_ms) {
+    int c[2];
+    struct termios tio;
+
+    memset(fk, 0, sizeof(*fk));
+    fk->master = posix_openpt(O_RDWR | O_NOCTTY);
+    if (fk->master < 0 || grantpt(fk->master) < 0 || unlockpt(fk->master) < 0 ||
+        pipe(c) < 0)
+        return 0;
+    snprintf(fk->slave_name, sizeof(fk->slave_name), "%s", ptsname(fk->master));
+    fk->slave = open(fk->slave_name, O_RDWR | O_NOCTTY);
+    if (fk->slave < 0 || tcgetattr(fk->slave, &tio) < 0)
+        return 0;
+    cfmakeraw(&tio);
+    tcsetattr(fk->slave, TCSANOW, &tio);
+    tcsetattr(fk->master, TCSANOW, &tio);
+    fcntl(c[0], F_SETFL, O_NONBLOCK);
+
+    fk->pid = fork();
+    if (fk->pid == 0) {
+        close(c[0]);
+        close(fk->slave);
+        fake_qmbim_node(fk->master, c[1], first_delay_ms);
+        _exit(0);
+    }
+    close(c[1]);
+    fk->counts = c[0];
+    return 1;
+}
+
+/* M1 for QMI over MBIM: the same hold, and the same record */
+static void test_cancel_after_alloc_adopt(void) {
+    fake_t fk;
+    qmi_session_t s;
+    char state[300], err[256] = "";
+    int a, rel, last;
+
+    qmi_transport_set_open_cancel(cancel_at, NULL);
+
+    /* The grant comes 1.5 s after its request, the cancel 0.6 s into the open */
+    if (!fake_qmbim_start(&fk, 1500)) {
+        printf("FAIL: cannot make a pty for the fake MBIM node\n");
+        failures++;
+        qmi_transport_set_open_cancel(NULL, NULL);
+        return;
+    }
+    int ok = adopt_open(fk.slave_name, -1, NULL, &s, err, sizeof(err));
+    CHECK(ok, "adopt: opens without a cancel (%s)", err);
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    CHECK(a == 1 && rel == 1 && last == 8, "adopt: one grant, one release (allocs=%d "
+          "releases=%d)", a, rel);
+
+    fake_stop(&fk);
+    if (!fake_qmbim_start(&fk, 1500)) {
+        printf("FAIL: cannot make a pty for the fake MBIM node\n");
+        failures++;
+        qmi_transport_set_open_cancel(NULL, NULL);
+        return;
+    }
+    ok = adopt_open(fk.slave_name, 600, NULL, &s, err, sizeof(err));
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    CHECK(!ok && a == 1 && rel == 1 && last == 8, "adopt, cancel after the alloc: the "
+          "late grant is released (opened=%d allocs=%d releases=%d, %s)", ok, a, rel,
+          err);
+    fake_stop(&fk);
+
+    /* Past the hold: recorded, and released by the next open */
+    snprintf(state, sizeof(state), "%s/cellqmi-adopt.cid", g_tmp);
+    unlink(state);
+    if (!fake_qmbim_start(&fk, 3500)) {
+        printf("FAIL: cannot make a pty for the fake MBIM node\n");
+        failures++;
+        qmi_transport_set_open_cancel(NULL, NULL);
+        return;
+    }
+    const long t0 = fake_now_ms();
+    ok = adopt_open(fk.slave_name, 600, state, &s, err, sizeof(err));
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    CHECK(!ok && a == 1 && rel == 0 && file_size(state) > 0, "adopt, hold expired: "
+          "cancelled with the request recorded (opened=%d allocs=%d releases=%d)", ok,
+          a, rel);
+    while (fake_now_ms() < t0 + 4200)
+        usleep(50 * 1000);
+    ok = adopt_open(fk.slave_name, -1, state, &s, err, sizeof(err));
+    const int released = ok && !s.stale_released && s.late_released == 1;
+    if (ok)
+        qmi_session_close(&s);
+    fake_seen(&fk, &a, &rel, &last);
+    if (!TTY_WRITE_MOVES_CTIME) {
+        CHECK(ok && released && a == 1 && rel == 2, "adopt, hold expired: the next open "
+              "releases the late grant (opened=%d released=%d allocs=%d releases=%d, %s)",
+              ok, released, a, rel, err);
+        CHECK(file_size(state) == 0, "adopt, hold expired: the record is empty after "
+              "the close");
+    }
+    fake_stop(&fk);
+
+    qmi_transport_set_open_cancel(NULL, NULL);
+}
+
+/* ------------------------------------------------------------ proxy owner */
+
+#ifdef __linux__
+static int abstract_listen(const char *name, int backlog) {
+    struct sockaddr_un a;
+    const size_t nl = strlen(name);
+
+    if (nl + 1 > sizeof(a.sun_path))
+        return -1;
+    const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0)
+        return -1;
+    memset(&a, 0, sizeof(a));
+    a.sun_family = AF_UNIX;
+    memcpy(a.sun_path + 1, name, nl);
+    if (bind(fd, (struct sockaddr *) &a,
+             (socklen_t) (offsetof(struct sockaddr_un, sun_path) + 1 + nl)) < 0 ||
+        listen(fd, backlog) < 0) {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+/* What the client that connected to `lfd` sent before it hung up: -1 if it
+ * never connected */
+static ssize_t client_sent(int lfd) {
+    uint8_t buf[512];
+    struct pollfd p = { .fd = lfd, .events = POLLIN };
+
+    if (poll(&p, 1, 1000) <= 0)
+        return -1;
+    const int c = accept(lfd, NULL, NULL);
+    if (c < 0)
+        return -1;
+    p.fd = c;
+    ssize_t n = poll(&p, 1, 1000) > 0 ? read(c, buf, sizeof(buf)) : -1;
+    close(c);
+    return n;
+}
+
+static void test_proxy_owner(void) {
+    char prefix[64], qname[96], mname[96], err[512] = "";
+    qmi_session_t s;
+    mbim_session_t ms;
+    const uid_t me = getuid();
+
+    /* Names of this process's own, never the real proxies' */
+    snprintf(prefix, sizeof(prefix), "kismet-selftest-%d-", (int) getpid());
+    snprintf(qname, sizeof(qname), "%sqmi-proxy", prefix);
+    snprintf(mname, sizeof(mname), "%smbim-proxy", prefix);
+
+    /* Any user can listen on a proxy's name: one not run by the proxy's
+     * owner is refused before it is sent anything, the node's path included */
+    qmi_transport_selftest_proxy(prefix, me + 1);
+    int lfd = abstract_listen(qname, 4);
+    CHECK(lfd >= 0, "listen on @%s", qname);
+    if (lfd >= 0) {
+        const int ok = qmi_session_open(&s, "/dev/cdc-wdm0", QMI_FRAMING_QMUX, 1, 400,
+                                        err, sizeof(err));
+        CHECK(!ok && strstr(err, "refusing") != NULL, "qmi-proxy run by another uid: "
+              "refused (%s)", err);
+        CHECK(client_sent(lfd) == 0, "qmi-proxy run by another uid: sent nothing");
+        if (ok)
+            qmi_session_close(&s);
+        close(lfd);
+    }
+
+    lfd = abstract_listen(mname, 4);
+    CHECK(lfd >= 0, "listen on @%s", mname);
+    if (lfd >= 0) {
+        const int ok = mbim_session_open(&ms, "/dev/cdc-wdm0", 1, 400, NULL, err,
+                                         sizeof(err));
+        CHECK(!ok && strstr(err, "refusing") != NULL, "mbim-proxy run by another uid: "
+              "refused (%s)", err);
+        CHECK(client_sent(lfd) == 0, "mbim-proxy run by another uid: sent nothing");
+        if (ok)
+            mbim_session_close(&ms);
+        close(lfd);
+    }
+
+    /* A listener that never accepts, its backlog full, is not waited on */
+    lfd = abstract_listen(qname, 0);
+    const int filler = lfd >= 0 ? socket(AF_UNIX, SOCK_STREAM, 0) : -1;
+    if (filler >= 0) {
+        struct sockaddr_un a;
+        memset(&a, 0, sizeof(a));
+        a.sun_family = AF_UNIX;
+        memcpy(a.sun_path + 1, qname, strlen(qname));
+        const int fc = connect(filler, (struct sockaddr *) &a,
+                               (socklen_t) (offsetof(struct sockaddr_un, sun_path) + 1 +
+                                            strlen(qname)));
+        const long t0 = fake_now_ms();
+        const int ok = qmi_session_open(&s, "/dev/cdc-wdm0", QMI_FRAMING_QMUX, 1, 400,
+                                        err, sizeof(err));
+        const long ms_taken = fake_now_ms() - t0;
+        CHECK(fc == 0 && !ok && ms_taken < 1000 && strstr(err, "not accepting") != NULL,
+              "full backlog: refused in %ld ms (%s)", ms_taken, err);
+        if (ok)
+            qmi_session_close(&s);
+        close(filler);
+    }
+    if (lfd >= 0)
+        close(lfd);
+
+    /* Run by the proxy's owner: used, and the session goes through it */
+    qmi_transport_selftest_proxy(prefix, me);
+    int counts[2];
+    lfd = abstract_listen(qname, 4);
+    if (lfd >= 0 && pipe(counts) == 0) {
+        const pid_t pid = fork();
+        if (pid == 0) {
+            close(counts[0]);
+            const int c = accept(lfd, NULL, NULL);
+            if (c >= 0)
+                fake_node(c, counts[1], 0, 1);
+            _exit(0);
+        }
+        close(counts[1]);
+
+        const int ok = qmi_session_open(&s, "/dev/cdc-wdm0", QMI_FRAMING_QMUX, 1, 400,
+                                        err, sizeof(err));
+        CHECK(ok && s.t.kind == QMI_T_PROXY_QMUX && s.nas_cid == 8, "qmi-proxy run by "
+              "its owner: opened through it (%s)", err);
+        if (ok)
+            qmi_session_close(&s);
+
+        usleep(100 * 1000);
+        kill(pid, SIGKILL);
+        waitpid(pid, NULL, 0);
+
+        char buf[64];
+        int a = 0, rel = 0;
+        const ssize_t n = read(counts[0], buf, sizeof(buf));
+        for (ssize_t i = 0; i < n; i++) {
+            if (buf[i] == 'a')
+                a++;
+            else if (buf[i] == 'r' && i + 1 < n && buf[++i] == 8)
+                rel++;
+        }
+        CHECK(a == 1 && rel == 1, "qmi-proxy run by its owner: one request, id 8 "
+              "released (allocs=%d releases=%d)", a, rel);
+        close(counts[0]);
+    } else {
+        CHECK(0, "listen on @%s for the owner case", qname);
+    }
+    if (lfd >= 0)
+        close(lfd);
+
+    qmi_transport_selftest_proxy("", 0);
+}
+#endif
 
 /* ------------------------------------------------------------ native MBIM */
 
@@ -1812,7 +2447,7 @@ static mbim_fake_t mbim_fake_run(int already_open, size_t max) {
 
     mbim_session_t s;
     char err[256] = "";
-    res.opened = mbim_session_open(&s, slave_name, 0, 1500, err, sizeof(err));
+    res.opened = mbim_session_open(&s, slave_name, 0, 1500, NULL, err, sizeof(err));
     if (!res.opened)
         printf("     (fake MBIM open: %s)\n", err);
     if (res.opened) {
@@ -1902,6 +2537,12 @@ int main(void) {
     test_node_sysfs();
     test_cold_open_backlog();
     test_cid_record();
+    test_open_cancel();
+    test_cancel_after_alloc();
+    test_cancel_after_alloc_adopt();
+#ifdef __linux__
+    test_proxy_owner();
+#endif
     test_mbim_fragments();
     test_mbim_device_services();
     test_mbim_base_stations();

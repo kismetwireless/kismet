@@ -103,9 +103,21 @@ static const char *node_name(const char *dev, char *buf, size_t bufsz) {
     if (g_root[0] == '\0' && realpath(dev, resolved) != NULL)
         path = resolved;
 
+    /* A name too long for `buf` is no node's: left empty, it matches none */
     const char *slash = strrchr(path, '/');
-    snprintf(buf, bufsz, "%s", slash != NULL ? slash + 1 : path);
+    const int n = snprintf(buf, bufsz, "%s", slash != NULL ? slash + 1 : path);
+    if (n < 0 || (size_t) n >= bufsz)
+        buf[0] = '\0';
     return buf;
+}
+
+int qmi_node_path_ok(const char *path) {
+    static const char dev[] = "/dev/";
+
+    if (path == NULL || strncmp(path, dev, sizeof(dev) - 1) != 0)
+        return 0;
+    path += sizeof(dev) - 1;
+    return strchr(path, '/') == NULL && qmi_node_name_ok(path);
 }
 
 qmi_framing_t qmi_node_framing(const char *dev, char *driver, size_t driversz) {
