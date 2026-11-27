@@ -596,20 +596,28 @@ AC_CHECK_LIB([z], [deflate],
 LIBS="$LIBS -lz"
 
 # Do we need -latomic
-AC_MSG_CHECKING([for libatomic])
-OLIBS="$LIBS"
-LIBS="$LIBS -latomic"
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-                ]],
-                [[
-                 return 0;
-                ]] )], [have_atomic=yes], [have_atomic=no])
-if test "$have_atomic" = "yes"; then
-    AC_MSG_RESULT([yes])
-else
-    AC_MSG_RESULT([no])
-    LIBS="$OLIBS"
-fi
+AC_MSG_CHECKING([whether -latomic is needed])
+AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM([[#include <atomic>
+                     #include <cstdint>]],
+                   [[std::atomic<uint64_t> a{0};
+                     std::atomic<uint8_t> b{0};
+                     return a.fetch_add(1) + b.fetch_add(1);]])],
+  [AC_MSG_RESULT([no])],
+  [
+    save_LIBS="$LIBS"
+    LIBS="$LIBS -latomic"
+    AC_LINK_IFELSE(
+      [AC_LANG_PROGRAM([[#include <atomic>
+                         #include <cstdint>]],
+                       [[std::atomic<uint64_t> a{0};
+                         std::atomic<uint8_t> b{0};
+                         return a.fetch_add(1) + b.fetch_add(1);]])],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_FAILURE([cannot link atomic operations even with -latomic])]
+    )
+  ]
+)
 
 # We need threads
 PTHREAD_CFLAGS="-pthread"
