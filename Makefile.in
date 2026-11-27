@@ -919,6 +919,11 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_WCH_BLE_ANALYZER_PRO) $(BIN)/`basename $(CAPTURE_WCH_BLE_ANALYZER_PRO)` ; \
 	fi;
 
+	@# Root reaches qmi-proxy and mbim-proxy, which take only root clients
+	@if test "$(BUILD_CAPTURE_CELL_QMI)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_CELL_QMI) $(BIN)/`basename $(CAPTURE_CELL_QMI)` ; \
+	fi;
+
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(ETC)/kismet_site.d
