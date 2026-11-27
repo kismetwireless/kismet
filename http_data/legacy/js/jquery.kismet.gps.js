@@ -372,8 +372,8 @@
                 last_gps['kismet.common.location.geopoint'][0]);
 
             gpstext.removeClass('gpstext_lost');
-            gpslat.html(kismet.censorLocation[last_gps['kismet.common.location.geopoint'][1]]);
-            gpslon.html(kismet.censorLocation[last_gps['kismet.common.location.geopoint'][0]]);
+            gpslat.html(kismet.censorLocation(last_gps['kismet.common.location.geopoint'][1]));
+            gpslon.html(kismet.censorLocation(last_gps['kismet.common.location.geopoint'][0]));
 
             // gpstext.html(kismet.censorLocation(last_gps['kismet.common.location.geopoint'][1]) + " x " + kismet.censorLocation(last_gps['kismet.common.location.geopoint'][0]));
         } else if (last_gps['kismet.common.location.fix'] == 3) {
