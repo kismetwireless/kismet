@@ -151,6 +151,9 @@ capture_cell_diag/diag_logstream_dump
 # negation loses nothing.
 capture_cell_diag/test_*
 !capture_cell_diag/test_*.c
+capture_cell_qmi/kismet_cap_cell_qmi
+capture_cell_qmi/test_*
+!capture_cell_qmi/test_*.c
 capture_sniffle_ble/kismet_cap_sniffle_ble
 capture_lorapipe/kismet_cap_lorapipe
 kismet_cap_pcapfile

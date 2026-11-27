@@ -299,12 +299,13 @@ static void read_comm(pid_t pid, char *out, size_t outsz) {
     out[strcspn(out, "\n")] = '\0';
 }
 
-/* The device nodes a scan could probe; nothing else is worth keeping. A PTY
+/* The device nodes a scan could probe, and the QMI / MBIM control nodes
+ * (cdc-wdm) the QMI source opens; nothing else is worth keeping. A PTY
  * slave is left out: its holder is normally the program that made the pair,
  * the far end of a socat shim or a test's fake modem. */
 static int snap_wanted(const char *target) {
     static const char *const kPrefixes[] = {
-        "/dev/tty", "/dev/wwan", "/dev/mhi_", "/dev/rfcomm",
+        "/dev/tty", "/dev/wwan", "/dev/mhi_", "/dev/rfcomm", "/dev/cdc-wdm",
     };
     if (strcmp(target, "/dev/tty") == 0)
         return 0;
@@ -486,10 +487,14 @@ static int check_lockfile(const char *resolved, cell_busy_t *out) {
     return 0;
 }
 
-static int check_open(const char *resolved, cell_busy_t *out) {
+/* A process named `except` (NULL: none) does not count as a holder. */
+static int check_open_except(const char *resolved, const char *except,
+                             cell_busy_t *out) {
     snap_take();
     for (int i = 0; i < g_nsnap; i++) {
         if (strcmp(g_snap[i].path, resolved) != 0)
+            continue;
+        if (except != NULL && strcmp(g_snap[i].comm, except) == 0)
             continue;
         out->why = CELL_BUSY_OPEN;
         out->pid = g_snap[i].pid;
@@ -503,6 +508,8 @@ static int check_open(const char *resolved, cell_busy_t *out) {
         for (int i = 0; i < g_nbase; i++) {
             if (strcmp(g_base[i].path, resolved) != 0 || !pid_alive(g_base[i].pid))
                 continue;
+            if (except != NULL && strcmp(g_base[i].comm, except) == 0)
+                continue;
             char comm[16];
             read_comm(g_base[i].pid, comm, sizeof(comm));
             if (strcmp(comm, g_base[i].comm) != 0)
@@ -514,6 +521,10 @@ static int check_open(const char *resolved, cell_busy_t *out) {
         }
     }
     return 0;
+}
+
+static int check_open(const char *resolved, cell_busy_t *out) {
+    return check_open_except(resolved, NULL, out);
 }
 
 /* 1 if the udev database marks char device maj:min for ModemManager to leave
@@ -607,6 +618,34 @@ int cell_port_busy(const char *dev_path, int check_modemmanager, cell_busy_t *ou
     name = name ? name + 1 : resolved;
 
     return cell_port_busy_node(resolved, name, st.st_rdev, check_modemmanager, out);
+}
+
+int cell_node_held(const char *dev_path, const char *except_comm, cell_busy_t *out) {
+    cell_busy_t scratch;
+    if (out == NULL)
+        out = &scratch;
+    memset(out, 0, sizeof(*out));
+    if (dev_path == NULL || *dev_path != '/')
+        return 0;
+
+    char resolved[PATH_MAX];
+    struct stat st;
+    if (realpath(dev_path, resolved) == NULL || stat(resolved, &st) != 0 ||
+        !S_ISCHR(st.st_mode))
+        return 0;
+
+    return check_open_except(resolved, except_comm, out);
+}
+
+int cell_node_held_path(const char *resolved, const char *except_comm,
+                        cell_busy_t *out) {
+    cell_busy_t scratch;
+    if (out == NULL)
+        out = &scratch;
+    memset(out, 0, sizeof(*out));
+    if (resolved == NULL)
+        return 0;
+    return check_open_except(resolved, except_comm, out);
 }
 
 void cell_busy_label(const cell_busy_t *b, char *buf, size_t bufsz) {

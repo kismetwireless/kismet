@@ -108,6 +108,7 @@
 #include "datasource_wch_ble_analyzer_pro.h"
 #include "datasource_cell_at.h"
 #include "datasource_cell_diag.h"
+#include "datasource_cell_qmi.h"
 #include "datasource_lorapipe.h"
 
 #include "logtracker.h"
@@ -1043,6 +1044,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wch_ble_pro_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_at_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_diag_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_cell_qmi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_lorapipe_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_wired_builder()));
 
