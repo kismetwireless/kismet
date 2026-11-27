@@ -8904,19 +8904,22 @@ fi
 LIBS="$LIBS -lz"
 
 # Do we need -latomic
-{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for libatomic" >&5
-printf %s "checking for libatomic... " >&6; }
-OLIBS="$LIBS"
-LIBS="$LIBS -latomic"
+
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether -latomic is needed" >&5
+printf %s "checking whether -latomic is needed... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+    #include <atomic>
+    #include <cstdint>
 
 int
 main (void)
 {
 
-                 return 0;
+    std::atomic<uint64_t> a{0};
+    std::atomic<uint8_t> b{0};
+    return a.fetch_add(1) + b.fetch_add(1);
 
   ;
   return 0;
@@ -8924,21 +8927,61 @@ main (void)
 _ACEOF
 if ac_fn_cxx_try_link "$LINENO"
 then :
-  have_atomic=yes
+  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
 else case e in #(
-  e) have_atomic=no ;;
+  e)
+     OLIBS="$LIBS"
+     LIBS="$LIBS -latomic"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <atomic>
+    #include <cstdint>
+
+int
+main (void)
+{
+
+    std::atomic<uint64_t> a{0};
+    std::atomic<uint8_t> b{0};
+    return a.fetch_add(1) + b.fetch_add(1);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"
+then :
+  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf '%s\n' "yes" >&6; }
+else case e in #(
+  e)
+         # Capture-only builds may not link C++ at all
+         { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: not available" >&5
+printf '%s\n' "not available" >&6; }
+         LIBS="$OLIBS"
+         if test "$caponly"x = "no"x
+then :
+  { { printf '%s\n' "$as_me:${as_lineno-$LINENO}: error: in '$ac_pwd':" >&5
+printf '%s\n' "$as_me: error: in '$ac_pwd':" >&2;}
+as_fn_error $? "cannot link atomic operations, even with -latomic
+See 'config.log' for more details" "$LINENO" 5; }
+else case e in #(
+  e) { printf '%s\n' "$as_me:${as_lineno-$LINENO}: WARNING: cannot link atomic operations, even with -latomic" >&5
+printf '%s\n' "$as_me: WARNING: cannot link atomic operations, even with -latomic" >&2;} ;;
+esac
+fi
+         ;;
 esac
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
-if test "$have_atomic" = "yes"; then
-    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf '%s\n' "yes" >&6; }
-else
-    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf '%s\n' "no" >&6; }
-    LIBS="$OLIBS"
+     ;;
+esac
 fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
 
 # We need threads
 PTHREAD_CFLAGS="-pthread"

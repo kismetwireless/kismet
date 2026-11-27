@@ -596,28 +596,31 @@ AC_CHECK_LIB([z], [deflate],
 LIBS="$LIBS -lz"
 
 # Do we need -latomic
+m4_define([kis_atomic_program], [AC_LANG_PROGRAM([[
+    #include <atomic>
+    #include <cstdint>
+    ]], [[
+    std::atomic<uint64_t> a{0};
+    std::atomic<uint8_t> b{0};
+    return a.fetch_add(1) + b.fetch_add(1);
+    ]])])
 AC_MSG_CHECKING([whether -latomic is needed])
-AC_LINK_IFELSE(
-  [AC_LANG_PROGRAM([[#include <atomic>
-                     #include <cstdint>]],
-                   [[std::atomic<uint64_t> a{0};
-                     std::atomic<uint8_t> b{0};
-                     return a.fetch_add(1) + b.fetch_add(1);]])],
-  [AC_MSG_RESULT([no])],
-  [
-    save_LIBS="$LIBS"
-    LIBS="$LIBS -latomic"
-    AC_LINK_IFELSE(
-      [AC_LANG_PROGRAM([[#include <atomic>
-                         #include <cstdint>]],
-                       [[std::atomic<uint64_t> a{0};
-                         std::atomic<uint8_t> b{0};
-                         return a.fetch_add(1) + b.fetch_add(1);]])],
-      [AC_MSG_RESULT([yes])],
-      [AC_MSG_FAILURE([cannot link atomic operations even with -latomic])]
-    )
-  ]
-)
+AC_LINK_IFELSE([kis_atomic_program],
+    [AC_MSG_RESULT([no])],
+    [
+     OLIBS="$LIBS"
+     LIBS="$LIBS -latomic"
+     AC_LINK_IFELSE([kis_atomic_program],
+        [AC_MSG_RESULT([yes])],
+        [
+         # Capture-only builds may not link C++ at all
+         AC_MSG_RESULT([not available])
+         LIBS="$OLIBS"
+         AS_IF([test "$caponly"x = "no"x],
+             [AC_MSG_FAILURE([cannot link atomic operations, even with -latomic])],
+             [AC_MSG_WARN([cannot link atomic operations, even with -latomic])])
+        ])
+    ])
 
 # We need threads
 PTHREAD_CFLAGS="-pthread"
