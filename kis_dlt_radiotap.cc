@@ -31,9 +31,6 @@
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
-#if defined(SYS_OPENBSD)
-#define ieee80211_radiotap_presence ieee80211_radiotap_type
-#endif
 #endif // Open/Net
 
 #ifdef SYS_FREEBSD
@@ -54,6 +51,7 @@
 #include "kis_dlt_radiotap.h"
 
 #include "kis_datasource.h"
+#include "radiotap_walk.h"
 
 #include "tcpdump-extract.h"
 
@@ -78,9 +76,6 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 
     crc32_init_table_80211(crc32_table);
 }
-
-#define ALIGN_OFFSET(offset, width) \
-        ( (((offset) + ((width) - 1)) & (~((width) - 1))) - offset )
 
 #define IEEE80211_CHAN_700 0x0001
 #define IEEE80211_CHAN_800 0x0002
@@ -135,10 +130,9 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 #define    IEEE80211_IS_CHAN_T(_flags) \
     ((_flags & IEEE80211_CHAN_T) == IEEE80211_CHAN_T)
 
-// Radiotap TLVs (radiotap.org/fields/TLV), not in every system header.  The TLV bit in the
-// first presence word means a TLV list follows all the other fields and fills the rest of
-// the header.
-constexpr unsigned int radiotap_tlv_bit = 28;
+// Radiotap TLVs (radiotap.org/fields/TLV), not in every system header.  The TLV bit means a
+// TLV list follows all the other fields and fills the rest of the header
+// (kis_radiotap::walk finds where it starts).
 constexpr uint16_t radiotap_tlv_vendor_namespace = 30;
 constexpr uint16_t radiotap_tlv_s1g = 32;
 
@@ -190,12 +184,6 @@ static void radiotap_parse_tlvs(const u_char *p, const u_char *end,
     }
 }
 
-#define BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
-#define BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
-#define BITNO_8(x) (((x) >> 4) ? 4 + BITNO_4((x) >> 4) : BITNO_4((x)))
-#define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
-#define BITNO_2(x) (((x) & 2) ? 1 : 0)
-#define BIT(n)    (1 << n)
 int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     if (in_pack->has(pack_comp_decap))
         return 1;
@@ -221,291 +209,29 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
         return 1;
     }
 
-    // Field values as read; signed fields are converted where they're used
-    uint64_t val = 0;
-    uint16_t val2 = 0;
-
-    const struct ieee80211_radiotap_header *hdr;
-    u_int32_t present, next_present;
-    const u_int32_t *presentp, *last_presentp;
-    enum ieee80211_radiotap_presence bit;
-    int bit0;
-    const u_char *iter;
-    const u_char *iter_start;
-
     int fcs_cut = 0; // fcs at end of frame
     bool fcs_flag_invalid = false; // fcs known invalid
 
-    if (linkchunk->length() < sizeof(*hdr)) {
+    if (linkchunk->length() < kis_radiotap::header_min_len) {
         return 0;
     }
 
-    // Assign it to the callback data
-    hdr = reinterpret_cast<const struct ieee80211_radiotap_header *>(linkchunk->data());
-    const auto radiotap_len = EXTRACT_LE_16BITS(&hdr->it_len);
-    if (radiotap_len < sizeof(*hdr) || linkchunk->length() < radiotap_len) {
+    const auto rt = reinterpret_cast<const uint8_t *>(linkchunk->data());
+    const auto radiotap_len = EXTRACT_LE_16BITS(rt + 2);
+    if (radiotap_len < kis_radiotap::header_min_len || linkchunk->length() < radiotap_len) {
         return 0;
     }
-
-    auto bitmap_remaining = radiotap_len - sizeof(*hdr);
-    for (last_presentp = &hdr->it_present;
-         (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         bitmap_remaining >= sizeof(*last_presentp);
-         last_presentp++, bitmap_remaining -= sizeof(*last_presentp));
-
-    /* are there more bitmap extensions than bytes in header? */
-    if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
-        // snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap bitmap length");
-        // globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
-        return 0;
-    }
-
-    auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
-
-    decapchunk->dlt = KDLT_IEEE802_11;
-
-    iter = (const u_char*) (last_presentp + 1);
-    // Alignment in Radiotap must be done from the beginning of the header,
-    // not from the byte following the last bitmap.
-    iter_start = (const u_char*) (linkchunk->data());
-
-    const u_char *rt_end = iter_start + EXTRACT_LE_16BITS(&hdr->it_len);
-
-    // Aligns to a field and checks it fits in the header; a header claiming more
-    // fields than it holds stops parsing there
-    bool truncated = false;
-    auto field_fits = [&](unsigned int align, size_t size) {
-        iter += ALIGN_OFFSET((unsigned int) (iter - iter_start), align);
-
-        if (iter > rt_end || size > (size_t) (rt_end - iter)) {
-            truncated = true;
-            return false;
-        }
-
-        return true;
-    };
 
     bool assigned_signal = false;
-    bool tlv_present = false;
 
-    for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp && !truncated; presentp++, bit0 += 32) {
-        // printf("record num %d\n", record_num);
-        // printf("present %x\n", *presentp);
+    // Signal and antenna of one radiotap namespace (one per antenna on mac80211), applied
+    // once all its fields are seen
+    size_t record = 0;
+    int record_antenna = -1;
+    int record_signal = 0;
+    bool signal_present = false;
 
-        int record_antenna = -1;
-        int record_signal = 0;
-        bool signal_present = false;
-
-        for (present = EXTRACT_LE_32BITS(presentp); present; present = next_present) {
-            /* clear the least significant bit that is set */
-            next_present = present & (present - 1);
-
-            /* extract the least significant bit that is set */
-            bit = (enum ieee80211_radiotap_presence) ((bit0 + BITNO_32(present ^ next_present)) % 32);
-
-            // printf("record %d bit %d\n", record_num, bit);
-
-            if (bit0 == 0 && (unsigned int) bit == radiotap_tlv_bit) {
-                tlv_present = true;
-                continue;
-            }
-
-            switch (bit) {
-                case IEEE80211_RADIOTAP_FLAGS:
-                case IEEE80211_RADIOTAP_RATE:
-                case IEEE80211_RADIOTAP_ANTENNA:
-                case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-                case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-                    if (!field_fits(1, 1))
-                        break;
-                    val = *iter++;
-                    break;
-                case IEEE80211_RADIOTAP_DBM_TX_POWER:
-                    if (!field_fits(1, 1))
-                        break;
-                    val = *iter++;
-                    break;
-                case IEEE80211_RADIOTAP_CHANNEL:
-                    if (!field_fits(2, 4))
-                        break;
-
-                    val = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(uint16_t);
-                    val2 = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(uint16_t);
-                    break;
-                case IEEE80211_RADIOTAP_FHSS:
-                case IEEE80211_RADIOTAP_LOCK_QUALITY:
-                case IEEE80211_RADIOTAP_TX_ATTENUATION:
-                case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
-                    if (!field_fits(2, 2))
-                        break;
-
-                    val = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(uint16_t);
-                    break;
-                case IEEE80211_RADIOTAP_TSFT:
-                    if (!field_fits(8, 8))
-                        break;
-
-                    val = EXTRACT_LE_64BITS(iter);
-                    iter += sizeof(uint64_t);
-                    break;
-#if defined(SYS_OPENBSD)
-                case IEEE80211_RADIOTAP_FCS:
-                    /* Skipped, not decoded */
-                    if (!field_fits(4, 4))
-                        break;
-                    iter += sizeof(uint32_t);
-                    break;
-                case IEEE80211_RADIOTAP_RSSI:
-                    if (!field_fits(1, 2))
-                        break;
-                    val = EXTRACT_LE_8BITS(iter);
-                    iter += sizeof(uint8_t);
-                    val2 = EXTRACT_LE_8BITS(iter);
-                    iter += sizeof(uint8_t);
-                    break;
-#else
-                case IEEE80211_RADIOTAP_RX_FLAGS:
-                    if (!field_fits(2, 2))
-                        break;
-
-                    val = EXTRACT_LE_16BITS(iter);
-                    iter += sizeof(uint16_t);
-                    break;
-                case IEEE80211_RADIOTAP_VHT:
-                    /* TODO actually handle this data */
-                    if (!field_fits(2, 12))
-                        break;
-
-                    iter += 12;
-                    break;
-                case IEEE80211_RADIOTAP_MCS:
-                    /* TODO actually handle this data! */
-                    if (!field_fits(1, 3))
-                        break;
-                    iter += 3;
-                    break;
-
-                case IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE:
-                    /* Do nothing but acknowledge it */
-                    break;
-#endif
-                case IEEE80211_RADIOTAP_EXT:
-                    /* Do nothing but acknowledge it */
-                    break;
-
-                default:
-                    /* this bit indicates a field whose
-                     * size we do not know, so we cannot
-                     * proceed.
-                     */
-                    // printf("Unknown bit %d\n", bit);
-                    next_present = 0;
-                    continue;
-            }
-
-            if (truncated) {
-                next_present = 0;
-                continue;
-            }
-
-            // static int pnum = 0;
-            switch (bit) {
-                case IEEE80211_RADIOTAP_CHANNEL:
-                    in_pack->signal_info.data_ok = true;
-                    in_pack->signal_info.freq_khz = (double) static_cast<uint16_t>(val) * 1000;
-
-                    // handle broken drivers reporting s1g wrong
-                    if (IEEE80211_IS_CHAN_S1G(val2) && in_pack->signal_info.freq_khz > 1e6) {
-                        in_pack->signal_info.freq_khz /= 10;
-                    }
-
-                    if (IEEE80211_IS_CHAN_S1G(val2))
-                        in_pack->signal_info.carrier = carrier_80211ah;
-                    else if (IEEE80211_IS_CHAN_FHSS(val2))
-                        in_pack->signal_info.carrier = carrier_80211fhss;
-                    else if (IEEE80211_IS_CHAN_A(val2))
-                        in_pack->signal_info.carrier = carrier_80211a;
-                    else if (IEEE80211_IS_CHAN_BPLUS(val2))
-                        in_pack->signal_info.carrier = carrier_80211bplus;
-                    else if (IEEE80211_IS_CHAN_B(val2))
-                        in_pack->signal_info.carrier = carrier_80211b;
-                    else if (IEEE80211_IS_CHAN_PUREG(val2))
-                        in_pack->signal_info.carrier = carrier_80211g;
-                    else if (IEEE80211_IS_CHAN_G(val2))
-                        in_pack->signal_info.carrier = carrier_80211g;
-                    else if (IEEE80211_IS_CHAN_T(val2))
-                        in_pack->signal_info.carrier = carrier_80211a;/*XXX*/
-                    else
-                        in_pack->signal_info.carrier = carrier_unknown;
-                    if ((val2 & IEEE80211_CHAN_CCK) == IEEE80211_CHAN_CCK)
-                        in_pack->signal_info.encoding = encoding_cck;
-                    else if ((val2 & IEEE80211_CHAN_OFDM) == IEEE80211_CHAN_OFDM)
-                        in_pack->signal_info.encoding = encoding_ofdm;
-                    else if ((val2 & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
-                        in_pack->signal_info.encoding = encoding_dynamiccck;
-                    else if ((val2 & IEEE80211_CHAN_GFSK) == IEEE80211_CHAN_GFSK)
-                        in_pack->signal_info.encoding = encoding_gfsk;
-                    else
-                        in_pack->signal_info.encoding = encoding_unknown;
-                    break;
-                case IEEE80211_RADIOTAP_RATE:
-                    /* strip basic rate bit & convert to kismet units */
-                    in_pack->signal_info.data_ok = true;
-                    in_pack->signal_info.datarate = ((float) (static_cast<uint8_t>(val) &~ 0x80) / 2) * 10;
-                    break;
-                case IEEE80211_RADIOTAP_ANTENNA:
-                    record_antenna = static_cast<uint8_t>(val);
-                    break;
-                case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-                    record_signal = static_cast<int8_t>(static_cast<uint8_t>(val));
-                    signal_present = true;
-                    break;
-                case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-                    in_pack->signal_info.data_ok = true;
-                    in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
-                    in_pack->signal_info.noise_dbm = static_cast<int8_t>(static_cast<uint8_t>(val));
-                    break;
-                case IEEE80211_RADIOTAP_FLAGS:
-                    if (val & IEEE80211_RADIOTAP_F_FCS) {
-                        fcs_cut = 4;
-                    }
-
-                    if (val & IEEE80211_RADIOTAP_F_BADFCS) {
-                        fcs_flag_invalid = true;
-                    }
-
-                    break;
-#if defined(SYS_OPENBSD)
-                case IEEE80211_RADIOTAP_RSSI: {
-                    // OpenBSD relative RSSI (rssi, max_rssi), unitless; scaled to 0-255 and
-                    // reported as RSSI, not dBm.  A dBm antenna signal in the same header wins:
-                    // it's applied after this record's fields, or already was.  A scaled 0 is
-                    // dropped since the trackers read 0 as no signal.
-                    const auto rssi = static_cast<uint8_t>(val);
-                    const auto max_rssi = static_cast<uint8_t>(val2);
-
-                    if (assigned_signal || max_rssi == 0)
-                        break;
-
-                    const int scaled_rssi = int(std::min(rssi, max_rssi)) * 255 / max_rssi;
-
-                    if (scaled_rssi == 0)
-                        break;
-
-                    in_pack->signal_info.data_ok = true;
-                    in_pack->signal_info.signal_type = kis_l1_signal_type_rssi;
-                    in_pack->signal_info.signal_rssi = scaled_rssi;
-                    break;
-                }
-#endif
-                default:
-                    break;
-            }
-        }
-
+    auto finish_record = [&]() {
         if (signal_present) {
             // If we haven't assigned a signal, assign the first one we see as the
             // overall signal level
@@ -523,13 +249,133 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             }
         }
 
+        record_antenna = -1;
+        record_signal = 0;
+        signal_present = false;
+    };
+
+    auto apply_field = [&](unsigned int bit, size_t field_record, std::span<const uint8_t> field) {
+        if (field_record != record) {
+            finish_record();
+            record = field_record;
+        }
+
+        switch (bit) {
+            case kis_radiotap::bit_channel: {
+                const uint16_t freq_mhz = EXTRACT_LE_16BITS(field.data());
+                const uint16_t chan_flags = EXTRACT_LE_16BITS(field.data() + 2);
+
+                in_pack->signal_info.data_ok = true;
+                in_pack->signal_info.freq_khz = (double) freq_mhz * 1000;
+
+                // handle broken drivers reporting s1g wrong
+                if (IEEE80211_IS_CHAN_S1G(chan_flags) && in_pack->signal_info.freq_khz > 1e6) {
+                    in_pack->signal_info.freq_khz /= 10;
+                }
+
+                if (IEEE80211_IS_CHAN_S1G(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211ah;
+                else if (IEEE80211_IS_CHAN_FHSS(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211fhss;
+                else if (IEEE80211_IS_CHAN_A(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211a;
+                else if (IEEE80211_IS_CHAN_BPLUS(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211bplus;
+                else if (IEEE80211_IS_CHAN_B(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211b;
+                else if (IEEE80211_IS_CHAN_PUREG(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211g;
+                else if (IEEE80211_IS_CHAN_G(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211g;
+                else if (IEEE80211_IS_CHAN_T(chan_flags))
+                    in_pack->signal_info.carrier = carrier_80211a;/*XXX*/
+                else
+                    in_pack->signal_info.carrier = carrier_unknown;
+                if ((chan_flags & IEEE80211_CHAN_CCK) == IEEE80211_CHAN_CCK)
+                    in_pack->signal_info.encoding = encoding_cck;
+                else if ((chan_flags & IEEE80211_CHAN_OFDM) == IEEE80211_CHAN_OFDM)
+                    in_pack->signal_info.encoding = encoding_ofdm;
+                else if ((chan_flags & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
+                    in_pack->signal_info.encoding = encoding_dynamiccck;
+                else if ((chan_flags & IEEE80211_CHAN_GFSK) == IEEE80211_CHAN_GFSK)
+                    in_pack->signal_info.encoding = encoding_gfsk;
+                else
+                    in_pack->signal_info.encoding = encoding_unknown;
+                break;
+            }
+            case kis_radiotap::bit_rate:
+                /* strip basic rate bit & convert to kismet units */
+                in_pack->signal_info.data_ok = true;
+                in_pack->signal_info.datarate = ((float) (field[0] &~ 0x80) / 2) * 10;
+                break;
+            case kis_radiotap::bit_antenna:
+                record_antenna = field[0];
+                break;
+            case kis_radiotap::bit_dbm_antsignal:
+                record_signal = static_cast<int8_t>(field[0]);
+                signal_present = true;
+                break;
+            case kis_radiotap::bit_dbm_antnoise:
+                in_pack->signal_info.data_ok = true;
+                in_pack->signal_info.signal_type = kis_l1_signal_type_dbm;
+                in_pack->signal_info.noise_dbm = static_cast<int8_t>(field[0]);
+                break;
+            case kis_radiotap::bit_flags:
+                if (field[0] & IEEE80211_RADIOTAP_F_FCS) {
+                    fcs_cut = 4;
+                }
+
+                if (field[0] & IEEE80211_RADIOTAP_F_BADFCS) {
+                    fcs_flag_invalid = true;
+                }
+
+                break;
+#if defined(SYS_OPENBSD)
+            case kis_radiotap::bit_openbsd_rssi: {
+                // OpenBSD relative RSSI (rssi, max_rssi), unitless; scaled to 0-255 and
+                // reported as RSSI, not dBm.  A dBm antenna signal in the same header wins:
+                // it's applied after this record's fields, or already was.  A scaled 0 is
+                // dropped since the trackers read 0 as no signal.
+                const auto rssi = field[0];
+                const auto max_rssi = field[1];
+
+                if (assigned_signal || max_rssi == 0)
+                    break;
+
+                const int scaled_rssi = int(std::min(rssi, max_rssi)) * 255 / max_rssi;
+
+                if (scaled_rssi == 0)
+                    break;
+
+                in_pack->signal_info.data_ok = true;
+                in_pack->signal_info.signal_type = kis_l1_signal_type_rssi;
+                in_pack->signal_info.signal_rssi = scaled_rssi;
+                break;
+            }
+#endif
+            default:
+                break;
+        }
+    };
+
+    const auto walked = kis_radiotap::walk(std::span<const uint8_t>(rt, radiotap_len), apply_field);
+
+    // Presence words running past the header
+    if (walked.status == kis_radiotap::walk_status::malformed) {
+        return 0;
     }
 
-    if (tlv_present && !truncated && field_fits(4, 0)) {
-        radiotap_parse_tlvs(iter, rt_end, in_pack);
+    finish_record();
+
+    if (walked.tlv_offset) {
+        radiotap_parse_tlvs(rt + *walked.tlv_offset, rt + radiotap_len, in_pack);
     }
 
-    auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
+    auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
+
+    decapchunk->dlt = KDLT_IEEE802_11;
+
+    const auto offset = radiotap_len;
 
     // A frame captured shorter than it was (snap length, truncate_data) doesn't have its FCS,
     // whatever the flags say
@@ -592,12 +438,6 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
     return 1;
 }
-#undef BITNO_32
-#undef BITNO_16
-#undef BITNO_8
-#undef BITNO_4
-#undef BITNO_2
-#undef BIT
 
 // Taken from the BBN USRP 802.11 encoding code
 unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const char *data,
