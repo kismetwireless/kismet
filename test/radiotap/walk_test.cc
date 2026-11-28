@@ -411,6 +411,18 @@ void case_vendor_bad(const walker& w) {
     CHECK(got.status == walk_status::stopped);
 }
 
+// Bit 28 of a vendor namespace's presence word is the vendor's own bit, not the TLV bit, even
+// as the last word (the vendor data layout of older mac80211 drivers): no TLV list
+void case_tlv_bit_in_vendor_word(const walker& w) {
+    builder b({m(bit_flags) | m(bit_channel) | m(bit_vendor_namespace) | m(bit_ext), m(0) | m(bit_tlv)});
+    b.field(bit_flags, 0);
+    b.field(bit_channel, 0);
+    b.vendor(8);
+    // Bytes that would read as a TLV list if the bit were taken as one
+    b.buf.insert(b.buf.end(), {32, 0, 6, 0, 1, 2, 3, 4, 5, 6, 0, 0});
+    run_case("TLV bit in a vendor namespace word", w, b, walk_status::complete);
+}
+
 // Every field alone after a 1 byte field, so each needs its own padding, with a TLV list
 // after it to show the walk went past it
 void case_every_field(const walker& w) {
@@ -548,6 +560,7 @@ int main(int argc, char **argv) {
     case_vendor_namespace(w);
     if (!master) {
         case_vendor_bad(w);
+        case_tlv_bit_in_vendor_word(w);
         case_every_field(w);
         case_layouts();
         case_unknown_stops(w);

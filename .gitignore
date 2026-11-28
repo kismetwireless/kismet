@@ -51,6 +51,10 @@ test/entity/graph_fuzz
 test/entity/view_walk_test
 test/radiotap/walk_test
 test/radiotap/walk_fuzz
+test/dot11_rate/rate_test
+test/dot11_rate/decode_fuzz
+test/dot11_rate/rate_dump
+test/dot11_rate/hdr_fuzz
 test/wired_helper/wired_test
 test/wired_helper/priv_test
 test/wired_helper/ifup_test

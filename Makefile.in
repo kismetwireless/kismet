@@ -321,6 +321,17 @@ TEST_RADIOTAP_WALK_O = test/radiotap/walk_test.cc.o
 TEST_RADIOTAP_WALK_FUZZ = test/radiotap/walk_fuzz
 TEST_RADIOTAP_WALK_FUZZ_O = test/radiotap/walk_fuzz.cc.o
 
+# The 802.11 PHY rate decoder tests and the per-frame dump for the tshark cross-check; built
+# on request.  Without libFuzzer, decode_fuzz runs seeded random fields
+TEST_DOT11_RATE = test/dot11_rate/rate_test
+TEST_DOT11_RATE_O = test/dot11_rate/rate_test.cc.o dot11_phy_rate.cc.o
+TEST_DOT11_RATE_FUZZ = test/dot11_rate/decode_fuzz
+TEST_DOT11_RATE_FUZZ_O = test/dot11_rate/decode_fuzz.cc.o dot11_phy_rate.cc.o
+TEST_DOT11_RATE_DUMP = test/dot11_rate/rate_dump
+TEST_DOT11_RATE_DUMP_O = test/dot11_rate/rate_dump.cc.o dot11_phy_rate.cc.o
+TEST_DOT11_RATE_HDR_FUZZ = test/dot11_rate/hdr_fuzz
+TEST_DOT11_RATE_HDR_FUZZ_O = test/dot11_rate/hdr_fuzz.cc.o dot11_phy_rate.cc.o
+
 # The wired datasource status record tests; built on request
 TEST_WIRED_STATUS = test/wired_helper/status_test
 TEST_WIRED_STATUS_O = \
@@ -498,6 +509,7 @@ PSO	= util.cc.o censor.cc.o crc32.cc.o console_tui.cc.o macaddr.cc.o uuid.cc.o x
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o \
 	devicetracker.cc.o devicetracker_httpd.cc.o \
 	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o kis_dlt_btle_radio.cc.o \
+	dot11_phy_rate.cc.o \
 	kis_dlt_loratap.cc.o \
 	kaitaistream.cc.o \
 	$(PARSERS) \
@@ -618,6 +630,18 @@ $(TEST_RADIOTAP_WALK):	$(TEST_RADIOTAP_WALK_O)
 
 $(TEST_RADIOTAP_WALK_FUZZ):	$(TEST_RADIOTAP_WALK_FUZZ_O)
 	$(LD) $(LDFLAGS) -o $(TEST_RADIOTAP_WALK_FUZZ) $(TEST_RADIOTAP_WALK_FUZZ_O) $(CXXLIBS)
+
+$(TEST_DOT11_RATE):	$(TEST_DOT11_RATE_O)
+	$(LD) $(LDFLAGS) -o $(TEST_DOT11_RATE) $(TEST_DOT11_RATE_O) $(CXXLIBS)
+
+$(TEST_DOT11_RATE_FUZZ):	$(TEST_DOT11_RATE_FUZZ_O)
+	$(LD) $(LDFLAGS) -o $(TEST_DOT11_RATE_FUZZ) $(TEST_DOT11_RATE_FUZZ_O) $(CXXLIBS)
+
+$(TEST_DOT11_RATE_DUMP):	$(TEST_DOT11_RATE_DUMP_O)
+	$(LD) $(LDFLAGS) -o $(TEST_DOT11_RATE_DUMP) $(TEST_DOT11_RATE_DUMP_O) $(CXXLIBS)
+
+$(TEST_DOT11_RATE_HDR_FUZZ):	$(TEST_DOT11_RATE_HDR_FUZZ_O)
+	$(LD) $(LDFLAGS) -o $(TEST_DOT11_RATE_HDR_FUZZ) $(TEST_DOT11_RATE_HDR_FUZZ_O) $(CXXLIBS)
 
 $(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
 	$(LD) $(LDFLAGS) -o $(TEST_WIRED_STATUS) $(TEST_WIRED_STATUS_O) $(CXXLIBS)
@@ -1304,6 +1328,8 @@ clean: all-plugins-clean depclean
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY) $(TEST_FLOW_RATES) $(TEST_FLOW_RRD)
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
 	@-rm -f test/radiotap/*.o $(TEST_RADIOTAP_WALK) $(TEST_RADIOTAP_WALK_FUZZ)
+	@-rm -f test/dot11_rate/*.o $(TEST_DOT11_RATE) $(TEST_DOT11_RATE_FUZZ) $(TEST_DOT11_RATE_DUMP) \
+		$(TEST_DOT11_RATE_HDR_FUZZ)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
 	@-rm -f test/rtl433_json/*.o $(TEST_RTL433_JSON)

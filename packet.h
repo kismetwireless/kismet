@@ -35,6 +35,7 @@
 #include <map>
 
 #include "base64.h"
+#include "dot11_phy_rate.h"
 #include "eventbus.h"
 #include "globalregistry.h"
 #include "freq_bounds.h"
@@ -296,6 +297,7 @@ public:
         carrier = carrier_unknown;
         encoding = encoding_unknown;
         datarate = 0;
+        phy_rate = {};
         freq_khz = 0;
         accuracy = 0;
         channel.assign(1, '0');
@@ -331,6 +333,9 @@ public:
 
     // What data rate?
     double datarate;
+
+    // 802.11 MCS, streams, width and rate from the capture header
+    dot11_phy_rate phy_rate;
 
     // Checksum, if checksumming is enabled; Only of the non-header
     // data
