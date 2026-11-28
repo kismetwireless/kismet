@@ -22,6 +22,7 @@
 
 #include <errno.h>
 
+#include "dot11_phy_rate.h"
 #include "endian_magic.h"
 #include "kis_ppilogfile.h"
 #include "kis_ppi.h"
@@ -371,7 +372,10 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
         ppi_common->flags = kis_htole16(ppi_common->flags);
 
-        ppi_common->rate = kis_htole16(in_pack->signal_info.datarate / 5);
+        // Legacy rates only, and left unset past the 16 bit field (remote sources can report any
+        // datarate)
+        ppi_common->rate = kis_htole16(dot11_ppi_common_rate(in_pack->signal_info.datarate,
+                    in_pack->signal_info.phy_rate));
         // A frequency past the 16 bit MHz field is left unset rather than wrapped
         const double ppi_mhz = in_pack->signal_info.freq_khz / 1000;
         if (freq_bounds::khz_valid(in_pack->signal_info.freq_khz) && ppi_mhz <= UINT16_MAX)

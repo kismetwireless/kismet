@@ -27,6 +27,7 @@
 #include "packet.h"
 #include "packetchain.h"
 
+#include "dot11_phy_rate.h"
 #include "kis_datasource.h"
 
 #include "kis_dlt_ppi.h"
@@ -74,6 +75,7 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
     unsigned int tuint, ph_len;
     unsigned int ppi_dlt = -1;
     int applyfcs = 0, fcsknownbad = 0;
+    uint16_t common_rate = 0;
 
     if (linkchunk->length() < sizeof(ppi_packet_header)) {
         _MSG("pcap PPI converter got runt PPI frame", MSGFLAG_ERROR);
@@ -112,6 +114,10 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
             _MSG("pcap PPI converter got corrupt/invalid PPI field length", MSGFLAG_ERROR);
             return 0;
         }
+
+        // The whole field, header included, inside the PPI header
+        const std::span<const uint8_t> field(reinterpret_cast<const uint8_t *>(ppi_fh),
+                fh_len + sizeof(ppi_field_header));
 
         ppi_fh_offt += fh_len + sizeof(ppi_field_header);
 
@@ -165,6 +171,11 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
             in_pack->signal_info.noise_dbm = ppic->noise_dbm;
 
             in_pack->signal_info.datarate = kis_letoh16(ppic->rate) * 5;
+            common_rate = kis_letoh16(ppic->rate);
+
+            // An 802.11n field before or after this one has the better rate
+            if (in_pack->signal_info.phy_rate.mode == dot11_phy_mode::none)
+                in_pack->signal_info.phy_rate = dot11_rate_legacy(common_rate);
 
             in_pack->signal_info.freq_khz = kis_letoh16(ppic->freq_mhz) * 1000;
         } else if (fh_type == PPI_FIELD_11NMAC) {
@@ -172,32 +183,35 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
                 _MSG("pcap PPI converter got runt 802.11n MAC field", MSGFLAG_ERROR);
                 return 0;
             }
-            ppi_11n_mac *ppin = (ppi_11n_mac *) ppi_fh;
-
 			in_pack->signal_info.data_ok = true;
 
-            // Decode greenfield notation
-            tuint = kis_letoh16(ppin->flags);
-            if (tuint & PPI_11NMAC_HT2040)
-				in_pack->signal_info.carrier = carrier_80211n20;
-            else
+            // The flags are 32 bits; HT20/40 set means HT40
+            const auto flags = dot11_ppi_11n_flags(field);
+            if (flags && (*flags & ppi_11n_flag_ht40))
 				in_pack->signal_info.carrier = carrier_80211n40;
+            else
+				in_pack->signal_info.carrier = carrier_80211n20;
+
+            // An HT frame without its MCS: not the common field's legacy rate
+            if (in_pack->signal_info.phy_rate.mode == dot11_phy_mode::none ||
+                    in_pack->signal_info.phy_rate.mode == dot11_phy_mode::legacy)
+                in_pack->signal_info.phy_rate = dot11_rate_ppi_11n_mac(field);
 
         } else if (fh_type == PPI_FIELD_11NMACPHY) {
             if (fh_len < sizeof(ppi_11n_macphy) - sizeof(ppi_field_header)) {
                 _MSG("pcap PPI converter got runt 802.11n MAC/PHY field", MSGFLAG_ERROR);
                 return 0;
             }
-            ppi_11n_macphy *ppinp = (ppi_11n_macphy *) ppi_fh;
 
 			in_pack->signal_info.data_ok = true;
 
-            // Decode greenfield notation
-            tuint = kis_letoh16(ppinp->flags);
-            if (tuint & PPI_11NMAC_HT2040)
-                in_pack->signal_info.carrier = carrier_80211n20;
-            else
+            const auto flags = dot11_ppi_11n_flags(field);
+            if (flags && (*flags & ppi_11n_flag_ht40))
                 in_pack->signal_info.carrier = carrier_80211n40;
+            else
+                in_pack->signal_info.carrier = carrier_80211n20;
+
+            in_pack->signal_info.phy_rate = dot11_rate_ppi_11n(field);
         } else if (fh_type == PPI_FIELD_GPS) {
             // The outer PPI field header is not part of the inner GPS length.
             const unsigned int gps_header_len =
@@ -277,6 +291,10 @@ int kis_dlt_ppi::handle_packet(const std::shared_ptr<kis_packet>& in_pack) {
             }
         }
     }
+
+    // 802.11n frames from drivers that leave the common rate 0
+    if (common_rate == 0 && in_pack->signal_info.phy_rate.rate_kbps > 0)
+        in_pack->signal_info.datarate = dot11_datarate_of(in_pack->signal_info.phy_rate.rate_kbps);
 
     // A frame captured shorter than it was (snap length, truncation) doesn't have its FCS,
     // whatever the flags say; a known bad FCS still counts

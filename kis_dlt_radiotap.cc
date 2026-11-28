@@ -50,6 +50,7 @@
 
 #include "kis_dlt_radiotap.h"
 
+#include "dot11_phy_rate.h"
 #include "kis_datasource.h"
 #include "radiotap_walk.h"
 
@@ -142,7 +143,7 @@ constexpr uint8_t morse_oui[3] = { 0x0c, 0xbf, 0x74 };
 constexpr uint16_t morse_vendor_freq_khz = 35;
 
 static void radiotap_parse_tlvs(const u_char *p, const u_char *end,
-        const std::shared_ptr<kis_packet>& in_pack) {
+        const std::shared_ptr<kis_packet>& in_pack, dot11_radiotap_rate& rate) {
     while (end - p >= 4) {
         const uint16_t type = EXTRACT_LE_16BITS(p);
         const uint16_t len = EXTRACT_LE_16BITS(p + 2);
@@ -150,6 +151,8 @@ static void radiotap_parse_tlvs(const u_char *p, const u_char *end,
 
         if (len > end - p)
             return;
+
+        rate.tlv(type, std::span<const uint8_t>(p, len));
 
         switch (type) {
             case radiotap_tlv_s1g:
@@ -224,6 +227,8 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
 
     bool assigned_signal = false;
 
+    dot11_radiotap_rate phy_rate(kis_radiotap::openbsd_bits);
+
     // Signal and antenna of one radiotap namespace (one per antenna on mac80211), applied
     // once all its fields are seen
     size_t record = 0;
@@ -259,6 +264,8 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
             finish_record();
             record = field_record;
         }
+
+        phy_rate.field(bit, field);
 
         switch (bit) {
             case kis_radiotap::bit_channel: {
@@ -368,7 +375,15 @@ int kis_dlt_radiotap::handle_packet(const std::shared_ptr<kis_packet>& in_pack) 
     finish_record();
 
     if (walked.tlv_offset) {
-        radiotap_parse_tlvs(rt + *walked.tlv_offset, rt + radiotap_len, in_pack);
+        radiotap_parse_tlvs(rt + *walked.tlv_offset, rt + radiotap_len, in_pack, phy_rate);
+    }
+
+    in_pack->signal_info.phy_rate = phy_rate.finish();
+
+    // HT and later frames have no legacy rate field; their rate is bounded by max_phy_rate_kbps
+    if (!phy_rate.legacy_rate_seen() && in_pack->signal_info.phy_rate.rate_kbps > 0) {
+        in_pack->signal_info.data_ok = true;
+        in_pack->signal_info.datarate = dot11_datarate_of(in_pack->signal_info.phy_rate.rate_kbps);
     }
 
     auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
