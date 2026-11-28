@@ -49,6 +49,8 @@ test/ethernet/flow_rrd_test
 test/entity/graph_test
 test/entity/graph_fuzz
 test/entity/view_walk_test
+test/radiotap/walk_test
+test/radiotap/walk_fuzz
 test/wired_helper/wired_test
 test/wired_helper/priv_test
 test/wired_helper/ifup_test

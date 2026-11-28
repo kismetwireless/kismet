@@ -314,6 +314,13 @@ TEST_ENTITY_O = \
 TEST_VIEW_WALK = test/entity/view_walk_test
 TEST_VIEW_WALK_O = test/entity/view_walk_test.cc.o
 
+# The radiotap header walk tests; built on request
+TEST_RADIOTAP_WALK = test/radiotap/walk_test
+TEST_RADIOTAP_WALK_O = test/radiotap/walk_test.cc.o
+# Without libFuzzer, walk_fuzz runs seeded random headers
+TEST_RADIOTAP_WALK_FUZZ = test/radiotap/walk_fuzz
+TEST_RADIOTAP_WALK_FUZZ_O = test/radiotap/walk_fuzz.cc.o
+
 # The wired datasource status record tests; built on request
 TEST_WIRED_STATUS = test/wired_helper/status_test
 TEST_WIRED_STATUS_O = \
@@ -605,6 +612,12 @@ $(TEST_ENTITY):	$(TEST_ENTITY_O)
 
 $(TEST_VIEW_WALK):	$(TEST_VIEW_WALK_O)
 	$(LD) $(LDFLAGS) -o $(TEST_VIEW_WALK) $(TEST_VIEW_WALK_O) $(CXXLIBS)
+
+$(TEST_RADIOTAP_WALK):	$(TEST_RADIOTAP_WALK_O)
+	$(LD) $(LDFLAGS) -o $(TEST_RADIOTAP_WALK) $(TEST_RADIOTAP_WALK_O) $(CXXLIBS)
+
+$(TEST_RADIOTAP_WALK_FUZZ):	$(TEST_RADIOTAP_WALK_FUZZ_O)
+	$(LD) $(LDFLAGS) -o $(TEST_RADIOTAP_WALK_FUZZ) $(TEST_RADIOTAP_WALK_FUZZ_O) $(CXXLIBS)
 
 $(TEST_WIRED_STATUS):	$(TEST_WIRED_STATUS_O)
 	$(LD) $(LDFLAGS) -o $(TEST_WIRED_STATUS) $(TEST_WIRED_STATUS_O) $(CXXLIBS)
@@ -1290,6 +1303,7 @@ clean: all-plugins-clean depclean
 	@-rm -f test/httpd_abort/*.o $(TEST_HTTPD_ABORT)
 	@-rm -f test/ethernet/*.o $(TEST_ETHERNET) $(TEST_FLOW_HISTORY) $(TEST_FLOW_RATES) $(TEST_FLOW_RRD)
 	@-rm -f test/entity/*.o $(TEST_ENTITY) $(TEST_VIEW_WALK)
+	@-rm -f test/radiotap/*.o $(TEST_RADIOTAP_WALK) $(TEST_RADIOTAP_WALK_FUZZ)
 	@-rm -f test/wired_helper/*.o $(TEST_WIRED_STATUS)
 	@-rm -f test/gpsd_tpv/*.o $(TEST_GPSD_TPV)
 	@-rm -f test/rtl433_json/*.o $(TEST_RTL433_JSON)
